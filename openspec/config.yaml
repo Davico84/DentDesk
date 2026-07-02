@@ -57,7 +57,7 @@ rules:
   proposal:
     - Incluir una sección "Non-goals" (alcance excluido).
     - Referenciar docs/ en vez de duplicar guías perennes.
-  spec:
+  specs:
     - Cada "### Requirement:" debe tener al menos un "#### Scenario:" con WHEN/THEN.
     - Cubrir camino feliz + errores + casos borde en los scenarios.
   tasks:
