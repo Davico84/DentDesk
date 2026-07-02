@@ -1,0 +1,39 @@
+schema: spec-driven
+
+# Project context — shown to the AI when creating artifacts (proposals, specs, tasks).
+# Fuente de verdad ampliada: ./SETUP-OPENSPEC.md (raíz del repo).
+context: |
+  Proyecto: OdontoRisas — desarrollo dirigido por especificaciones (spec-driven) con OpenSpec.
+  Guía de setup y flujo completo: SETUP-OPENSPEC.md (raíz). docs/ = cómo construimos; openspec/ = qué hace el sistema + cambios.
+
+  Flujo de trabajo (Claude Code):
+    explore (pensar) → propose (change + proposal/design/tasks + spec delta) → apply (implementar) → sync/archive (fusionar delta en specs/).
+    Ruta rápida por defecto: propose → apply → archive.
+
+  Reglas OpenSpec (invariantes):
+    - specs/ refleja lo YA construido, NO un backlog. En greenfield cada capacidad nace como change y llega a specs/ al archivar.
+    - Una capacidad = solo spec.md (los Scenario ya son ejemplos + casos de prueba). No dividir en api.md/examples.md/test-cases.md.
+    - Formato spec: "## Requirements" → "### Requirement:" (SHALL) → "#### Scenario:" (WHEN/THEN/AND). Cada requirement ≥ 1 scenario.
+    - Spec delta del change: changes/<id>/specs/<cap>/spec.md con "## ADDED | MODIFIED | REMOVED Requirements".
+    - change-id en kebab-case liderado por verbo: add-..., update-..., remove-...
+    - design.md solo cuando hay una decisión técnica real que justificar.
+    - Tests derivados de los Scenario del spec (uno por WHEN/THEN); el "cómo" (niveles, MSW, Playwright) vive en docs/testing.md.
+
+  Convenciones de repo:
+    - Gestor de paquetes: pnpm. Conventional Commits. Pre-commit con lint-staged.
+    - Gate antes de codear: openspec validate <change> --strict + revisión humana del proposal/delta.
+    - CI en cada PR: openspec validate --strict + pnpm validate (typecheck + lint + test).
+    - Stack previsto (provisional, definir en docs/architecture.md): TypeScript + React; pruebas con Vitest + MSW + Playwright. No asumir como cerrado hasta documentarlo en docs/.
+
+  Estado actual: greenfield. Primera capacidad planificada: "authentication" (registro, login, persistencia de sesión, refresh de token, logout, protección de rutas por auth y rol). Ver el prompt de arranque en SETUP-OPENSPEC.md §4.
+
+# Per-artifact rules (opcional): reglas específicas por tipo de artefacto.
+rules:
+  proposal:
+    - Incluir una sección "Non-goals" (alcance excluido).
+    - Referenciar docs/ en vez de duplicar guías perennes.
+  spec:
+    - Cada "### Requirement:" debe tener al menos un "#### Scenario:" con WHEN/THEN.
+    - Cubrir camino feliz + errores + casos borde en los scenarios.
+  tasks:
+    - Dividir en pasos accionables; incluir la escritura de tests derivados de los Scenario.
