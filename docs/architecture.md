@@ -120,7 +120,8 @@ Detalle ampliado en las docs del template: `architecture.md`, `coding-standards.
 
 - [ ] `backend/`: proyecto Maven + Spring Boot (estructura de capas, perfiles, Flyway).
 - [ ] `frontend/`: Vite + React (portar tooling y docs del template FixRiver).
-- [ ] Portar `docs/` del template: testing, coding-standards, react-query, zustand, ui-patterns.
+- [x] `docs/testing.md` — estrategia de pruebas (puente OpenSpec + front MSW + back Testcontainers).
+- [ ] Portar el resto de `docs/` del template: coding-standards, react-query, zustand, ui-patterns.
 - [ ] `docs/adr/` — registrar esta decisión de stack como ADR-0001.
 - [ ] `.github/workflows/ci.yml`.
 - [ ] `CLAUDE.md` raíz.

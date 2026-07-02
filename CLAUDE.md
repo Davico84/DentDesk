@@ -8,6 +8,7 @@ Monorepo plano: `backend/` (Java/Spring) + `frontend/` (React/Vite), con `opensp
 - **Qué hace el sistema** (capacidades + cambios): `openspec/` (y `openspec/config.yaml` = contexto para la IA).
 - **Cómo construimos** (estándares perennes): `docs/`
   - `docs/architecture.md` — stack cerrado + arquitectura back/front.
+  - `docs/testing.md` — estrategia de pruebas + puente Scenario→test.
   - `docs/commits.md` — estándar de commits (Conventional Commits en español).
 
 ## Reglas OpenSpec (no negociables)
