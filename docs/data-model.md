@@ -38,9 +38,18 @@ Cuenta de acceso al sistema. Un `User` puede o no estar vinculado a un `Patient`
 - Refresh/JWT: el token no se modela como entidad salvo que se decida persistir refresh tokens (a definir en `authentication`).
 
 ### `patients` → **Patient**
-Ficha clínica-administrativa del paciente.
-- Datos personales (nombre, documento), contacto (teléfono, email, dirección)
-- Vínculo opcional a `User` (si el paciente tiene acceso)
+Ficha clínica-administrativa. Se atienden **menores y adultos**.
+- Datos personales: `fullName`, `document`, `birthDate` (permite derivar edad e `isMinor`), `sex` (opcional)
+- Contacto: `phone`, `email`, `address`
+- **Responsable (para menores)** — campos en el propio Patient: `guardianName`, `guardianRelationship` (madre/padre/tutor), `guardianDocument`, `guardianPhone`. Requeridos cuando el paciente es menor de edad.
+- **Contacto de emergencia**: `emergencyContactName`, `emergencyContactPhone`, `emergencyContactRelationship`
+- **Datos clínicos (anamnesis)** — condicionan el tratamiento: `allergies` (lista; anestesia, penicilina, látex…), `medicalHistory`/`conditions` (diabetes, hipertensión, embarazo, anticoagulantes, cardiopatías…), `currentMedication` (lista)
+- Vínculo opcional a `User` (si el paciente tiene acceso al sistema)
+
+**Reglas de negocio que impactan el tratamiento** (a cubrir en los `#### Scenario:` de `patients`/`treatments`):
+- Paciente **menor de edad** ⇒ requiere responsable y **consentimiento del tutor** (ver `Consent`).
+- **Alergias / antecedentes / medicación** ⇒ deben alertarse/mostrarse antes de registrar un tratamiento.
+- La **dentición** del odontograma depende de la edad (ver `treatments`).
 
 ### `appointments` → **Appointment**
 Cita agendada.
@@ -66,6 +75,15 @@ El corazón clínico del producto. Notación **FDI/ISO 3950**, registro **por su
 
 **DentalNote** (notas clínicas)
 - `patient` (FK), `tooth`/`fdi` (opcional: nota sobre una pieza), `treatment` (FK opcional), `text`, `author` (FK → User), `createdAt`
+
+**Consent** (consentimiento informado, por tratamiento)
+- `treatment` (FK), `type`, `grantedBy` (`PATIENT` | `GUARDIAN`), `signedAt`, `document` (opcional: archivo/referencia firmada)
+- En **menores**, `grantedBy = GUARDIAN` (usa los datos de responsable del `Patient`).
+
+> **Dentición por edad.** La dentición visible en el odontograma se deriva de `Patient.birthDate`:
+> - Menores: **temporal** (51–85) o **mixta** (temporal + permanente en erupción).
+> - Adultos: **permanente** (11–48).
+> `ToothCondition` es por `fdi`, así que la dentición mixta se soporta de forma natural. Se puede exponer un `dentitionStage` (`TEMPORARY`/`MIXED`/`PERMANENT`) derivado de la edad y ajustable manualmente.
 
 ### `images` → **Image**
 Imagen clínica (radiografía/foto) almacenada en S3.
@@ -124,6 +142,7 @@ erDiagram
     Treatment ||--o{ ToothCondition : "genera"
     Patient ||--o{ DentalNote : "tiene"
     Treatment ||--o{ DentalNote : "documenta"
+    Treatment ||--o| Consent : "requiere"
     Patient ||--o{ Invoice : "se le factura"
     Invoice ||--|{ InvoiceLine : "contiene"
     InvoiceLine }o--o| Treatment : "cobra"
@@ -139,8 +158,17 @@ erDiagram
         Long id PK
         String fullName
         String document
+        Date birthDate
         String phone
         String email
+        String guardianName
+        String guardianRelationship
+        String guardianPhone
+        String emergencyContactName
+        String emergencyContactPhone
+        String allergies
+        String medicalHistory
+        String currentMedication
         Long userId FK
     }
     Appointment {
@@ -183,6 +211,14 @@ erDiagram
         Long treatmentId FK
         String text
         Long authorId FK
+    }
+    Consent {
+        Long id PK
+        Long treatmentId FK
+        String type
+        String grantedBy
+        DateTime signedAt
+        String document
     }
     Image {
         Long id PK
