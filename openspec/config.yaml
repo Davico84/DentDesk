@@ -38,7 +38,7 @@ context: |
         screens orquestan; modules encapsulan lógica; core sin dependencias a otros módulos.
 
   Convenciones de repo:
-    - Gestor front: pnpm. Backend: Maven. Conventional Commits. Pre-commit con lint-staged (front).
+    - Gestor front: pnpm. Backend: Maven. Commits: Conventional Commits en español (ver docs/commits.md). Pre-commit con lint-staged (front).
     - Gate antes de codear: openspec validate <change> --strict + revisión humana del proposal/delta.
     - CI en cada PR: openspec validate --strict + validate de backend (mvn verify) y frontend (pnpm validate).
     - Definición de "listo": spec archivado + tests verdes (front y back) + CI en verde.
