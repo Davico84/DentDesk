@@ -42,7 +42,7 @@ OdontoRisas/
 | Almacenamiento | AWS S3 (subida de imágenes) |
 | IA | Spring AI (chat memory JDBC) — para el bot |
 | Utilidades | Lombok · mail vía webhook |
-| Perfiles | dev / qa / pro (+ dev-secrets) |
+| Configuración | Única (sin perfiles); todos los valores externalizados como secretos (env vars + `secrets.properties` local ignorado) |
 | Testing | Test slices: H2, JPA-test, security-test, webmvc-test, websocket-test, flyway-test |
 
 ### Arquitectura por capas (paquetes reales)

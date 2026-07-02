@@ -1,0 +1,23 @@
+# PostgreSQL para desarrollo local.
+# Ejecutar con la misma fuente de secretos que la app:
+#   docker compose --env-file secrets.properties up -d
+services:
+  db:
+    image: postgres:16
+    container_name: odontorisas-db
+    environment:
+      POSTGRES_DB: ${DB_NAME}
+      POSTGRES_USER: ${DB_USERNAME}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USERNAME} -d ${DB_NAME}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  pgdata:

@@ -1,0 +1,40 @@
+# Configuración única de OdontoRisas (sin perfiles).
+# TODOS los valores configurables se externalizan como secretos:
+#  - en local se cargan de ./secrets.properties (ignorado por git)
+#  - en despliegue se inyectan como variables de entorno
+# Solo se versiona secrets.properties.example. No poner valores sensibles aquí.
+spring:
+  application:
+    name: odontorisas
+  config:
+    import: "optional:file:./secrets.properties"
+
+  datasource:
+    url: ${DB_URL}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
+
+  jpa:
+    hibernate:
+      ddl-auto: none        # el esquema lo gestiona Flyway
+    open-in-view: false
+
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+
+# Punto de extensión para secretos de la aplicación (los consumirán capacidades futuras).
+app:
+  security:
+    jwt:
+      secret: ${JWT_SECRET}
+      expiration-minutes: ${JWT_EXPIRATION_MINUTES}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      show-details: always

@@ -1,17 +1,18 @@
 ## ADDED Requirements
 
 ### Requirement: Backend base ejecutable
-El backend SHALL arrancar como una aplicación Spring Boot con el perfil `dev` activo y exponer un endpoint de salud que confirme que el servicio está operativo, sin depender de ninguna capacidad de negocio.
+El backend SHALL arrancar como una aplicación Spring Boot y exponer un endpoint de salud que confirme que el servicio está operativo, sin depender de ninguna capacidad de negocio.
 
-#### Scenario: Arranque en perfil dev
-- **WHEN** se ejecuta `./mvnw spring-boot:run` con el perfil `dev` activo
+#### Scenario: Arranque de la aplicación
+- **WHEN** se ejecuta `./mvnw spring-boot:run` con la configuración provista
 - **THEN** la aplicación inicia sin errores
 - **AND** una petición GET al endpoint de salud responde `200 OK`
 
-#### Scenario: Perfiles de configuración disponibles
+#### Scenario: Configuración única y externalizada
 - **WHEN** se inspecciona la configuración del backend
-- **THEN** existen perfiles `dev`, `qa` y `pro`
-- **AND** los secretos locales viven en `dev-secrets` fuera del control de versiones
+- **THEN** existe una **única** configuración (sin perfiles `dev`/`qa`/`pro`)
+- **AND** todos los valores configurables (datasource, credenciales, secretos) se externalizan como variables de entorno/secretos
+- **AND** ningún valor sensible está versionado (solo se versiona un archivo de ejemplo)
 
 ### Requirement: Migraciones de base de datos gestionadas por Flyway
 El backend SHALL gestionar el esquema de base de datos exclusivamente con Flyway, con `spring.jpa.hibernate.ddl-auto=none`.

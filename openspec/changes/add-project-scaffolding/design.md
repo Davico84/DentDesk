@@ -26,7 +26,7 @@ Repo greenfield con stack cerrado (ADR-0001, `docs/architecture.md`) y sin códi
   - *Alternativa descartada*: `ddl-auto=update` → deriva de esquema no versionada.
 - **Health endpoint**: Spring Boot Actuator (`/actuator/health`) en lugar de un controller propio.
   - *Por qué*: estándar, sin escribir código de presentación de negocio.
-- **Perfiles `dev/qa/pro` + `dev-secrets`**: `application.yml` base + `application-{perfil}.yml`; secretos locales en archivo ignorado por git (`.env`/`application-dev-secrets.yml`), con `*.example` versionado.
+- **Configuración única, todo externalizado como secretos** (decisión 2026-07-02): **sin** perfiles `dev/qa/pro`. Un solo `application.yml` con placeholders `${VAR}` para todos los valores configurables (datasource, credenciales, JWT, etc.). Los valores se inyectan por variables de entorno; en local se cargan de un `secrets.properties` (ignorado por git) vía `spring.config.import=optional:file:./secrets.properties`, con `secrets.properties.example` versionado. Ningún valor sensible en el repo.
 - **Frontend portado del template FixRiver** (no copiado 1:1): se toman `package.json`, configs de Vite/Vitest/ESLint/Tailwind, `src/test/*` (setup, MSW, utils) y la estructura de carpetas; se deja una `home` mínima. `.git` propio del repo (no monorepo del template) ⇒ **husky estándar** en vez del `core.hooksPath` del template.
 - **commitlint compartido en la raíz**: hook `commit-msg` a nivel repo (aplica a back y front). Config `@commitlint/config-conventional`. El pre-commit `lint-staged` del front se mantiene acotado a `frontend/`.
   - *Decisión*: husky en la raíz gestiona `commit-msg` (global) y `pre-commit` (delegando a lint-staged del front).

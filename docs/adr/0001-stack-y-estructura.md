@@ -25,7 +25,7 @@ OdontoRisas/  →  openspec/ · docs/ · backend/ · frontend/ · .github/workfl
 Java 25 · Maven · Spring Boot 4.0.6 · Spring Web MVC + springdoc-openapi · Spring WebSocket (STOMP) ·
 Spring Data JPA (Hibernate) + PostgreSQL · Flyway (`ddl-auto=none`) · Spring Security + JWT (`com.auth0:java-jwt`) ·
 Bean Validation · Spring Cache + Caffeine · AWS S3 · Spring AI (chat memory JDBC) · Lombok.
-Perfiles dev/qa/pro. Test slices (H2, JPA, security, webmvc, websocket, flyway).
+Configuración única sin perfiles; todos los valores externalizados como secretos (actualizado 2026-07-02, ver `add-project-scaffolding`). Test slices + Testcontainers.
 Arquitectura por capas: `presentation (controller·dto) → infra (config·security·service·utils/mappers) → persistence (entity·repository·specification)`.
 
 ### Frontend

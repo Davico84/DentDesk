@@ -166,11 +166,12 @@ public record CreateAppointmentRequest(
 
 ---
 
-## 12. Configuración y perfiles
+## 12. Configuración
 
-- `application.yml` base + `application-{dev,qa,pro}.yml`. Secretos locales en `application-dev-secrets.yml` (ignorado por git).
+- **Configuración única** (sin perfiles `dev/qa/pro`). Un solo `application.yml` con placeholders `${VAR}` para **todos** los valores configurables.
+- **Todo externalizado como secreto**: los valores se inyectan por variables de entorno; en local se cargan de `secrets.properties` (ignorado por git) vía `spring.config.import=optional:file:./secrets.properties`. Se versiona solo `secrets.properties.example`.
+- **Nunca** hardcodear ni versionar URLs, credenciales ni parámetros de entorno sensibles.
 - Tipar la configuración con `@ConfigurationProperties` (evitar `@Value` disperso).
-- No hardcodear URLs, credenciales ni parámetros de entorno.
 
 ---
 
