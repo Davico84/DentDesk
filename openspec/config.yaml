@@ -1,31 +1,56 @@
 schema: spec-driven
 
 # Project context — shown to the AI when creating artifacts (proposals, specs, tasks).
-# Fuente de verdad ampliada: ./SETUP-OPENSPEC.md (raíz del repo).
+# Fuente de verdad ampliada: SETUP-OPENSPEC.md (flujo) y docs/architecture.md (stack).
 context: |
   Proyecto: OdontoRisas — desarrollo dirigido por especificaciones (spec-driven) con OpenSpec.
-  Guía de setup y flujo completo: SETUP-OPENSPEC.md (raíz). docs/ = cómo construimos; openspec/ = qué hace el sistema + cambios.
+  Guías: SETUP-OPENSPEC.md (setup/flujo) · docs/ = cómo construimos · openspec/ = qué hace + cambios.
 
-  Flujo de trabajo (Claude Code):
-    explore (pensar) → propose (change + proposal/design/tasks + spec delta) → apply (implementar) → sync/archive (fusionar delta en specs/).
-    Ruta rápida por defecto: propose → apply → archive.
+  Estructura del repo (monorepo plano, siguiendo el demo lidr-specboot-main):
+    OdontoRisas/
+      openspec/            # specs + changes (qué hace el sistema)
+      docs/                # estándares perennes (architecture, backend, frontend, testing, adr/)
+      backend/             # Java 25 · Maven · Spring Boot (app principal)
+      frontend/            # React 19 · Vite · TypeScript (SPA)
+      .github/workflows/   # CI
+
+  STACK CERRADO (2026-07-02) — ver detalle y versiones en docs/architecture.md.
+
+  Backend:
+    - Java 25 · Maven · Spring Boot 4.0.6.
+    - API REST: Spring Web MVC + springdoc-openapi (Swagger por perfil).
+    - Realtime: Spring WebSocket (STOMP) — encaja con @stomp/stompjs + sockjs del front.
+    - Persistencia: Spring Data JPA (Hibernate) + PostgreSQL. Migraciones: Flyway (db/migration), ddl-auto=none.
+    - Seguridad: Spring Security + JWT (com.auth0:java-jwt). Validación: Bean Validation.
+    - Caché: Spring Cache + Caffeine. Almacenamiento: AWS S3. IA: Spring AI (chat memory JDBC). Utils: Lombok, mail vía webhook.
+    - Perfiles: dev / qa / pro (+ dev-secrets).
+    - Testing: Spring Boot test slices (H2, JPA-test, security-test, webmvc-test, websocket-test, flyway-test).
+    - Arquitectura por capas (paquetes reales):
+        presentation (controller · dto) → infra (config · security · service por dominio · utils/mappers)
+        → persistence (entity · repository · specification para queries dinámicas).
+
+  Frontend (base: template FixRiver — modules/frontend/proyecto-base):
+    - React 19 · TypeScript · Vite. UI: Tailwind + shadcn/Radix + @base-ui/react; lucide-react; framer-motion; sonner; recharts.
+    - Datos servidor: @tanstack/react-query + axios. Estado cliente: Zustand. Formularios: react-hook-form + zod (@hookform/resolvers).
+    - Routing: react-router-dom v7 con RouteGuard central (roles ADMIN/USER/ALL). Realtime: @stomp/stompjs + sockjs-client.
+    - Testing: Vitest + React Testing Library + MSW; e2e con Playwright. Lint: ESLint + typescript-eslint. Hooks: lint-staged.
+    - Arquitectura orientada a pantallas: src/{layouts,screens,modules(core/auth/...),store,routes,styles}.
+        screens orquestan; modules encapsulan lógica; core sin dependencias a otros módulos.
+
+  Convenciones de repo:
+    - Gestor front: pnpm. Backend: Maven. Conventional Commits. Pre-commit con lint-staged (front).
+    - Gate antes de codear: openspec validate <change> --strict + revisión humana del proposal/delta.
+    - CI en cada PR: openspec validate --strict + validate de backend (mvn verify) y frontend (pnpm validate).
+    - Definición de "listo": spec archivado + tests verdes (front y back) + CI en verde.
 
   Reglas OpenSpec (invariantes):
     - specs/ refleja lo YA construido, NO un backlog. En greenfield cada capacidad nace como change y llega a specs/ al archivar.
-    - Una capacidad = solo spec.md (los Scenario ya son ejemplos + casos de prueba). No dividir en api.md/examples.md/test-cases.md.
-    - Formato spec: "## Requirements" → "### Requirement:" (SHALL) → "#### Scenario:" (WHEN/THEN/AND). Cada requirement ≥ 1 scenario.
+    - Una capacidad = solo spec.md. Formato: "## Requirements" → "### Requirement:" (SHALL) → "#### Scenario:" (WHEN/THEN/AND). Cada requirement ≥ 1 scenario.
     - Spec delta del change: changes/<id>/specs/<cap>/spec.md con "## ADDED | MODIFIED | REMOVED Requirements".
-    - change-id en kebab-case liderado por verbo: add-..., update-..., remove-...
-    - design.md solo cuando hay una decisión técnica real que justificar.
-    - Tests derivados de los Scenario del spec (uno por WHEN/THEN); el "cómo" (niveles, MSW, Playwright) vive en docs/testing.md.
+    - change-id en kebab-case liderado por verbo: add-..., update-..., remove-... · design.md solo si hay decisión técnica real.
+    - Tests derivados de los Scenario del spec (uno por WHEN/THEN).
 
-  Convenciones de repo:
-    - Gestor de paquetes: pnpm. Conventional Commits. Pre-commit con lint-staged.
-    - Gate antes de codear: openspec validate <change> --strict + revisión humana del proposal/delta.
-    - CI en cada PR: openspec validate --strict + pnpm validate (typecheck + lint + test).
-    - Stack previsto (provisional, definir en docs/architecture.md): TypeScript + React; pruebas con Vitest + MSW + Playwright. No asumir como cerrado hasta documentarlo en docs/.
-
-  Estado actual: greenfield. Primera capacidad planificada: "authentication" (registro, login, persistencia de sesión, refresh de token, logout, protección de rutas por auth y rol). Ver el prompt de arranque en SETUP-OPENSPEC.md §4.
+  Estado: greenfield. Primera capacidad planificada: "authentication" (registro, login, persistencia de sesión, refresh de token, logout, protección de rutas por auth y rol). Prompt de arranque en SETUP-OPENSPEC.md §4.
 
 # Per-artifact rules (opcional): reglas específicas por tipo de artefacto.
 rules:
@@ -36,4 +61,5 @@ rules:
     - Cada "### Requirement:" debe tener al menos un "#### Scenario:" con WHEN/THEN.
     - Cubrir camino feliz + errores + casos borde en los scenarios.
   tasks:
-    - Dividir en pasos accionables; incluir la escritura de tests derivados de los Scenario.
+    - Separar tareas de backend y frontend cuando la capacidad toque ambos.
+    - "Incluir la escritura de tests derivados de los Scenario (back = test slices; front = Vitest/MSW, e2e Playwright si aplica)."
