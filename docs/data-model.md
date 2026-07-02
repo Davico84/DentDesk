@@ -46,9 +46,26 @@ Ficha clínica-administrativa del paciente.
 Cita agendada.
 - `patient` (FK), `dentist` (FK → User con rol clínico), `scheduledAt`, `status` (agendada/atendida/cancelada), `notes`
 
-### `treatments` → **Treatment** (+ historia clínica / odontograma)
-Tratamiento realizado o planificado.
-- `patient` (FK), `appointment` (FK, opcional), descripción, estado, datos de odontograma/historia (estructura a definir en la capacidad)
+### `treatments` → **Odontograma + Treatment + DentalNote** (núcleo clínico)
+
+El corazón clínico del producto. Notación **FDI/ISO 3950**, registro **por superficie**, denticiones **permanente y temporal**.
+
+**Tooth** (referencia; catálogo de piezas, no por paciente)
+- `fdi` (código FDI: permanente 11–48; temporal 51–85), `dentition` (`PERMANENT` | `TEMPORARY`), `quadrant` (1–8), `position` (1–8), `arch` (superior/inferior)
+- Superficies aplicables (según anterior/posterior)
+
+**ToothCondition** (el estado del odontograma, por paciente y superficie)
+- `patient` (FK), `fdi` (pieza), `surface` (`M` mesial · `D` distal · `V` vestibular · `P`/`L` palatino/lingual · `O`/`I` oclusal/incisal; **null** = condición de pieza completa, p. ej. ausente/implante)
+- `type` (caries, obturación, corona, endodoncia, extracción/ausente, fractura, sellante, implante, …)
+- `status` (`EXISTING` hallazgo · `PLANNED` planificado · `DONE` realizado)
+- `treatment` (FK opcional → Treatment que lo generó), `notedAt`
+
+**Treatment** (procedimiento realizado o planificado)
+- `patient` (FK), `appointment` (FK, opcional), `dentist` (FK → User), `fdi` (opcional: pieza afectada), `surfaces` (superficies afectadas; opcional), `procedureType`, `status` (`PLANNED`/`IN_PROGRESS`/`DONE`), `date`, `cost`
+- Al completarse, actualiza las `ToothCondition` correspondientes.
+
+**DentalNote** (notas clínicas)
+- `patient` (FK), `tooth`/`fdi` (opcional: nota sobre una pieza), `treatment` (FK opcional), `text`, `author` (FK → User), `createdAt`
 
 ### `images` → **Image**
 Imagen clínica (radiografía/foto) almacenada en S3.
@@ -56,7 +73,8 @@ Imagen clínica (radiografía/foto) almacenada en S3.
 
 ### `billing` → **Invoice** (+ líneas)
 Cobro/factura asociada a tratamientos/citas.
-- `patient` (FK), líneas (concepto, cantidad, precio), `total`, `status` (pendiente/pagada)
+- `patient` (FK), líneas (`InvoiceLine`: `concept`, `quantity`, `price`, `treatment` FK **opcional** → Treatment), `total`, `status` (pendiente/pagada)
+- El vínculo `InvoiceLine → Treatment` permite mostrar los **pagos por tratamiento** dentro de la ficha dental.
 
 ### `inventory` → **InventoryItem**
 Insumo/stock de la clínica.
@@ -64,6 +82,27 @@ Insumo/stock de la clínica.
 
 ### `dashboard`
 No introduce entidades propias: **agrega/consulta** las anteriores (citas, ingresos, ocupación).
+
+---
+
+## Vista compuesta: Ficha Dental
+
+La **ficha dental** es una **vista/pantalla** del frontend (no una entidad nueva) que centraliza la atención del paciente. Agrega datos de varias capacidades:
+
+| Bloque de la ficha | Fuente (entidades) | Capacidad |
+|---|---|---|
+| Cabecera del paciente | `Patient` | `patients` |
+| **Odontograma** interactivo (FDI, por superficie, permanente+temporal) | `Tooth` + `ToothCondition` | `treatments` |
+| Registro de **tratamientos** (por pieza/superficie) | `Treatment` | `treatments` |
+| **Notas dentales** | `DentalNote` | `treatments` |
+| **Pagos** del paciente / por tratamiento | `Invoice` + `InvoiceLine → Treatment` | `billing` |
+| Imágenes (radiografías/fotos) | `Image` | `images` |
+| Historial de citas | `Appointment` | `appointments` |
+
+Implicaciones:
+- Es **transversal**: se construye de forma incremental a medida que aterrizan sus capacidades. El odontograma interactivo pertenece a `treatments`; los pagos a `billing`; etc.
+- La pantalla vivirá en el frontend (probablemente `frontend/src/screens/patients/` o un módulo `treatments`), orquestando componentes de esos módulos (ver `docs/architecture.md`).
+- Al specificar `treatments`, sus `#### Scenario:` deben cubrir el odontograma (marcar hallazgo por superficie, registrar/planificar tratamiento en una pieza, agregar nota) — porque de ahí salen los tests.
 
 ---
 
@@ -80,8 +119,14 @@ erDiagram
     Appointment ||--o| Treatment : "origina"
     Patient ||--o{ Image : "tiene"
     Treatment ||--o{ Image : "documenta"
+    Patient ||--o{ ToothCondition : "odontograma"
+    Tooth ||--o{ ToothCondition : "estado en"
+    Treatment ||--o{ ToothCondition : "genera"
+    Patient ||--o{ DentalNote : "tiene"
+    Treatment ||--o{ DentalNote : "documenta"
     Patient ||--o{ Invoice : "se le factura"
     Invoice ||--|{ InvoiceLine : "contiene"
+    InvoiceLine }o--o| Treatment : "cobra"
 
     User {
         Long id PK
@@ -109,8 +154,35 @@ erDiagram
         Long id PK
         Long patientId FK
         Long appointmentId FK
-        String description
+        Long dentistId FK
+        String fdi
+        String surfaces
+        String procedureType
         String status
+        Decimal cost
+    }
+    Tooth {
+        String fdi PK
+        String dentition
+        Int quadrant
+        Int position
+    }
+    ToothCondition {
+        Long id PK
+        Long patientId FK
+        String fdi FK
+        String surface
+        String type
+        String status
+        Long treatmentId FK
+    }
+    DentalNote {
+        Long id PK
+        Long patientId FK
+        String fdi
+        Long treatmentId FK
+        String text
+        Long authorId FK
     }
     Image {
         Long id PK
@@ -128,6 +200,7 @@ erDiagram
     InvoiceLine {
         Long id PK
         Long invoiceId FK
+        Long treatmentId FK
         String concept
         Int quantity
         Decimal price
