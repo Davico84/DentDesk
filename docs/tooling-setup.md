@@ -77,7 +77,13 @@ Hook `pre-commit` en la raíz que ejecuta `lint-staged` **acotado a `modules/fro
 
 ## 5. CI
 
-Ya configurada en `.github/workflows/ci.yml` (corre en push/PR a `main` y `dev`):
-- **openspec**: `npx -y @fission-ai/openspec@latest validate --all --strict`.
-- **backend**: `./mvnw -B verify` (si existe `modules/backend/`).
-- **frontend**: `pnpm install --frozen-lockfile` + `pnpm validate` (si existe `modules/frontend/`).
+Un workflow **por área** en `.github/workflows/`, cada uno con **path filter** (corre solo si cambia su área) y `concurrency` (cancela runs superados). Disparan en push/PR a `main` y `dev`.
+
+| Workflow | Filtro de rutas | Jobs |
+|---|---|---|
+| `openspec.yml` | `openspec/**` | `validate` → `openspec validate --all --strict` |
+| `frontend.yml` | `modules/frontend/**` | `lint` (typecheck + eslint) · `test` (`vitest --coverage` + artifact) |
+| `backend.yml` | `modules/backend/**` | `verify` (`./mvnw -B verify`) · *(futuro: lint Spotless/Checkstyle, coverage JaCoCo)* |
+
+> [!NOTE]
+> **Path filters + branch protection**: si más adelante marcas estos checks como *required*, un workflow que no dispara (porque su área no cambió) aparece como *pending/skipped* y puede bloquear el merge. Cuando llegue ese momento, usar "required workflows" a nivel de organización o un job agregador. Por ahora no hay branch protection.
