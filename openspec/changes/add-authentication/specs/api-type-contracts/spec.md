@@ -15,7 +15,7 @@ El backend SHALL exponer su especificación OpenAPI en runtime y exportarla a un
 
 #### Scenario: Restricciones de validación reflejadas en el contrato
 - **WHEN** se inspecciona el schema de un DTO `*Request` en `contracts/openapi.json` (p. ej. el de registro)
-- **THEN** las restricciones de formato del DTO (longitud, formato de correo, campos requeridos) aparecen reflejadas en el schema (paridad con `docs/coding-standards.md §7`)
+- **THEN** las restricciones de formato del DTO (longitud, formato de correo, campos requeridos) aparecen reflejadas en el schema (paridad con `docs/coding-style.md §7`)
 
 ### Requirement: Tipos y cliente del frontend generados desde el contrato versionado
 El frontend SHALL derivar sus tipos y sus hooks de acceso a la API a partir del contrato versionado (`contracts/openapi.json`), sin escribirlos a mano, manteniéndose desacoplado del build del backend.

@@ -28,7 +28,7 @@
 
 ## 5. Backend — API (authentication)
 
-- [ ] 5.1 DTOs `*Request`/`*Response` (`record`) con Bean Validation (`@Email`, `@NotBlank`, `@Size(min=8)` en password) — paridad con Zod (`docs/coding-standards.md §7`)
+- [ ] 5.1 DTOs `*Request`/`*Response` (`record`) con Bean Validation (`@Email`, `@NotBlank`, `@Size(min=8)` en password) — paridad con Zod (`docs/coding-style.md §7`)
 - [ ] 5.2 `AuthController` en `presentation`: `POST /auth/register`, `POST /auth/login`, `POST /auth/refresh`, `POST /auth/logout`
 - [ ] 5.3 Manejo de errores: 409 correo duplicado, 401 credenciales/refresh inválidos, 400 validación (respuesta consistente)
 
@@ -71,4 +71,4 @@
 
 - [ ] 11.1 `openspec validate add-authentication --strict` en verde
 - [ ] 11.2 `mvn verify` (backend) y `pnpm validate` (frontend) en verde; CI activa jobs
-- [ ] 11.3 Al archivar: actualizar `docs/data-model.md` (entidad `User`, roles) y marcar `authentication` construida en `docs/roadmap.md` (gobernanza `CLAUDE.md`)
+- [ ] 11.3 Al archivar: actualizar `docs/domain.md` (entidad `User`, roles) y marcar `authentication` construida en `docs/vision.md` (gobernanza `CLAUDE.md`)

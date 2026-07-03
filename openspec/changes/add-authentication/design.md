@@ -11,7 +11,7 @@
 
 **Non-Goals:**
 - Gestión de usuarios/roles (capacidad `users`), recuperación de contraseña, OAuth social, MFA, rate limiting (ver `proposal.md`).
-- Generar Zod desde OpenAPI automáticamente (paridad manual por ahora, `docs/coding-standards.md §7`).
+- Generar Zod desde OpenAPI automáticamente (paridad manual por ahora, `docs/coding-style.md §7`).
 
 ## Decisions
 
@@ -58,7 +58,7 @@
 3. Backend auth: `User`, Flyway, `service.auth`, `infra.security` (JWT + filtro + SecurityConfig), controllers/DTOs.
 4. Frontend: orval (mutator + interceptor), `modules/auth`, rutas + `RouteGuard`, store de sesión.
 5. Tests derivados de los Scenario (back y front) + `pnpm validate` + `mvn verify`.
-6. Al archivar: actualizar `docs/data-model.md` (User/roles) y `docs/roadmap.md` (gobernanza en `CLAUDE.md`).
+6. Al archivar: actualizar `docs/domain.md` (User/roles) y `docs/vision.md` (gobernanza en `CLAUDE.md`).
 
 ## Decisiones resueltas (revisión humana, 2026-07-03)
 

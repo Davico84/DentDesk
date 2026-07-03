@@ -9,10 +9,22 @@ context: |
   Estructura del repo (monorepo modular):
     OdontoRisas/
       openspec/            # specs + changes (qué hace el sistema)
-      docs/                # estándares perennes (architecture, backend, frontend, testing, adr/)
+      docs/                # estándares perennes (ver mapa abajo)
       modules/backend/             # Java 25 · Maven · Spring Boot (app principal)
       modules/frontend/            # React 19 · Vite · TypeScript (SPA)
       .github/workflows/   # CI
+
+  Docs — dónde vive cada cosa (dos dimensiones):
+    Negocio (sustituible):
+      docs/vision.md       # objetivos de producto + roadmap + gobernanza del ciclo + granularidad de capacidades
+      docs/domain.md       # modelo de dominio (vivo): actores, glosario, entidades y ER (local-first)
+    Tecnología (reutilizable):
+      docs/architecture.md # stack cerrado + arquitectura back/front
+      docs/backend.md      # estándares Java/Spring (capas, DTOs/validación, JPA, seguridad)
+      docs/frontend.md     # estándares frontend (arquitectura pantallas/módulos, React Query, Zustand, patrones UI)
+      docs/coding-style.md # estilo general de código (TypeScript, nombres, legibilidad; §7 paridad Zod↔Bean Validation)
+      docs/testing.md      # estrategia de pruebas + puente Scenario→test
+      docs/tooling-setup.md, docs/commits.md, docs/adr/
 
   STACK CERRADO (2026-07-02) — ver detalle y versiones en docs/architecture.md.
 

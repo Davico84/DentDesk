@@ -7,11 +7,8 @@ Monorepo modular: `modules/backend/` (Java/Spring) + `modules/frontend/` (React/
 - **Flujo OpenSpec** (setup, comandos, ciclo): `SETUP-OPENSPEC.md`.
 - **Qué hace el sistema** (capacidades + cambios): `openspec/` (y `openspec/config.yaml` = contexto para la IA).
 - **Cómo construimos** (estándares perennes): `docs/`
-  - `docs/architecture.md` — stack cerrado + arquitectura back/front.
-  - `docs/capabilities.md` — convención de granularidad de capacidades · `docs/roadmap.md` — capacidades planeadas.
-  - `docs/data-model.md` — modelo de dominio (vivo). Fuente de verdad local-first; Jira solo backlog (futuro).
-  - `docs/testing.md` — estrategia de pruebas + puente Scenario→test.
-  - `docs/backend-standards.md` — estándares Java/Spring · `docs/coding-standards.md` (+ react-query/zustand/ui-patterns) — estándares frontend.
+  - **Negocio (sustituible):** `docs/vision.md` — objetivos de producto + roadmap + gobernanza del ciclo + granularidad de capacidades · `docs/domain.md` — modelo de dominio (vivo): actores, glosario y ER. Fuente de verdad local-first; Jira solo backlog (futuro).
+  - **Tecnología (reutilizable):** `docs/architecture.md` — stack cerrado + arquitectura back/front · `docs/backend.md` — estándares Java/Spring · `docs/frontend.md` — estándares frontend (arquitectura, React Query, Zustand, patrones UI) · `docs/coding-style.md` — estilo general de código (TypeScript, nombres) · `docs/testing.md` — estrategia de pruebas + puente Scenario→test.
   - `docs/tooling-setup.md` — tooling reproducible (scripts, Vitest/MSW, husky/commitlint, CI).
   - `docs/commits.md` — estándar de commits (Conventional Commits en español) + convención `Refs:` para enlazar tareas.
 
@@ -27,9 +24,9 @@ Monorepo modular: `modules/backend/` (Java/Spring) + `modules/frontend/` (React/
 Ruta rápida por defecto: **propose → apply → archive**.
 
 ### Gobernanza del ciclo (mantiene el contexto de la IA preciso)
-`docs/roadmap.md` es el **puente**: planeada (roadmap) → en progreso (change activo) → construida (`specs/`).
-- **Al `/opsx:propose`**: enlaza el change en progreso (`changes/<id>/proposal.md` y `design.md`) en la sección "Estado de capacidades" de `docs/roadmap.md`.
-- **Al `/opsx:archive`** (en el mismo commit/PR): 1) si la capacidad tocó el dominio, actualiza `docs/data-model.md` (de ahí extrae el modelo la IA); 2) marca la capacidad como construida y enlaza su `spec.md` en `docs/roadmap.md`.
+`docs/vision.md` es el **puente**: planeada (roadmap) → en progreso (change activo) → construida (`specs/`).
+- **Al `/opsx:propose`**: enlaza el change en progreso (`changes/<id>/proposal.md` y `design.md`) en la sección "Estado de capacidades" de `docs/vision.md`.
+- **Al `/opsx:archive`** (en el mismo commit/PR): 1) si la capacidad tocó el dominio, actualiza `docs/domain.md` (de ahí extrae el modelo la IA); 2) marca la capacidad como construida y enlaza su `spec.md` en `docs/vision.md`.
 
 ## Gates antes de codear / al subir
 - `openspec validate <change> --strict` + revisión humana del proposal/delta.

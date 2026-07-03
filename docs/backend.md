@@ -2,7 +2,7 @@
 
 Parte de la documentación de OdontoRisas. Estándares de código y convenciones del backend **Java 25 · Spring Boot 4.0.6**.
 Complementa a `docs/architecture.md` (arquitectura por capas), `docs/testing.md` (pruebas: slices + Testcontainers) y `docs/commits.md`.
-El equivalente de frontend es `docs/coding-standards.md`.
+El equivalente de frontend es `docs/frontend.md` (y el estilo general de código en `docs/coding-style.md`).
 
 ---
 
@@ -24,7 +24,7 @@ presentation  →  infra  →  persistence
 - `presentation` **nunca** importa de `persistence` (ni entidades ni repositorios). Habla con `infra.service`.
 - Las **entidades JPA no salen de la capa `persistence`**: se convierten a DTO en `infra.mappers` antes de llegar a `presentation`.
 - Los controllers son **delgados**: sin lógica; orquestan y delegan.
-- Un `<dominio>` (capacidad) tiene su paquete de servicio en `infra.service.<dominio>` (ver mapeo en `docs/capabilities.md`).
+- Un `<dominio>` (capacidad) tiene su paquete de servicio por dominio (ver granularidad de capacidades en `docs/vision.md §5`).
 
 ---
 
@@ -102,7 +102,7 @@ public class AppointmentController {
 - **DTOs** preferentemente `record` (inmutables). Separa entrada (`*Request`) de salida (`*Response`).
 - **Bean Validation** en los `*Request`: `@NotNull`, `@NotBlank`, `@Email`, `@Size`, `@Positive`, etc. La validación de **formato** vive en el DTO; la de **reglas de negocio** en el service.
 - **Mapeo DTO↔entidad** en `infra.mappers` (MapStruct recomendado, o mappers manuales). El mapeo no vive en controllers ni entidades.
-- **Paridad con el frontend**: las restricciones de **formato** de cada `*Request` (longitud, patrón, rango, requerido) deben reflejarse en el schema Zod del formulario correspondiente. El backend es la barrera definitiva; el frontend evita `400` de formato innecesarios. Política y tabla de correlación en `docs/coding-standards.md §7`.
+- **Paridad con el frontend**: las restricciones de **formato** de cada `*Request` (longitud, patrón, rango, requerido) deben reflejarse en el schema Zod del formulario correspondiente. El backend es la barrera definitiva; el frontend evita `400` de formato innecesarios. Política y tabla de correlación en `docs/coding-style.md §7`.
 
 ```java
 public record CreateAppointmentRequest(

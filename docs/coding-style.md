@@ -1,6 +1,6 @@
-# Estándares de Código (Coding Standards)
+# Estilo de código (Coding Style)
 
-> Parte de la documentación de OdontoRisas (frontend, en `modules/frontend/`). Complementa a `docs/architecture.md` (arquitectura y stack) y a `docs/testing.md` (estrategia de pruebas); no duplica su contenido, solo los referencia cuando aplica.
+> Guía de **estilo general** del frontend (`modules/frontend/`): TypeScript, convenciones de nombres, legibilidad y calidad. Complementa a `docs/frontend.md` (arquitectura, React Query, Zustand, patrones de UI), `docs/architecture.md` (stack) y `docs/testing.md` (pruebas); no duplica su contenido, solo los referencia cuando aplica.
 
 Este documento define las convenciones de escritura de código, tipado y calidad que deben seguirse en el desarrollo de la aplicación.
 
@@ -210,7 +210,7 @@ const createAppointmentSchema = z.object({
 });
 ```
 ```java
-// backend — DTO con Bean Validation (ver docs/backend-standards.md §6)
+// backend — DTO con Bean Validation (ver docs/backend.md §6)
 public record CreateAppointmentRequest(
     @NotNull Long patientId,
     @NotNull @Future LocalDateTime scheduledAt,

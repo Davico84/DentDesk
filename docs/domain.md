@@ -1,9 +1,35 @@
-# Modelo de datos (dominio) — OdontoRisas
+# Dominio de negocio — OdontoRisas
 
-Base de conocimiento del **dominio de negocio** de la clínica dental. Documento **vivo**: crece y se detalla a medida que cada capacidad se especifica y construye.
+Dimensión de **negocio** (sustituible por proyecto). Base de conocimiento del dominio de la clínica dental: actores, glosario y modelo conceptual. Documento **vivo**: crece y se detalla a medida que cada capacidad se especifica y construye.
 
-- Complementa `docs/architecture.md` (capas), `docs/backend-standards.md` (JPA/persistencia) y `docs/roadmap.md` (capacidades).
+- Complementa `docs/vision.md` (objetivos + roadmap), `docs/architecture.md` (capas) y `docs/backend.md` (JPA/persistencia).
 - Aquí va el **modelo conceptual** (entidades, relaciones, reglas de negocio de alto nivel). El **esquema físico** lo define Flyway (`modules/backend/.../db/migration`), no este documento.
+
+---
+
+## Actores del negocio
+
+| Actor | Descripción | Rol de sistema (aprox.) |
+|---|---|---|
+| **Administrador** | Gestiona la clínica: usuarios/staff, facturación, inventario y métricas del panel. | `ADMIN` |
+| **Dentista / Odontólogo** | Personal clínico: atiende citas, registra tratamientos y odontograma, notas e imágenes. | `USER` (rol clínico) |
+| **Paciente** | Persona atendida (menor o adulto). Puede tener acceso al sistema (`User` vinculado) o no. | `USER` / sin cuenta |
+| **Tutor / Responsable** | Adulto responsable de un paciente **menor**. No es necesariamente usuario del sistema; sus datos viven en el `Patient`. Otorga el consentimiento en menores. | — |
+
+> Los roles de sistema (`ADMIN`/`USER`) los define `authentication`; el mapeo fino de permisos clínicos se detalla al construir `users`/`patients`/`treatments`.
+
+## Glosario de términos clave
+
+| Término | Significado |
+|---|---|
+| **Ficha dental** | Vista compuesta (pantalla) que centraliza la atención de un paciente: datos, odontograma, tratamientos, notas, pagos, imágenes e historial de citas. No es una entidad. |
+| **Odontograma** | Representación del estado dental del paciente pieza por pieza y por superficie. |
+| **Notación FDI (ISO 3950)** | Código de dos dígitos por pieza (permanentes 11–48; temporales 51–85). |
+| **Dentición** | Conjunto de piezas: **temporal** (de leche), **permanente** (adulta) o **mixta** (transición en menores). Se deriva de la edad. |
+| **Superficie dental** | Cara de una pieza: `M` mesial · `D` distal · `V` vestibular · `P`/`L` palatino/lingual · `O`/`I` oclusal/incisal. |
+| **Cuadrante** | Cada una de las divisiones de la boca; primer dígito del código FDI. |
+| **Anamnesis** | Antecedentes clínicos del paciente (alergias, condiciones, medicación) que condicionan el tratamiento. |
+| **Consentimiento informado** | Autorización del tratamiento; en menores lo otorga el tutor/responsable. |
 
 ---
 
@@ -11,7 +37,7 @@ Base de conocimiento del **dominio de negocio** de la clínica dental. Documento
 
 | Tipo de información | Vive en |
 |---|---|
-| Modelo de dominio (este doc) | `docs/data-model.md` (local) |
+| Modelo de dominio (este doc) | `docs/domain.md` (local) |
 | Comportamiento / casos de uso | `openspec/specs/<cap>/spec.md` (Scenarios) |
 | Framing de user story ("como X quiero Y") | `proposal.md` del change |
 | Backlog / tickets | *(opcional)* — hoy: local. Futuro híbrido: Jira |
@@ -24,7 +50,7 @@ Base de conocimiento del **dominio de negocio** de la clínica dental. Documento
 
 - **Nivel de detalle**: aquí se listan entidades y campos **conceptuales** clave. Los tipos exactos, longitudes y validaciones finas se fijan en el `spec.md`/`design.md` de cada capacidad y en la migración Flyway correspondiente.
 - Toda entidad tiene `id` (PK) y campos de auditoría (`createdAt`, `updatedAt`) salvo que se indique.
-- Identificadores en inglés (convención de código); ver `docs/backend-standards.md`.
+- Identificadores en inglés (convención de código); ver `docs/backend.md`.
 
 ---
 

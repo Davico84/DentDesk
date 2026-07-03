@@ -93,7 +93,7 @@ src/
 - **Modules** encapsulan lógica reutilizable; `core/` no depende de otros módulos.
 - **RouteGuard** centraliza auth + roles: sesión activa en ruta pública → redirige por rol; sin token → login (con `?next=`); rol no permitido → 403 AccessDenied.
 
-Detalle ampliado en las docs del template: `architecture.md`, `coding-standards.md`, `react-query.md`, `zustand.md`, `ui-patterns.md`, `testing.md`, `tooling-setup.md` (en `D:/proyectos/FixRiver/ProyectoBase/template-base/modules/frontend/docs`). **Pendiente**: portarlas a `docs/` de este repo.
+Detalle ampliado de los estándares de frontend en `docs/frontend.md` (arquitectura pantallas/módulos, React Query, Zustand, patrones de UI) y `docs/coding-style.md` (estilo general de código). Adaptados del template FixRiver.
 
 ---
 
