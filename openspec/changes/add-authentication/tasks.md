@@ -1,10 +1,10 @@
 ## 1. Backend — redefinición de capas (project-foundation MODIFIED)
 
-- [ ] 1.1 Crear paquete `service` (nivel raíz) y mover ahí la lógica de negocio; `service.<dominio>` con `mapper` co-ubicado
-- [ ] 1.2 Dejar `infra` solo con adaptadores técnicos (`config`, `security`, `storage`, `mail`); renombrar `infra.utils` → `common`/`shared`
-- [ ] 1.3 Actualizar `LayeredArchitectureTest`: `persistence` no→`presentation` ni→`service`; `presentation` no→`persistence`; `service` no→`presentation` (sin regla "infra no→service")
-- [ ] 1.4 Actualizar `docs/architecture.md §2` (diagrama de capas) para reflejar `service` fuera de `infra`
-- [ ] 1.5 `./mvnw -B verify` en verde tras el refactor (paquetes aún casi vacíos)
+- [x] 1.1 Crear paquete `service` (nivel raíz) y mover ahí la lógica de negocio; `service.<dominio>` con `mapper` co-ubicado
+- [x] 1.2 Dejar `infra` solo con adaptadores técnicos (`config`, `security`, `storage`, `mail`); renombrar `infra.utils` → `common`/`shared`
+- [x] 1.3 Actualizar `LayeredArchitectureTest`: `persistence` no→`presentation` ni→`service`; `presentation` no→`persistence`; `service` no→`presentation` (sin regla "infra no→service")
+- [x] 1.4 Actualizar `docs/architecture.md §2` (diagrama de capas) para reflejar `service` fuera de `infra`
+- [x] 1.5 `./mvnw -B verify` en verde tras el refactor (paquetes aún casi vacíos)
 
 ## 2. Backend — contrato OpenAPI (api-type-contracts)
 

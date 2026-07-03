@@ -8,23 +8,29 @@ El equivalente de frontend es `docs/frontend.md` (y el estilo general de código
 
 ## 1. Arquitectura por capas
 
-Flujo de dependencias **estricto** (una capa solo conoce la de abajo):
+Flujo de dependencias **estricto**:
 
 ```
-presentation  →  infra  →  persistence
+presentation  →  service  →  persistence
+                   ↑
+infra (config · security · storage · mail) = adaptadores técnicos (transversal) · common = utilidades
 ```
 
 | Capa | Paquete | Responsabilidad | NO debe |
 |---|---|---|---|
 | Presentación | `presentation.controller`, `presentation.dto` | Recibir HTTP, validar request (DTO + Bean Validation), delegar en services, construir respuesta | Contener lógica de negocio ni acceder a `persistence`/entidades |
-| Infraestructura | `infra.config`, `infra.security`, `infra.service.<dominio>`, `infra.utils`, `infra.mappers` | Lógica de negocio, transacciones, seguridad, mapeo DTO↔entidad, configuración | Exponer entidades JPA hacia fuera |
-| Persistencia | `persistence.entity`, `persistence.repository`, `persistence.specification` | Entidades JPA, repositorios Spring Data, queries dinámicas (Specifications) | Contener reglas de negocio |
+| Servicio | `service.<dominio>` (+ `mapper` co-ubicado) | **Lógica de negocio**, transacciones, orquestación, mapeo DTO↔entidad | Depender de `presentation` |
+| Persistencia | `persistence.entity`, `persistence.repository`, `persistence.specification` | Entidades JPA, repositorios Spring Data, queries dinámicas (Specifications) | Contener reglas de negocio; depender de `presentation`/`service` |
+| Infraestructura | `infra.config`, `infra.security`, `infra.storage`, `infra.mail` | Adaptadores técnicos: configuración del framework, seguridad, S3, mail | Contener lógica de negocio |
+| Común | `common` | Utilidades transversales y tipos compartidos | Depender de un dominio |
 
 **Reglas de oro:**
-- `presentation` **nunca** importa de `persistence` (ni entidades ni repositorios). Habla con `infra.service`.
-- Las **entidades JPA no salen de la capa `persistence`**: se convierten a DTO en `infra.mappers` antes de llegar a `presentation`.
+- La **lógica de negocio vive en `service.<dominio>`**, no en `infra` (infra = solo técnico).
+- `presentation` **nunca** importa de `persistence` (ni entidades ni repositorios). Habla con `service`.
+- Las **entidades JPA no salen de `persistence`**: se convierten a DTO en el `mapper` del servicio antes de llegar a `presentation`.
+- `infra` (config/security) **sí** puede cablear servicios: es el composition root (por eso ArchUnit no restringe `infra → service`).
 - Los controllers son **delgados**: sin lógica; orquestan y delegan.
-- Un `<dominio>` (capacidad) tiene su paquete de servicio por dominio (ver granularidad de capacidades en `docs/vision.md §5`).
+- Un `<dominio>` (capacidad) tiene su paquete `service.<dominio>` (ver granularidad de capacidades en `docs/vision.md §5`).
 
 ---
 

@@ -49,11 +49,16 @@ OdontoRisas/
 ```
 presentation   → controller · dto
       ↓
-infra          → config · security · service (por dominio) · utils/mappers
+service        → <dominio> (+ mapper co-ubicado)      # lógica de negocio / casos de uso
       ↓
 persistence    → entity · repository · specification (queries dinámicas)
+
+infra          → config · security · storage · mail   # adaptadores técnicos (transversal)
+common         → utilidades / tipos compartidos
 ```
-- `presentation` no accede a `persistence` directamente: pasa por servicios de `infra`.
+- La **lógica de negocio** vive en `service.<dominio>`, **no** en `infra`. `infra` es solo adaptadores técnicos (framework, seguridad, S3, mail).
+- `presentation` no accede a `persistence` directamente: pasa por `service`.
+- `persistence` no depende de `presentation` ni de `service` (las entidades JPA son el modelo de dominio; no hexagonal puro, decisión consciente).
 - `specification` centraliza las queries dinámicas (JPA Criteria/Specifications).
 - Migraciones versionadas en `db/migration`; el schema NO lo gestiona Hibernate (`ddl-auto=none`).
 
