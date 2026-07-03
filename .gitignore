@@ -10,18 +10,16 @@ Thumbs.db
 secrets.properties
 !secrets.properties.example
 
-# === Java / Maven === (cualquier módulo)
-target/
-*.class
-
-# === Node ===
+# === Node === (general: raíz por los hooks + modules/*)
 node_modules/
 
-# === Frontend build/test (cualquier módulo) ===
-dist/
-coverage/
-playwright-report/
-test-results/
+# === Artefactos de build/test por módulo ===
+modules/**/target/
+modules/**/*.class
+modules/**/dist/
+modules/**/coverage/
+modules/**/playwright-report/
+modules/**/test-results/
 
 # === IDE ===
 .idea/
