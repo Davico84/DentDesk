@@ -51,10 +51,10 @@ Cada capacidad de negocio se materializa de forma consistente en ambos módulos:
 | Backend — presentación | `presentation/controller/<Cap>Controller`, `presentation/dto/...` |
 | Backend — lógica | `infra/service/<cap>/...` (servicio por dominio) |
 | Backend — datos | `persistence/entity`, `persistence/repository`, `persistence/specification` |
-| Frontend — módulo | `frontend/src/modules/<cap>/` (services, components, hooks) |
-| Frontend — pantallas | `frontend/src/screens/<área>/...` |
+| Frontend — módulo | `modules/frontend/src/modules/<cap>/` (services, components, hooks) |
+| Frontend — pantallas | `modules/frontend/src/screens/<área>/...` |
 
-Lo transversal (auth guard, roles) vive en `frontend/src/modules/core/` y en `infra/security` (backend).
+Lo transversal (auth guard, roles) vive en `modules/frontend/src/modules/core/` y en `infra/security` (backend).
 
 ---
 

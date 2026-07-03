@@ -10,7 +10,7 @@ Este documento recopila las decisiones de diseño estético, reglas de accesibil
 
 ### Regla de Reuso Obligatorio
 > [!IMPORTANT]
-> **Antes de crear o añadir un nuevo componente visual o biblioteca de terceros**, debes revisar exhaustivamente si ya existe una solución o componente atómico en `frontend/src/modules/core/ui/`.
+> **Antes de crear o añadir un nuevo componente visual o biblioteca de terceros**, debes revisar exhaustivamente si ya existe una solución o componente atómico en `modules/frontend/src/modules/core/ui/`.
 >
 > Reutilizar los componentes existentes garantiza que se respeten automáticamente:
 > 1. El soporte de temas (Modo claro/oscuro).
@@ -20,14 +20,14 @@ Este documento recopila las decisiones de diseño estético, reglas de accesibil
 
 ### Tooltip antes que `title`
 > [!IMPORTANT]
-> **Nunca uses el atributo nativo `title` en un botón (u otro elemento interactivo) para describir su acción.** En su lugar usa el componente `Tooltip`, ubicado por convención en `frontend/src/modules/core/ui/tooltip.tsx`.
+> **Nunca uses el atributo nativo `title` en un botón (u otro elemento interactivo) para describir su acción.** En su lugar usa el componente `Tooltip`, ubicado por convención en `modules/frontend/src/modules/core/ui/tooltip.tsx`.
 >
 > El componente `Button` de core/ui ya acepta una prop `tooltip` que lo envuelve automáticamente en un `Tooltip`; úsala. El `title` nativo es inconsistente con el tema, no es estilizable y tiene un retardo fijo del navegador.
 >
 > Mantén siempre el `aria-label` para accesibilidad (el tooltip no lo sustituye).
 
 ### Ubicación del Sistema de Diseño:
-* Todos los componentes básicos de presentación (botones, modales, menús flotantes, tablas, inputs) se ubican bajo `frontend/src/modules/core/ui/`.
+* Todos los componentes básicos de presentación (botones, modales, menús flotantes, tablas, inputs) se ubican bajo `modules/frontend/src/modules/core/ui/`.
 * **Componentes clave reutilizados**:
   * `Dialog`, `Sheet`, `Popover`: Para diálogos contextuales y paneles deslizantes.
   * `DropdownMenu`, `Select`: Para listas de selección e interfaces dinámicas.
@@ -96,11 +96,11 @@ La accesibilidad no es un requerimiento secundario y no debe sacrificarse por de
 
 ## 5. Paleta de Colores y Variables de Estilo (Tailwind vs CSS Variables)
 
-El proyecto utiliza TailwindCSS (v3) configurado para resolver los colores del tema dinámicamente mediante variables CSS definidas por convención en `frontend/src/styles/globals.css`.
+El proyecto utiliza TailwindCSS (v3) configurado para resolver los colores del tema dinámicamente mediante variables CSS definidas por convención en `modules/frontend/src/styles/globals.css`.
 
 ### Compatibilidad de Formato (Importante)
 > [!WARNING]
-> Nuestro archivo de configuración `frontend/tailwind.config.cjs` declara los colores mapeados con la función HSL de la siguiente manera:
+> Nuestro archivo de configuración `modules/frontend/tailwind.config.cjs` declara los colores mapeados con la función HSL de la siguiente manera:
 >
 > `background: "hsl(var(--background))"`
 >
@@ -110,7 +110,7 @@ El proyecto utiliza TailwindCSS (v3) configurado para resolver los colores del t
 >
 > Si intentas inyectar estas variables sin convertirlas, la salida final compilará erróneamente a `hsl(oklch(0.98 0 0))`, rompiendo los estilos. Por lo tanto:
 > 1. Convierte las variables a valores HSL puros (ej. usando convertidores en línea de color).
-> 2. Pega únicamente los 3 canales separados por espacios (Hue, Saturation, Lightness) en nuestro `frontend/src/styles/globals.css`.
+> 2. Pega únicamente los 3 canales separados por espacios (Hue, Saturation, Lightness) en nuestro `modules/frontend/src/styles/globals.css`.
 
 ---
 
@@ -174,7 +174,7 @@ Cuando un componente impone una **estructura** (layout, espaciado, bordes, anima
 > [!IMPORTANT]
 > Si el componente debe **decidir cuál de varios elementos renderizar** a partir de **datos dinámicos**, o necesita metadatos por elemento (clave, etiqueta, icono, permisos), un API de **lista de configuración** (`items: Option[]`) o de *render prop* es más apropiado que los slots.
 >
-> Convención en este proyecto: un contenedor multivista (por ejemplo, un `MultiViewContainer` en `frontend/src/modules/core/components/`) debe recibir sus vistas como `views: ViewOption[]` cuando la pantalla que lo consume genera esas vistas dinámicamente desde una configuración de tabla con un `.map()` (por ejemplo, una `TablePage` en `frontend/src/screens/admin/`). Forzar `children` en ese caso complicaría el escenario dinámico sin beneficio.
+> Convención en este proyecto: un contenedor multivista (por ejemplo, un `MultiViewContainer` en `modules/frontend/src/modules/core/components/`) debe recibir sus vistas como `views: ViewOption[]` cuando la pantalla que lo consume genera esas vistas dinámicamente desde una configuración de tabla con un `.map()` (por ejemplo, una `TablePage` en `modules/frontend/src/screens/admin/`). Forzar `children` en ese caso complicaría el escenario dinámico sin beneficio.
 
 ### Reglas
 
@@ -186,6 +186,6 @@ Cuando un componente impone una **estructura** (layout, espaciado, bordes, anima
 ### Aplicación a las páginas de `/screens`
 
 > [!NOTE]
-> Las **pantallas** (`frontend/src/screens/**`) son hojas de composición: montan una feature dentro de un layout. **No** son el lugar para introducir slots/children — el patrón rinde en componentes **reutilizables** de `core`, no en las páginas.
+> Las **pantallas** (`modules/frontend/src/screens/**`) son hojas de composición: montan una feature dentro de un layout. **No** son el lugar para introducir slots/children — el patrón rinde en componentes **reutilizables** de `core`, no en las páginas.
 >
 > Señal de mal uso: páginas que envuelven una **única** vista en un contenedor multivista con `onViewChange={() => {}}` (no-op). Con una sola vista el conmutador no se renderiza, así que el contenedor solo aporta el panel animado + *scroll*. Si una página tiene una sola vista, considera renderizar la feature directamente o, si se mantiene el contenedor por consistencia visual, acepta que el `onViewChange` no-op es deuda menor —no la resuelvas con slots.

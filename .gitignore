@@ -10,25 +10,23 @@ Thumbs.db
 secrets.properties
 !secrets.properties.example
 
-# === Backend (Java / Maven) ===
-backend/target/
-*.class
-
-# === Node ===
+# === Node === (general: raíz por los hooks + modules/*)
 node_modules/
 
-# === Frontend (Node / Vite) ===
-frontend/node_modules/
-frontend/dist/
-frontend/coverage/
-frontend/playwright-report/
-frontend/test-results/
+# === Artefactos de build/test por módulo ===
+modules/**/target/
+modules/**/*.class
+modules/**/dist/
+modules/**/coverage/
+modules/**/playwright-report/
+modules/**/test-results/
 
 # === IDE ===
 .idea/
 *.iml
 .vscode/*
 !.vscode/extensions.json
+!.vscode/settings.json
 
 # === OpenSpec ===
 .worktrees/

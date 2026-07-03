@@ -1,6 +1,6 @@
 # Estándares de Código (Coding Standards)
 
-> Parte de la documentación de OdontoRisas (frontend, en `frontend/`). Complementa a `docs/architecture.md` (arquitectura y stack) y a `docs/testing.md` (estrategia de pruebas); no duplica su contenido, solo los referencia cuando aplica.
+> Parte de la documentación de OdontoRisas (frontend, en `modules/frontend/`). Complementa a `docs/architecture.md` (arquitectura y stack) y a `docs/testing.md` (estrategia de pruebas); no duplica su contenido, solo los referencia cuando aplica.
 
 Este documento define las convenciones de escritura de código, tipado y calidad que deben seguirse en el desarrollo de la aplicación.
 
@@ -10,13 +10,13 @@ Este documento define las convenciones de escritura de código, tipado y calidad
 
 ### Archivos y Directorios
 * **Componentes de React y Layouts**: Usan `PascalCase` tanto en los directorios como en los nombres de archivos.
-  * *Ejemplo*: `frontend/src/modules/core/components/Sidebar.tsx`, `frontend/src/layouts/UserLayout.tsx`.
+  * *Ejemplo*: `modules/frontend/src/modules/core/components/Sidebar.tsx`, `modules/frontend/src/layouts/UserLayout.tsx`.
 * **Hooks Personalizados**: Usan `camelCase` con el prefijo `use`.
-  * *Ejemplo*: `frontend/src/modules/users/hooks/useUserProfile.ts`.
+  * *Ejemplo*: `modules/frontend/src/modules/users/hooks/useUserProfile.ts`.
 * **Servicios e Integraciones API**: Usan `camelCase` y el archivo representa la entidad en singular.
-  * *Ejemplo*: `frontend/src/modules/users/services/user.ts`.
+  * *Ejemplo*: `modules/frontend/src/modules/users/services/user.ts`.
 * **Utilidades e Interfaces Auxiliares**: Usan `camelCase`.
-  * *Ejemplo*: `frontend/src/modules/core/utils/cn.ts`.
+  * *Ejemplo*: `modules/frontend/src/modules/core/utils/cn.ts`.
 
 ### Clases y Métodos
 * Las funciones de ayuda, métodos de clases y variables usan `camelCase` (ej. `getUserProfile()`, `handleLogout()`).
@@ -86,7 +86,7 @@ Al escribir nuevas funcionalidades, respeta las siguientes reglas de calidad:
 | Valor calculado a partir de otros | `useMemo` / variable derivada — **nunca** un `useState` que se sincroniza a mano |
 | Sincronizar con un sistema externo (socket, listener, DOM) | `useEffect` (con moderación) |
 | Datos del backend (leer/escribir) | React Query en un hook de feature (`useQuery`/`useMutation`), colocado en la carpeta `hooks/` del módulo |
-| Estado de cliente compartido entre módulos | Zustand (`useXStore`), definido en `frontend/src/store/` |
+| Estado de cliente compartido entre módulos | Zustand (`useXStore`), definido en `modules/frontend/src/store/` |
 | Concern global (idioma, tema) | hook de contexto (`useT`, `useTheme`) |
 | Lógica reutilizable por varios componentes | custom hook utilitario (`useMediaQuery`, `useDebouncedCallback`) |
 | Toda la lógica de una pantalla | custom hook "orquestador" (p. ej. `useChat`) que devuelve una API limpia |
@@ -107,7 +107,7 @@ Al escribir nuevas funcionalidades, respeta las siguientes reglas de calidad:
 5. **Un hook = una responsabilidad.** Si un hook orquestador crece demasiado,
    divídelo en hooks de feature más pequeños y composables.
 6. **Nombra los custom hooks con prefijo `use`** y colócalos en la carpeta `hooks/`
-   del módulo correspondiente (bajo `frontend/src/modules/[dominio]/hooks/`).
+   del módulo correspondiente (bajo `modules/frontend/src/modules/[dominio]/hooks/`).
 
 ---
 
@@ -137,7 +137,7 @@ inteligente" y la disciplina de estado). Aplícalas con criterio, no como dogma.
    que el equipo lea el código rápido.
 6. **Cubre los estados async: loading / error / empty / con datos.** Toda vista que
    consume datos asíncronos contempla los cuatro. Reutiliza el componente de estado
-   de datos del proyecto (`DataState`, bajo `frontend/src/modules/core/components/`)
+   de datos del proyecto (`DataState`, bajo `modules/frontend/src/modules/core/components/`)
    en vez de improvisar cada caso.
 7. **Props mínimas y tipadas; evita el prop-drilling.** Pasa solo lo que el
    componente necesita. Si una prop baja 3+ niveles, prefiere composición
@@ -174,7 +174,7 @@ MSW) y convenciones de pruebas del frontend vive en `docs/testing.md` (guía de 
 del monorepo). Como recordatorio operativo:
 
 - Stack frontend: **Vitest** + **React Testing Library** + **MSW** (config en
-  `frontend/vitest.config.ts`; setup en `frontend/src/test/setup.ts`).
+  `modules/frontend/vitest.config.ts`; setup en `modules/frontend/src/test/setup.ts`).
 - **Ubicación**: el test vive junto al archivo que prueba, como `nombre.test.ts(x)`.
 - **Qué priorizar**: lógica (hooks, stores, transformaciones) y flujos de
   **integración**; prueba **comportamiento observable**, no detalles de implementación.

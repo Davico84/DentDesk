@@ -47,7 +47,7 @@ El código base SHALL seguir la arquitectura definida en `docs/architecture.md`:
 - **AND** `presentation` no importa directamente de `persistence`
 
 #### Scenario: Estructura del frontend
-- **WHEN** se inspecciona `frontend/src`
+- **WHEN** se inspecciona `modules/frontend/src`
 - **THEN** existen los directorios `layouts`, `screens`, `modules`, `store`, `routes` y `styles`
 - **AND** `modules/core` no depende de otros módulos
 
