@@ -164,10 +164,69 @@ Antes de dar por concluida cualquier tarea de desarrollo, verifica:
 - [ ] Se han eliminado todos los `console.log` de depuración temporal (a excepción de logs informativos en interceptores HTTP).
 - [ ] No se han introducido importaciones redundantes o no usadas.
 - [ ] Los tests pasan (`pnpm test`) y se añadió/actualizó prueba para los flujos críticos tocados.
+- [ ] Los schemas Zod de los formularios **reflejan** las restricciones de formato del DTO backend (ver §7).
 
 ---
 
-## 7. Testing
+## 7. Validación de formularios y paridad con backend (Zod ↔ Bean Validation)
+
+El frontend valida con **Zod** (formularios, `react-hook-form`) y el backend con **Bean Validation**
+sobre los DTOs `*Request`. Son **dos capas del mismo contrato**, no validaciones independientes.
+
+**Política:**
+- **El backend es la barrera de seguridad definitiva**: nunca confíes en el cliente; todo `*Request`
+  se valida con Bean Validation. El frontend es **UX** (feedback inmediato, evitar viajes al servidor).
+- **El frontend valida el formato al menos tan estricto como el backend.** Si el backend rechaza algo,
+  el schema Zod debe haberlo rechazado antes: recibir un `400` por una regla de **formato** que el
+  frontend pudo comprobar es un bug (degrada la experiencia).
+- **Validación de formato** se duplica a propósito en ambos lados y debe mantenerse en paridad
+  (misma longitud, mismo patrón, mismo rango). **Reglas de negocio** (unicidad de email, disponibilidad
+  de una cita, etc.) viven **solo en el backend**; el frontend las descubre por la respuesta de error,
+  no las reimplementa.
+- Si una divergencia es **intencional** (p. ej. el frontend es más estricto por UX), documéntala con
+  un comentario junto al schema.
+
+**Tabla de correlación** (formato):
+
+| Zod (frontend) | Bean Validation (backend) | Nota |
+|---|---|---|
+| campo requerido (sin `.optional()`) | `@NotNull` | presencia |
+| `.min(1)` / `.trim().min(1)` en string | `@NotBlank` | requerido no vacío |
+| `.min(n)` / `.max(n)` (longitud de string) | `@Size(min = n, max = n)` | longitud |
+| `.email()` | `@Email` | formato email |
+| `.regex(re)` | `@Pattern(regexp = re)` | **misma** expresión regular |
+| `.positive()` / `.int().positive()` | `@Positive` | número > 0 |
+| `.min(n)` / `.max(n)` (número) | `@Min(n)` / `@Max(n)` (o `@DecimalMin/@DecimalMax`) | rango numérico |
+| `.datetime()` + fecha futura | `@Future` / `@FutureOrPresent` | fechas |
+
+**Ejemplo (mismo contrato en ambos lados):**
+
+```ts
+// frontend — schema Zod (react-hook-form)
+const createAppointmentSchema = z.object({
+  patientId: z.number().int().positive(),                 // @NotNull (id válido)
+  scheduledAt: z.string().datetime().refine(isFuture),    // @NotNull @Future
+  notes: z.string().max(500).optional(),                  // @Size(max = 500)
+});
+```
+```java
+// backend — DTO con Bean Validation (ver docs/backend-standards.md §6)
+public record CreateAppointmentRequest(
+    @NotNull Long patientId,
+    @NotNull @Future LocalDateTime scheduledAt,
+    @Size(max = 500) String notes
+) {}
+```
+
+**Fuente de verdad (objetivo):** cuando esté el pipeline **OpenAPI → TS** (springdoc + orval), springdoc
+emite las restricciones de Bean Validation en el schema OpenAPI (`maxLength`, `pattern`, `minimum`…),
+dejando el **backend como fuente de verdad** de los límites. En ese punto se evaluará **generar los
+schemas Zod desde el OpenAPI** para eliminar el drift manual; hasta entonces, la paridad se mantiene
+a mano según esta tabla.
+
+---
+
+## 8. Testing
 
 El detalle de la estrategia, matrices de decisión, utilidades (`renderWithProviders`,
 MSW) y convenciones de pruebas del frontend vive en `docs/testing.md` (guía de pruebas
