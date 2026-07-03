@@ -22,7 +22,12 @@ import type {
   RegisterRequest
 } from './model';
 
-import { customInstance } from '../httpClient';
+import { customInstance } from '../../config/httpClient';
+
+
+
+
+
 /**
  * @summary Registra una cuenta e inicia sesión
  */
@@ -87,8 +92,7 @@ export const useRegister = <TError = ProblemDetailResponse,
 
       return useMutation(mutationOptions, queryClient);
     }
-    
-/**
+    /**
  * @summary Inicia sesión con credenciales
  */
 export const login = (
@@ -152,8 +156,7 @@ export const useLogin = <TError = ProblemDetailResponse,
 
       return useMutation(mutationOptions, queryClient);
     }
-    
-/**
+    /**
  * @summary Renueva el access token usando la cookie de refresco
  */
 export const refresh = (
@@ -215,8 +218,7 @@ export const useRefresh = <TError = ProblemDetailResponse,
 
       return useMutation(mutationOptions, queryClient);
     }
-    
-/**
+    /**
  * @summary Cierra la sesión e invalida el refresh token
  */
 export const logout = (
@@ -278,3 +280,4 @@ export const useLogout = <TError = unknown,
 
       return useMutation(mutationOptions, queryClient);
     }
+    

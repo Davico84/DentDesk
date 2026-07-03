@@ -15,7 +15,8 @@ src/
   layouts/     # marcos de página (shells) reutilizables
   screens/     # pantallas: orquestan una feature dentro de un layout (hojas de composición)
   modules/     # lógica encapsulada por dominio
-    core/      # transversal: ui (shadcn), components, services, utils, enum — SIN deps a otros módulos
+    core/      # transversal (SIN deps a otros módulos):
+      #   ui/ (shadcn) · components/ · config/ (httpClient axios) · services/generated/ (orval) · utils/ · enum/
     <cap>/     # un módulo por capacidad (hooks de dominio, components, types, schemas Zod)
   store/       # stores Zustand (estado de cliente)
   routes/      # definición de rutas + RouteGuard
@@ -60,8 +61,8 @@ El cliente HTTP se **genera** desde el contrato OpenAPI del backend (orval); **n
 Pantalla ──> hook de dominio (modules/<cap>/hooks) ──> hook generado (orval) ──> mutator axios (core) ──> API
 ```
 
-- **Cliente generado (core)**: `core/services/generated/` contiene los **tipos DTO** del servidor (en `generated/model/`) y los **hooks base** de react-query (`useLogin`, `useRegister`…), producidos por orval desde `contracts/openapi.json`. Es código de máquina: **versionado pero no se edita a mano** (se regenera con `pnpm generate:api`). Excluido de ESLint; se valida con `tsc`.
-- **HTTP base (core, a mano)**: `core/services/httpClient.ts` — la instancia axios (`withCredentials`, inyección de `Bearer`, interceptor de refresh) que orval usa como *mutator*.
+- **Cliente generado (core)**: `core/services/generated/` contiene los **tipos DTO** del servidor (en `generated/model/`) y los **hooks base** de react-query, un archivo **por capacidad** (`generated/<cap>.ts`, p. ej. `auth.ts` con `useLogin`, `useRegister`…), producidos por orval desde `contracts/openapi.json`. Es código de máquina: **versionado pero no se edita a mano** (se regenera con `pnpm generate:api`). Excluido de ESLint; se valida con `tsc`.
+- **HTTP base / transporte (core, a mano)**: `core/config/httpClient.ts` — la instancia axios (`withCredentials`, inyección de `Bearer`, interceptor de refresh) que orval usa como *mutator*. Es **infraestructura de transporte**, no un service de dominio ni un util.
 - **Lógica de dominio (módulo)**: `modules/<cap>/` **envuelve** los hooks generados con lo propio de la capacidad: `schemas/` (Zod de formularios), `hooks/` de orquestación (combinan el hook generado con sesión, redirect, toasts), `components/`, `types/` propios. No hay cliente axios por módulo.
 - **Componentes limpios**: ninguna pantalla importa `axios` directamente; usa hooks de dominio (o, para un caso trivial, el hook generado).
 - **Contratos tipados**: los tipos request/response salen del contrato (orval), **nunca se teclean a mano**. Ver `api-type-contracts` y `docs/coding-style.md §7` (paridad de validación).
@@ -70,7 +71,7 @@ Pantalla ──> hook de dominio (modules/<cap>/hooks) ──> hook generado (or
 
 ```typescript
 // modules/auth/hooks/useLoginFlow.ts — orquestación de dominio (envuelve el hook generado)
-import { useLogin } from "@/modules/core/services/generated/api";
+import { useLogin } from "@/modules/core/services/generated/auth";
 import { useSessionStore } from "@/store/useSessionStore";
 
 export function useLoginFlow() {

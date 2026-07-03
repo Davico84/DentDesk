@@ -9,8 +9,8 @@ export default defineConfig({
   odontorisas: {
     input: "../../contracts/openapi.json",
     output: {
-      mode: "single",
-      target: "./src/modules/core/services/generated/api.ts",
+      mode: "tags",
+      target: "./src/modules/core/services/generated/endpoints.ts",
       schemas: "./src/modules/core/services/generated/model",
       client: "react-query",
       httpClient: "axios",
@@ -18,7 +18,7 @@ export default defineConfig({
       prettier: false,
       override: {
         mutator: {
-          path: "./src/modules/core/services/httpClient.ts",
+          path: "./src/modules/core/config/httpClient.ts",
           name: "customInstance",
         },
         query: {
