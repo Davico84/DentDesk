@@ -10,6 +10,8 @@ Título de la PR en Conventional Commits, p. ej.: feat(auth): agrega login
 
 ## Tipo de cambio
 
+<!-- Marca el que corresponda (coincide con el tipo del título en Conventional Commits). -->
+
 - [ ] `feat` — nueva funcionalidad
 - [ ] `fix` — corrección de bug
 - [ ] `docs` — documentación
@@ -25,6 +27,8 @@ Change: `...`
 <!-- Comandos/escenarios ejecutados y su resultado -->
 
 ## Checklist
+
+<!-- Marca cada punto cumplido; los que no apliquen a esta PR déjalos sin marcar. -->
 
 - [ ] `openspec validate <change> --strict` en verde (si toca specs/changes)
 - [ ] Backend: `./mvnw -B verify` en verde (si toca `backend/`)
