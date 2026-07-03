@@ -16,7 +16,7 @@ jobs:
         with:
           node-version: 22
       - name: Validate OpenSpec (strict)
-        run: npx -y @fission-ai/openspec@latest validate --strict
+        run: npx -y @fission-ai/openspec@latest validate --all --strict
 
   # Backend Java/Maven. Se activa cuando exista backend/ (skip mientras tanto).
   backend:
