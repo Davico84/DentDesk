@@ -5,11 +5,15 @@ on:
     branches: [main, dev]
     paths:
       - "modules/frontend/**"
+      - "pnpm-workspace.yaml"
+      - "pnpm-lock.yaml"
       - ".github/workflows/frontend.yml"
   push:
     branches: [main, dev]
     paths:
       - "modules/frontend/**"
+      - "pnpm-workspace.yaml"
+      - "pnpm-lock.yaml"
       - ".github/workflows/frontend.yml"
 
 concurrency:
@@ -30,7 +34,7 @@ jobs:
         with:
           node-version: 22
           cache: pnpm
-          cache-dependency-path: modules/frontend/pnpm-lock.yaml
+          cache-dependency-path: pnpm-lock.yaml
       - run: pnpm install --frozen-lockfile
       - name: Typecheck
         run: pnpm typecheck
@@ -46,7 +50,7 @@ jobs:
         with:
           node-version: 22
           cache: pnpm
-          cache-dependency-path: modules/frontend/pnpm-lock.yaml
+          cache-dependency-path: pnpm-lock.yaml
       - run: pnpm install --frozen-lockfile
       - name: Tests + coverage
         run: pnpm test:coverage
