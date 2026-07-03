@@ -91,3 +91,8 @@
 - [x] 13.4 Frontend: `RegisterForm` = nombre, correo, contraseña, **confirmar contraseña**; schema Zod con `confirmPassword === password`; quitar username/phone/country; `SessionUser` sin username
 - [x] 13.5 Frontend: tests (confirmación no coincide; quitar username duplicado)
 - [x] 13.6 `mvn verify` + `pnpm validate` + `openspec validate --strict` en verde
+
+## 14. Pendientes antes de archivar (reportados 2026-07-03)
+
+- [ ] 14.1 **BUG**: `/auth/refresh` devuelve **500** intermitente al recargar la página (debería ser 401 si el refresh es inválido). Error genérico no controlado (`traceId` ej. `cf6e364d`). Depurar con el stacktrace del log (buscar `[trace <id>]`); revisar `AuthService.refresh` (NPE / lazy load / rotación / cookie / doble refresh concurrente bootstrap+interceptor). Añadir test que lo reproduzca.
+- [ ] 14.2 Mejorar la **interfaz (UI/UX)** del auth: pulir login/registro/panel, estados de carga/error, responsividad y aplicación de marca. Definir alcance.
