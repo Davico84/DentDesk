@@ -40,17 +40,11 @@ public class AuthService {
         if (users.existsByEmail(cmd.email())) {
             throw new EmailAlreadyExistsException(cmd.email());
         }
-        if (users.existsByUsername(cmd.username())) {
-            throw new UsernameAlreadyExistsException(cmd.username());
-        }
         User user = users.save(User.builder()
             .email(cmd.email())
             .passwordHash(passwordEncoder.encode(cmd.password()))
             .role(Role.USER)
             .fullName(cmd.fullName())
-            .username(cmd.username())
-            .phone(cmd.phone())
-            .country(cmd.country())
             .build());
         return issueTokens(user);
     }
@@ -100,6 +94,6 @@ public class AuthService {
             .revoked(false)
             .build());
         return new AuthResult(accessToken, rawRefresh, refreshExpiry,
-            new UserView(user.getId(), user.getEmail(), user.getRole(), user.getFullName(), user.getUsername()));
+            new UserView(user.getId(), user.getEmail(), user.getRole(), user.getFullName()));
     }
 }

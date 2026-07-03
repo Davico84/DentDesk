@@ -151,31 +151,12 @@
             "type": "string",
             "maxLength": 120,
             "minLength": 2
-          },
-          "username": {
-            "type": "string",
-            "maxLength": 30,
-            "minLength": 3,
-            "pattern": "^[a-zA-Z0-9._-]+$"
-          },
-          "phone": {
-            "type": "string",
-            "minLength": 1,
-            "pattern": "^[+0-9 ()-]{7,20}$"
-          },
-          "country": {
-            "type": "string",
-            "maxLength": 56,
-            "minLength": 0
           }
         },
         "required": [
-          "country",
           "email",
           "fullName",
-          "password",
-          "phone",
-          "username"
+          "password"
         ]
       },
       "AuthResponse": {
@@ -212,17 +193,13 @@
           },
           "fullName": {
             "type": "string"
-          },
-          "username": {
-            "type": "string"
           }
         },
         "required": [
           "email",
           "fullName",
           "id",
-          "role",
-          "username"
+          "role"
         ]
       },
       "LoginRequest": {

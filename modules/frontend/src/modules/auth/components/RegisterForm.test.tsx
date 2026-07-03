@@ -13,13 +13,15 @@ beforeEach(() => {
   useSessionStore.setState({ accessToken: null, user: null, status: "idle" });
 });
 
-async function fillRegister(user: UserEvent, opts: { email?: string; password?: string } = {}) {
+async function fillRegister(
+  user: UserEvent,
+  opts: { email?: string; password?: string; confirmPassword?: string } = {},
+) {
+  const password = opts.password ?? "password123";
   await user.type(screen.getByLabelText(/nombre completo/i), "Ana Pérez");
-  await user.type(screen.getByLabelText(/nombre de usuario/i), "ana");
   await user.type(screen.getByLabelText(/correo/i), opts.email ?? "nuevo@clinica.test");
-  await user.type(screen.getByLabelText(/teléfono/i), "+51 999888777");
-  await user.type(screen.getByLabelText(/país/i), "PE");
-  await user.type(screen.getByLabelText(/contraseña/i), opts.password ?? "password123");
+  await user.type(screen.getByLabelText(/^contraseña$/i), password);
+  await user.type(screen.getByLabelText(/confirmar contraseña/i), opts.confirmPassword ?? password);
 }
 
 describe("RegisterForm", () => {
@@ -46,14 +48,22 @@ describe("RegisterForm", () => {
     expect(useSessionStore.getState().status).toBe("idle");
   });
 
+  it("rechaza cuando la confirmación de contraseña no coincide", async () => {
+    const user = userEvent.setup();
+    renderWithProviders(<RegisterForm />);
+
+    await fillRegister(user, { password: "password123", confirmPassword: "password124" });
+    await user.click(screen.getByRole("button", { name: /crear cuenta/i }));
+
+    expect(await screen.findByText("Las contraseñas no coinciden")).toBeInTheDocument();
+    expect(useSessionStore.getState().status).toBe("idle");
+  });
+
   it("con datos válidos crea la cuenta e inicia sesión", async () => {
     server.use(
       http.post("*/auth/register", () =>
         HttpResponse.json(
-          {
-            accessToken: "tok",
-            user: { id: 2, email: "nuevo@clinica.test", role: "USER", fullName: "Ana Pérez", username: "ana" },
-          },
+          { accessToken: "tok", user: { id: 2, email: "nuevo@clinica.test", role: "USER", fullName: "Ana Pérez" } },
           { status: 201 },
         ),
       ),
@@ -89,30 +99,6 @@ describe("RegisterForm", () => {
     await user.click(screen.getByRole("button", { name: /crear cuenta/i }));
 
     expect(await screen.findByText(/ya está registrado/i)).toBeInTheDocument();
-    expect(useSessionStore.getState().status).toBe("idle");
-  });
-
-  it("con nombre de usuario ya registrado muestra el error y no inicia sesión", async () => {
-    server.use(
-      http.post("*/auth/register", () =>
-        HttpResponse.json(
-          { status: 409, detail: "El nombre de usuario ya está en uso: ana" },
-          { status: 409 },
-        ),
-      ),
-    );
-    const user = userEvent.setup();
-    renderWithProviders(
-      <>
-        <RegisterForm />
-        <Toaster />
-      </>,
-    );
-
-    await fillRegister(user);
-    await user.click(screen.getByRole("button", { name: /crear cuenta/i }));
-
-    expect(await screen.findByText(/nombre de usuario ya está en uso/i)).toBeInTheDocument();
     expect(useSessionStore.getState().status).toBe("idle");
   });
 });

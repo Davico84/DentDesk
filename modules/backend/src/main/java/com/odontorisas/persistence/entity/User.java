@@ -48,15 +48,6 @@ public class User {
     @Column(name = "full_name", nullable = false, length = 120)
     private String fullName;
 
-    @Column(nullable = false, unique = true, length = 30)
-    private String username;
-
-    @Column(nullable = false, length = 20)
-    private String phone;
-
-    @Column(nullable = false, length = 56)
-    private String country;
-
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;

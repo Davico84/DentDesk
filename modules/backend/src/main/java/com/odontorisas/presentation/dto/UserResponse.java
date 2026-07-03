@@ -9,10 +9,9 @@ public record UserResponse(
     @Schema(requiredMode = Schema.RequiredMode.REQUIRED) Long id,
     @Schema(requiredMode = Schema.RequiredMode.REQUIRED) String email,
     @Schema(requiredMode = Schema.RequiredMode.REQUIRED) Role role,
-    @Schema(requiredMode = Schema.RequiredMode.REQUIRED) String fullName,
-    @Schema(requiredMode = Schema.RequiredMode.REQUIRED) String username) {
+    @Schema(requiredMode = Schema.RequiredMode.REQUIRED) String fullName) {
 
     public static UserResponse from(UserView user) {
-        return new UserResponse(user.id(), user.email(), user.role(), user.fullName(), user.username());
+        return new UserResponse(user.id(), user.email(), user.role(), user.fullName());
     }
 }

@@ -19,20 +19,4 @@ export interface RegisterRequest {
    * @maxLength 120
    */
   fullName: string;
-  /**
-   * @minLength 3
-   * @maxLength 30
-   * @pattern ^[a-zA-Z0-9._-]+$
-   */
-  username: string;
-  /**
-   * @minLength 1
-   * @pattern ^[+0-9 ()-]{7,20}$
-   */
-  phone: string;
-  /**
-   * @minLength 0
-   * @maxLength 56
-   */
-  country: string;
 }

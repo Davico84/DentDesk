@@ -12,5 +12,4 @@ export interface UserResponse {
   email: string;
   role: UserResponseRole;
   fullName: string;
-  username: string;
 }

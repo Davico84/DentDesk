@@ -82,3 +82,12 @@
 - [x] 12.5 Frontend: `RegisterForm` con los campos nuevos + schema Zod en paridad; saludo por `fullName` en el panel
 - [x] 12.6 Frontend: actualizar tests (RegisterForm: campos obligatorios, username duplicado)
 - [x] 12.7 `mvn verify` + `pnpm validate` + `openspec validate --strict` en verde
+
+## 13. Ajuste: registro mínimo + confirmación de contraseña
+
+- [x] 13.1 Backend: difiere `username`, `phone`, `country` a perfil (capacidad `users`); migración `V5__slim_register.sql` elimina esas columnas/índice; `User` conserva `fullName`
+- [x] 13.2 Backend: `RegisterRequest`/`RegisterCommand`/`UserResponse`/`UserView` sin username/phone/country; `AuthService.register` sin chequeo de username; eliminar `UsernameAlreadyExistsException` y `existsByUsername`; actualizar tests
+- [x] 13.3 Contrato: regenerar `contracts/openapi.json` desde el backend + cliente orval
+- [x] 13.4 Frontend: `RegisterForm` = nombre, correo, contraseña, **confirmar contraseña**; schema Zod con `confirmPassword === password`; quitar username/phone/country; `SessionUser` sin username
+- [x] 13.5 Frontend: tests (confirmación no coincide; quitar username duplicado)
+- [x] 13.6 `mvn verify` + `pnpm validate` + `openspec validate --strict` en verde
