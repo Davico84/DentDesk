@@ -4,21 +4,21 @@ Decisión de stack **cerrada el 2026-07-02**. Este documento es la fuente de ver
 El *qué* (capacidades + cambios) vive en `openspec/`. El flujo de trabajo, en `SETUP-OPENSPEC.md`.
 
 Referencias base:
-- Estructura de repo: demo `lidr-specboot-main` (monorepo plano + docs/ + specs en la raíz).
+- Estructura de repo: **monorepo modular** (`modules/`), con `docs/` y `openspec/` en la raíz — alineada con el template FixRiver (`modules/frontend`); del demo `lidr-specboot-main` se tomó la idea de docs/specs en la raíz.
 - Backend: especificación del equipo (Java 25 / Spring Boot).
 - Frontend: template FixRiver `modules/frontend/proyecto-base` (versiones reales tomadas de su `package.json`).
 
 ---
 
-## 1. Estructura del repositorio (monorepo plano)
+## 1. Estructura del repositorio (monorepo modular)
 
 ```
 OdontoRisas/
 ├─ openspec/              # specs + changes (qué hace el sistema)
 │  └─ config.yaml         # schema spec-driven + contexto/reglas para la IA
 ├─ docs/                  # estándares perennes (este archivo, backend, frontend, testing, adr/)
-├─ backend/               # Java 25 · Maven · Spring Boot (app principal)
-├─ frontend/              # React 19 · Vite · TypeScript (SPA)
+├─ modules/backend/               # Java 25 · Maven · Spring Boot (app principal)
+├─ modules/frontend/              # React 19 · Vite · TypeScript (SPA)
 ├─ .github/workflows/     # CI
 ├─ CLAUDE.md              # guía para agentes → apunta a docs/ y openspec/
 └─ SETUP-OPENSPEC.md      # setup y flujo OpenSpec
@@ -116,12 +116,11 @@ Detalle ampliado en las docs del template: `architecture.md`, `coding-standards.
 
 ---
 
-## 6. Pendientes de andamiaje
+## 6. Andamiaje (change `add-project-scaffolding`)
 
-- [ ] `backend/`: proyecto Maven + Spring Boot (estructura de capas, perfiles, Flyway).
-- [ ] `frontend/`: Vite + React (portar tooling y docs del template FixRiver).
-- [x] `docs/testing.md` — estrategia de pruebas (puente OpenSpec + front MSW + back Testcontainers).
-- [ ] Portar el resto de `docs/` del template: coding-standards, react-query, zustand, ui-patterns.
-- [ ] `docs/adr/` — registrar esta decisión de stack como ADR-0001.
-- [ ] `.github/workflows/ci.yml`.
-- [ ] `CLAUDE.md` raíz.
+- [x] `modules/backend/`: proyecto Maven + Spring Boot (capas, config única+secrets, Flyway).
+- [x] `modules/frontend/`: Vite + React (estructura screens/modules, tooling Vitest/MSW/ESLint).
+- [x] `docs/`: testing, coding-standards, react-query, zustand, ui-patterns, tooling-setup, backend-standards, capabilities, roadmap, data-model.
+- [x] `docs/adr/0001` — decisión de stack y estructura.
+- [x] `.github/workflows/ci.yml` (openspec + backend + frontend).
+- [x] `CLAUDE.md` raíz + commitlint/husky + pre-commit lint-staged.

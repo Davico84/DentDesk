@@ -54,7 +54,7 @@ feat(auth): agrega registro de usuario
 fix(backend): corrige 401 al refrescar token expirado
 ```
 ```
-docs(openspec): cierra stack backend/frontend y arquitectura
+docs(openspec): cierra stack modules/backend/frontend y arquitectura
 ```
 ```
 chore(frontend): configura vitest + msw y lint-staged
@@ -66,6 +66,25 @@ feat(api): unifica formato de respuesta de errores
 
 BREAKING CHANGE: el body de error pasa de { message } a { error: { message, code } }
 ```
+
+## 4b. Trazabilidad: enlazar el commit con la tarea (`Refs:`)
+
+Las **tareas codificadas** viven en el `tasks.md` de cada *change* de OpenSpec (IDs `1.1`, `3.2`…) — esa es la fuente única. Para saber desde un commit qué tarea cerró, añade un footer **`Refs:`** con el `change-id` y los IDs de tarea:
+
+```
+feat(auth): implementa registro de usuario
+
+- valida correo/contraseña y crea la cuenta
+
+Refs: add-authentication #2.1 #2.3
+```
+
+Reglas:
+- Formato del footer: `Refs: <change-id> #<task-id> [#<task-id> ...]`.
+- Un commit puede cerrar una o varias tareas del **mismo** change. Si toca varios changes, usa una línea `Refs:` por change.
+- A nivel capacidad, el `change-id` ya mapea al roadmap (`docs/roadmap.md`).
+- Al cerrar la tarea, marca su checkbox (`- [x]`) en el `tasks.md` del change.
+- `Refs:` es informativo (no lo valida commitlint); mantenlo consistente.
 
 ## 5. Reglas de trabajo (del skill `commit` del demo)
 

@@ -1,7 +1,7 @@
 # OdontoRisas — Guía para agentes
 
 Proyecto **greenfield** con desarrollo dirigido por especificaciones (spec-driven) usando **OpenSpec**.
-Monorepo plano: `backend/` (Java/Spring) + `frontend/` (React/Vite), con `openspec/` y `docs/` en la raíz.
+Monorepo modular: `modules/backend/` (Java/Spring) + `modules/frontend/` (React/Vite), con `openspec/` y `docs/` en la raíz.
 
 ## Fuentes de verdad
 - **Flujo OpenSpec** (setup, comandos, ciclo): `SETUP-OPENSPEC.md`.
@@ -12,7 +12,8 @@ Monorepo plano: `backend/` (Java/Spring) + `frontend/` (React/Vite), con `opensp
   - `docs/data-model.md` — modelo de dominio (vivo). Fuente de verdad local-first; Jira solo backlog (futuro).
   - `docs/testing.md` — estrategia de pruebas + puente Scenario→test.
   - `docs/backend-standards.md` — estándares Java/Spring · `docs/coding-standards.md` (+ react-query/zustand/ui-patterns) — estándares frontend.
-  - `docs/commits.md` — estándar de commits (Conventional Commits en español).
+  - `docs/tooling-setup.md` — tooling reproducible (scripts, Vitest/MSW, husky/commitlint, CI).
+  - `docs/commits.md` — estándar de commits (Conventional Commits en español) + convención `Refs:` para enlazar tareas.
 
 ## Reglas OpenSpec (no negociables)
 - `specs/` = lo **YA construido**, no un backlog. Cada capacidad nace como *change* y llega a `specs/` al archivar.

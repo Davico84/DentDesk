@@ -24,7 +24,7 @@ Zustand se utiliza exclusivamente para almacenar **estado del cliente global**. 
 
 ## 2. Convención y Estructura de Stores
 
-Todos los stores se agrupan en la carpeta `frontend/src/store/` y deben seguir la siguiente estructura estandarizada:
+Todos los stores se agrupan en la carpeta `modules/frontend/src/store/` y deben seguir la siguiente estructura estandarizada:
 
 ### Estructura de Archivo
 1. **Definición de la Interfaz (`[Feature]State`)**: Define explícitamente el tipado de todos los valores del estado y de las funciones de acción.
@@ -33,7 +33,7 @@ Todos los stores se agrupan en la carpeta `frontend/src/store/` y deben seguir l
 
 ### Ejemplo Práctico
 
-Siguiendo la convención `frontend/src/store/useSortingStore.ts`:
+Siguiendo la convención `modules/frontend/src/store/useSortingStore.ts`:
 ```typescript
 import { create } from "zustand";
 import { createSelectors } from "./createSelectors";
@@ -68,7 +68,7 @@ export const useSortingStore = createSelectors(useSortingStoreBase);
 > del store y provoca renders innecesarios.
 
 * **Patrón estándar — `createSelectors`**: Envuelve cada store con el helper
-  `createSelectors` (ubicado según la convención en `frontend/src/store/createSelectors.ts`)
+  `createSelectors` (ubicado según la convención en `modules/frontend/src/store/createSelectors.ts`)
   al exportarlo. Genera selectores atómicos accesibles como `store.use.<campo>()`,
   de modo que el acceso correcto (por selector) es el camino por defecto y no hay
   que escribir un hook por campo. Es la forma recomendada de exponer y consumir stores.

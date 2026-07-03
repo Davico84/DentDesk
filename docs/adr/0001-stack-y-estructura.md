@@ -10,15 +10,16 @@ OdontoRisas arranca greenfield con desarrollo dirigido por especificaciones (Ope
 Se necesita fijar la estructura del repo y el stack de backend y frontend antes de escribir código, para que las capacidades (empezando por `authentication`) se especifiquen e implementen con un objetivo técnico estable.
 
 Referencias consultadas:
-- Demo `lidr-specboot-main` — como referencia de **estructura** (monorepo plano + `docs/` + specs en la raíz). Su stack (Node/Express) NO se adopta.
+- Demo `lidr-specboot-main` — referencia de organización (`docs/` + specs en la raíz). Su stack (Node/Express) NO se adopta.
+- Template FixRiver (`modules/frontend`) — referencia del layout **modular** (`modules/`).
 - Template FixRiver `modules/frontend/proyecto-base` — como **base del frontend** (versiones reales de su `package.json`).
 - Especificación de backend provista por el equipo (Java 25 / Spring Boot).
 
 ## Decisión
 
-### Estructura — monorepo plano
+### Estructura — monorepo modular
 ```
-OdontoRisas/  →  openspec/ · docs/ · backend/ · frontend/ · .github/workflows/
+OdontoRisas/  →  openspec/ · docs/ · modules/backend/ · modules/frontend/ · .github/workflows/
 ```
 
 ### Backend
@@ -52,4 +53,4 @@ Detalle completo y tablas: `docs/architecture.md`.
 - Acoplamiento de versionado entre back y front (una historia de git compartida).
 
 **Seguimiento**
-- Andamiar `backend/` y `frontend/`; portar docs del template; añadir commitlint + hook `commit-msg`.
+- Andamiar `modules/backend/` y `modules/frontend/`; portar docs del template; añadir commitlint + hook `commit-msg`.

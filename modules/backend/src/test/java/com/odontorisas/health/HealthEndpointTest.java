@@ -13,7 +13,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 /**
- * Scenario "Arranque de la aplicación": el endpoint de salud responde 200 OK.
+ * Scenario "Arranque de la aplicación": el endpoint de salud responde 200 OK (UP).
  */
 @SpringBootTest
 @AutoConfigureMockMvc
