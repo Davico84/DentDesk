@@ -56,8 +56,8 @@
 
 ## 9. Frontend — rutas y guardas (authentication)
 
-- [ ] 9.1 `RouteGuard`: sin sesión en ruta privada → login; con sesión en `/auth` → panel; rol sin permiso → acceso denegado con volver (Scenarios de protección)
-- [ ] 9.2 Redirección por rol tras login/registro (mapa rol → ruta de inicio)
+- [x] 9.1 `RouteGuard`: sin sesión en ruta privada → login; con sesión en `/auth` → panel; rol sin permiso → acceso denegado con volver (Scenarios de protección)
+- [x] 9.2 Redirección por rol tras login/registro (mapa rol → ruta de inicio)
 
 ## 10. Frontend — tests (Vitest + RTL + MSW, derivados de los Scenario)
 
