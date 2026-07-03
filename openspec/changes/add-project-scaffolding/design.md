@@ -1,6 +1,6 @@
 ## Context
 
-Repo greenfield con stack cerrado (ADR-0001, `docs/architecture.md`) y sin código. Este change crea el esqueleto de ambos módulos del monorepo plano (`modules/backend/`, `modules/frontend/`) más la validación de commits, sin lógica de negocio. Es un cambio transversal (dos toolchains: Maven + pnpm) y toca CI y hooks de git, por lo que amerita design.
+Repo greenfield con stack cerrado (ADR-0001, `docs/architecture.md`) y sin código. Este change crea el esqueleto de ambos módulos del monorepo modular (`modules/backend/`, `modules/frontend/`) más la validación de commits, sin lógica de negocio. Es un cambio transversal (dos toolchains: Maven + pnpm) y toca CI y hooks de git, por lo que amerita design.
 
 ## Goals / Non-Goals
 
@@ -17,7 +17,7 @@ Repo greenfield con stack cerrado (ADR-0001, `docs/architecture.md`) y sin códi
 
 ## Decisions
 
-- **Monorepo plano con dos toolchains** (Maven en `modules/backend/`, pnpm en `modules/frontend/`).
+- **Monorepo modular con dos toolchains** (Maven en `modules/backend/`, pnpm en `modules/frontend/`).
   - *Por qué*: alineado con ADR-0001 y el demo lidr-specboot. CI usa jobs separados con skip por existencia de módulo (ya en `ci.yml`).
   - *Alternativa descartada*: repos separados → pierde coordinación de specs/PRs.
 - **Maven Wrapper (`mvnw`) versionado** en `modules/backend/`.

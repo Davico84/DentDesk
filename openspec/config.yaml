@@ -6,7 +6,7 @@ context: |
   Proyecto: OdontoRisas — desarrollo dirigido por especificaciones (spec-driven) con OpenSpec.
   Guías: SETUP-OPENSPEC.md (setup/flujo) · docs/ = cómo construimos · openspec/ = qué hace + cambios.
 
-  Estructura del repo (monorepo plano, siguiendo el demo lidr-specboot-main):
+  Estructura del repo (monorepo modular):
     OdontoRisas/
       openspec/            # specs + changes (qué hace el sistema)
       docs/                # estándares perennes (architecture, backend, frontend, testing, adr/)

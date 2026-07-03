@@ -4,13 +4,13 @@ Decisión de stack **cerrada el 2026-07-02**. Este documento es la fuente de ver
 El *qué* (capacidades + cambios) vive en `openspec/`. El flujo de trabajo, en `SETUP-OPENSPEC.md`.
 
 Referencias base:
-- Estructura de repo: demo `lidr-specboot-main` (monorepo plano + docs/ + specs en la raíz).
+- Estructura de repo: **monorepo modular** (`modules/`), con `docs/` y `openspec/` en la raíz — alineada con el template FixRiver (`modules/frontend`); del demo `lidr-specboot-main` se tomó la idea de docs/specs en la raíz.
 - Backend: especificación del equipo (Java 25 / Spring Boot).
 - Frontend: template FixRiver `modules/frontend/proyecto-base` (versiones reales tomadas de su `package.json`).
 
 ---
 
-## 1. Estructura del repositorio (monorepo plano)
+## 1. Estructura del repositorio (monorepo modular)
 
 ```
 OdontoRisas/
