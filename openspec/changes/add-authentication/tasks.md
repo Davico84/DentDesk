@@ -45,7 +45,7 @@
 - [x] 7.1 Añadir `orval` (devDep) + `orval.config.ts` (input `../../contracts/openapi.json` versionado, output `src/modules/core/services`, `client: react-query`)
 - [x] 7.2 Mutator axios en `core/services`: instancia con `withCredentials`, inyección de `Authorization` e interceptor 401 → refresh → reintento (Scenario refresh)
 - [x] 7.3 Script `generate:api`; generar tipos+hooks y **commitear los artefactos generados**; `pnpm typecheck` verde usándolos (Scenarios de generación/consumo y "Artefactos generados versionados")
-- [ ] 7.4 Check de **drift en CI**: regenerar contrato + tipos y fallar si difieren de lo versionado (Scenario "Detección de drift en CI")
+- [x] 7.4 Check de **drift en CI**: regenerar contrato + tipos y fallar si difieren de lo versionado (Scenario "Detección de drift en CI")
 
 ## 8. Frontend — sesión y módulo auth (authentication)
 
@@ -69,6 +69,6 @@
 
 ## 11. Docs y cierre
 
-- [ ] 11.1 `openspec validate add-authentication --strict` en verde
+- [x] 11.1 `openspec validate add-authentication --strict` en verde
 - [ ] 11.2 `mvn verify` (backend) y `pnpm validate` (frontend) en verde; CI activa jobs
 - [ ] 11.3 Al archivar: actualizar `docs/domain.md` (entidad `User`, roles) y marcar `authentication` construida en `docs/vision.md` (gobernanza `CLAUDE.md`)
