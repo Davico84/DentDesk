@@ -116,12 +116,11 @@ Detalle ampliado en las docs del template: `architecture.md`, `coding-standards.
 
 ---
 
-## 6. Pendientes de andamiaje
+## 6. Andamiaje (change `add-project-scaffolding`)
 
-- [ ] `modules/backend/`: proyecto Maven + Spring Boot (estructura de capas, perfiles, Flyway).
-- [ ] `modules/frontend/`: Vite + React (portar tooling y docs del template FixRiver).
-- [x] `docs/testing.md` — estrategia de pruebas (puente OpenSpec + front MSW + back Testcontainers).
-- [ ] Portar el resto de `docs/` del template: coding-standards, react-query, zustand, ui-patterns.
-- [ ] `docs/adr/` — registrar esta decisión de stack como ADR-0001.
-- [ ] `.github/workflows/ci.yml`.
-- [ ] `CLAUDE.md` raíz.
+- [x] `modules/backend/`: proyecto Maven + Spring Boot (capas, config única+secrets, Flyway).
+- [x] `modules/frontend/`: Vite + React (estructura screens/modules, tooling Vitest/MSW/ESLint).
+- [x] `docs/`: testing, coding-standards, react-query, zustand, ui-patterns, tooling-setup, backend-standards, capabilities, roadmap, data-model.
+- [x] `docs/adr/0001` — decisión de stack y estructura.
+- [x] `.github/workflows/ci.yml` (openspec + backend + frontend).
+- [x] `CLAUDE.md` raíz + commitlint/husky + pre-commit lint-staged.

@@ -38,9 +38,9 @@
 
 ## 6. CI y cierre
 
-- [ ] 6.1 Verificar que los jobs `backend` y `frontend` de `.github/workflows/ci.yml` se activan al existir los módulos
-- [ ] 6.2 `openspec validate add-project-scaffolding --strict` en verde
-- [ ] 6.3 Actualizar `docs/architecture.md` §6 (marcar andamiaje hecho) y crear `.env.example`
+- [x] 6.1 Verificar que los jobs `backend` y `frontend` de `.github/workflows/ci.yml` se activan al existir los módulos
+- [x] 6.2 `openspec validate add-project-scaffolding --strict` en verde
+- [x] 6.3 Actualizar `docs/architecture.md` §6 (marcar andamiaje hecho) y crear `.env.example`
 
 ---
 
