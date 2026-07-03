@@ -21,7 +21,33 @@ Producto: **clínica dental**. Este documento lista las capacidades **planeadas*
 | 8 | `inventory` | negocio | staff / admin | insumos y stock de la clínica | 1 |
 | 9 | `dashboard` | negocio | admin | panel con métricas (citas, ingresos, ocupación) | 2–8 |
 
-**Estado actual:** `project-foundation` propuesta (change `add-project-scaffolding`, pendiente de aplicar). El resto: planeadas.
+---
+
+## Estado de capacidades (puente hacia `specs/` y `changes/`)
+
+> Esta lista es el **puente vivo** entre la planificación y lo construido. **Actualízala en cada `/opsx:propose` y `/opsx:archive`** (ver "Ciclo de vida" abajo).
+
+- ✅ **`project-foundation`** — construida. Spec: `openspec/specs/project-foundation/spec.md` · change archivado: `openspec/changes/archive/2026-07-03-add-project-scaffolding/`.
+- 🔜 **`authentication`** — próxima. Aún sin change (al proponer, enlaza aquí su `openspec/changes/<id>/proposal.md` y `design.md`).
+- ⏳ **Resto** (`users`, `patients`, `appointments`, `treatments`, `images`, `billing`, `inventory`, `dashboard`) — planeadas.
+
+---
+
+## Ciclo de vida de una capacidad (gobernanza)
+
+```
+planeada (este roadmap) → en progreso (change activo: proposal.md + design.md) → construida (specs/<cap>/spec.md; change en changes/archive/)
+```
+
+Disciplina para que el contexto de la IA se mantenga preciso (su contexto se extrae de `specs/` y `docs/`):
+
+- **En `/opsx:propose`**: enlaza el change nuevo (`openspec/changes/<id>/proposal.md` y `design.md`) en "Estado de capacidades" y márcala 🔜/en progreso.
+- **En `/opsx:archive`** (en el **mismo commit/PR** que el archivado):
+  1. Si la capacidad tocó el dominio, **actualiza `docs/data-model.md`** — es la fuente de la que la IA extrae el modelo; desincronizarla degrada la precisión.
+  2. Marca la capacidad como ✅ **construida** y enlaza su `spec.md` en `openspec/specs/`.
+  3. Verifica que el change quedó en `openspec/changes/archive/`.
+
+Regla equivalente para agentes en `CLAUDE.md → Flujo de trabajo → Gobernanza del ciclo`.
 
 ---
 

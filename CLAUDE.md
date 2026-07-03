@@ -26,6 +26,11 @@ Monorepo modular: `modules/backend/` (Java/Spring) + `modules/frontend/` (React/
 `/opsx:explore` (pensar) → `/opsx:propose` (change + artefactos) → revisión humana → `/opsx:apply` (implementar) → tests → `/opsx:sync`/`/opsx:archive`.
 Ruta rápida por defecto: **propose → apply → archive**.
 
+### Gobernanza del ciclo (mantiene el contexto de la IA preciso)
+`docs/roadmap.md` es el **puente**: planeada (roadmap) → en progreso (change activo) → construida (`specs/`).
+- **Al `/opsx:propose`**: enlaza el change en progreso (`changes/<id>/proposal.md` y `design.md`) en la sección "Estado de capacidades" de `docs/roadmap.md`.
+- **Al `/opsx:archive`** (en el mismo commit/PR): 1) si la capacidad tocó el dominio, actualiza `docs/data-model.md` (de ahí extrae el modelo la IA); 2) marca la capacidad como construida y enlaza su `spec.md` en `docs/roadmap.md`.
+
 ## Gates antes de codear / al subir
 - `openspec validate <change> --strict` + revisión humana del proposal/delta.
 - Backend: `mvn verify`. Frontend: `pnpm validate` (typecheck + lint + test).
