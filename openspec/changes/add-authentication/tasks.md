@@ -8,16 +8,16 @@
 
 ## 2. Backend — contrato OpenAPI (api-type-contracts)
 
-- [ ] 2.1 Añadir dependencia `springdoc-openapi-starter-webmvc-*` v3.0.3 (compatible Spring Boot 4.x)
+- [x] 2.1 Añadir dependencia `springdoc-openapi-starter-webmvc-*` v3.0.3 (compatible Spring Boot 4.x)
 - [ ] 2.2 Verificar que `/v3/api-docs` responde `200 OK` con documento OpenAPI válido (Scenario "Exposición en runtime")
 - [ ] 2.3 Configurar export del contrato en build: `springdoc-openapi-maven-plugin` (fallback `spring-boot:start` + `curl` si no soporta Boot 4) y **commitear el snapshot en `contracts/openapi.json`** (versionado, fuera de `target/`) (Scenario "Snapshot del contrato versionado")
 - [ ] 2.4 Confirmar que las restricciones de Bean Validation de los DTOs aparecen en `contracts/openapi.json` (Scenario "Restricciones de validación reflejadas en el contrato")
 
 ## 3. Backend — modelo y persistencia (authentication)
 
-- [ ] 3.1 Entidad `User` (`id`, `email` único, `password_hash`, `role` ADMIN/USER, timestamps) en `persistence.entity` + repositorio
-- [ ] 3.2 Migración Flyway `V2__users.sql` (tabla `users` con índice único en `email`)
-- [ ] 3.3 Persistencia de refresh tokens en **tabla DB** para rotación/revocación: entidad JPA + `V3__refresh_tokens.sql` + repositorio
+- [x] 3.1 Entidad `User` (`id`, `email` único, `password_hash`, `role` ADMIN/USER, timestamps) en `persistence.entity` + repositorio
+- [x] 3.2 Migración Flyway `V2__users.sql` (tabla `users` con índice único en `email`)
+- [x] 3.3 Persistencia de refresh tokens en **tabla DB** para rotación/revocación: entidad JPA + `V3__refresh_tokens.sql` + repositorio
 
 ## 4. Backend — seguridad y servicios (authentication)
 
