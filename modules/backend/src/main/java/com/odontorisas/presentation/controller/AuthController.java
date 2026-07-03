@@ -6,6 +6,7 @@ import com.odontorisas.presentation.dto.LoginRequest;
 import com.odontorisas.presentation.dto.RegisterRequest;
 import com.odontorisas.service.auth.AuthResult;
 import com.odontorisas.service.auth.AuthService;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
@@ -23,6 +24,7 @@ import org.springframework.web.bind.annotation.RestController;
  */
 @RestController
 @RequestMapping("/auth")
+@Tag(name = "auth", description = "Autenticación")
 public class AuthController {
 
     private final AuthService authService;
