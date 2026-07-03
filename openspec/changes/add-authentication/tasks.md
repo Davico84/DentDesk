@@ -21,10 +21,10 @@
 
 ## 4. Backend — seguridad y servicios (authentication)
 
-- [ ] 4.1 `PasswordEncoder` BCrypt; utilidades JWT (emisión/validación access HS256 + refresh) en `infra.security`
-- [ ] 4.2 `SecurityConfig` real: filtro JWT, rutas públicas (`/auth/**`, `/actuator/health`, `/v3/api-docs`), CORS con credenciales, CSRF acorde a cookie de refresh (`SameSite=Lax`)
-- [ ] 4.3 `service.auth`: registro (rol `USER` por defecto, rechazo de correo duplicado), login (mensaje genérico en fallo), refresh (rotación + reintento), logout (invalidar refresh)
-- [ ] 4.4 Emisión del refresh como cookie `HttpOnly`+`Secure`+`SameSite=Lax`; access en el cuerpo de respuesta
+- [x] 4.1 `PasswordEncoder` BCrypt; utilidades JWT (emisión/validación access HS256 + refresh) en `infra.security`
+- [x] 4.2 `SecurityConfig` real: filtro JWT, rutas públicas (`/auth/**`, `/actuator/health`, `/v3/api-docs`), CORS con credenciales, CSRF acorde a cookie de refresh (`SameSite=Lax`)
+- [x] 4.3 `service.auth`: registro (rol `USER` por defecto, rechazo de correo duplicado), login (mensaje genérico en fallo), refresh (rotación + reintento), logout (invalidar refresh)
+- [x] 4.4 Emisión del refresh como cookie `HttpOnly`+`Secure`+`SameSite=Lax`; access en el cuerpo de respuesta
 
 ## 5. Backend — API (authentication)
 
