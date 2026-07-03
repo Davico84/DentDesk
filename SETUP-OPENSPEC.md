@@ -251,7 +251,7 @@ jobs:
           node-version: 20
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - run: pnpm dlx @fission-ai/openspec@latest validate --strict
+      - run: pnpm dlx @fission-ai/openspec@latest validate --all --strict   # en CI (no interactivo) usar --all
       - run: pnpm validate
 ```
 
