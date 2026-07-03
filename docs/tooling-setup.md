@@ -59,9 +59,9 @@ Activación: tras clonar, ejecutar **`pnpm install` en la raíz** una vez.
 
 ---
 
-## 4. Pre-commit — lint-staged (frontend) · PENDIENTE
+## 4. Pre-commit — lint-staged (frontend)
 
-Planificado (tarea 5.3 de `add-project-scaffolding`): hook `pre-commit` en la raíz que ejecute `lint-staged` **acotado a `modules/frontend/`** para no afectar commits de solo-backend.
+Hook `pre-commit` en la raíz que ejecuta `lint-staged` **acotado a `modules/frontend/`** (los commits de solo-backend no se ven afectados).
 
 - `modules/frontend/lint-staged.config.mjs`:
   ```js
@@ -70,7 +70,8 @@ Planificado (tarea 5.3 de `add-project-scaffolding`): hook `pre-commit` en la ra
     "*.{ts,tsx,json}": () => "tsc -b",
   };
   ```
-- `.husky/pre-commit` (raíz): corre `lint-staged` solo si el commit toca `modules/frontend/`.
+- `.husky/pre-commit` (raíz): si hay archivos staged bajo `modules/frontend/`, hace `cd modules/frontend && pnpm exec lint-staged`.
+- `lint-staged` está en las devDependencies de `modules/frontend`.
 
 ---
 
