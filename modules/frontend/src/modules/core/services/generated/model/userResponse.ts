@@ -11,4 +11,6 @@ export interface UserResponse {
   id: number;
   email: string;
   role: UserResponseRole;
+  fullName: string;
+  username: string;
 }

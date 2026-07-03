@@ -3,6 +3,7 @@ import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { http, HttpResponse } from "msw";
 import { Toaster } from "sonner";
+import type { UserEvent } from "@testing-library/user-event";
 import { renderWithProviders } from "@/test/utils";
 import { server } from "@/test/mocks/server";
 import { useSessionStore } from "@/store/useSessionStore";
@@ -12,13 +13,31 @@ beforeEach(() => {
   useSessionStore.setState({ accessToken: null, user: null, status: "idle" });
 });
 
+async function fillRegister(user: UserEvent, opts: { email?: string; password?: string } = {}) {
+  await user.type(screen.getByLabelText(/nombre completo/i), "Ana Pérez");
+  await user.type(screen.getByLabelText(/nombre de usuario/i), "ana");
+  await user.type(screen.getByLabelText(/correo/i), opts.email ?? "nuevo@clinica.test");
+  await user.type(screen.getByLabelText(/teléfono/i), "+51 999888777");
+  await user.type(screen.getByLabelText(/país/i), "PE");
+  await user.type(screen.getByLabelText(/contraseña/i), opts.password ?? "password123");
+}
+
 describe("RegisterForm", () => {
+  it("valida campos obligatorios y no envía la petición", async () => {
+    const user = userEvent.setup();
+    renderWithProviders(<RegisterForm />);
+
+    await user.click(screen.getByRole("button", { name: /crear cuenta/i }));
+
+    expect(await screen.findByText("Ingresa tu nombre completo")).toBeInTheDocument();
+    expect(useSessionStore.getState().status).toBe("idle");
+  });
+
   it("rechaza contraseña de menos de 8 caracteres sin enviar la petición", async () => {
     const user = userEvent.setup();
     renderWithProviders(<RegisterForm />);
 
-    await user.type(screen.getByLabelText(/correo/i), "nuevo@clinica.test");
-    await user.type(screen.getByLabelText(/contraseña/i), "1234");
+    await fillRegister(user, { password: "1234" });
     await user.click(screen.getByRole("button", { name: /crear cuenta/i }));
 
     expect(
@@ -31,7 +50,10 @@ describe("RegisterForm", () => {
     server.use(
       http.post("*/auth/register", () =>
         HttpResponse.json(
-          { accessToken: "tok", user: { id: 2, email: "nuevo@clinica.test", role: "USER" } },
+          {
+            accessToken: "tok",
+            user: { id: 2, email: "nuevo@clinica.test", role: "USER", fullName: "Ana Pérez", username: "ana" },
+          },
           { status: 201 },
         ),
       ),
@@ -39,24 +61,18 @@ describe("RegisterForm", () => {
     const user = userEvent.setup();
     renderWithProviders(<RegisterForm />);
 
-    await user.type(screen.getByLabelText(/correo/i), "nuevo@clinica.test");
-    await user.type(screen.getByLabelText(/contraseña/i), "password123");
+    await fillRegister(user);
     await user.click(screen.getByRole("button", { name: /crear cuenta/i }));
 
     await waitFor(() => expect(useSessionStore.getState().status).toBe("authenticated"));
-    expect(useSessionStore.getState().user?.email).toBe("nuevo@clinica.test");
+    expect(useSessionStore.getState().user?.fullName).toBe("Ana Pérez");
   });
 
   it("con correo ya registrado muestra el error y no inicia sesión", async () => {
     server.use(
       http.post("*/auth/register", () =>
         HttpResponse.json(
-          {
-            type: "/errors/email-already-exists",
-            title: "Conflict",
-            status: 409,
-            detail: "El correo ya está registrado: dup@clinica.test",
-          },
+          { status: 409, detail: "El correo ya está registrado: nuevo@clinica.test" },
           { status: 409 },
         ),
       ),
@@ -69,11 +85,34 @@ describe("RegisterForm", () => {
       </>,
     );
 
-    await user.type(screen.getByLabelText(/correo/i), "dup@clinica.test");
-    await user.type(screen.getByLabelText(/contraseña/i), "password123");
+    await fillRegister(user);
     await user.click(screen.getByRole("button", { name: /crear cuenta/i }));
 
     expect(await screen.findByText(/ya está registrado/i)).toBeInTheDocument();
+    expect(useSessionStore.getState().status).toBe("idle");
+  });
+
+  it("con nombre de usuario ya registrado muestra el error y no inicia sesión", async () => {
+    server.use(
+      http.post("*/auth/register", () =>
+        HttpResponse.json(
+          { status: 409, detail: "El nombre de usuario ya está en uso: ana" },
+          { status: 409 },
+        ),
+      ),
+    );
+    const user = userEvent.setup();
+    renderWithProviders(
+      <>
+        <RegisterForm />
+        <Toaster />
+      </>,
+    );
+
+    await fillRegister(user);
+    await user.click(screen.getByRole("button", { name: /crear cuenta/i }));
+
+    expect(await screen.findByText(/nombre de usuario ya está en uso/i)).toBeInTheDocument();
     expect(useSessionStore.getState().status).toBe("idle");
   });
 });

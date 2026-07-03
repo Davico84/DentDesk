@@ -7,6 +7,8 @@ export interface SessionUser {
   id: number;
   email: string;
   role: Role;
+  fullName?: string;
+  username?: string;
 }
 
 /**

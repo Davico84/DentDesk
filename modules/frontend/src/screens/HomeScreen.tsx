@@ -12,7 +12,8 @@ export function HomeScreen() {
       <h1 className="text-2xl font-bold">OdontoRisas</h1>
       {user ? (
         <p className="text-muted-foreground">
-          Sesión iniciada como <span className="font-medium text-foreground">{user.email}</span> ({user.role})
+          Sesión iniciada como{" "}
+          <span className="font-medium text-foreground">{user.fullName ?? user.email}</span> ({user.role})
         </p>
       ) : null}
       <Button variant="outline" onClick={() => logout.mutate()} disabled={logout.isPending}>
