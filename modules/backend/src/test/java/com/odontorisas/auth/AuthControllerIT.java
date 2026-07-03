@@ -62,7 +62,8 @@ class AuthControllerIT extends AbstractIntegrationTest {
         mockMvc.perform(post("/auth/register").contentType(MediaType.APPLICATION_JSON)
                 .content(registerBody("corta@clinica.test", "1234")))
             .andExpect(status().isBadRequest())
-            .andExpect(jsonPath("$.fieldErrors.password").isNotEmpty());
+            .andExpect(jsonPath("$.errors").isArray())
+            .andExpect(jsonPath("$.errors[?(@.field == 'password')]").isNotEmpty());
     }
 
     @Test
@@ -84,7 +85,7 @@ class AuthControllerIT extends AbstractIntegrationTest {
         mockMvc.perform(post("/auth/login").contentType(MediaType.APPLICATION_JSON)
                 .content(registerBody("noexiste@clinica.test", "password123")))
             .andExpect(status().isUnauthorized())
-            .andExpect(jsonPath("$.message").value("Correo electrónico o contraseña incorrectos"));
+            .andExpect(jsonPath("$.detail").value("Correo electrónico o contraseña incorrectos"));
     }
 
     @Test

@@ -9,6 +9,10 @@ spring:
   config:
     import: "optional:file:./secrets.properties"
 
+  mvc:
+    problemdetails:
+      enabled: true          # errores en formato RFC 9457 (ProblemDetail) de forma nativa
+
   datasource:
     url: ${DB_URL}
     username: ${DB_USERNAME}

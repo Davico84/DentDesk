@@ -149,17 +149,32 @@ public record CreateAppointmentRequest(
 
 ---
 
-## 10. Manejo de errores
+## 10. Manejo de errores — RFC 9457 (Problem Details)
 
-- Manejo **centralizado** con `@RestControllerAdvice` + `@ExceptionHandler`.
-- Excepciones de dominio propias (p. ej. `AppointmentNotFoundException`) mapeadas a status HTTP.
-- **Formato de error consistente** y alineado con el frontend (ver contrato en `docs/architecture.md §4`). Formato base:
+**Estándar del proyecto**: todos los errores se devuelven como **`ProblemDetail` (RFC 9457)**, el tipo nativo de Spring Boot 3/4. No se crean DTOs de error propios.
 
+- **Activación nativa**: `spring.mvc.problemdetails.enabled=true` en `application.yml`. Con esto, las excepciones propias de Spring MVC (404, 405, JSON malformado, etc.) ya responden en formato ProblemDetail.
+- **Handler centralizado**: un único `@RestControllerAdvice` que **extiende `ResponseEntityExceptionHandler`** (para conservar el status de las excepciones de Spring y no convertirlas en 500). Vive en `presentation` (`GlobalExceptionHandler`).
+- **Excepciones de negocio**: heredan de una base `service.BusinessException` que lleva el `HttpStatus` y un `errorType` (slug). Un solo `@ExceptionHandler(BusinessException.class)` las mapea a ProblemDetail — no hace falta un handler por excepción. Ejemplos: `EmailAlreadyExistsException` (409), `InvalidCredentialsException` (401).
+- **`type` relativo**: `/errors/<errorType>` (agnóstico al entorno; nada de URLs absolutas por dominio). Usa `about:blank` solo si no aplica un tipo.
+- **Extensiones**: se añaden `timestamp` (Instant) y `traceId` a cada error. El `traceId` lo genera un `TraceIdFilter` (en `infra.config`) que lo registra en el **MDC** (aparece en todos los logs de la petición) y lo devuelve en la cabecera `X-Trace-Id`. Así un error en producción es rastreable de punta a punta.
+- **Validación (`@Valid`) → 400**: se sobrescribe `handleMethodArgumentNotValid` para incluir la extensión `errors` (lista de `{field, message}`).
+- **Errores inesperados → 500**: red de seguridad `@ExceptionHandler(Exception.class)` que **loguea el stacktrace con el traceId** y responde un ProblemDetail genérico. **Nunca** se filtran stack traces ni detalles internos en la respuesta.
+
+Ejemplo de respuesta (validación):
 ```json
-{ "error": { "message": "Appointment not found", "code": "NOT_FOUND" } }
+{
+  "type": "/errors/validation-error",
+  "title": "Validation failed",
+  "status": 400,
+  "detail": "Uno o más campos son inválidos.",
+  "errors": [{ "field": "password", "message": "La contraseña debe tener al menos 8 caracteres" }],
+  "timestamp": "2026-07-03T12:34:56Z",
+  "traceId": "a1b2c3d4"
+}
 ```
 
-- No filtrar detalles internos (stack traces) en la respuesta; sí loguearlos.
+> El frontend consume estos errores de forma tipada vía el contrato OpenAPI (orval). El `Content-Type` es `application/problem+json`.
 
 ---
 

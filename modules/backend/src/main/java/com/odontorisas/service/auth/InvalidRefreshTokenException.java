@@ -1,8 +1,11 @@
 package com.odontorisas.service.auth;
 
-/** El refresh token es inválido, expiró o fue revocado (mapea a 401 → fuerza logout en el cliente). */
-public class InvalidRefreshTokenException extends RuntimeException {
+import com.odontorisas.service.BusinessException;
+import org.springframework.http.HttpStatus;
+
+/** Refresh token inválido, expirado o revocado (401 → fuerza logout en el cliente). */
+public class InvalidRefreshTokenException extends BusinessException {
     public InvalidRefreshTokenException() {
-        super("Sesión expirada, vuelve a iniciar sesión");
+        super("Sesión expirada, vuelve a iniciar sesión", HttpStatus.UNAUTHORIZED, "invalid-refresh-token");
     }
 }
