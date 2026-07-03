@@ -28,17 +28,17 @@
 
 ## 5. Backend — API (authentication)
 
-- [ ] 5.1 DTOs `*Request`/`*Response` (`record`) con Bean Validation (`@Email`, `@NotBlank`, `@Size(min=8)` en password) — paridad con Zod (`docs/coding-style.md §7`)
-- [ ] 5.2 `AuthController` en `presentation`: `POST /auth/register`, `POST /auth/login`, `POST /auth/refresh`, `POST /auth/logout`
-- [ ] 5.3 Manejo de errores: 409 correo duplicado, 401 credenciales/refresh inválidos, 400 validación (respuesta consistente)
+- [x] 5.1 DTOs `*Request`/`*Response` (`record`) con Bean Validation (`@Email`, `@NotBlank`, `@Size(min=8)` en password) — paridad con Zod (`docs/coding-style.md §7`)
+- [x] 5.2 `AuthController` en `presentation`: `POST /auth/register`, `POST /auth/login`, `POST /auth/refresh`, `POST /auth/logout`
+- [x] 5.3 Manejo de errores: 409 correo duplicado, 401 credenciales/refresh inválidos, 400 validación (respuesta consistente)
 
 ## 6. Backend — tests (derivados de los Scenario)
 
-- [ ] 6.1 Test de registro: éxito (crea + inicia sesión), correo duplicado (409, no duplica), (webmvc/security slice o IT)
-- [ ] 6.2 Test de login: credenciales válidas (sesión), inválidas (401 + mensaje genérico, sin sesión)
-- [ ] 6.3 Test de refresh: access expirado → nuevo access con refresh válido; refresh inválido/expirado → 401 (fuerza logout)
-- [ ] 6.4 Test de logout: invalida el refresh (un refresh posterior con el token viejo falla)
-- [ ] 6.5 Test de autorización por rol en endpoints protegidos (rol sin permiso → 403)
+- [x] 6.1 Test de registro: éxito (crea + inicia sesión), correo duplicado (409, no duplica), (webmvc/security slice o IT)
+- [x] 6.2 Test de login: credenciales válidas (sesión), inválidas (401 + mensaje genérico, sin sesión)
+- [x] 6.3 Test de refresh: access expirado → nuevo access con refresh válido; refresh inválido/expirado → 401 (fuerza logout)
+- [x] 6.4 Test de logout: invalida el refresh (un refresh posterior con el token viejo falla)
+- [x] 6.5 Test de autorización por rol en endpoints protegidos (rol sin permiso → 403)
 
 ## 7. Frontend — codegen y cliente (api-type-contracts)
 
