@@ -39,9 +39,10 @@
 - **ArchUnit** (`LayeredArchitectureTest`): `persistence` no→`presentation` ni→`service`; `presentation` no→`persistence`; `service` no→`presentation`. **No** se añade "infra no depende de service" (SecurityConfig cablea servicios = composition root legítimo). Actualizar `docs/architecture.md §2`.
 
 ### D5. Modelo de datos y seguridad
-- Entidad `User`: `id`, `email` (único), `password_hash`, `role` (`ADMIN`|`USER`), timestamps. Contraseñas con **BCrypt** (`PasswordEncoder`). Migración Flyway `V2__users.sql` (+ `V3__refresh_tokens.sql` si se persiste el refresh en tabla).
+- Entidad `User`: `id`, `email` (único), `password_hash`, `role` (`ADMIN`|`USER`), timestamps. Contraseñas con **BCrypt** (`PasswordEncoder`). Migración Flyway `V2__users.sql` (+ `V3__refresh_tokens.sql` para el refresh).
+- **Datos básicos de perfil en el registro [DECIDIDO 2026-07-03]**: `User` incorpora `full_name`, `username` (**único**), `phone`, `country`, capturados al registrarse (login sigue siendo **solo por email**; el `username` es display/handle). Migración `V4__user_profile.sql` (columnas + índice único en `username`). Se mantienen en `User` (no entidad de perfil aparte) por simplicidad de starter. Validación con paridad Zod↔Bean Validation (`docs/coding-style.md §7`): `full_name` requerido (2–120), `username` requerido único (3–30), `phone` requerido (patrón básico), `country` requerido. `UserResponse` expone además `fullName` y `username` para el saludo en el panel.
 - Rol por defecto en registro: `USER`. Redirección por rol en frontend vía `RouteGuard` (mapa rol → ruta de inicio).
-- Mensaje de login inválido genérico ("Correo electrónico o contraseña incorrectos") para no filtrar existencia de cuentas.
+- Mensaje de login inválido genérico ("Correo electrónico o contraseña incorrectos") para no filtrar existencia de cuentas. Nota de alcance: se **captura** perfil básico al alta, pero la **gestión/edición de perfil** sigue fuera (capacidad `users`).
 
 ## Risks / Trade-offs
 

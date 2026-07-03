@@ -22,7 +22,7 @@ Todo el roadmap de negocio asume **identidad + rol** (ver `docs/vision.md`): sin
 
 - **Gestión de usuarios/staff** (alta/baja, edición de roles, listados) → capacidad `users` (roadmap #2).
 - **Recuperación de contraseña**, verificación por correo y **OAuth/social login** → futuras.
-- **Perfil de usuario** editable (datos personales) → fuera de esta capacidad.
+- **Gestión/edición de perfil** (actualizar datos personales tras el alta) → capacidad `users`. *(El registro sí **captura** datos básicos: nombre completo, nombre de usuario, teléfono y país.)*
 - **Rate limiting / bloqueo por intentos fallidos** y **MFA** → endurecimiento futuro.
 - Generar los schemas **Zod desde OpenAPI** (auto): se mantiene la paridad manual por ahora (ver `docs/coding-style.md §7`); la automatización se evaluará después.
 

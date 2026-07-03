@@ -1,10 +1,10 @@
 ## ADDED Requirements
 
 ### Requirement: Registro de usuario
-El sistema SHALL permitir crear una cuenta con correo y contraseña, iniciar sesión automáticamente tras el alta y rechazar correos duplicados o contraseñas que no cumplan la política mínima.
+El sistema SHALL permitir crear una cuenta con datos básicos de perfil (nombre completo, nombre de usuario, correo, teléfono y país) y contraseña, iniciar sesión automáticamente tras el alta, y rechazar correos o nombres de usuario duplicados y datos que no cumplan las validaciones mínimas.
 
 #### Scenario: Registro exitoso
-- **WHEN** un visitante envía el formulario de registro con un correo válido y una contraseña de al menos 8 caracteres no registrada previamente
+- **WHEN** un visitante envía el formulario con nombre completo, nombre de usuario, correo válido, teléfono, país y contraseña de al menos 8 caracteres, sin duplicar correo ni nombre de usuario
 - **THEN** el sistema crea la cuenta con rol por defecto `USER`
 - **AND** establece la sesión (emite token de acceso y de refresco)
 - **AND** redirige al panel correspondiente a su rol
@@ -15,9 +15,19 @@ El sistema SHALL permitir crear una cuenta con correo y contraseña, iniciar ses
 - **AND** no crea una cuenta duplicada
 - **AND** no establece ninguna sesión
 
+#### Scenario: Nombre de usuario ya registrado
+- **WHEN** un visitante intenta registrarse con un nombre de usuario que ya existe
+- **THEN** el sistema responde con un error de conflicto
+- **AND** no crea una cuenta duplicada ni establece sesión
+
 #### Scenario: Contraseña demasiado corta (validación en cliente)
 - **WHEN** un visitante escribe una contraseña de menos de 8 caracteres en el formulario de registro
 - **THEN** el frontend muestra un error de validación en el campo
+- **AND** no envía la petición al backend
+
+#### Scenario: Campos de perfil obligatorios (validación en cliente)
+- **WHEN** un visitante intenta enviar el registro con algún campo obligatorio vacío (nombre completo, nombre de usuario, teléfono o país)
+- **THEN** el frontend muestra errores de validación en los campos vacíos
 - **AND** no envía la petición al backend
 
 ### Requirement: Inicio de sesión con credenciales
