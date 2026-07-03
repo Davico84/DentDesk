@@ -12,7 +12,8 @@ Monorepo plano: `modules/backend/` (Java/Spring) + `modules/frontend/` (React/Vi
   - `docs/data-model.md` — modelo de dominio (vivo). Fuente de verdad local-first; Jira solo backlog (futuro).
   - `docs/testing.md` — estrategia de pruebas + puente Scenario→test.
   - `docs/backend-standards.md` — estándares Java/Spring · `docs/coding-standards.md` (+ react-query/zustand/ui-patterns) — estándares frontend.
-  - `docs/commits.md` — estándar de commits (Conventional Commits en español).
+  - `docs/tooling-setup.md` — tooling reproducible (scripts, Vitest/MSW, husky/commitlint, CI).
+  - `docs/commits.md` — estándar de commits (Conventional Commits en español) + convención `Refs:` para enlazar tareas.
 
 ## Reglas OpenSpec (no negociables)
 - `specs/` = lo **YA construido**, no un backlog. Cada capacidad nace como *change* y llega a `specs/` al archivar.
