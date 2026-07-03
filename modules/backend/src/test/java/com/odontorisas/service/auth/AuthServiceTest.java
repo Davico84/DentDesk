@@ -52,9 +52,14 @@ class AuthServiceTest {
 
     // --- Registro ---
 
+    private RegisterCommand cmd(String email, String username) {
+        return new RegisterCommand(email, "password123", "Ana Pérez", username, "+51 999888777", "PE");
+    }
+
     @Test
     void register_success_creates_user_and_issues_session() {
         when(users.existsByEmail("ana@clinica.test")).thenReturn(false);
+        when(users.existsByUsername("ana")).thenReturn(false);
         when(users.save(any())).thenAnswer(inv -> {
             User u = inv.getArgument(0);
             u.setId(1L);
@@ -63,12 +68,13 @@ class AuthServiceTest {
         when(passwordEncoder.encode("password123")).thenReturn("hashed");
         stubTokenIssuance();
 
-        AuthResult result = authService.register("ana@clinica.test", "password123");
+        AuthResult result = authService.register(cmd("ana@clinica.test", "ana"));
 
         assertThat(result.accessToken()).isEqualTo("access-token");
-        assertThat(result.refreshToken()).isEqualTo("raw-refresh");
         assertThat(result.user().email()).isEqualTo("ana@clinica.test");
         assertThat(result.user().role()).isEqualTo(Role.USER);
+        assertThat(result.user().fullName()).isEqualTo("Ana Pérez");
+        assertThat(result.user().username()).isEqualTo("ana");
         verify(refreshTokens).save(any(RefreshToken.class));
     }
 
@@ -76,11 +82,22 @@ class AuthServiceTest {
     void register_duplicate_email_is_rejected_without_creating() {
         when(users.existsByEmail("ana@clinica.test")).thenReturn(true);
 
-        assertThatThrownBy(() -> authService.register("ana@clinica.test", "password123"))
+        assertThatThrownBy(() -> authService.register(cmd("ana@clinica.test", "ana")))
             .isInstanceOf(EmailAlreadyExistsException.class);
 
         verify(users, never()).save(any());
         verify(refreshTokens, never()).save(any());
+    }
+
+    @Test
+    void register_duplicate_username_is_rejected_without_creating() {
+        when(users.existsByEmail("ana@clinica.test")).thenReturn(false);
+        when(users.existsByUsername("ana")).thenReturn(true);
+
+        assertThatThrownBy(() -> authService.register(cmd("ana@clinica.test", "ana")))
+            .isInstanceOf(UsernameAlreadyExistsException.class);
+
+        verify(users, never()).save(any());
     }
 
     // --- Login ---

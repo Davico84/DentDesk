@@ -6,6 +6,7 @@ import com.odontorisas.presentation.dto.LoginRequest;
 import com.odontorisas.presentation.dto.RegisterRequest;
 import com.odontorisas.service.auth.AuthResult;
 import com.odontorisas.service.auth.AuthService;
+import com.odontorisas.service.auth.RegisterCommand;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpHeaders;
@@ -37,7 +38,10 @@ public class AuthController {
 
     @PostMapping("/register")
     public ResponseEntity<AuthResponse> register(@Valid @RequestBody RegisterRequest request) {
-        return authResponse(authService.register(request.email(), request.password()), HttpStatus.CREATED);
+        RegisterCommand command = new RegisterCommand(
+            request.email(), request.password(), request.fullName(),
+            request.username(), request.phone(), request.country());
+        return authResponse(authService.register(command), HttpStatus.CREATED);
     }
 
     @PostMapping("/login")

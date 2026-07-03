@@ -32,7 +32,10 @@ class AuthControllerIT extends AbstractIntegrationTest {
     MockMvc mockMvc;
 
     private String registerBody(String email, String password) {
-        return "{\"email\":\"" + email + "\",\"password\":\"" + password + "\"}";
+        String username = email.split("@")[0];
+        return "{\"email\":\"" + email + "\",\"password\":\"" + password + "\","
+            + "\"fullName\":\"Ana Pérez\",\"username\":\"" + username + "\","
+            + "\"phone\":\"+51 999888777\",\"country\":\"PE\"}";
     }
 
     @Test

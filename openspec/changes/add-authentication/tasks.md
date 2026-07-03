@@ -75,9 +75,9 @@
 
 ## 12. Ampliación: datos básicos de perfil en el registro
 
-- [ ] 12.1 Backend: `User` gana `fullName`, `username` (único), `phone`, `country`; migración `V4__user_profile.sql` (columnas + índice único en `username`)
-- [ ] 12.2 Backend: `RegisterRequest` con los nuevos campos + Bean Validation (fullName 2–120, username 3–30, phone patrón básico, country requerido); `UserResponse` expone `fullName` y `username`
-- [ ] 12.3 Backend: `AuthService.register` persiste los campos y rechaza `username` duplicado (`UsernameAlreadyExistsException` → 409); actualizar `AuthServiceTest`
+- [x] 12.1 Backend: `User` gana `fullName`, `username` (único), `phone`, `country`; migración `V4__user_profile.sql` (columnas + índice único en `username`)
+- [x] 12.2 Backend: `RegisterRequest` con los nuevos campos + Bean Validation (fullName 2–120, username 3–30, phone patrón básico, country requerido); `UserResponse` expone `fullName` y `username`
+- [x] 12.3 Backend: `AuthService.register` persiste los campos y rechaza `username` duplicado (`UsernameAlreadyExistsException` → 409); actualizar `AuthServiceTest`
 - [ ] 12.4 Contrato: regenerar `contracts/openapi.json` desde el backend (nuevos campos + validaciones) y regenerar el cliente orval
 - [ ] 12.5 Frontend: `RegisterForm` con los campos nuevos + schema Zod en paridad; saludo por `fullName` en el panel
 - [ ] 12.6 Frontend: actualizar tests (RegisterForm: campos obligatorios, username duplicado)

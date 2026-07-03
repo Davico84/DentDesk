@@ -8,9 +8,11 @@ import io.swagger.v3.oas.annotations.media.Schema;
 public record UserResponse(
     @Schema(requiredMode = Schema.RequiredMode.REQUIRED) Long id,
     @Schema(requiredMode = Schema.RequiredMode.REQUIRED) String email,
-    @Schema(requiredMode = Schema.RequiredMode.REQUIRED) Role role) {
+    @Schema(requiredMode = Schema.RequiredMode.REQUIRED) Role role,
+    @Schema(requiredMode = Schema.RequiredMode.REQUIRED) String fullName,
+    @Schema(requiredMode = Schema.RequiredMode.REQUIRED) String username) {
 
     public static UserResponse from(UserView user) {
-        return new UserResponse(user.id(), user.email(), user.role());
+        return new UserResponse(user.id(), user.email(), user.role(), user.fullName(), user.username());
     }
 }
