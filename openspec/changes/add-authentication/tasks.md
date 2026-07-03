@@ -42,14 +42,14 @@
 
 ## 7. Frontend — codegen y cliente (api-type-contracts)
 
-- [ ] 7.1 Añadir `orval` (devDep) + `orval.config.ts` (input `../../contracts/openapi.json` versionado, output `src/modules/core/services`, `client: react-query`)
-- [ ] 7.2 Mutator axios en `core/services`: instancia con `withCredentials`, inyección de `Authorization` e interceptor 401 → refresh → reintento (Scenario refresh)
-- [ ] 7.3 Script `generate:api`; generar tipos+hooks y **commitear los artefactos generados**; `pnpm typecheck` verde usándolos (Scenarios de generación/consumo y "Artefactos generados versionados")
+- [x] 7.1 Añadir `orval` (devDep) + `orval.config.ts` (input `../../contracts/openapi.json` versionado, output `src/modules/core/services`, `client: react-query`)
+- [x] 7.2 Mutator axios en `core/services`: instancia con `withCredentials`, inyección de `Authorization` e interceptor 401 → refresh → reintento (Scenario refresh)
+- [x] 7.3 Script `generate:api`; generar tipos+hooks y **commitear los artefactos generados**; `pnpm typecheck` verde usándolos (Scenarios de generación/consumo y "Artefactos generados versionados")
 - [ ] 7.4 Check de **drift en CI**: regenerar contrato + tipos y fallar si difieren de lo versionado (Scenario "Detección de drift en CI")
 
 ## 8. Frontend — sesión y módulo auth (authentication)
 
-- [ ] 8.1 Store de sesión (Zustand, **no** persistido): access en memoria, usuario/rol, estados de carga
+- [x] 8.1 Store de sesión (Zustand, **no** persistido): access en memoria, usuario/rol, estados de carga
 - [ ] 8.2 Bootstrap de sesión al montar la app: intento de refresh inicial (splash/carga) para restaurar sesión (Scenarios persistencia)
 - [ ] 8.3 Pantallas `login` y `registro` con `react-hook-form` + `zod` (min 8 chars, email, campos requeridos — paridad con backend)
 - [ ] 8.4 Acción de logout: limpia store y datos locales, redirige a login (Scenario logout)

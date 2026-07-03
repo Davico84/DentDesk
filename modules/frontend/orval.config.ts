@@ -1,0 +1,31 @@
+import { defineConfig } from "orval";
+
+/**
+ * Genera el cliente tipado (tipos + hooks react-query) desde el contrato OpenAPI
+ * versionado del backend. Salida en core/services/generated (versionada en git).
+ * Fuente única: contracts/openapi.json. Ver capacidad api-type-contracts.
+ */
+export default defineConfig({
+  odontorisas: {
+    input: "../../contracts/openapi.json",
+    output: {
+      mode: "single",
+      target: "./src/modules/core/services/generated/api.ts",
+      schemas: "./src/modules/core/services/generated/model",
+      client: "react-query",
+      httpClient: "axios",
+      clean: true,
+      prettier: false,
+      override: {
+        mutator: {
+          path: "./src/modules/core/services/httpClient.ts",
+          name: "customInstance",
+        },
+        query: {
+          useMutation: true,
+          useQuery: true,
+        },
+      },
+    },
+  },
+});
