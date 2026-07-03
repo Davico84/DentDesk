@@ -1,7 +1,7 @@
 # OdontoRisas — Guía para agentes
 
 Proyecto **greenfield** con desarrollo dirigido por especificaciones (spec-driven) usando **OpenSpec**.
-Monorepo plano: `backend/` (Java/Spring) + `frontend/` (React/Vite), con `openspec/` y `docs/` en la raíz.
+Monorepo plano: `modules/backend/` (Java/Spring) + `modules/frontend/` (React/Vite), con `openspec/` y `docs/` en la raíz.
 
 ## Fuentes de verdad
 - **Flujo OpenSpec** (setup, comandos, ciclo): `SETUP-OPENSPEC.md`.

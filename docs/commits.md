@@ -54,7 +54,7 @@ feat(auth): agrega registro de usuario
 fix(backend): corrige 401 al refrescar token expirado
 ```
 ```
-docs(openspec): cierra stack backend/frontend y arquitectura
+docs(openspec): cierra stack modules/backend/frontend y arquitectura
 ```
 ```
 chore(frontend): configura vitest + msw y lint-staged

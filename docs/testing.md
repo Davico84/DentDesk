@@ -84,7 +84,7 @@ Usa `renderHook` con un `wrapper` que provea un `QueryClient` nuevo por test (co
 
 ## 4. Frontend — E2E (Playwright)
 
-- Specs en `frontend/e2e/`, **excluidos de Vitest**.
+- Specs en `modules/frontend/e2e/`, **excluidos de Vitest**.
 - Comandos: `pnpm test:e2e` (Chromium) · `pnpm test:e2e:ui` (interactivo). Primera vez: `pnpm exec playwright install chromium`.
 - `playwright.config.ts` levanta el dev server y lo reutiliza si ya corre. Para entorno desplegado: `E2E_BASE_URL=... pnpm test:e2e`.
 - **Pendiente** para tratar E2E como red de seguridad real: estrategia de datos/entorno (usuario de prueba o seed reproducible) + wiring en CI (navegadores, `forbidOnly`, artefactos). Hasta entonces, los flujos *E2E* de la matriz se cubren **además** con Integración (MSW).
@@ -121,7 +121,7 @@ Usa `renderHook` con un `wrapper` que provea un `QueryClient` nuevo por test (co
 
 - La cobertura **no** es la meta; la confianza y la mantenibilidad sí. No infles números con tests triviales.
 - Enfoca el esfuerzo en: lógica de negocio crítica (cálculos, permisos, validaciones), interacciones críticas y edge cases propensos a romperse.
-- **Frontend**: `pnpm test:coverage` (`@vitest/coverage-v8`); informe HTML en `frontend/coverage/` (ignorado). Sin umbral que rompa el build por ahora.
+- **Frontend**: `pnpm test:coverage` (`@vitest/coverage-v8`); informe HTML en `modules/frontend/coverage/` (ignorado). Sin umbral que rompa el build por ahora.
 - **Backend**: JaCoCo vía `mvn verify` cuando se configure; sin umbral que rompa el build por ahora.
 - Si en el futuro se exige un mínimo en CI, se configura en `coverage.thresholds` (Vitest) y en la regla de JaCoCo.
 

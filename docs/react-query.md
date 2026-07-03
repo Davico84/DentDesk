@@ -45,7 +45,7 @@ Componente/Pantalla (React) ──> Custom Hook (React Query) ──> Servicio (
 ```
 
 ### Reglas:
-* **Servicios Encapsulados**: Las llamadas HTTP directas con Axios se realizan únicamente dentro de archivos de servicio (ej. `frontend/src/modules/users/services/user.ts`).
+* **Servicios Encapsulados**: Las llamadas HTTP directas con Axios se realizan únicamente dentro de archivos de servicio (ej. `modules/frontend/src/modules/users/services/user.ts`).
 * **Componentes Limpios**: Ningún componente o pantalla de React debe importar `axios` o llamar a `apiSecure`/`api` directamente.
 * **Tipado de Contratos**: Todas las peticiones y respuestas HTTP deben estar tipadas en interfaces explícitas (ej. `CreateTagRequest`, `UserPreview`).
 
@@ -55,7 +55,7 @@ Componente/Pantalla (React) ──> Custom Hook (React Query) ──> Servicio (
 
 ### 1. Definición del Endpoint
 
-Los endpoints se centralizan en el módulo core, siguiendo la convención `frontend/src/modules/core/services/index.ts`:
+Los endpoints se centralizan en el módulo core, siguiendo la convención `modules/frontend/src/modules/core/services/index.ts`:
 ```typescript
 export const Services = {
   users: {
@@ -66,7 +66,7 @@ export const Services = {
 
 ### 2. El Servicio
 
-Cada dominio expone su servicio Axios, siguiendo la convención `frontend/src/modules/users/services/user.ts`:
+Cada dominio expone su servicio Axios, siguiendo la convención `modules/frontend/src/modules/users/services/user.ts`:
 ```typescript
 import { apiSecure } from "@/config/httpClient";
 import { Services } from "@/modules/core/services";
@@ -82,7 +82,7 @@ export const UserService = {
 
 ### 3. El Custom Hook
 
-El hook de React Query vive junto a su módulo, siguiendo la convención `frontend/src/modules/users/hooks/useUserProfile.ts`:
+El hook de React Query vive junto a su módulo, siguiendo la convención `modules/frontend/src/modules/users/hooks/useUserProfile.ts`:
 ```typescript
 import { useQuery, type UseQueryOptions } from "@tanstack/react-query";
 import { UserService } from "../services/user";
@@ -128,7 +128,7 @@ return <div>Hola, {profile.username}</div>;
    Valida **estrictamente lo que la UI consume**; sé lenient con metadata que no
    usas (`z.object` ignora/strippea claves desconocidas, no falla por ellas).
 2. En el `queryFn`, valida con el helper `parseApiResponse`, ubicado según la
-   convención en `frontend/src/modules/core/utils/validateApiResponse.ts`:
+   convención en `modules/frontend/src/modules/core/utils/validateApiResponse.ts`:
    si el shape no calza, lanza un error controlado → React Query lo expone como
    `isError` (estado manejado) en vez de un crash silencioso.
 

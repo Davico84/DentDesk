@@ -18,7 +18,7 @@ jobs:
       - name: Validate OpenSpec (strict)
         run: npx -y @fission-ai/openspec@latest validate --all --strict
 
-  # Backend Java/Maven. Se activa cuando exista backend/ (skip mientras tanto).
+  # Backend Java/Maven. Se activa cuando exista modules/backend/ (skip mientras tanto).
   backend:
     runs-on: ubuntu-latest
     steps:
@@ -26,7 +26,7 @@ jobs:
       - name: Check backend module
         id: check
         run: |
-          if [ -f backend/pom.xml ]; then echo "exists=true" >> "$GITHUB_OUTPUT"; else echo "exists=false" >> "$GITHUB_OUTPUT"; echo "backend/ aún no existe — skip"; fi
+          if [ -f modules/backend/pom.xml ]; then echo "exists=true" >> "$GITHUB_OUTPUT"; else echo "exists=false" >> "$GITHUB_OUTPUT"; echo "modules/backend/ aún no existe — skip"; fi
       - uses: actions/setup-java@v4
         if: steps.check.outputs.exists == 'true'
         with:
@@ -35,10 +35,10 @@ jobs:
           cache: maven
       - name: Verify (mvn)
         if: steps.check.outputs.exists == 'true'
-        working-directory: backend
+        working-directory: modules/backend
         run: ./mvnw -B verify
 
-  # Frontend React/Vite. Se activa cuando exista frontend/ (skip mientras tanto).
+  # Frontend React/Vite. Se activa cuando exista modules/frontend/ (skip mientras tanto).
   frontend:
     runs-on: ubuntu-latest
     steps:
@@ -46,8 +46,8 @@ jobs:
       - name: Check frontend module
         id: check
         run: |
-          if [ -f frontend/package.json ]; then echo "exists=true" >> "$GITHUB_OUTPUT"; else echo "exists=false" >> "$GITHUB_OUTPUT"; echo "frontend/ aún no existe — skip"; fi
-      # pnpm toma su versión del campo "packageManager" de frontend/package.json.
+          if [ -f modules/frontend/package.json ]; then echo "exists=true" >> "$GITHUB_OUTPUT"; else echo "exists=false" >> "$GITHUB_OUTPUT"; echo "modules/frontend/ aún no existe — skip"; fi
+      # pnpm toma su versión del campo "packageManager" de modules/frontend/package.json.
       - uses: pnpm/action-setup@v4
         if: steps.check.outputs.exists == 'true'
       - uses: actions/setup-node@v4
@@ -55,12 +55,12 @@ jobs:
         with:
           node-version: 22
           cache: pnpm
-          cache-dependency-path: frontend/pnpm-lock.yaml
+          cache-dependency-path: modules/frontend/pnpm-lock.yaml
       - name: Install
         if: steps.check.outputs.exists == 'true'
-        working-directory: frontend
+        working-directory: modules/frontend
         run: pnpm install --frozen-lockfile
       - name: Validate (typecheck + lint + test)
         if: steps.check.outputs.exists == 'true'
-        working-directory: frontend
+        working-directory: modules/frontend
         run: pnpm validate

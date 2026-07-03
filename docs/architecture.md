@@ -17,8 +17,8 @@ OdontoRisas/
 ├─ openspec/              # specs + changes (qué hace el sistema)
 │  └─ config.yaml         # schema spec-driven + contexto/reglas para la IA
 ├─ docs/                  # estándares perennes (este archivo, backend, frontend, testing, adr/)
-├─ backend/               # Java 25 · Maven · Spring Boot (app principal)
-├─ frontend/              # React 19 · Vite · TypeScript (SPA)
+├─ modules/backend/               # Java 25 · Maven · Spring Boot (app principal)
+├─ modules/frontend/              # React 19 · Vite · TypeScript (SPA)
 ├─ .github/workflows/     # CI
 ├─ CLAUDE.md              # guía para agentes → apunta a docs/ y openspec/
 └─ SETUP-OPENSPEC.md      # setup y flujo OpenSpec
@@ -118,8 +118,8 @@ Detalle ampliado en las docs del template: `architecture.md`, `coding-standards.
 
 ## 6. Pendientes de andamiaje
 
-- [ ] `backend/`: proyecto Maven + Spring Boot (estructura de capas, perfiles, Flyway).
-- [ ] `frontend/`: Vite + React (portar tooling y docs del template FixRiver).
+- [ ] `modules/backend/`: proyecto Maven + Spring Boot (estructura de capas, perfiles, Flyway).
+- [ ] `modules/frontend/`: Vite + React (portar tooling y docs del template FixRiver).
 - [x] `docs/testing.md` — estrategia de pruebas (puente OpenSpec + front MSW + back Testcontainers).
 - [ ] Portar el resto de `docs/` del template: coding-standards, react-query, zustand, ui-patterns.
 - [ ] `docs/adr/` — registrar esta decisión de stack como ADR-0001.

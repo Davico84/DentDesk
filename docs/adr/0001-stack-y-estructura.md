@@ -18,7 +18,7 @@ Referencias consultadas:
 
 ### Estructura — monorepo plano
 ```
-OdontoRisas/  →  openspec/ · docs/ · backend/ · frontend/ · .github/workflows/
+OdontoRisas/  →  openspec/ · docs/ · modules/backend/ · modules/frontend/ · .github/workflows/
 ```
 
 ### Backend
@@ -52,4 +52,4 @@ Detalle completo y tablas: `docs/architecture.md`.
 - Acoplamiento de versionado entre back y front (una historia de git compartida).
 
 **Seguimiento**
-- Andamiar `backend/` y `frontend/`; portar docs del template; añadir commitlint + hook `commit-msg`.
+- Andamiar `modules/backend/` y `modules/frontend/`; portar docs del template; añadir commitlint + hook `commit-msg`.
