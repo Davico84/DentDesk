@@ -61,11 +61,11 @@
 
 ## 10. Frontend — tests (Vitest + RTL + MSW, derivados de los Scenario)
 
-- [ ] 10.1 Registro: éxito redirige; correo duplicado muestra error; password < 8 → error de validación sin petición (MSW)
-- [ ] 10.2 Login: válidas → sesión+redirect; inválidas → mensaje genérico; vacíos → validación sin petición
-- [ ] 10.3 Persistencia: recarga con sesión restaurable → autenticado; sin refresh válido → no autenticado y limpia datos
-- [ ] 10.4 Refresh: 401 → refresca y reintenta transparente; refresh inválido → logout+login (MSW)
-- [ ] 10.5 Guardas: ruta privada sin sesión → login; `/auth` con sesión → panel; rol sin permiso → acceso denegado
+- [x] 10.1 Registro: éxito redirige; correo duplicado muestra error; password < 8 → error de validación sin petición (MSW)
+- [x] 10.2 Login: válidas → sesión+redirect; inválidas → mensaje genérico; vacíos → validación sin petición
+- [x] 10.3 Persistencia: recarga con sesión restaurable → autenticado; sin refresh válido → no autenticado y limpia datos
+- [x] 10.4 Refresh: 401 → refresca y reintenta transparente; refresh inválido → logout+login (MSW)
+- [x] 10.5 Guardas: ruta privada sin sesión → login; `/auth` con sesión → panel; rol sin permiso → acceso denegado
 
 ## 11. Docs y cierre
 
