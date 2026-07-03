@@ -18,16 +18,16 @@ El backend SHALL exponer su especificación OpenAPI en runtime y exportarla a un
 - **THEN** las restricciones de formato del DTO (longitud, formato de correo, campos requeridos) aparecen reflejadas en el schema (paridad con `docs/coding-style.md §7`)
 
 ### Requirement: Tipos y cliente del frontend generados desde el contrato versionado
-El frontend SHALL derivar sus tipos y sus hooks de acceso a la API a partir del contrato versionado (`contracts/openapi.json`), sin escribirlos a mano, manteniéndose desacoplado del build del backend.
+El frontend SHALL derivar sus tipos y sus funciones de acceso a la API a partir del contrato versionado (`contracts/openapi.json`), sin escribirlos a mano, manteniéndose desacoplado del build del backend. Los hooks de TanStack Query se componen a mano sobre esas funciones.
 
 #### Scenario: Generación desde el contrato versionado
 - **WHEN** se ejecuta el script `generate:api` del frontend contra `contracts/openapi.json`
-- **THEN** se generan los tipos y los hooks de acceso a la API en `src/modules/core/services`
+- **THEN** se generan los tipos y las funciones fetch tipadas en `src/modules/core/services/generated`
 - **AND** el proyecto pasa `pnpm typecheck` usando esos artefactos generados
 
 #### Scenario: El consumo de la API usa los artefactos generados
 - **WHEN** una pantalla o módulo del frontend invoca un endpoint de autenticación
-- **THEN** lo hace a través de los hooks/tipos generados, no mediante llamadas `axios` escritas a mano con tipos manuales
+- **THEN** lo hace a través de las **funciones y tipos generados** (los hooks de TanStack Query se componen a mano sobre esas funciones), no mediante llamadas `axios` escritas a mano con tipos manuales
 
 ### Requirement: Contrato y artefactos generados sincronizados (sin drift)
 El repositorio SHALL versionar los archivos TypeScript generados y SHALL detectar en CI cuando el contrato o los artefactos generados quedan desactualizados.

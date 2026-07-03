@@ -55,42 +55,45 @@ export const userKeys = {
 
 ### 2.3 Estructura de la capa de API (generada con orval)
 
-El cliente HTTP se **genera** desde el contrato OpenAPI del backend (orval); **no** se escriben clientes axios a mano por módulo. Flujo:
+La capa de API se divide en dos: orval genera los **tipos + funciones fetch tipadas** desde el contrato; los **hooks de TanStack Query se escriben a mano** (tu estilo) sobre esas funciones. **No** se escriben clientes axios a mano ni tipos a mano. Flujo:
 
 ```
-Pantalla ──> hook de dominio (modules/<cap>/hooks) ──> hook generado (orval) ──> mutator axios (core) ──> API
+Pantalla ──> hook de dominio (modules/<cap>/hooks, a mano) ──> fetcher generado (orval) ──> mutator axios (core) ──> API
 ```
 
-- **Cliente generado (core)**: `core/services/generated/` contiene los **tipos DTO** del servidor (en `generated/model/`) y los **hooks base** de react-query, un archivo **por capacidad** (`generated/<cap>.ts`, p. ej. `auth.ts` con `useLogin`, `useRegister`…), producidos por orval desde `contracts/openapi.json`. Es código de máquina: **versionado pero no se edita a mano** (se regenera con `pnpm generate:api`). Excluido de ESLint; se valida con `tsc`.
+- **Generado (core)**: `core/services/generated/` contiene los **tipos DTO** (en `generated/model/`) y las **funciones fetch tipadas**, un archivo **por capacidad** (`generated/<cap>.ts`, p. ej. `auth.ts` con `register`, `login`, `refresh`, `logout`), producidos por orval (`client: axios-functions`) desde `contracts/openapi.json`. Es código de máquina: **versionado pero no se edita a mano** (`pnpm generate:api`). Excluido de ESLint; se valida con `tsc`.
 - **HTTP base / transporte (core, a mano)**: `core/config/httpClient.ts` — la instancia axios (`withCredentials`, inyección de `Bearer`, interceptor de refresh) que orval usa como *mutator*. Es **infraestructura de transporte**, no un service de dominio ni un util.
-- **Lógica de dominio (módulo)**: `modules/<cap>/` **envuelve** los hooks generados con lo propio de la capacidad: `schemas/` (Zod de formularios), `hooks/` de orquestación (combinan el hook generado con sesión, redirect, toasts), `components/`, `types/` propios. No hay cliente axios por módulo.
-- **Componentes limpios**: ninguna pantalla importa `axios` directamente; usa hooks de dominio (o, para un caso trivial, el hook generado).
-- **Contratos tipados**: los tipos request/response salen del contrato (orval), **nunca se teclean a mano**. Ver `api-type-contracts` y `docs/coding-style.md §7` (paridad de validación).
+- **Hooks de dominio (módulo, a mano)**: `modules/<cap>/hooks/` — aquí vive **tu estilo**: `useQuery`/`useMutation` con query-key factory (§2.2), validación Zod en el boundary (§2.5), toasts e invalidación. El `queryFn`/`mutationFn` llama a la **función generada** (tipada), no a un axios a mano. Junto con `schemas/` (Zod de formularios), `components/` y `types/` propios.
+- **Componentes limpios**: ninguna pantalla importa `axios` directamente; usan los hooks de dominio.
+- **Contratos tipados**: tipos y llamadas HTTP salen del contrato (orval), **nunca se teclean a mano**. Ver `api-type-contracts` y `docs/coding-style.md §7` (paridad de validación).
 
-### 2.4 Ejemplo (hook generado → hook de dominio → pantalla)
+### 2.4 Ejemplo (fetcher generado → hook a mano → pantalla)
 
 ```typescript
-// modules/auth/hooks/useLoginFlow.ts — orquestación de dominio (envuelve el hook generado)
-import { useLogin } from "@/modules/core/services/generated/auth";
+// modules/auth/hooks/useAuth.ts — hooks de dominio a mano (tu estilo), sobre los fetchers generados
+import { useMutation } from "@tanstack/react-query";
+import { toast } from "sonner";
+import { login } from "@/modules/core/services/generated/auth";        // fetcher tipado (del contrato)
+import type { LoginRequest } from "@/modules/core/services/generated/model";
 import { useSessionStore } from "@/store/useSessionStore";
+import { getUserFriendlyError } from "@/modules/core/utils/apiError";
 
-export function useLoginFlow() {
+export function useLogin() {
   const setSession = useSessionStore((s) => s.setSession);
-  return useLogin({
-    mutation: {
-      // el shape de la respuesta viene del contrato (AuthResponse generado)
-      onSuccess: (auth) => setSession(auth.accessToken, auth.user),
-    },
+  return useMutation({
+    mutationFn: (data: LoginRequest) => login(data),                    // en vez de un AuthService a mano
+    onSuccess: (auth) => setSession(auth.accessToken, auth.user),
+    onError: (e) => toast.error(getUserFriendlyError(e)),
   });
 }
 ```
 ```tsx
 // uso en la pantalla
-const { mutate: login, isPending, isError } = useLoginFlow();
-// login({ data: { email, password } });
+const { mutate: login, isPending } = useLogin();
+// login({ email, password });
 ```
 
-> Para endpoints GET, orval genera además la **query key** y el hook `useQuery`; la convención de §2.2 aplica a cualquier hook de dominio que compongas sobre ellos.
+> Para lecturas (GET), el hook a mano usa `useQuery` con su **query key** (§2.2) y validación Zod en el `queryFn` (§2.5), llamando al fetcher generado.
 
 ### 2.5 Validación de respuestas en el *boundary* (Zod)
 > [!IMPORTANT]

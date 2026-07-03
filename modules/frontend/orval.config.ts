@@ -12,7 +12,7 @@ export default defineConfig({
       mode: "tags",
       target: "./src/modules/core/services/generated/endpoints.ts",
       schemas: "./src/modules/core/services/generated/model",
-      client: "react-query",
+      client: "axios-functions",
       httpClient: "axios",
       clean: true,
       prettier: false,
