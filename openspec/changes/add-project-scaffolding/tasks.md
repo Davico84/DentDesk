@@ -31,10 +31,10 @@
 
 ## 5. Validación de commits (raíz)
 
-- [ ] 5.1 `package.json` raíz mínimo con devDeps de hooks (husky, @commitlint/cli, @commitlint/config-conventional)
-- [ ] 5.2 Configurar husky + hook `commit-msg` que corre commitlint
+- [x] 5.1 `package.json` raíz mínimo con devDeps de hooks (husky, @commitlint/cli, @commitlint/config-conventional)
+- [x] 5.2 Configurar husky + hook `commit-msg` que corre commitlint
 - [ ] 5.3 Hook `pre-commit` que delega en el `lint-staged` del frontend (acotado a `frontend/`)
-- [ ] 5.4 Probar: commit inválido se rechaza; commit `feat(scope): ...` pasa
+- [x] 5.4 Probar: commit inválido se rechaza; commit `feat(scope): ...` pasa
 
 ## 6. CI y cierre
 

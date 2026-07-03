@@ -14,6 +14,9 @@ secrets.properties
 backend/target/
 *.class
 
+# === Node ===
+node_modules/
+
 # === Frontend (Node / Vite) ===
 frontend/node_modules/
 frontend/dist/
