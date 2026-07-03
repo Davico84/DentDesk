@@ -50,9 +50,9 @@
 ## 8. Frontend — sesión y módulo auth (authentication)
 
 - [x] 8.1 Store de sesión (Zustand, **no** persistido): access en memoria, usuario/rol, estados de carga
-- [ ] 8.2 Bootstrap de sesión al montar la app: intento de refresh inicial (splash/carga) para restaurar sesión (Scenarios persistencia)
-- [ ] 8.3 Pantallas `login` y `registro` con `react-hook-form` + `zod` (min 8 chars, email, campos requeridos — paridad con backend)
-- [ ] 8.4 Acción de logout: limpia store y datos locales, redirige a login (Scenario logout)
+- [x] 8.2 Bootstrap de sesión al montar la app: intento de refresh inicial (splash/carga) para restaurar sesión (Scenarios persistencia)
+- [x] 8.3 Pantallas `login` y `registro` con `react-hook-form` + `zod` (min 8 chars, email, campos requeridos — paridad con backend)
+- [x] 8.4 Acción de logout: limpia store y datos locales, redirige a login (Scenario logout)
 
 ## 9. Frontend — rutas y guardas (authentication)
 

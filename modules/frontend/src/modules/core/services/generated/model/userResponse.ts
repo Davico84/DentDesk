@@ -8,7 +8,7 @@
 import type { UserResponseRole } from './userResponseRole';
 
 export interface UserResponse {
-  id?: number;
-  email?: string;
-  role?: UserResponseRole;
+  id: number;
+  email: string;
+  role: UserResponseRole;
 }

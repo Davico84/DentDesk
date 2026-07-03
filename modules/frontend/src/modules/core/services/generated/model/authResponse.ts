@@ -8,6 +8,6 @@
 import type { UserResponse } from './userResponse';
 
 export interface AuthResponse {
-  accessToken?: string;
-  user?: UserResponse;
+  accessToken: string;
+  user: UserResponse;
 }
