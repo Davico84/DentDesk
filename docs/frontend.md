@@ -16,7 +16,7 @@ src/
   screens/     # pantallas: orquestan una feature dentro de un layout (hojas de composición)
   modules/     # lógica encapsulada por dominio
     core/      # transversal: ui (shadcn), components, services, utils, enum — SIN deps a otros módulos
-    <cap>/     # un módulo por capacidad (services, hooks, components, types, schemas)
+    <cap>/     # un módulo por capacidad (hooks de dominio, components, types, schemas Zod)
   store/       # stores Zustand (estado de cliente)
   routes/      # definición de rutas + RouteGuard
   styles/      # globals.css y variables de tema
@@ -25,7 +25,7 @@ src/
 **Reglas de arquitectura:**
 - **`screens` orquestan; `modules` encapsulan lógica.** Las pantallas montan features dentro de un layout; no contienen lógica de negocio.
 - **`core` no depende de otros módulos** (es la base transversal: UI, auth guard, utils). Los demás módulos pueden depender de `core`.
-- **Mapeo capacidad ↔ código**: cada capacidad de negocio `<cap>` se materializa en `modules/<cap>/` (services, hooks, components) y sus pantallas en `screens/<área>/`. Lo transversal (guard, roles) en `modules/core/`.
+- **Mapeo capacidad ↔ código**: cada capacidad de negocio `<cap>` se materializa en `modules/<cap>/` (hooks de dominio, components, schemas Zod) y sus pantallas en `screens/<área>/`. El **cliente API tipado se genera** en `core/services/generated/` (ver §2.3); lo transversal (guard, roles) en `modules/core/`.
 
 ---
 
@@ -52,59 +52,44 @@ export const userKeys = {
 - **Subclaves**: funciones que extienden el array raíz por desestructuración (mantienen la jerarquía de cache).
 - **Invalidación coherente**: `queryClient.invalidateQueries({ queryKey: userKeys.all })` refresca todas las subclaves.
 
-### 2.3 Estructura de la capa de API
-El consumo HTTP está desacoplado de las vistas:
+### 2.3 Estructura de la capa de API (generada con orval)
+
+El cliente HTTP se **genera** desde el contrato OpenAPI del backend (orval); **no** se escriben clientes axios a mano por módulo. Flujo:
 
 ```
-Componente/Pantalla (React) ──> Custom Hook (React Query) ──> Servicio (Axios) ──> API
+Pantalla ──> hook de dominio (modules/<cap>/hooks) ──> hook generado (orval) ──> mutator axios (core) ──> API
 ```
 
-- **Servicios encapsulados**: las llamadas Axios viven solo en archivos de servicio (ej. `modules/<cap>/services/*.ts`).
-- **Componentes limpios**: ningún componente/pantalla importa `axios` ni llama a `apiSecure`/`api` directamente.
-- **Contratos tipados**: peticiones y respuestas tipadas. En OdontoRisas los tipos y hooks se **generan desde el OpenAPI** (orval) hacia `modules/core/services` — ver `api-type-contracts` y `docs/coding-style.md §7` (paridad de validación).
+- **Cliente generado (core)**: `core/services/generated/` contiene los **tipos DTO** del servidor (en `generated/model/`) y los **hooks base** de react-query (`useLogin`, `useRegister`…), producidos por orval desde `contracts/openapi.json`. Es código de máquina: **versionado pero no se edita a mano** (se regenera con `pnpm generate:api`). Excluido de ESLint; se valida con `tsc`.
+- **HTTP base (core, a mano)**: `core/services/httpClient.ts` — la instancia axios (`withCredentials`, inyección de `Bearer`, interceptor de refresh) que orval usa como *mutator*.
+- **Lógica de dominio (módulo)**: `modules/<cap>/` **envuelve** los hooks generados con lo propio de la capacidad: `schemas/` (Zod de formularios), `hooks/` de orquestación (combinan el hook generado con sesión, redirect, toasts), `components/`, `types/` propios. No hay cliente axios por módulo.
+- **Componentes limpios**: ninguna pantalla importa `axios` directamente; usa hooks de dominio (o, para un caso trivial, el hook generado).
+- **Contratos tipados**: los tipos request/response salen del contrato (orval), **nunca se teclean a mano**. Ver `api-type-contracts` y `docs/coding-style.md §7` (paridad de validación).
 
-### 2.4 Ejemplo (servicio → hook → componente)
+### 2.4 Ejemplo (hook generado → hook de dominio → pantalla)
 
 ```typescript
-// modules/core/services/index.ts — endpoints centralizados
-export const Services = { users: { me: "/users/me" } };
-```
-```typescript
-// modules/users/services/user.ts — servicio Axios por dominio
-import { apiSecure } from "@/config/httpClient";
-import { Services } from "@/modules/core/services";
-import type { UserProfile } from "../types";
+// modules/auth/hooks/useLoginFlow.ts — orquestación de dominio (envuelve el hook generado)
+import { useLogin } from "@/modules/core/services/generated/api";
+import { useSessionStore } from "@/store/useSessionStore";
 
-export const UserService = {
-  async getUserProfile(): Promise<UserProfile> {
-    const { data } = await apiSecure.get<UserProfile>(Services.users.me);
-    return data;
-  },
-};
-```
-```typescript
-// modules/users/hooks/useUserProfile.ts — custom hook React Query
-import { useQuery, type UseQueryOptions } from "@tanstack/react-query";
-import { UserService } from "../services/user";
-import type { UserProfile } from "../types";
-
-export const userKeys = { all: ["user"] as const, fullProfile: () => [...userKeys.all, "full-profile"] as const };
-
-export function useUserProfile(options?: Omit<UseQueryOptions<UserProfile, Error>, "queryKey" | "queryFn">) {
-  return useQuery<UserProfile, Error>({
-    queryKey: userKeys.fullProfile(),
-    queryFn: () => UserService.getUserProfile(),
-    ...options,
+export function useLoginFlow() {
+  const setSession = useSessionStore((s) => s.setSession);
+  return useLogin({
+    mutation: {
+      // el shape de la respuesta viene del contrato (AuthResponse generado)
+      onSuccess: (auth) => setSession(auth.accessToken, auth.user),
+    },
   });
 }
 ```
 ```tsx
-// uso en componente
-const { data: profile, isLoading, isError } = useUserProfile();
-if (isLoading) return <LoadingSpinner />;
-if (isError) return <ErrorMessage />;
-return <div>Hola, {profile.username}</div>;
+// uso en la pantalla
+const { mutate: login, isPending, isError } = useLoginFlow();
+// login({ data: { email, password } });
 ```
+
+> Para endpoints GET, orval genera además la **query key** y el hook `useQuery`; la convención de §2.2 aplica a cualquier hook de dominio que compongas sobre ellos.
 
 ### 2.5 Validación de respuestas en el *boundary* (Zod)
 > [!IMPORTANT]
