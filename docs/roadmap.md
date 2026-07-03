@@ -28,7 +28,8 @@ Producto: **clínica dental**. Este documento lista las capacidades **planeadas*
 > Esta lista es el **puente vivo** entre la planificación y lo construido. **Actualízala en cada `/opsx:propose` y `/opsx:archive`** (ver "Ciclo de vida" abajo).
 
 - ✅ **`project-foundation`** — construida. Spec: `openspec/specs/project-foundation/spec.md` · change archivado: `openspec/changes/archive/2026-07-03-add-project-scaffolding/`.
-- 🔜 **`authentication`** — próxima. Aún sin change (al proponer, enlaza aquí su `openspec/changes/<id>/proposal.md` y `design.md`).
+- 🚧 **`authentication`** — en progreso. Change `add-authentication`: `openspec/changes/add-authentication/proposal.md` · `design.md`. Propuesto (pendiente de `/opsx:apply`).
+- 🚧 **`api-type-contracts`** (técnica) — en progreso dentro del mismo change `add-authentication` (contrato OpenAPI versionado + codegen orval).
 - ⏳ **Resto** (`users`, `patients`, `appointments`, `treatments`, `images`, `billing`, `inventory`, `dashboard`) — planeadas.
 
 ---
