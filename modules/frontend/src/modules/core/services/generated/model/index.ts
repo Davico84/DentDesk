@@ -8,9 +8,6 @@
 
 export * from './authResponse';
 export * from './loginRequest';
-export * from './problemDetail';
-export * from './problemDetailErrorsItem';
-export * from './problemDetailResponse';
 export * from './registerRequest';
 export * from './userResponse';
 export * from './userResponseRole';

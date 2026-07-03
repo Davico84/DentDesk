@@ -16,10 +16,7 @@ import { customInstance } from '../../config/httpClient';
 
 
 
-  /**
- * @summary Registra una cuenta e inicia sesión
- */
-export const register = (
+  export const register = (
     registerRequest: RegisterRequest,
  ) => {
       return customInstance<AuthResponse>(
@@ -29,10 +26,23 @@ export const register = (
     },
       );
     }
-  /**
- * @summary Inicia sesión con credenciales
- */
-export const login = (
+  export const refresh = (
+    
+ ) => {
+      return customInstance<AuthResponse>(
+      {url: `/auth/refresh`, method: 'POST'
+    },
+      );
+    }
+  export const logout = (
+    
+ ) => {
+      return customInstance<void>(
+      {url: `/auth/logout`, method: 'POST'
+    },
+      );
+    }
+  export const login = (
     loginRequest: LoginRequest,
  ) => {
       return customInstance<AuthResponse>(
@@ -42,29 +52,7 @@ export const login = (
     },
       );
     }
-  /**
- * @summary Renueva el access token usando la cookie de refresco
- */
-export const refresh = (
-    
- ) => {
-      return customInstance<AuthResponse>(
-      {url: `/auth/refresh`, method: 'POST'
-    },
-      );
-    }
-  /**
- * @summary Cierra la sesión e invalida el refresh token
- */
-export const logout = (
-    
- ) => {
-      return customInstance<void>(
-      {url: `/auth/logout`, method: 'POST'
-    },
-      );
-    }
   export type RegisterResult = NonNullable<Awaited<ReturnType<typeof register>>>
-export type LoginResult = NonNullable<Awaited<ReturnType<typeof login>>>
 export type RefreshResult = NonNullable<Awaited<ReturnType<typeof refresh>>>
 export type LogoutResult = NonNullable<Awaited<ReturnType<typeof logout>>>
+export type LoginResult = NonNullable<Awaited<ReturnType<typeof login>>>

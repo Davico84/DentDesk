@@ -9,9 +9,9 @@
 ## 2. Backend — contrato OpenAPI (api-type-contracts)
 
 - [x] 2.1 Añadir dependencia `springdoc-openapi-starter-webmvc-*` v3.0.3 (compatible Spring Boot 4.x)
-- [ ] 2.2 Verificar que `/v3/api-docs` responde `200 OK` con documento OpenAPI válido (Scenario "Exposición en runtime")
-- [ ] 2.3 Configurar export del contrato en build: `springdoc-openapi-maven-plugin` (fallback `spring-boot:start` + `curl` si no soporta Boot 4) y **commitear el snapshot en `contracts/openapi.json`** (versionado, fuera de `target/`) (Scenario "Snapshot del contrato versionado")
-- [ ] 2.4 Confirmar que las restricciones de Bean Validation de los DTOs aparecen en `contracts/openapi.json` (Scenario "Restricciones de validación reflejadas en el contrato")
+- [x] 2.2 Verificar que `/v3/api-docs` responde `200 OK` con documento OpenAPI válido (Scenario "Exposición en runtime")
+- [x] 2.3 Configurar export del contrato en build: `springdoc-openapi-maven-plugin` (fallback `spring-boot:start` + `curl` si no soporta Boot 4) y **commitear el snapshot en `contracts/openapi.json`** (versionado, fuera de `target/`) (Scenario "Snapshot del contrato versionado")
+- [x] 2.4 Confirmar que las restricciones de Bean Validation de los DTOs aparecen en `contracts/openapi.json` (Scenario "Restricciones de validación reflejadas en el contrato")
 
 ## 3. Backend — modelo y persistencia (authentication)
 
