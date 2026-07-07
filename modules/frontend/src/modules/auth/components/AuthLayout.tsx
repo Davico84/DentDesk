@@ -19,7 +19,7 @@ export function AuthLayout({ title, description, children, footer }: AuthLayoutP
     <div className="grid min-h-screen lg:grid-cols-2">
       {/* Panel de marca (neutro, logo a color) */}
       <aside className="relative hidden flex-col justify-between bg-muted p-12 lg:flex">
-        <Logo className="h-9 w-auto" />
+        <Logo className="h-10 w-auto self-start" />
         <div className="max-w-md">
           <h2 className="text-balance text-3xl font-semibold leading-tight text-foreground">
             Sonrisas sanas, gestión simple.
