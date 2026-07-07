@@ -1,12 +1,12 @@
 import { Link } from "react-router-dom";
-import { AuthCard } from "@/modules/auth/components/AuthCard";
+import { AuthLayout } from "@/modules/auth/components/AuthLayout";
 import { RegisterForm } from "@/modules/auth/components/RegisterForm";
 import { PATHS } from "@/routes/paths";
 
 /** Pantalla de registro. */
 export function RegisterView() {
   return (
-    <AuthCard
+    <AuthLayout
       title="Crear cuenta"
       description="Regístrate para empezar a usar OdontoRisas"
       footer={
@@ -19,6 +19,6 @@ export function RegisterView() {
       }
     >
       <RegisterForm />
-    </AuthCard>
+    </AuthLayout>
   );
 }

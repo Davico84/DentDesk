@@ -1,8 +1,10 @@
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { Loader2 } from "lucide-react";
 import { Button } from "@/modules/core/ui/button";
 import { Input } from "@/modules/core/ui/input";
 import { Label } from "@/modules/core/ui/label";
+import { PasswordInput } from "@/modules/core/ui/password-input";
 import { registerSchema, type RegisterValues } from "../schemas/auth";
 import { useRegister } from "../hooks/useAuth";
 
@@ -40,9 +42,8 @@ export function RegisterForm() {
 
       <div className="flex flex-col gap-1.5">
         <Label htmlFor="reg-password">Contraseña</Label>
-        <Input
+        <PasswordInput
           id="reg-password"
-          type="password"
           autoComplete="new-password"
           aria-invalid={errors.password ? true : undefined}
           {...field("password")}
@@ -56,9 +57,8 @@ export function RegisterForm() {
 
       <div className="flex flex-col gap-1.5">
         <Label htmlFor="reg-confirm">Confirmar contraseña</Label>
-        <Input
+        <PasswordInput
           id="reg-confirm"
-          type="password"
           autoComplete="new-password"
           aria-invalid={errors.confirmPassword ? true : undefined}
           {...field("confirmPassword")}
@@ -69,6 +69,7 @@ export function RegisterForm() {
       </div>
 
       <Button type="submit" disabled={registerMutation.isPending}>
+        {registerMutation.isPending && <Loader2 className="size-4 animate-spin" />}
         {registerMutation.isPending ? "Creando cuenta…" : "Crear cuenta"}
       </Button>
     </form>

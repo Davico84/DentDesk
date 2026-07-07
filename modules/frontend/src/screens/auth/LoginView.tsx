@@ -1,12 +1,12 @@
 import { Link } from "react-router-dom";
-import { AuthCard } from "@/modules/auth/components/AuthCard";
+import { AuthLayout } from "@/modules/auth/components/AuthLayout";
 import { LoginForm } from "@/modules/auth/components/LoginForm";
 import { PATHS } from "@/routes/paths";
 
 /** Pantalla de inicio de sesión. */
 export function LoginView() {
   return (
-    <AuthCard
+    <AuthLayout
       title="Iniciar sesión"
       description="Accede a tu panel de OdontoRisas"
       footer={
@@ -19,6 +19,6 @@ export function LoginView() {
       }
     >
       <LoginForm />
-    </AuthCard>
+    </AuthLayout>
   );
 }

@@ -37,7 +37,7 @@ describe("LoginForm", () => {
     renderWithProviders(<LoginForm />);
 
     await user.type(screen.getByLabelText(/correo/i), "ana@clinica.test");
-    await user.type(screen.getByLabelText(/contraseña/i), "password123");
+    await user.type(screen.getByLabelText(/^contraseña$/i), "password123");
     await user.click(screen.getByRole("button", { name: /iniciar sesión/i }));
 
     await waitFor(() => expect(useSessionStore.getState().status).toBe("authenticated"));
@@ -67,7 +67,7 @@ describe("LoginForm", () => {
     );
 
     await user.type(screen.getByLabelText(/correo/i), "ana@clinica.test");
-    await user.type(screen.getByLabelText(/contraseña/i), "malaclave");
+    await user.type(screen.getByLabelText(/^contraseña$/i), "malaclave");
     await user.click(screen.getByRole("button", { name: /iniciar sesión/i }));
 
     expect(

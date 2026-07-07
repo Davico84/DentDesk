@@ -1,8 +1,10 @@
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { Loader2 } from "lucide-react";
 import { Button } from "@/modules/core/ui/button";
 import { Input } from "@/modules/core/ui/input";
 import { Label } from "@/modules/core/ui/label";
+import { PasswordInput } from "@/modules/core/ui/password-input";
 import { loginSchema, type LoginValues } from "../schemas/auth";
 import { useLogin } from "../hooks/useAuth";
 
@@ -34,9 +36,8 @@ export function LoginForm() {
 
       <div className="flex flex-col gap-1.5">
         <Label htmlFor="password">Contraseña</Label>
-        <Input
+        <PasswordInput
           id="password"
-          type="password"
           autoComplete="current-password"
           aria-invalid={errors.password ? true : undefined}
           {...register("password")}
@@ -45,6 +46,7 @@ export function LoginForm() {
       </div>
 
       <Button type="submit" disabled={login.isPending}>
+        {login.isPending && <Loader2 className="size-4 animate-spin" />}
         {login.isPending ? "Iniciando sesión…" : "Iniciar sesión"}
       </Button>
     </form>
