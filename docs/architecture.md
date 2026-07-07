@@ -118,6 +118,7 @@ Detalle ampliado de los estándares de frontend en `docs/frontend.md` (arquitect
 - **Frontend**: `pnpm validate` (typecheck + lint + test); e2e Playwright cuando aplique.
 - **CI por PR**: `openspec validate --strict` + validate de backend + frontend.
 - **Commits**: Conventional Commits. **Pre-commit** (front): `lint-staged`.
+- **Seguridad y observabilidad (planeado, aún NO adoptado)**: escaneo de vulnerabilidades de dependencias (empezar por **GitHub Dependabot** + `pnpm audit` / OWASP Dependency-Check en CI; **Snyk** si se requiere SAST, licencias o escaneo de contenedores, con cuenta/`SNYK_TOKEN`) y monitoreo de errores en runtime con **Sentry** (SDK front React + back Spring Boot, correlacionable con el `traceId` de RFC 9457). Se introducen con el setup de deploy/entornos. Ver `docs/vision.md §7`.
 
 ---
 

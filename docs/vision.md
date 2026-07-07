@@ -89,4 +89,8 @@ Regla equivalente para agentes en `CLAUDE.md → Flujo de trabajo → Gobernanza
 - `chatbot` (Spring AI ya está en el stack "para el bot") — no priorizada aún.
 - `notifications` (correo/realtime STOMP) — se evaluará cuando `appointments` lo requiera.
 
+**Tooling de plataforma (transversal, aún NO adoptado):**
+- **Seguridad (Snyk)**: escaneo de vulnerabilidades. Escalonado: primero **Dependabot** + `pnpm audit` (front) + **OWASP Dependency-Check** (Maven, back) en CI —sin cuentas externas—; **Snyk** después para SAST/licencias/contenedores (requiere cuenta + `SNYK_TOKEN`).
+- **Observabilidad (Sentry)**: monitoreo de errores + performance en front (React) y back (Spring Boot). Se apoya en el `traceId` (RFC 9457 + MDC) ya existente. Se monta con el setup de deploy/entornos.
+
 > El orden no es rígido: se ajusta según prioridad de negocio. Cambiar el orden no cambia las reglas de granularidad de este documento.
