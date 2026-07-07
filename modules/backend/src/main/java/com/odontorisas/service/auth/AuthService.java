@@ -63,14 +63,18 @@ public class AuthService {
         if (rawRefreshToken == null || rawRefreshToken.isBlank()) {
             throw new InvalidRefreshTokenException();
         }
-        RefreshToken stored = refreshTokens.findByTokenHash(tokenService.hashRefreshToken(rawRefreshToken))
+        String tokenHash = tokenService.hashRefreshToken(rawRefreshToken);
+        RefreshToken stored = refreshTokens.findByTokenHash(tokenHash)
             .orElseThrow(InvalidRefreshTokenException::new);
         if (stored.isRevoked() || stored.getExpiresAt().isBefore(Instant.now())) {
             throw new InvalidRefreshTokenException();
         }
-        // Rotación: el refresh usado se elimina y se emite uno nuevo.
         User user = stored.getUser();
-        refreshTokens.delete(stored);
+        // Rotación atómica: consume el token con un bulk delete. Si otra petición
+        // concurrente ya lo consumió (0 filas), esta pierde la carrera → 401 (no 500).
+        if (refreshTokens.deleteByTokenHash(tokenHash) == 0) {
+            throw new InvalidRefreshTokenException();
+        }
         return issueTokens(user);
     }
 

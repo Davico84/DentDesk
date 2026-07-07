@@ -129,6 +129,7 @@ class AuthServiceTest {
             .expiresAt(Instant.now().plus(1, ChronoUnit.DAYS)).revoked(false).build();
         when(tokenService.hashRefreshToken("raw-refresh")).thenReturn("refresh-hash");
         when(refreshTokens.findByTokenHash("refresh-hash")).thenReturn(Optional.of(stored));
+        when(refreshTokens.deleteByTokenHash("refresh-hash")).thenReturn(1);
         when(tokenService.issueAccessToken(any())).thenReturn("access-token");
         when(tokenService.generateRefreshTokenValue()).thenReturn("raw-refresh-2");
         when(tokenService.refreshExpiry()).thenReturn(Instant.now().plus(7, ChronoUnit.DAYS));
@@ -136,8 +137,23 @@ class AuthServiceTest {
         AuthResult result = authService.refresh("raw-refresh");
 
         assertThat(result.accessToken()).isEqualTo("access-token");
-        verify(refreshTokens).delete(stored);                 // rotación: revoca el usado
-        verify(refreshTokens).save(any(RefreshToken.class));  // emite uno nuevo
+        verify(refreshTokens).deleteByTokenHash("refresh-hash"); // rotación: consume el usado
+        verify(refreshTokens).save(any(RefreshToken.class));     // emite uno nuevo
+    }
+
+    @Test
+    void refresh_losing_a_concurrent_rotation_is_rejected_without_new_session() {
+        User user = userWithId();
+        RefreshToken stored = RefreshToken.builder()
+            .id(10L).user(user).tokenHash("refresh-hash")
+            .expiresAt(Instant.now().plus(1, ChronoUnit.DAYS)).revoked(false).build();
+        when(tokenService.hashRefreshToken("raw-refresh")).thenReturn("refresh-hash");
+        when(refreshTokens.findByTokenHash("refresh-hash")).thenReturn(Optional.of(stored));
+        when(refreshTokens.deleteByTokenHash("refresh-hash")).thenReturn(0); // otra petición ya lo consumió
+
+        assertThatThrownBy(() -> authService.refresh("raw-refresh"))
+            .isInstanceOf(InvalidRefreshTokenException.class);
+        verify(refreshTokens, never()).save(any());
     }
 
     @Test

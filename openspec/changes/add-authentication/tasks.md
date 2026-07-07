@@ -94,5 +94,5 @@
 
 ## 14. Pendientes antes de archivar (reportados 2026-07-03)
 
-- [ ] 14.1 **BUG**: `/auth/refresh` devuelve **500** intermitente al recargar la página (debería ser 401 si el refresh es inválido). Error genérico no controlado (`traceId` ej. `cf6e364d`). Depurar con el stacktrace del log (buscar `[trace <id>]`); revisar `AuthService.refresh` (NPE / lazy load / rotación / cookie / doble refresh concurrente bootstrap+interceptor). Añadir test que lo reproduzca.
+- [x] 14.1 **BUG**: `/auth/refresh` devuelve **500** intermitente al recargar la página (debería ser 401 si el refresh es inválido). Error genérico no controlado (`traceId` ej. `cf6e364d`). Depurar con el stacktrace del log (buscar `[trace <id>]`); revisar `AuthService.refresh` (NPE / lazy load / rotación / cookie / doble refresh concurrente bootstrap+interceptor). Añadir test que lo reproduzca.
 - [ ] 14.2 Mejorar la **interfaz (UI/UX)** del auth: pulir login/registro/panel, estados de carga/error, responsividad y aplicación de marca. Definir alcance.

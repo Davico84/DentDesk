@@ -33,10 +33,23 @@ function isAuthPath(url?: string): boolean {
   return !!url && (url.includes("/auth/login") || url.includes("/auth/register") || url.includes("/auth/refresh"));
 }
 
-async function refreshSession(): Promise<string> {
+async function doRefresh(): Promise<string> {
   const { data } = await axiosInstance.post<AuthPayload>("/auth/refresh");
   useSessionStore.getState().setSession(data.accessToken, data.user);
   return data.accessToken;
+}
+
+/**
+ * Refresca la sesión con **single-flight**: llamadas concurrentes (bootstrap al
+ * recargar, StrictMode, varias peticiones con 401 a la vez) comparten una única
+ * petición `/auth/refresh` en vuelo. Evita rotaciones concurrentes del refresh
+ * token (que en el backend causaban un 500 por consumir la misma fila dos veces).
+ */
+export function refreshSession(): Promise<string> {
+  refreshPromise ??= doRefresh().finally(() => {
+    refreshPromise = null;
+  });
+  return refreshPromise;
 }
 
 axiosInstance.interceptors.response.use(
@@ -48,11 +61,7 @@ axiosInstance.interceptors.response.use(
     if (status === 401 && original && !original._retry && !isAuthPath(original.url)) {
       original._retry = true;
       try {
-        // Un solo refresh concurrente; las demás peticiones esperan el mismo.
-        refreshPromise ??= refreshSession().finally(() => {
-          refreshPromise = null;
-        });
-        const newToken = await refreshPromise;
+        const newToken = await refreshSession();
         original.headers.Authorization = `Bearer ${newToken}`;
         return axiosInstance(original);
       } catch (refreshError) {
