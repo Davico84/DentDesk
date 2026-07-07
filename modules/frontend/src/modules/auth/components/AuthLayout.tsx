@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import { ThemeToggle } from "@/modules/core/ui/theme-toggle";
-import { BrandMark } from "./BrandMark";
+import { Logo } from "@/modules/core/ui/logo";
 
 interface AuthLayoutProps {
   title: string;
@@ -10,31 +10,28 @@ interface AuthLayoutProps {
 }
 
 /**
- * Marco split-screen de las pantallas de auth: panel de marca (gradiente
- * teal→púrpura) a un lado y el formulario al otro. En móvil colapsa a una sola
+ * Marco split-screen de las pantallas de auth: panel de marca (fondo neutro con
+ * el logo) a un lado y el formulario al otro. En móvil colapsa a una sola
  * columna con el logo arriba.
  */
 export function AuthLayout({ title, description, children, footer }: AuthLayoutProps) {
   return (
     <div className="grid min-h-screen lg:grid-cols-2">
-      {/* Panel de marca (solo desktop) */}
-      <aside
-        className="relative hidden flex-col justify-between p-12 text-white lg:flex"
-        style={{ backgroundImage: "linear-gradient(150deg, hsl(174 70% 40%), hsl(292 72% 42%))" }}
-      >
-        <div className="flex items-center gap-3">
-          <BrandMark className="size-9" />
-          <span className="text-lg font-semibold tracking-tight">OdontoRisas</span>
-        </div>
-        <div className="max-w-sm">
-          <h2 className="text-balance text-3xl font-semibold leading-tight">
+      {/* Panel de marca (neutro, logo a color) */}
+      <aside className="relative hidden flex-col justify-between bg-muted p-12 lg:flex">
+        <Logo className="h-9 w-auto" />
+        <div className="max-w-md">
+          <h2 className="text-balance text-3xl font-semibold leading-tight text-foreground">
             Sonrisas sanas, gestión simple.
           </h2>
-          <p className="mt-3 text-white/80">
+          <p className="mt-3 text-muted-foreground">
             La plataforma del Centro Odontológico OdontoRisas: pacientes, citas y tratamientos en un solo lugar.
           </p>
         </div>
-        <p className="text-sm text-white/70">Centro Odontológico</p>
+        <div
+          className="h-1.5 w-24 rounded-full"
+          style={{ backgroundImage: "linear-gradient(90deg, hsl(174 70% 42%), hsl(292 72% 45%))" }}
+        />
       </aside>
 
       {/* Panel del formulario */}
@@ -43,9 +40,8 @@ export function AuthLayout({ title, description, children, footer }: AuthLayoutP
           <ThemeToggle />
         </div>
         <div className="w-full max-w-sm">
-          <div className="mb-6 flex items-center gap-2 text-primary lg:hidden">
-            <BrandMark className="size-8" />
-            <span className="text-lg font-semibold tracking-tight text-foreground">OdontoRisas</span>
+          <div className="mb-8 lg:hidden">
+            <Logo className="h-8 w-auto" />
           </div>
           <div className="mb-6">
             <h1 className="text-2xl font-semibold tracking-tight">{title}</h1>
