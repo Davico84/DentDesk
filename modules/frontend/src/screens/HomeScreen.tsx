@@ -1,9 +1,24 @@
-/** Pantalla raíz (scaffolding). */
+import { useSessionStore } from "@/store/useSessionStore";
+import { useLogout } from "@/modules/auth/hooks/useAuth";
+import { Button } from "@/modules/core/ui/button";
+
+/** Panel raíz (provisional): saluda al usuario y permite cerrar sesión. */
 export function HomeScreen() {
+  const user = useSessionStore((s) => s.user);
+  const logout = useLogout();
+
   return (
-    <main className="flex min-h-screen flex-col items-center justify-center gap-2">
+    <main className="flex min-h-screen flex-col items-center justify-center gap-4">
       <h1 className="text-2xl font-bold">OdontoRisas</h1>
-      <p className="text-muted-foreground">Frontend base (scaffolding).</p>
+      {user ? (
+        <p className="text-muted-foreground">
+          Sesión iniciada como{" "}
+          <span className="font-medium text-foreground">{user.fullName ?? user.email}</span> ({user.role})
+        </p>
+      ) : null}
+      <Button variant="outline" onClick={() => logout.mutate()} disabled={logout.isPending}>
+        {logout.isPending ? "Cerrando sesión…" : "Cerrar sesión"}
+      </Button>
     </main>
   );
 }
