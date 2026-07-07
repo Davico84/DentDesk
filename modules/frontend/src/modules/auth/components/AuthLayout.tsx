@@ -22,7 +22,7 @@ export function AuthLayout({ title, description, children, footer }: AuthLayoutP
         className="relative hidden flex-col justify-between p-12 text-white lg:flex"
         style={{ backgroundImage: "linear-gradient(150deg, hsl(174 70% 40%), hsl(292 72% 42%))" }}
       >
-        <Logo variant="white" className="h-10 w-auto self-start" />
+        <Logo variant="white" className="h-12 w-auto self-start" />
         <div className="max-w-md">
           <h2 className="text-balance text-3xl font-semibold leading-tight">
             Sonrisas sanas, gestión simple.
@@ -40,8 +40,8 @@ export function AuthLayout({ title, description, children, footer }: AuthLayoutP
           <ThemeToggle />
         </div>
         <div className="w-full max-w-sm">
-          <div className="mb-8 lg:hidden">
-            <Logo className="h-8 w-auto" />
+          <div className="mb-8 flex justify-center lg:hidden">
+            <Logo className="h-12 w-auto" />
           </div>
           <div className="mb-6">
             <h1 className="text-2xl font-semibold tracking-tight">{title}</h1>

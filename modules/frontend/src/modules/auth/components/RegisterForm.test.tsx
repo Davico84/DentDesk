@@ -35,6 +35,7 @@ describe("RegisterForm", () => {
     expect(useSessionStore.getState().status).toBe("idle");
   });
 
+
   it("rechaza contraseña de menos de 8 caracteres sin enviar la petición", async () => {
     const user = userEvent.setup();
     renderWithProviders(<RegisterForm />);
