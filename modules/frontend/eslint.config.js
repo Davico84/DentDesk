@@ -6,7 +6,13 @@ import tseslint from "typescript-eslint";
 import { defineConfig, globalIgnores } from "eslint/config";
 
 export default defineConfig([
-  globalIgnores(["dist", "coverage", "test-results", "playwright-report"]),
+  globalIgnores([
+    "dist",
+    "coverage",
+    "test-results",
+    "playwright-report",
+    "src/modules/core/services/generated", // código generado por orval (se valida con tsc, no con eslint)
+  ]),
   {
     files: ["**/*.{ts,tsx}"],
     extends: [

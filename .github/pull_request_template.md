@@ -35,7 +35,7 @@ Change: `...`
 - [ ] Frontend: `pnpm validate` en verde (si toca `frontend/`)
 - [ ] Tests derivados de los `#### Scenario:` del spec (ver `docs/testing.md`)
 - [ ] Commits en Conventional Commits en español (ver `docs/commits.md`)
-- [ ] Docs actualizadas si cambió comportamiento/arquitectura (`docs/`, `data-model.md`)
+- [ ] Docs actualizadas si cambió comportamiento/arquitectura (`docs/`, `domain.md`)
 - [ ] Sin secretos ni artefactos (`secrets.properties`, `target/`, `node_modules/`)
 
 ## Notas para revisión

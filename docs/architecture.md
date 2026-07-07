@@ -49,11 +49,16 @@ OdontoRisas/
 ```
 presentation   → controller · dto
       ↓
-infra          → config · security · service (por dominio) · utils/mappers
+service        → <dominio> (+ mapper co-ubicado)      # lógica de negocio / casos de uso
       ↓
 persistence    → entity · repository · specification (queries dinámicas)
+
+infra          → config · security · storage · mail   # adaptadores técnicos (transversal)
+common         → utilidades / tipos compartidos
 ```
-- `presentation` no accede a `persistence` directamente: pasa por servicios de `infra`.
+- La **lógica de negocio** vive en `service.<dominio>`, **no** en `infra`. `infra` es solo adaptadores técnicos (framework, seguridad, S3, mail).
+- `presentation` no accede a `persistence` directamente: pasa por `service`.
+- `persistence` no depende de `presentation` ni de `service` (las entidades JPA son el modelo de dominio; no hexagonal puro, decisión consciente).
 - `specification` centraliza las queries dinámicas (JPA Criteria/Specifications).
 - Migraciones versionadas en `db/migration`; el schema NO lo gestiona Hibernate (`ddl-auto=none`).
 
@@ -93,7 +98,7 @@ src/
 - **Modules** encapsulan lógica reutilizable; `core/` no depende de otros módulos.
 - **RouteGuard** centraliza auth + roles: sesión activa en ruta pública → redirige por rol; sin token → login (con `?next=`); rol no permitido → 403 AccessDenied.
 
-Detalle ampliado en las docs del template: `architecture.md`, `coding-standards.md`, `react-query.md`, `zustand.md`, `ui-patterns.md`, `testing.md`, `tooling-setup.md` (en `D:/proyectos/FixRiver/ProyectoBase/template-base/modules/frontend/docs`). **Pendiente**: portarlas a `docs/` de este repo.
+Detalle ampliado de los estándares de frontend en `docs/frontend.md` (arquitectura pantallas/módulos, React Query, Zustand, patrones de UI) y `docs/coding-style.md` (estilo general de código). Adaptados del template FixRiver.
 
 ---
 
@@ -113,6 +118,7 @@ Detalle ampliado en las docs del template: `architecture.md`, `coding-standards.
 - **Frontend**: `pnpm validate` (typecheck + lint + test); e2e Playwright cuando aplique.
 - **CI por PR**: `openspec validate --strict` + validate de backend + frontend.
 - **Commits**: Conventional Commits. **Pre-commit** (front): `lint-staged`.
+- **Seguridad y observabilidad (planeado, aún NO adoptado)**: escaneo de vulnerabilidades de dependencias (empezar por **GitHub Dependabot** + `pnpm audit` / OWASP Dependency-Check en CI; **Snyk** si se requiere SAST, licencias o escaneo de contenedores, con cuenta/`SNYK_TOKEN`) y monitoreo de errores en runtime con **Sentry** (SDK front React + back Spring Boot, correlacionable con el `traceId` de RFC 9457). Se introducen con el setup de deploy/entornos. Ver `docs/vision.md §7`.
 
 ---
 

@@ -12,7 +12,7 @@ labels: [enhancement]
 <!-- Qué debería hacer el sistema. -->
 
 ## Capacidad OpenSpec
-<!-- ¿Nueva capacidad o modifica una existente? Ver docs/capabilities.md y docs/roadmap.md -->
+<!-- ¿Nueva capacidad o modifica una existente? Ver granularidad y roadmap en docs/vision.md -->
 - Capacidad:
 - Change sugerido: `add-<capacidad>`
 
