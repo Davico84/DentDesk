@@ -10,28 +10,28 @@ interface AuthLayoutProps {
 }
 
 /**
- * Marco split-screen de las pantallas de auth: panel de marca (fondo neutro con
- * el logo) a un lado y el formulario al otro. En móvil colapsa a una sola
- * columna con el logo arriba.
+ * Marco split-screen de las pantallas de auth: panel de marca con gradiente
+ * (teal→púrpura) y el logo en blanco a un lado, y el formulario al otro. En
+ * móvil colapsa a una sola columna con el logo (a color) arriba.
  */
 export function AuthLayout({ title, description, children, footer }: AuthLayoutProps) {
   return (
     <div className="grid min-h-screen lg:grid-cols-2">
-      {/* Panel de marca (neutro, logo a color) */}
-      <aside className="relative hidden flex-col justify-between bg-muted p-12 lg:flex">
-        <Logo className="h-10 w-auto self-start" />
+      {/* Panel de marca (gradiente + logo blanco) */}
+      <aside
+        className="relative hidden flex-col justify-between p-12 text-white lg:flex"
+        style={{ backgroundImage: "linear-gradient(150deg, hsl(174 70% 40%), hsl(292 72% 42%))" }}
+      >
+        <Logo variant="white" className="h-10 w-auto self-start" />
         <div className="max-w-md">
-          <h2 className="text-balance text-3xl font-semibold leading-tight text-foreground">
+          <h2 className="text-balance text-3xl font-semibold leading-tight">
             Sonrisas sanas, gestión simple.
           </h2>
-          <p className="mt-3 text-muted-foreground">
+          <p className="mt-3 text-white/80">
             La plataforma del Centro Odontológico OdontoRisas: pacientes, citas y tratamientos en un solo lugar.
           </p>
         </div>
-        <div
-          className="h-1.5 w-24 rounded-full"
-          style={{ backgroundImage: "linear-gradient(90deg, hsl(174 70% 42%), hsl(292 72% 45%))" }}
-        />
+        <p className="text-sm text-white/70">© OdontoRisas · Centro Odontológico</p>
       </aside>
 
       {/* Panel del formulario */}
