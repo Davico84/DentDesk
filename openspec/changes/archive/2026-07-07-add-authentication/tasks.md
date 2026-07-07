@@ -70,8 +70,8 @@
 ## 11. Docs y cierre
 
 - [x] 11.1 `openspec validate add-authentication --strict` en verde
-- [ ] 11.2 `mvn verify` (backend) y `pnpm validate` (frontend) en verde; CI activa jobs
-- [ ] 11.3 Al archivar: actualizar `docs/domain.md` (entidad `User`, roles) y marcar `authentication` construida en `docs/vision.md` (gobernanza `CLAUDE.md`)
+- [x] 11.2 `mvn verify` (backend) y `pnpm validate` (frontend) en verde; CI activa jobs
+- [x] 11.3 Al archivar: actualizar `docs/domain.md` (entidad `User`, roles) y marcar `authentication` construida en `docs/vision.md` (gobernanza `CLAUDE.md`)
 
 ## 12. Ampliación: datos básicos de perfil en el registro
 

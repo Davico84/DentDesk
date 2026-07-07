@@ -39,9 +39,9 @@ Dimensión de **negocio** (sustituible por proyecto). Define **qué** construimo
 > Esta lista es el **puente vivo** entre la planificación y lo construido. **Actualízala en cada `/opsx:propose` y `/opsx:archive`** (ver "Ciclo de vida" abajo).
 
 - ✅ **`project-foundation`** — construida. Spec: `openspec/specs/project-foundation/spec.md` · change archivado: `openspec/changes/archive/2026-07-03-add-project-scaffolding/`.
-- 🚧 **`authentication`** — en progreso. Change `add-authentication`: `openspec/changes/add-authentication/proposal.md` · `design.md`. Propuesto (pendiente de `/opsx:apply`).
-- 🚧 **`api-type-contracts`** (técnica) — en progreso dentro del mismo change `add-authentication` (contrato OpenAPI versionado + codegen orval).
-- ⏳ **Resto** (`users`, `patients`, `appointments`, `treatments`, `images`, `billing`, `inventory`, `dashboard`) — planeadas.
+- ✅ **`authentication`** — construida. Spec: `openspec/specs/authentication/spec.md` · change archivado: `openspec/changes/archive/2026-07-07-add-authentication/`.
+- ✅ **`api-type-contracts`** (técnica) — construida (contrato OpenAPI versionado + codegen orval). Spec: `openspec/specs/api-type-contracts/spec.md` · mismo change `add-authentication`.
+- ⏳ **Resto** (`users`, `patients`, `appointments`, `treatments`, `images`, `billing`, `inventory`, `dashboard`) — planeadas. *(La capacidad `users` re-añadirá al registro/perfil: nombre de usuario, teléfono, país.)*
 
 ---
 

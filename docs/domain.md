@@ -58,10 +58,14 @@ Dimensión de **negocio** (sustituible por proyecto). Base de conocimiento del d
 
 > Estado: **conceptual / por detallar**. Cada capacidad refina su parte al construirse.
 
-### `authentication` / `users` → **User**
+### `authentication` / `users` → **User** *(construida en `authentication`)*
 Cuenta de acceso al sistema. Un `User` puede o no estar vinculado a un `Patient`.
-- `email` (único), `passwordHash`, `role` (`ADMIN` | `USER`), `status` (activo/deshabilitado)
-- Refresh/JWT: el token no se modela como entidad salvo que se decida persistir refresh tokens (a definir en `authentication`).
+- **Construido** (capacidad `authentication`): `email` (único), `passwordHash` (BCrypt), `role` (`ADMIN` | `USER`), `fullName`, `createdAt`/`updatedAt`.
+- **Diferido a la capacidad `users`** (gestión de perfil): `username` (único), `phone`, `country`, `status` (activo/deshabilitado). El registro captura solo nombre/correo/contraseña.
+
+### `authentication` → **RefreshToken** *(construida)*
+Token de refresco persistido para rotación y revocación real (logout). Se guarda el **hash** del token, nunca el valor en claro.
+- `user` (FK), `tokenHash` (único), `expiresAt`, `revoked`, `createdAt`. El access token es JWT stateless (no se persiste).
 
 ### `patients` → **Patient**
 Ficha clínica-administrativa. Se atienden **menores y adultos**.

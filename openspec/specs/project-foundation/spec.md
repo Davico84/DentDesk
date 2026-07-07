@@ -45,12 +45,15 @@ El frontend SHALL compilar, construir y servir una SPA base con React + Vite, y 
 - **AND** MSW intercepta las peticiones de red en el entorno de test
 
 ### Requirement: Estructura arquitectónica establecida
-El código base SHALL seguir la arquitectura definida en `docs/architecture.md`: capas en backend y pantallas/módulos en frontend.
+El código base SHALL seguir la arquitectura definida en `docs/architecture.md`: en el backend, la **lógica de negocio** vive separada de los **adaptadores técnicos** (`infra` es solo para lo técnico); en el frontend, la organización es por pantallas/módulos.
 
 #### Scenario: Capas del backend
 - **WHEN** se inspecciona el árbol de paquetes del backend
-- **THEN** existen los paquetes `presentation`, `infra` y `persistence`
+- **THEN** la lógica de negocio reside en `service.<dominio>` (no bajo `infra`)
+- **AND** `infra` contiene únicamente adaptadores técnicos (p. ej. `config`, `security`, `storage`, `mail`)
 - **AND** `presentation` no importa directamente de `persistence`
+- **AND** `persistence` no depende de `presentation` ni de `service`
+- **AND** `service` no depende de `presentation`
 
 #### Scenario: Estructura del frontend
 - **WHEN** se inspecciona `modules/frontend/src`
