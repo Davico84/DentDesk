@@ -41,7 +41,10 @@ Dimensión de **negocio** (sustituible por proyecto). Define **qué** construimo
 - ✅ **`project-foundation`** — construida. Spec: `openspec/specs/project-foundation/spec.md` · change archivado: `openspec/changes/archive/2026-07-03-add-project-scaffolding/`.
 - ✅ **`authentication`** — construida. Spec: `openspec/specs/authentication/spec.md` · change archivado: `openspec/changes/archive/2026-07-07-add-authentication/`.
 - ✅ **`api-type-contracts`** (técnica) — construida (contrato OpenAPI versionado + codegen orval). Spec: `openspec/specs/api-type-contracts/spec.md` · mismo change `add-authentication`.
+- 🚧 **`multi-tenancy`** (técnica) — **en progreso**. El producto pasa a ser un **SaaS multi-clínica** con modelo identidad/clínica/membresía: `User` es identidad global, `Clinic` es el tenant, `Membership` (con el rol) une ambos. Aislamiento RLS sobre las tablas de negocio, contexto de clínica por petición y alta autoservicio. Change: `openspec/changes/add-multi-tenancy/proposal.md` · `design.md`. Modifica también `authentication` (el registro crea clínica + identidad + membresía ADMIN; el rol sale de `User` y pasa a la membresía; el token identifica la clínica activa).
 - ⏳ **Resto** (`users`, `patients`, `appointments`, `treatments`, `images`, `billing`, `inventory`, `dashboard`) — planeadas. *(La capacidad `users` re-añadirá al registro/perfil: nombre de usuario, teléfono, país.)*
+
+> ⛔ **Bloqueo de secuencia:** ninguna capacidad de negocio (`users`, `patients`, …) debe proponerse antes de archivar `multi-tenancy`. Si `Patient` nace sin clínica, el error se arrastra a `appointments`, `treatments`, `images` y `billing`.
 
 ---
 
