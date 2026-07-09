@@ -41,10 +41,10 @@
 
 ## 5. Contrato y frontend
 
-- [ ] 5.1 Regenerar `contracts/openapi.json` y los artefactos de orval (`pnpm generate:api`); comprobar el gate "sin drift" de `api-type-contracts`
-- [ ] 5.2 `RegisterForm`: campo "Nombre de la clínica" (mapea a `Organization.name`) con validación Zod en paridad con Bean Validation (`docs/coding-style.md §7`)
-- [ ] 5.3 Store de sesión (Zustand): exponer la organización activa y el rol a partir de la respuesta de auth; ajustar `RouteGuard` para leer el rol de la sesión (cambia el origen, no el uso). Verificar que el **bootstrap ya existente** (`useSessionBootstrap` → refresh al montar, splash en `RootLayout`) repuebla organización + rol **antes** de que `RouteGuard` evalúe, para no perder estado en F5 (recarga)
-- [ ] 5.4 Tests de frontend (Vitest + MSW): "Nombre de organización ausente (validación en cliente)" y "Registro exitoso"
+- [x] 5.1 Regenerar `contracts/openapi.json` y los artefactos de orval (`pnpm generate:api`); comprobar el gate "sin drift" de `api-type-contracts`
+- [x] 5.2 `RegisterForm`: campo "Nombre de la clínica" (mapea a `Organization.name`) con validación Zod en paridad con Bean Validation (`docs/coding-style.md §7`)
+- [x] 5.3 Store de sesión (Zustand): exponer la organización activa y el rol a partir de la respuesta de auth; ajustar `RouteGuard` para leer el rol de la sesión (cambia el origen, no el uso). Verificar que el **bootstrap ya existente** (`useSessionBootstrap` → refresh al montar, splash en `RootLayout`) repuebla organización + rol **antes** de que `RouteGuard` evalúe, para no perder estado en F5 (recarga)
+- [x] 5.4 Tests de frontend (Vitest + MSW): "Nombre de organización ausente (validación en cliente)" y "Registro exitoso"
 
 ## 6. Tests derivados de los Scenario
 
