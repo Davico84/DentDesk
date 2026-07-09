@@ -77,6 +77,12 @@ Ambas políticas fallan cerrado (`current_setting` sin segundo argumento lanza s
 
 **Por qué esto responde a la revisión.** `GET /me/memberships` deja de depender de que el repositorio recuerde filtrar por `user_id`: aunque lo olvide, el motor solo devuelve las membresías cuyo `user_id` coincide con la identidad autenticada. `users` y `refresh_tokens` quedan fuera de RLS de forma **principiada**, no por comodidad: se acceden por una credencial (email/hash) que es en sí misma la autorización, y se leen *antes* de que exista identidad establecida (por eso no podrían llevar RLS de identidad sin un huevo-y-gallina).
 
+**Aislamiento de escritura, no solo de lectura.** La garantía cubre `INSERT`/`UPDATE`, no solo `SELECT`, por dos mecanismos que se refuerzan:
+1. **`@TenantId`** hace que Hibernate **auto-rellene** `organization_id` con la organización del contexto al persistir — el código de aplicación no puede escribir en otra organización aunque lo intente.
+2. La policy escrita solo con `USING` **también gobierna la escritura**: en PostgreSQL, si no se declara `WITH CHECK`, la expresión de `USING` se aplica igualmente a las filas nuevas (`INSERT`) y modificadas (`UPDATE`). Así, un `INSERT` con un `organization_id` ajeno —vía consulta nativa, por ejemplo— es **rechazado** por el motor.
+
+Es decir: la org A no puede leer, insertar ni modificar filas de la org B. La política de identidad de `memberships` se comporta igual (la escritura de una membresía exige `user_id = app.user_id`, lo que el registro satisface fijando el contexto antes del `INSERT`, D8).
+
 ### D3. `email` único **global** y `slug` **inmutable**
 
 `UNIQUE (email)` global: una identidad por persona; login `POST /auth/login {email, password}` sin subdominios. `Organization.slug` es único y **se congela al crear**: aunque la organización cambie de nombre (`Clínica Sonrisa` → `Dental Perú`), el `slug` permanece, porque puede haberse usado en URLs, referencias o (a futuro) subdominios. El nombre visible es mutable; el `slug`, no.
@@ -170,6 +176,8 @@ Bajo una sola `@Transactional`: nunca queda una organización sin administrador 
 
 **Regla dura (a `docs/backend.md`):** el `organizationId` (y el `userId`) se obtienen **exclusivamente** de `OrganizationContext`/`IdentityContext`, poblados desde el token firmado. **Prohibido** derivarlos de `@RequestHeader`, `@PathVariable` o `@RequestBody`. Un cliente no puede cambiar de organización manipulando la petición.
 
+**Observabilidad.** El filtro añade `organizationId` y `userId` al **MDC** (junto al `traceId` ya existente, RFC 9457 + MDC) y los retira en el mismo `finally`. En un sistema multi-tenant, "¿por qué esta consulta devolvió 0 filas?" es difícil de depurar sin saber en qué organización corría; tenerlo en cada línea de log lo hace trivial. Nunca se loguean datos sensibles, solo los identificadores.
+
 **BREAKING**: los access tokens previos no tienen `oid` y se rechazan. Aceptable: no hay producción.
 
 ### D10. RLS: una política real ahora (memberships) + mecanismo probado para el negocio
@@ -178,7 +186,7 @@ Bajo una sola `@Transactional`: nunca queda una organización sin administrador 
 
 1. **Una política RLS real y testeable ya**: la de identidad sobre `memberships` (`V7`). El aislamiento de `GET /me/memberships` se prueba de verdad contra PostgreSQL.
 2. El **mecanismo** de propagación (D6), el `CurrentTenantIdentifierResolver` y la configuración de `@TenantId`, listos para las tablas de negocio.
-3. Una **convención** en `docs/backend.md`: toda `@Entity` de negocio lleva `organization_id` + `@TenantId`, y su migración incluye `ENABLE`/`FORCE ROW LEVEL SECURITY` + la política `organization_isolation`. Cada capacidad de negocio aplica RLS a **su** tabla.
+3. Una **convención** en `docs/backend.md`: toda `@Entity` de negocio lleva `organization_id` + `@TenantId`, **un índice sobre `organization_id`** (sin él, RLS filtra con un *seq scan* enmascarado), y su migración incluye `ENABLE`/`FORCE ROW LEVEL SECURITY` + la política `organization_isolation`. Cada capacidad de negocio aplica RLS a **su** tabla. *(Índices como parte de la política de aislamiento, no como optimización posterior: la RLS convierte el filtro de tenant en implícito y omnipresente, así que debe estar indexado desde el día uno.)*
 4. Una **prueba del aislamiento por organización** con una entidad-fixture de test (`@TenantId`) y su migración de test con RLS, sobre **PostgreSQL real vía Testcontainers** (H2 no soporta RLS), garantizando que el pipeline funciona de extremo a extremo cuando aterrice `patients`.
 
 **Por qué.** No hay tablas de negocio todavía, pero sí una tabla puente real (`memberships`) que se protege ahora. Se evita tanto aplicar RLS a algo vacío como diferir el mecanismo y que `patients` lo reinvente. El coste de una tabla de negocio nueva se reduce a: columna + anotación + tres líneas SQL.
@@ -211,6 +219,18 @@ Los contextos viven en `ThreadLocal`, así que **no** se heredan en `@Async`/`@S
 
 Se deja como Open Question / tarea diferida; no bloquea este change.
 
+### D14. Autenticar exige identidad, membresía y organización **activas**
+
+`User.status` y `Membership.status` (D11) más `Organization.status` existen desde este change, pero un `status` que nadie comprueba no protege. **Decisión.** Login, refresh y (a futuro) select-organization SHALL exigir, para conceder o conservar sesión sobre una organización:
+
+- `user.status = ACTIVE` (identidad no bloqueada/deshabilitada en la plataforma),
+- `membership.status = ACTIVE` (pertenencia vigente a *esa* organización),
+- `organization.status = ACTIVE` (la organización no suspendida).
+
+Si cualquiera falla: login → credenciales rechazadas (sin filtrar cuál); refresh → sesión cerrada (como un refresco inválido). El **refresh reevalúa** estos estados en cada renovación, de modo que suspender una membresía **corta la sesión** en la siguiente renovación del access token, sin esperar a su expiración natural sería insuficiente — la ventana es el TTL del access (15 min).
+
+**Alcance ahora.** En este change todo se crea `ACTIVE`, así que el gate nunca se dispara en producción todavía; pero la comprobación se implementa y se **testea inyectando estados no-activos directamente** (un test puede insertar una membresía `SUSPENDED` aunque ningún endpoint la produzca aún). Cuando `users` añada suspensión/bloqueo, la seguridad ya está puesta, no hay que recordar añadirla.
+
 ---
 
 ## Risks / Trade-offs
@@ -231,7 +251,10 @@ Se deja como Open Question / tarea diferida; no bloquea este change.
 | **`CurrentTenantIdentifierResolver` sin contexto** (arranque, Flyway, jobs) | Centinela cuando no hay contexto; las entidades de negocio nunca se consultan fuera de una petición |
 | **Drift del contrato OpenAPI** | `pnpm generate:api` en este change; gate de CI |
 | **Tokens existentes invalidados** (D9) | No hay producción. **BREAKING** en `proposal.md` |
-| **Andamiaje especulativo** (`OrganizationSettings`/`OrganizationType` sin uso aún) | Coste mínimo (una tabla 1:1 con defaults y un enum en varchar); decisión consciente por la meta de template reutilizable |
+| **Escritura cruzada de tenant** (insertar/actualizar en otra organización) | `@TenantId` auto-rellena `organization_id`; la policy `USING` gobierna también `INSERT`/`UPDATE` (fallback `WITH CHECK`) → el motor rechaza la escritura ajena (D2) |
+| **`status` que nadie comprueba** → membresía suspendida o usuario deshabilitado sigue con sesión | Gate en login/refresh sobre `user`/`membership`/`organization` `ACTIVE` (D14); refresh reevalúa en cada renovación (ventana = TTL del access) |
+| **RLS sin índice** → cada consulta de negocio es un *seq scan* filtrado por la policy | Convención: índice sobre `organization_id` en toda tabla de negocio, como parte de la política de aislamiento (D10) |
+| **Depurar "0 filas" en multi-tenant** sin saber la organización | `organizationId`/`userId` en el MDC junto al `traceId` (D9) |
 
 **Trade-off asumido:** capacidad técnica sin valor visible que retrasa `users`/`patients`. Se acepta porque su coste crece de forma superlineal con cada capacidad de negocio: hoy es una migración sobre tablas casi vacías; después de `treatments` y `billing` son N tablas y una migración de datos clínicos reales.
 
@@ -243,7 +266,7 @@ Se deja como Open Question / tarea diferida; no bloquea este change.
 - **`V6__organizations.sql`**
   1. `CREATE TABLE organizations (id identidad PK, name, slug UNIQUE, type, status, created_at, updated_at)`.
   2. `CREATE TABLE organization_settings (organization_id BIGINT PK REFERENCES organizations(id), timezone, locale, currency)`.
-  3. `CREATE TABLE memberships (id PK, user_id FK→users, organization_id FK→organizations, role, status, created_at, updated_at, UNIQUE(user_id, organization_id))`.
+  3. `CREATE TABLE memberships (id PK, user_id FK→users, organization_id FK→organizations, role, status, created_at, updated_at, UNIQUE(user_id, organization_id))` + índice sobre `organization_id` (el único `(user_id, organization_id)` ya sirve las consultas que lideran por `user_id`, p. ej. la policy RLS de identidad; falta el que lidera por organización, para "miembros de la organización X").
   4. **Backfill idempotente**: si hay usuarios, crear una organización por defecto (`type = CLINIC`) + settings y, por cada usuario, una membresía que arrastre su `users.role`. Si `users` está vacía, no crea nada.
   5. `ALTER TABLE users ADD COLUMN status ... DEFAULT 'ACTIVE'`; `ALTER TABLE users DROP COLUMN role`.
   6. `refresh_tokens` **no** cambia (el org activo se deriva; ver revisión #3 del historial).

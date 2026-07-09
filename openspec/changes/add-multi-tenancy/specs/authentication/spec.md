@@ -31,7 +31,7 @@ El sistema SHALL permitir crear una organización junto con su configuración po
 - **AND** no envía la petición al backend
 
 ### Requirement: Inicio de sesión con credenciales
-El sistema SHALL autenticar a un usuario por su identidad global (correo y contraseña), establecer su sesión al validarlas y rechazar credenciales inválidas sin revelar cuál campo falló. El token de acceso emitido SHALL identificar la organización activa y el rol del usuario en ella, tomados de su membresía, de modo que toda petición posterior quede acotada a esa organización. En este alcance cada usuario tiene una única membresía; el manejo de usuarios con varias membresías (selección de organización activa) se difiere a la capacidad `users`.
+El sistema SHALL autenticar a un usuario por su identidad global (correo y contraseña), establecer su sesión al validarlas y rechazar credenciales inválidas sin revelar cuál campo falló. El token de acceso emitido SHALL identificar la organización activa y el rol del usuario en ella, tomados de su membresía, de modo que toda petición posterior quede acotada a esa organización. El sistema SHALL conceder sesión únicamente cuando la identidad, la membresía y la organización estén activas; en caso contrario SHALL rechazar el acceso sin revelar el motivo. En este alcance cada usuario tiene una única membresía; el manejo de usuarios con varias membresías (selección de organización activa) se difiere a la capacidad `users`.
 
 #### Scenario: Credenciales válidas
 - **WHEN** un usuario registrado envía su correo y contraseña correctos
@@ -49,8 +49,14 @@ El sistema SHALL autenticar a un usuario por su identidad global (correo y contr
 - **THEN** el frontend muestra errores de validación en los campos vacíos
 - **AND** no envía la petición al backend
 
+#### Scenario: Identidad o membresía no activa
+- **WHEN** un usuario con credenciales correctas tiene su identidad deshabilitada, su membresía inactiva o su organización suspendida
+- **THEN** el sistema rechaza el acceso con el mismo mensaje que unas credenciales inválidas
+- **AND** no establece ninguna sesión
+- **AND** no revela cuál de los tres estados provocó el rechazo
+
 ### Requirement: Renovación de token
-El sistema SHALL renovar de forma transparente el token de acceso expirado usando el token de refresco, y cerrar la sesión cuando el refresco ya no sea válido. El token de acceso renovado SHALL conservar la organización activa de la sesión y reflejar el rol vigente del usuario en su membresía con esa organización.
+El sistema SHALL renovar de forma transparente el token de acceso expirado usando el token de refresco, y cerrar la sesión cuando el refresco ya no sea válido. El token de acceso renovado SHALL conservar la organización activa de la sesión y reflejar el rol vigente del usuario en su membresía con esa organización. La renovación SHALL reevaluar que la identidad, la membresía y la organización sigan activas, y cerrar la sesión si alguna dejó de estarlo.
 
 #### Scenario: Token de acceso expirado se renueva y reintenta
 - **WHEN** una petición autenticada recibe `401` por token de acceso expirado y existe un token de refresco válido
@@ -62,6 +68,11 @@ El sistema SHALL renovar de forma transparente el token de acceso expirado usand
 - **WHEN** el intento de renovación falla porque el token de refresco es inválido o expiró
 - **THEN** el sistema cierra la sesión
 - **AND** redirige al usuario a la pantalla de login
+
+#### Scenario: La membresía deja de estar activa durante la sesión
+- **WHEN** una renovación ocurre después de que la membresía del usuario haya sido suspendida o su organización desactivada
+- **THEN** el sistema no emite un nuevo token de acceso
+- **AND** cierra la sesión y redirige a la pantalla de login
 
 ### Requirement: Protección de rutas por autenticación y rol
 El sistema SHALL controlar el acceso a las rutas según el estado de autenticación y el rol del usuario, redirigiendo o denegando el acceso según corresponda. El rol SHALL interpretarse dentro de la organización activa del usuario (el de su membresía): la autorización nunca concede acceso a datos de otra organización, con independencia del rol.
