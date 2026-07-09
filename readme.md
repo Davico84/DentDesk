@@ -1,6 +1,6 @@
 # OdontoRisas
 
-Sistema de gestión para una **clínica dental**: pacientes (menores y adultos), citas, tratamientos con odontograma, imágenes, facturación e inventario, con acceso por rol.
+**SaaS multi-clínica** de gestión dental: varias clínicas (organizaciones) con datos **aislados** gestionan pacientes (menores y adultos), citas, tratamientos con odontograma, imágenes, facturación e inventario, con acceso por rol dentro de su organización.
 
 Proyecto **greenfield** desarrollado con **especificaciones dirigidas (spec-driven) usando [OpenSpec](https://github.com/Fission-AI/OpenSpec)**. Monorepo modular: **backend** Java/Spring + **frontend** React/Vite.
 
@@ -85,10 +85,10 @@ Este es el corazón del proyecto. Una **capacidad** es un área cohesiva de comp
 | `project-foundation` | técnica | ✅ construida | [`openspec/specs/project-foundation/`](openspec/specs/project-foundation/spec.md) |
 | `authentication` | negocio | ✅ construida | [`openspec/specs/authentication/`](openspec/specs/authentication/spec.md) |
 | `api-type-contracts` | técnica | ✅ construida | [`openspec/specs/api-type-contracts/`](openspec/specs/api-type-contracts/spec.md) |
-| `multi-tenancy` | técnica | 🚧 en progreso | [`openspec/changes/add-multi-tenancy/`](openspec/changes/add-multi-tenancy/) |
+| `multi-tenancy` | técnica | ✅ construida | [`openspec/specs/multi-tenancy/`](openspec/specs/multi-tenancy/spec.md) |
 | `users`, `patients`, `appointments`, `treatments`, `images`, `billing`, `inventory`, `dashboard` | negocio | ⏳ planeadas | roadmap en [`docs/vision.md`](docs/vision.md) |
 
-> 🚧 En curso: `multi-tenancy` convierte el producto en un **SaaS multi-tenant** (modelo identidad/organización/membresía). El encuadre de producto y el modelo de dominio se consolidan en `docs/` al archivar el change.
+> El producto es un **SaaS multi-tenant** (modelo identidad/organización/membresía, aislamiento por Row-Level Security). Reglas para construir capacidades de negocio: [`docs/backend.md §8.1`](docs/backend.md).
 
 > El catálogo completo, el orden sugerido y la convención de granularidad están en [`docs/vision.md`](docs/vision.md).
 
