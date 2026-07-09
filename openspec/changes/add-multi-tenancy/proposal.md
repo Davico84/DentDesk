@@ -46,8 +46,8 @@ Cambios concretos:
 
 - `authentication`: cambian cuatro requirements —
   - *Registro de usuario*: crea `User` + `Organization` (+`Settings`) + `Membership` (rol `ADMIN`); el request lleva el nombre de la organización.
-  - *Inicio de sesión con credenciales*: se autentica por identidad global; el token incluye la organización activa y el rol de la membresía.
-  - *Renovación de token*: el token renovado conserva la organización activa y refleja el rol vigente de la membresía.
+  - *Inicio de sesión con credenciales*: se autentica por identidad global; el token incluye la organización activa y el rol de la membresía; solo concede sesión si identidad, membresía y organización están **activas**.
+  - *Renovación de token*: el token renovado conserva la organización activa y refleja el rol vigente de la membresía; **reevalúa** que identidad/membresía/organización sigan activas y cierra sesión si no.
   - *Protección de rutas por autenticación y rol*: el rol se interpreta **dentro de** la organización activa.
 
 ## Non-goals
@@ -66,7 +66,7 @@ Explícitamente **fuera** de este change:
 **Base de datos** (`modules/backend/src/main/resources/db/migration/`, hoy en `V5`)
 - `V6__organizations.sql`: tablas `organizations` (`name`, `slug` único, `type`, `status`), `organization_settings` (1:1), `memberships` (`user_id`, `organization_id`, `role`, `status`, único `(user_id, organization_id)`); backfill de organización por defecto (`type = CLINIC`) + settings + una membresía por usuario existente arrastrando su rol; `ALTER TABLE users DROP COLUMN role`; `ALTER TABLE users ADD COLUMN status`.
 - `V7__rls.sql`: `ENABLE`/`FORCE ROW LEVEL SECURITY` + política de **identidad** sobre `memberships` (`user_id = current_setting('app.user_id')`). Las políticas por organización de las tablas de negocio llegan con cada capacidad de negocio (no existen aún).
-- **Rol de base de datos**: `DB_USERNAME` sin `SUPERUSER` ni `BYPASSRLS` (condición para que RLS proteja). Documentado en `secrets.properties.example`.
+- **Dos roles de base de datos** (menor privilegio, `design.md D7`): `odontorisas_admin` (owner, solo Flyway/DDL) y `odontorisas_app` (runtime, solo DML, **no** owner) — así RLS le aplica de forma ineludible y una inyección no puede desactivarla. Spring da credenciales propias a Flyway (`spring.flyway.user`) sobre el mismo datasource. Ningún rol de app puede ser `SUPERUSER` ni tener `BYPASSRLS`. Dos juegos de credenciales en `secrets.properties.example`.
 
 **Backend** (`modules/backend`)
 - Nuevo: entidades `Organization`, `OrganizationSettings`, `Membership` (+repositorios y enums de estado/tipo), `common/OrganizationContext.java` + `common/IdentityContext.java`, `CurrentTenantIdentifierResolver`, y la propagación de ambos contextos al pool de conexiones.

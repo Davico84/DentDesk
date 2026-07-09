@@ -36,12 +36,13 @@
 - [ ] 4.6 **Gate por estado (design.md D14)**: login, refresh (y select-organization a futuro) exigen `user.status = ACTIVE` ∧ `membership.status = ACTIVE` ∧ `organization.status = ACTIVE`; login rechaza sin filtrar cuál falló, refresh cierra sesión
 - [ ] 4.7 `RegisterRequest` +nombre de organización con Bean Validation; `UserResponse` expone la organización activa (nombre, `slug`) y el rol
 - [ ] 4.8 **MDC (design.md D9)**: `JwtAuthenticationFilter` añade `organizationId`/`userId` al MDC junto al `traceId` y los retira en el `finally`
+- [ ] 4.9 **Traducción de colisiones en el registro**: capturar `DataIntegrityViolationException` (carrera TOCTOU sobre el `UNIQUE` de email o `slug`, pese al pre-chequeo y a la desambiguación) en `AuthService`/`GlobalExceptionHandler` → `409 Conflict` con código específico (`EMAIL_ALREADY_EXISTS` / `ORGANIZATION_SLUG_TAKEN`), no un `500` genérico
 
 ## 5. Contrato y frontend
 
 - [ ] 5.1 Regenerar `contracts/openapi.json` y los artefactos de orval (`pnpm generate:api`); comprobar el gate "sin drift" de `api-type-contracts`
 - [ ] 5.2 `RegisterForm`: campo "Nombre de la clínica" (mapea a `Organization.name`) con validación Zod en paridad con Bean Validation (`docs/coding-style.md §7`)
-- [ ] 5.3 Store de sesión (Zustand): exponer la organización activa y el rol a partir de la respuesta de auth; ajustar `RouteGuard` para leer el rol de la sesión (cambia el origen, no el uso)
+- [ ] 5.3 Store de sesión (Zustand): exponer la organización activa y el rol a partir de la respuesta de auth; ajustar `RouteGuard` para leer el rol de la sesión (cambia el origen, no el uso). Verificar que el **bootstrap ya existente** (`useSessionBootstrap` → refresh al montar, splash en `RootLayout`) repuebla organización + rol **antes** de que `RouteGuard` evalúe, para no perder estado en F5 (recarga)
 - [ ] 5.4 Tests de frontend (Vitest + MSW): "Nombre de organización ausente (validación en cliente)" y "Registro exitoso"
 
 ## 6. Tests derivados de los Scenario
