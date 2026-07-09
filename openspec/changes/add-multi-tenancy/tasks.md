@@ -70,7 +70,7 @@
 
 ## 8. Cierre
 
-- [ ] 8.1 `openspec validate add-multi-tenancy --strict`
-- [ ] 8.2 `mvn verify` (backend, incluye RLS de `memberships` + fixture de organización con Testcontainers) y `pnpm validate` (frontend) en verde
-- [ ] 8.3 Actualizar `design.md` con la resolución de las Open Questions
-- [ ] 8.4 Commits por scope (backend / frontend / docs / openspec), Conventional Commits en español (`docs/commits.md`)
+- [x] 8.1 `openspec validate add-multi-tenancy --strict`
+- [x] 8.2 `mvn verify` (backend, incluye RLS de `memberships` + fixture de organización con Testcontainers) y `pnpm validate` (frontend) en verde
+- [x] 8.3 Actualizar `design.md` con la resolución de las Open Questions
+- [x] 8.4 Commits por scope (backend / frontend / docs / openspec), Conventional Commits en español (`docs/commits.md`)
