@@ -181,6 +181,21 @@
                     </excludes>
                 </configuration>
             </plugin>
+            <!-- Ejecuta las clases *IT (tests de integración con Testcontainers) en la
+                 fase `verify`. Sin failsafe, surefire solo corre *Test/*Tests y los *IT
+                 nunca se ejecutan. La versión la gestiona el parent de Spring Boot. -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-failsafe-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>integration-test</goal>
+                            <goal>verify</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
         </plugins>
     </build>
 
