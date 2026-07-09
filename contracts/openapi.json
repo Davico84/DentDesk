@@ -137,6 +137,11 @@
       "RegisterRequest": {
         "type": "object",
         "properties": {
+          "organizationName": {
+            "type": "string",
+            "maxLength": 120,
+            "minLength": 2
+          },
           "email": {
             "type": "string",
             "format": "email",
@@ -156,6 +161,7 @@
         "required": [
           "email",
           "fullName",
+          "organizationName",
           "password"
         ]
       },
@@ -184,6 +190,9 @@
           "email": {
             "type": "string"
           },
+          "fullName": {
+            "type": "string"
+          },
           "role": {
             "type": "string",
             "enum": [
@@ -191,7 +200,14 @@
               "USER"
             ]
           },
-          "fullName": {
+          "organizationId": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "organizationName": {
+            "type": "string"
+          },
+          "organizationSlug": {
             "type": "string"
           }
         },
@@ -199,6 +215,9 @@
           "email",
           "fullName",
           "id",
+          "organizationId",
+          "organizationName",
+          "organizationSlug",
           "role"
         ]
       },

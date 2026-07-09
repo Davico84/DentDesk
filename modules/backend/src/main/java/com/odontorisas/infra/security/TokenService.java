@@ -2,9 +2,10 @@ package com.odontorisas.infra.security;
 
 import com.auth0.jwt.JWT;
 import com.auth0.jwt.algorithms.Algorithm;
+import com.auth0.jwt.exceptions.JWTVerificationException;
+import com.auth0.jwt.interfaces.Claim;
 import com.auth0.jwt.interfaces.DecodedJWT;
 import com.odontorisas.common.Role;
-import com.odontorisas.persistence.entity.User;
 import org.springframework.stereotype.Service;
 
 import java.nio.charset.StandardCharsets;
@@ -32,24 +33,37 @@ public class TokenService {
         this.algorithm = Algorithm.HMAC256(props.jwt().secret());
     }
 
-    /** Emite un access token JWT firmado (HS256) con el id, email y rol del usuario. */
-    public String issueAccessToken(User user) {
+    /**
+     * Emite un access token JWT firmado (HS256) con la identidad ({@code sub}, {@code email}),
+     * la organización activa ({@code oid}) y el rol del usuario en ella ({@code role}).
+     */
+    public String issueAccessToken(Long userId, String email, Long organizationId, Role role) {
         Instant now = Instant.now();
         return JWT.create()
             .withIssuer(props.jwt().issuer())
-            .withSubject(String.valueOf(user.getId()))
-            .withClaim("email", user.getEmail())
-            .withClaim("role", user.getRole().name())
+            .withSubject(String.valueOf(userId))
+            .withClaim("email", email)
+            .withClaim("oid", organizationId)
+            .withClaim("role", role.name())
             .withIssuedAt(now)
             .withExpiresAt(now.plus(props.jwt().accessTtl()))
             .sign(algorithm);
     }
 
-    /** Valida el access token y extrae sus claims. Lanza {@link com.auth0.jwt.exceptions.JWTVerificationException} si es inválido/expirado. */
+    /**
+     * Valida el access token y extrae sus claims. Lanza {@link JWTVerificationException} si es
+     * inválido/expirado, o si carece de la organización activa ({@code oid}) — un token sin
+     * organización no autentica ninguna petición (los tokens previos a multi-tenancy se rechazan).
+     */
     public AccessClaims verifyAccessToken(String token) {
         DecodedJWT jwt = JWT.require(algorithm).withIssuer(props.jwt().issuer()).build().verify(token);
+        Claim oid = jwt.getClaim("oid");
+        if (oid.isNull() || oid.isMissing()) {
+            throw new JWTVerificationException("El token no incluye la organización activa (oid).");
+        }
         return new AccessClaims(
             Long.valueOf(jwt.getSubject()),
+            oid.asLong(),
             jwt.getClaim("email").asString(),
             Role.valueOf(jwt.getClaim("role").asString()));
     }

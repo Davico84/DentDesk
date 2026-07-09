@@ -18,6 +18,7 @@ async function fillRegister(
   opts: { email?: string; password?: string; confirmPassword?: string } = {},
 ) {
   const password = opts.password ?? "password123";
+  await user.type(screen.getByLabelText(/nombre de la clínica/i), "Clínica Sonrisas");
   await user.type(screen.getByLabelText(/nombre completo/i), "Ana Pérez");
   await user.type(screen.getByLabelText(/correo/i), opts.email ?? "nuevo@clinica.test");
   await user.type(screen.getByLabelText(/^contraseña$/i), password);
@@ -32,6 +33,20 @@ describe("RegisterForm", () => {
     await user.click(screen.getByRole("button", { name: /crear cuenta/i }));
 
     expect(await screen.findByText("Ingresa tu nombre completo")).toBeInTheDocument();
+    expect(useSessionStore.getState().status).toBe("idle");
+  });
+
+  it("exige el nombre de la clínica y no envía la petición", async () => {
+    const user = userEvent.setup();
+    renderWithProviders(<RegisterForm />);
+
+    await user.type(screen.getByLabelText(/nombre completo/i), "Ana Pérez");
+    await user.type(screen.getByLabelText(/correo/i), "nuevo@clinica.test");
+    await user.type(screen.getByLabelText(/^contraseña$/i), "password123");
+    await user.type(screen.getByLabelText(/confirmar contraseña/i), "password123");
+    await user.click(screen.getByRole("button", { name: /crear cuenta/i }));
+
+    expect(await screen.findByText("Ingresa el nombre de la clínica")).toBeInTheDocument();
     expect(useSessionStore.getState().status).toBe("idle");
   });
 
@@ -64,7 +79,7 @@ describe("RegisterForm", () => {
     server.use(
       http.post("*/auth/register", () =>
         HttpResponse.json(
-          { accessToken: "tok", user: { id: 2, email: "nuevo@clinica.test", role: "USER", fullName: "Ana Pérez" } },
+          { accessToken: "tok", user: { id: 2, email: "nuevo@clinica.test", role: "USER", fullName: "Ana Pérez", organizationId: 5, organizationName: "Clínica Test", organizationSlug: "clinica-test" } },
           { status: 201 },
         ),
       ),

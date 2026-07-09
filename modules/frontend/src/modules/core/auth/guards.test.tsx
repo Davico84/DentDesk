@@ -30,7 +30,7 @@ describe("RouteGuards", () => {
   it("con sesión, una ruta de /auth redirige al panel", async () => {
     useSessionStore.setState({
       accessToken: "t",
-      user: { id: 1, email: "a@b.c", role: "USER" },
+      user: { id: 1, email: "a@b.c", fullName: "Ana Test", role: "USER", organizationId: 5, organizationName: "Clínica Test", organizationSlug: "clinica-test" },
       status: "authenticated",
     });
     renderAt("/auth/login");
@@ -40,7 +40,7 @@ describe("RouteGuards", () => {
   it("rol sin permiso muestra acceso denegado", async () => {
     useSessionStore.setState({
       accessToken: "t",
-      user: { id: 1, email: "a@b.c", role: "USER" },
+      user: { id: 1, email: "a@b.c", fullName: "Ana Test", role: "USER", organizationId: 5, organizationName: "Clínica Test", organizationSlug: "clinica-test" },
       status: "authenticated",
     });
     renderAt("/admin");

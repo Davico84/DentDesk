@@ -5,6 +5,7 @@ import com.odontorisas.service.BusinessException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.slf4j.MDC;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpStatusCode;
@@ -39,6 +40,33 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
         ProblemDetail problem = ProblemDetail.forStatusAndDetail(ex.getStatus(), ex.getMessage());
         problem.setType(URI.create("/errors/" + ex.getErrorType()));
         problem.setTitle(ex.getStatus().getReasonPhrase());
+        addExtensions(problem);
+        return problem;
+    }
+
+    /**
+     * Colisión con una restricción de unicidad (carrera TOCTOU sobre el correo o el slug de la
+     * organización, pese al pre-chequeo y a la desambiguación) → 409, no un 500 genérico.
+     */
+    @ExceptionHandler(DataIntegrityViolationException.class)
+    public ProblemDetail handleDataIntegrity(DataIntegrityViolationException ex) {
+        String cause = ex.getMostSpecificCause().getMessage();
+        String lower = cause == null ? "" : cause.toLowerCase();
+        String errorType;
+        String detail;
+        if (lower.contains("email")) {
+            errorType = "email-already-exists";
+            detail = "El correo ya está registrado.";
+        } else if (lower.contains("slug") || lower.contains("organization")) {
+            errorType = "organization-slug-taken";
+            detail = "Ya existe una organización con un identificador equivalente. Inténtalo de nuevo.";
+        } else {
+            errorType = "resource-conflict";
+            detail = "El recurso entra en conflicto con uno existente.";
+        }
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, detail);
+        problem.setType(URI.create("/errors/" + errorType));
+        problem.setTitle(HttpStatus.CONFLICT.getReasonPhrase());
         addExtensions(problem);
         return problem;
     }

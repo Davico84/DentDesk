@@ -38,7 +38,8 @@ public class AuthController {
 
     @PostMapping("/register")
     public ResponseEntity<AuthResponse> register(@Valid @RequestBody RegisterRequest request) {
-        RegisterCommand command = new RegisterCommand(request.email(), request.password(), request.fullName());
+        RegisterCommand command = new RegisterCommand(
+            request.email(), request.password(), request.fullName(), request.organizationName());
         return authResponse(authService.register(command), HttpStatus.CREATED);
     }
 

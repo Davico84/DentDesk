@@ -13,7 +13,7 @@ describe("useSessionBootstrap", () => {
   it("con refresh válido restaura la sesión (autenticado)", async () => {
     server.use(
       http.post("*/auth/refresh", () =>
-        HttpResponse.json({ accessToken: "t", user: { id: 1, email: "ana@clinica.test", role: "ADMIN" } }),
+        HttpResponse.json({ accessToken: "t", user: { id: 1, email: "ana@clinica.test", fullName: "Ana Test", role: "ADMIN", organizationId: 5, organizationName: "Clínica Test", organizationSlug: "clinica-test" } }),
       ),
     );
 
@@ -25,7 +25,7 @@ describe("useSessionBootstrap", () => {
 
   it("sin refresh válido queda no autenticado y limpia datos residuales", async () => {
     server.use(http.post("*/auth/refresh", () => new HttpResponse(null, { status: 401 })));
-    useSessionStore.setState({ accessToken: "viejo", user: { id: 9, email: "x@y.z", role: "USER" }, status: "idle" });
+    useSessionStore.setState({ accessToken: "viejo", user: { id: 9, email: "x@y.z", fullName: "Ana Test", role: "USER", organizationId: 5, organizationName: "Clínica Test", organizationSlug: "clinica-test" }, status: "idle" });
 
     renderHook(() => useSessionBootstrap());
 

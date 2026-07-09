@@ -1,6 +1,6 @@
 import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Loader2, User, Mail, ShieldCheck } from "lucide-react";
+import { Loader2, User, Mail, ShieldCheck, Building2 } from "lucide-react";
 import { Label } from "@/modules/core/ui/label";
 import { PasswordInput } from "@/modules/core/ui/password-input";
 import { IconInput } from "@/modules/core/ui/icon-input";
@@ -18,19 +18,40 @@ export function RegisterForm() {
     formState: { errors },
   } = useForm<RegisterValues>({
     resolver: zodResolver(registerSchema),
-    defaultValues: { fullName: "", email: "", password: "", confirmPassword: "" },
+    defaultValues: { organizationName: "", fullName: "", email: "", password: "", confirmPassword: "" },
   });
   const registerMutation = useRegister();
   const passwordValue = useWatch({ control, name: "password" });
 
   return (
     <form
-      onSubmit={handleSubmit(({ fullName, email, password }) =>
-        registerMutation.mutate({ fullName, email, password }),
+      onSubmit={handleSubmit(({ organizationName, fullName, email, password }) =>
+        registerMutation.mutate({ organizationName, fullName, email, password }),
       )}
       className="flex flex-col gap-4"
       noValidate
     >
+      {/* Nombre de la clínica (crea la organización) */}
+      <div className="flex flex-col gap-1.5">
+        <Label htmlFor="reg-organizationName" className="text-sm font-medium">
+          Nombre de la clínica
+        </Label>
+        <IconInput
+          id="reg-organizationName"
+          autoComplete="organization"
+          placeholder="Clínica Dental Sonrisas"
+          icon={<Building2 className="size-4" />}
+          hasError={!!errors.organizationName}
+          aria-invalid={errors.organizationName ? true : undefined}
+          {...field("organizationName")}
+        />
+        {errors.organizationName ? (
+          <p className="text-xs text-destructive animate-in fade-in slide-in-from-top-1 duration-200">
+            {errors.organizationName.message}
+          </p>
+        ) : null}
+      </div>
+
       {/* Nombre completo */}
       <div className="flex flex-col gap-1.5">
         <Label htmlFor="reg-fullName" className="text-sm font-medium">
