@@ -121,6 +121,8 @@ SELECT set_config('app.user_id', ?, true), set_config('app.organization_id', ?, 
 
 **Valores nulos.** Si no hay identidad u organización en contexto (flujos de sistema), el parámetro va `NULL`; `current_setting` en las políticas lo evalúa como no-coincidencia → cero filas (fail-closed), salvo el flujo de auth que fija `app.user_id` explícitamente (D2, D8).
 
+**Supuestos de pool de conexiones.** El mecanismo es transaction-local *precisamente por el pool*: una variable de sesión (`SET`) contaminaría la conexión al devolverla al pool y la heredaría la petición siguiente (de otra organización) → `set_config(..., true)` se revierte en cada `COMMIT`/`ROLLBACK`. Supuestos: **un** pool de runtime (HikariCP, default de Spring Boot) con el rol `odontorisas_app`; Flyway abre su propia conexión transitoria con `odontorisas_admin` al arrancar (no sale del pool de la app). El **tamaño** del pool (`maximum-pool-size`, timeouts) es tuning de **despliegue**, no de este change. Además, al ser transaction-local, el mecanismo es compatible con un pooler externo (p. ej. PgBouncer en *transaction mode*) si a futuro se escala — un `SET` de sesión no lo sería.
+
 ### D7. Dos roles de base de datos (menor privilegio) + `FORCE` como defensa en profundidad
 
 RLS **no aplica al propietario de la tabla**. El error clásico es que la app corra como owner (que Flyway usa para crear las tablas) y salte todas las políticas.
