@@ -31,6 +31,9 @@ Dimensión de **negocio** (sustituible por proyecto). Define **qué** construimo
 | 7 | `billing` | negocio | staff / admin | cobros y facturación de tratamientos/citas | 4, 5 |
 | 8 | `inventory` | negocio | staff / admin | insumos y stock de la clínica | 1 |
 | 9 | `dashboard` | negocio | admin | panel con métricas (citas, ingresos, ocupación) | 2–8 |
+| 10 | `organization-branding` | negocio | admin | marca visual por organización (color, logo, favicon) en el app shell | `multi-tenancy` |
+
+> `multi-tenancy` y `api-type-contracts` son capacidades **técnicas** (no numeradas aquí); ver "Estado de capacidades" abajo.
 
 ---
 
@@ -42,9 +45,10 @@ Dimensión de **negocio** (sustituible por proyecto). Define **qué** construimo
 - ✅ **`authentication`** — construida. Spec: `openspec/specs/authentication/spec.md` · change archivado: `openspec/changes/archive/2026-07-07-add-authentication/`.
 - ✅ **`api-type-contracts`** (técnica) — construida (contrato OpenAPI versionado + codegen orval). Spec: `openspec/specs/api-type-contracts/spec.md` · mismo change `add-authentication`.
 - ✅ **`multi-tenancy`** (técnica, **capa de plataforma reutilizable**) — **construida**. SaaS multi-tenant con modelo identidad/organización/membresía: `User` es identidad global, `Organization` es el tenant (una clínica = una organización), `Membership` (con el rol) une ambos. Aislamiento RLS de dos claves (identidad sobre `memberships`, organización sobre el negocio) + dos roles de BD (menor privilegio), contexto de organización por petición y alta autoservicio. Spec: `openspec/specs/multi-tenancy/spec.md` · change archivado: `openspec/changes/archive/2026-07-09-add-multi-tenancy/`. Modificó también `authentication` (el registro crea organización + identidad + membresía ADMIN; el rol pasó de `User` a la membresía; el token identifica la organización activa; gate por estado en login/refresh).
+- 🚧 **`organization-branding`** (negocio) — **en progreso** (propuesta). Personalización visual por organización (color de marca, logo por URL, favicon) aplicada al **app shell** post-login; paleta guiada (foregrounds por contraste, respeta dark mode); logo por URL (sin S3). Change: `openspec/changes/add-organization-branding/proposal.md`. Depende de `multi-tenancy` (✅); recomendada **después de `users`**, pero construible de forma independiente.
 - ⏳ **Resto** (`users`, `patients`, `appointments`, `treatments`, `images`, `billing`, `inventory`, `dashboard`) — planeadas. *(La capacidad `users` re-añadirá al registro/perfil: nombre de usuario, teléfono, país; e invitaciones + selección de organización activa.)*
 
-> ⛔ **Bloqueo de secuencia:** ninguna capacidad de negocio (`users`, `patients`, …) debe proponerse antes de archivar `multi-tenancy`. Si una entidad de negocio nace sin organización, el error se arrastra a `appointments`, `treatments`, `images` y `billing`.
+> ⛔ **Bloqueo de secuencia:** ninguna capacidad de negocio (`users`, `patients`, …) debe proponerse antes de archivar `multi-tenancy` (✅ ya archivada). Si una entidad de negocio nace sin organización, el error se arrastra a `appointments`, `treatments`, `images` y `billing`.
 
 ---
 
