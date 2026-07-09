@@ -25,6 +25,7 @@
 - [ ] 3.4 **Alias `set_config` en H2** (Open Question 7): función no-op de test + `CREATE ALIAS`, para que los slices con H2 no rompan al abrir transacción; producción agnóstica
 - [ ] 3.5 **Regla transaccional (design.md D12)**: test ArchUnit que exija `@Transactional` en el acceso a entidades bajo RLS (`memberships` y futuras de negocio)
 - [ ] 3.6 Convención de RLS por tabla de negocio: helper/plantilla SQL reutilizable (`ENABLE`/`FORCE` + policy `organization_isolation`) documentada para las capacidades de negocio
+- [ ] 3.7 **Tripwire ArchUnit async (design.md D13)**: test que falla la build si aparece `@Async`/`@Scheduled` mientras no exista el `TenantContextTaskDecorator` cableado; el mensaje remite a `docs/backend.md`. Guarda contra pérdida de contexto en hilos, sin construir infra muerta hoy
 
 ## 4. Backend — autenticación con identidad y organización activa
 
