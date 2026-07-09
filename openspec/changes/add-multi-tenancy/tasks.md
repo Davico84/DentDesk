@@ -11,33 +11,33 @@
 
 ## 2. Backend — modelo de plataforma
 
-- [ ] 2.1 `Organization.java` (+ enums `OrganizationType` con `CLINIC` y `OrganizationStatus`) y `OrganizationRepository` (búsqueda por `slug`); `slug` inmutable
-- [ ] 2.2 `OrganizationSettings.java` (1:1 con `Organization`, defaults `timezone`/`locale`/`currency`) y su repositorio
-- [ ] 2.3 `Membership.java` (+ enum `MembershipStatus`, `role` reutilizando `Role`) y `MembershipRepository` (por `user_id` y por `(user_id, organization_id)`)
-- [ ] 2.4 Refactor de `User`: eliminar `role`; añadir `status` (`UserStatus` = `ACTIVE|LOCKED|DISABLED`); la identidad queda global
-- [ ] 2.5 Servicio de derivación y desambiguación de `slug` a partir del nombre (Open Question 4)
+- [x] 2.1 `Organization.java` (+ enums `OrganizationType` con `CLINIC` y `OrganizationStatus`) y `OrganizationRepository` (búsqueda por `slug`); `slug` inmutable
+- [x] 2.2 `OrganizationSettings.java` (1:1 con `Organization`, defaults `timezone`/`locale`/`currency`) y su repositorio
+- [x] 2.3 `Membership.java` (+ enum `MembershipStatus`, `role` reutilizando `Role`) y `MembershipRepository` (por `user_id` y por `(user_id, organization_id)`)
+- [x] 2.4 Refactor de `User`: eliminar `role`; añadir `status` (`UserStatus` = `ACTIVE|LOCKED|DISABLED`); la identidad queda global
+- [x] 2.5 Servicio de derivación y desambiguación de `slug` a partir del nombre (Open Question 4)
 
 ## 3. Backend — mecanismo de aislamiento (design.md D6, D7, D10)
 
-- [ ] 3.1 `common/IdentityContext.java` y `common/OrganizationContext.java` (`ThreadLocal<Long>`) con `set`/`get`/`clear`
-- [ ] 3.2 `CurrentTenantIdentifierResolver<Long>` que lee de `OrganizationContext`; comportamiento sin contexto (Open Question 3); registrarlo en Hibernate 7.2
-- [ ] 3.3 Propagación por transacción en **una sola sentencia**: `SELECT set_config('app.user_id', ?, true), set_config('app.organization_id', ?, true)` desde ambos contextos (Interceptor de Hibernate vs `DataSource` delegado — Open Question 1); se valida con los tests 6.2 y 6.3
-- [ ] 3.4 **Alias `set_config` en H2** (Open Question 7): función no-op de test + `CREATE ALIAS`, para que los slices con H2 no rompan al abrir transacción; producción agnóstica
-- [ ] 3.5 **Regla transaccional (design.md D12)**: test ArchUnit que exija `@Transactional` en el acceso a entidades bajo RLS (`memberships` y futuras de negocio)
+- [x] 3.1 `common/IdentityContext.java` y `common/OrganizationContext.java` (`ThreadLocal<Long>`) con `set`/`get`/`clear`
+- [x] 3.2 `CurrentTenantIdentifierResolver<Long>` que lee de `OrganizationContext`; comportamiento sin contexto (Open Question 3); registrarlo en Hibernate 7.2
+- [x] 3.3 Propagación por transacción en **una sola sentencia**: `SELECT set_config('app.user_id', ?, true), set_config('app.organization_id', ?, true)` desde ambos contextos (Interceptor de Hibernate vs `DataSource` delegado — Open Question 1); se valida con los tests 6.2 y 6.3
+- [x] 3.4 **Alias `set_config` en H2** (Open Question 7): función no-op de test + `CREATE ALIAS`, para que los slices con H2 no rompan al abrir transacción; producción agnóstica
+- [x] 3.5 **Regla transaccional (design.md D12)**: test ArchUnit que exija `@Transactional` en el acceso a entidades bajo RLS (`memberships` y futuras de negocio)
 - [ ] 3.6 Convención de RLS por tabla de negocio: helper/plantilla SQL reutilizable (`ENABLE`/`FORCE` + policy `organization_isolation`) documentada para las capacidades de negocio
-- [ ] 3.7 **Tripwire ArchUnit async (design.md D13)**: test que falla la build si aparece `@Async`/`@Scheduled` mientras no exista el `TenantContextTaskDecorator` cableado; el mensaje remite a `docs/backend.md`. Guarda contra pérdida de contexto en hilos, sin construir infra muerta hoy
+- [x] 3.7 **Tripwire ArchUnit async (design.md D13)**: test que falla la build si aparece `@Async`/`@Scheduled` mientras no exista el `TenantContextTaskDecorator` cableado; el mensaje remite a `docs/backend.md`. Guarda contra pérdida de contexto en hilos, sin construir infra muerta hoy
 
 ## 4. Backend — autenticación con identidad y organización activa
 
-- [ ] 4.1 `AccessClaims`: `(userId, organizationId, email, role)`; emitir/leer los claims `sub`, `oid` y `role` en `TokenService`
-- [ ] 4.2 `JwtAuthenticationFilter`: poblar `IdentityContext` (desde `sub`) y `OrganizationContext` (desde `oid`), exponer el rol a Spring Security y **limpiar ambos contextos en un `finally`**; rechazar como no autenticado un token válido sin `oid`
-- [ ] 4.3 `AuthService.register`: crear `Organization` + `OrganizationSettings` + `User` + `Membership(ADMIN)` en una única `@Transactional`, fijando `app.user_id` antes de insertar la membresía (design.md D8); `RegisterCommand` +nombre de organización
-- [ ] 4.4 `AuthService.login`: autenticar por identidad; fijar `app.user_id`; cargar la (única) membresía y emitir el token con su organización y rol (design.md D5)
-- [ ] 4.5 `AuthService.refresh`: derivar la organización activa vía `User → Membership`; releer el rol vigente; emitir el token con `oid` y rol
-- [ ] 4.6 **Gate por estado (design.md D14)**: login, refresh (y select-organization a futuro) exigen `user.status = ACTIVE` ∧ `membership.status = ACTIVE` ∧ `organization.status = ACTIVE`; login rechaza sin filtrar cuál falló, refresh cierra sesión
-- [ ] 4.7 `RegisterRequest` +nombre de organización con Bean Validation; `UserResponse` expone la organización activa (nombre, `slug`) y el rol
-- [ ] 4.8 **MDC (design.md D9)**: `JwtAuthenticationFilter` añade `organizationId`/`userId` al MDC junto al `traceId` y los retira en el `finally`
-- [ ] 4.9 **Traducción de colisiones en el registro**: capturar `DataIntegrityViolationException` (carrera TOCTOU sobre el `UNIQUE` de email o `slug`, pese al pre-chequeo y a la desambiguación) en `AuthService`/`GlobalExceptionHandler` → `409 Conflict` con código específico (`EMAIL_ALREADY_EXISTS` / `ORGANIZATION_SLUG_TAKEN`), no un `500` genérico
+- [x] 4.1 `AccessClaims`: `(userId, organizationId, email, role)`; emitir/leer los claims `sub`, `oid` y `role` en `TokenService`
+- [x] 4.2 `JwtAuthenticationFilter`: poblar `IdentityContext` (desde `sub`) y `OrganizationContext` (desde `oid`), exponer el rol a Spring Security y **limpiar ambos contextos en un `finally`**; rechazar como no autenticado un token válido sin `oid`
+- [x] 4.3 `AuthService.register`: crear `Organization` + `OrganizationSettings` + `User` + `Membership(ADMIN)` en una única `@Transactional`, fijando `app.user_id` antes de insertar la membresía (design.md D8); `RegisterCommand` +nombre de organización
+- [x] 4.4 `AuthService.login`: autenticar por identidad; fijar `app.user_id`; cargar la (única) membresía y emitir el token con su organización y rol (design.md D5)
+- [x] 4.5 `AuthService.refresh`: derivar la organización activa vía `User → Membership`; releer el rol vigente; emitir el token con `oid` y rol
+- [x] 4.6 **Gate por estado (design.md D14)**: login, refresh (y select-organization a futuro) exigen `user.status = ACTIVE` ∧ `membership.status = ACTIVE` ∧ `organization.status = ACTIVE`; login rechaza sin filtrar cuál falló, refresh cierra sesión
+- [x] 4.7 `RegisterRequest` +nombre de organización con Bean Validation; `UserResponse` expone la organización activa (nombre, `slug`) y el rol
+- [x] 4.8 **MDC (design.md D9)**: `JwtAuthenticationFilter` añade `organizationId`/`userId` al MDC junto al `traceId` y los retira en el `finally`
+- [x] 4.9 **Traducción de colisiones en el registro**: capturar `DataIntegrityViolationException` (carrera TOCTOU sobre el `UNIQUE` de email o `slug`, pese al pre-chequeo y a la desambiguación) en `AuthService`/`GlobalExceptionHandler` → `409 Conflict` con código específico (`EMAIL_ALREADY_EXISTS` / `ORGANIZATION_SLUG_TAKEN`), no un `500` genérico
 
 ## 5. Contrato y frontend
 
