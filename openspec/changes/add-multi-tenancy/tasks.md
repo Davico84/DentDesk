@@ -1,12 +1,13 @@
 ## 1. Base de datos
 
-- [ ] 1.1 Crear `V6__organizations.sql`: tabla `organizations` (`id` identidad, `name`, `slug` único, `type`, `status`, timestamps)
-- [ ] 1.2 En `V6`: tabla `organization_settings` (`organization_id` PK/FK 1:1, `timezone`, `locale`, `currency`)
-- [ ] 1.3 En `V6`: tabla `memberships` (`id`, `user_id` FK, `organization_id` FK, `role`, `status`, timestamps, único `(user_id, organization_id)`)
-- [ ] 1.4 En `V6`: backfill idempotente — si hay usuarios, crear organización por defecto (`type = CLINIC`) + settings y una membresía por usuario arrastrando su `users.role`; si `users` está vacía, no crear nada
-- [ ] 1.5 En `V6`: `ALTER TABLE users ADD COLUMN status DEFAULT 'ACTIVE'`; `ALTER TABLE users DROP COLUMN role` (`refresh_tokens` **no** cambia)
-- [ ] 1.6 Crear `V7__rls.sql`: `ENABLE`/`FORCE ROW LEVEL SECURITY` sobre `memberships` + política de identidad `membership_identity_isolation` (`user_id = current_setting('app.user_id')::bigint`)
-- [ ] 1.7 Documentar en `secrets.properties.example` que `DB_USERNAME` **no** puede ser `SUPERUSER` ni tener `BYPASSRLS` (design.md D7)
+- [ ] 1.0 **Roles de BD (design.md D7)**: provisión de `odontorisas_admin` (owner/Flyway) y `odontorisas_app` (runtime, DML, no-owner) — script/instrucciones idempotentes (Open Question 6); `application.yml` con `spring.flyway.user`=admin y `spring.datasource.username`=app; `secrets.properties.example` con **dos** juegos de credenciales y la nota de que ningún rol de app puede ser `SUPERUSER`/`BYPASSRLS`
+- [ ] 1.1 `ALTER DEFAULT PRIVILEGES FOR ROLE odontorisas_admin GRANT SELECT,INSERT,UPDATE,DELETE ON TABLES` (+ `USAGE,SELECT ON SEQUENCES`) `TO odontorisas_app`; GRANT sobre `users`/`refresh_tokens` existentes
+- [ ] 1.2 Crear `V6__organizations.sql`: tabla `organizations` (`id` identidad, `name`, `slug` único, `type`, `status`, timestamps)
+- [ ] 1.3 En `V6`: tabla `organization_settings` (`organization_id` PK/FK 1:1, `timezone`, `locale`, `currency`)
+- [ ] 1.4 En `V6`: tabla `memberships` (`id`, `user_id` FK, `organization_id` FK, `role`, `status`, timestamps, único `(user_id, organization_id)`)
+- [ ] 1.5 En `V6`: backfill idempotente — si hay usuarios, crear organización por defecto (`type = CLINIC`) + settings y una membresía por usuario arrastrando su `users.role`; si `users` está vacía, no crear nada
+- [ ] 1.6 En `V6`: `ALTER TABLE users ADD COLUMN status DEFAULT 'ACTIVE'`; `ALTER TABLE users DROP COLUMN role` (`refresh_tokens` **no** cambia); GRANT de las tablas nuevas al rol de app
+- [ ] 1.7 Crear `V7__rls.sql`: `ENABLE`/`FORCE ROW LEVEL SECURITY` sobre `memberships` + política de identidad `membership_identity_isolation` (`user_id = current_setting('app.user_id')::bigint`, **sin** `missing_ok` → fail-closed ruidoso)
 
 ## 2. Backend — modelo de plataforma
 
@@ -20,8 +21,10 @@
 
 - [ ] 3.1 `common/IdentityContext.java` y `common/OrganizationContext.java` (`ThreadLocal<Long>`) con `set`/`get`/`clear`
 - [ ] 3.2 `CurrentTenantIdentifierResolver<Long>` que lee de `OrganizationContext`; comportamiento sin contexto (Open Question 3); registrarlo en Hibernate 7.2
-- [ ] 3.3 Propagación por transacción: `set_config('app.user_id', ?, true)` y `set_config('app.organization_id', ?, true)` desde ambos contextos (Interceptor de Hibernate vs `DataSource` delegado — Open Question 1); se valida con los tests 6.2 y 6.3
-- [ ] 3.4 Convención de RLS por tabla de negocio: helper/plantilla SQL reutilizable (`ENABLE`/`FORCE` + policy `organization_isolation`) documentada para las capacidades de negocio
+- [ ] 3.3 Propagación por transacción en **una sola sentencia**: `SELECT set_config('app.user_id', ?, true), set_config('app.organization_id', ?, true)` desde ambos contextos (Interceptor de Hibernate vs `DataSource` delegado — Open Question 1); se valida con los tests 6.2 y 6.3
+- [ ] 3.4 **Alias `set_config` en H2** (Open Question 7): función no-op de test + `CREATE ALIAS`, para que los slices con H2 no rompan al abrir transacción; producción agnóstica
+- [ ] 3.5 **Regla transaccional (design.md D12)**: test ArchUnit que exija `@Transactional` en el acceso a entidades bajo RLS (`memberships` y futuras de negocio)
+- [ ] 3.6 Convención de RLS por tabla de negocio: helper/plantilla SQL reutilizable (`ENABLE`/`FORCE` + policy `organization_isolation`) documentada para las capacidades de negocio
 
 ## 4. Backend — autenticación con identidad y organización activa
 
@@ -55,8 +58,8 @@
 
 - [ ] 7.1 `docs/vision.md`: §1 producto = SaaS multi-tenant (capa de plataforma reutilizable); §2 nueva fila `multi-tenancy` (técnica); §3 marcar 🚧 y enlazar este change; §6 secuencia (ninguna capacidad de negocio antes de ésta); §7 facturación SaaS como candidata futura, distinta de `billing`
 - [ ] 7.2 `docs/domain.md`: `User` como identidad global; entidades `Organization`, `OrganizationSettings`, `Membership`; actor administrador de organización; glosario (organización/tenant, membresía, aislamiento, identidad); `organizationId` en las entidades de negocio; los dos `status`; ER actualizado (rol movido a `Membership`)
-- [ ] 7.3 `docs/architecture.md`: sección "Multi-tenancy" (identidad vs tenant vs membresía; RLS de dos claves; resolución del contexto; dos `set_config` por transacción; requisito del rol de BD; H2 no prueba RLS → Testcontainers)
-- [ ] 7.4 `docs/backend.md`: regla de persistencia (toda `@Entity` de negocio lleva `@TenantId` + `organization_id` y su migración aplica `ENABLE`/`FORCE` + policy `organization_isolation`; `open-in-view` en `false`); **regla de acceso** (el `organizationId`/`userId` se leen solo de `OrganizationContext`/`IdentityContext`, nunca de `@RequestHeader`/`@PathVariable`/`@RequestBody`); prohibido `nativeQuery` sin filtro
+- [ ] 7.3 `docs/architecture.md`: sección "Multi-tenancy" (identidad vs tenant vs membresía; RLS de dos claves; resolución del contexto; `set_config` combinado por transacción; **dos roles de BD** admin/app con menor privilegio; H2 no prueba RLS → Testcontainers)
+- [ ] 7.4 `docs/backend.md`: regla de persistencia (toda `@Entity` de negocio lleva `@TenantId` + `organization_id` y su migración aplica `ENABLE`/`FORCE` + policy `organization_isolation` **sin `missing_ok`**; `open-in-view` en `false`); **regla transaccional** (acceso a entidades RLS siempre en `@Transactional`, enforced por ArchUnit — D12); **regla de acceso** (el `organizationId`/`userId` se leen solo de `OrganizationContext`/`IdentityContext`, nunca de `@RequestHeader`/`@PathVariable`/`@RequestBody`); **convención async** (D13: `TaskDecorator` para async-de-request, contexto explícito para jobs de fondo); prohibido `nativeQuery` sin filtro
 - [ ] 7.5 `docs/testing.md`: el test de aislamiento pasa a ser obligatorio por capacidad de negocio, y se ejecuta sobre PostgreSQL real (Testcontainers), no H2
 
 ## 8. Cierre

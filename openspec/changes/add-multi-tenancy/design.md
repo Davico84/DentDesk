@@ -105,26 +105,50 @@ POST /auth/select-organization { selectionToken, organizationId }
 
 Se descarta `409` para el caso multi-organización: no es un conflicto, es una elección; `200` + flag es lo correcto. En este change solo existe la primera rama; las otras dos quedan especificadas pero no implementadas.
 
-### D6. Propagación a PostgreSQL: dos `set_config(..., true)` por transacción
+### D6. Propagación a PostgreSQL: un `set_config` combinado, transaction-local
 
 RLS lee variables de sesión que **alguien** debe fijar; con pool, hacerlo por sesión contamina la conexión.
 
-**Decisión.** Fijarlas **transaction-local** al comenzar cada transacción:
+**Decisión.** Fijar ambas variables **transaction-local** al comenzar cada transacción, en **una sola sentencia** (un único round-trip, no dos):
 
 ```sql
-SELECT set_config('app.user_id', ?, true);          -- identidad (si hay)
-SELECT set_config('app.organization_id', ?, true);  -- organización (si hay)
+SELECT set_config('app.user_id', ?, true), set_config('app.organization_id', ?, true);
 ```
 
 `true` = local a la transacción, revertida al `COMMIT`/`ROLLBACK`. Enganche previsto: un `Interceptor` de Hibernate (`afterTransactionBegin`) que lee de `IdentityContext`/`OrganizationContext`; alternativa: `DataSource` delegado. La elección exacta se valida en `apply` haciendo pasar los tests de aislamiento. Prerequisito satisfecho: `open-in-view: false`.
 
-### D7. `FORCE ROW LEVEL SECURITY` y el usuario de base de datos
+**Compatibilidad con H2 (slices de test).** H2 no tiene `set_config`, así que el interceptor rompería *toda* transacción en los slices con H2. Solución: registrar en H2 un **alias** de función (`CREATE ALIAS set_config FOR ...`) que actúe de no-op y devuelva el valor, mediante script de inicialización solo de test. El código de producción queda **agnóstico** (nada de ramas "¿es H2?"). En H2 no hay políticas RLS, así que el alias solo evita el fallo de la sentencia; el `@TenantId` de aplicación sí se ejercita. La barrera de motor se prueba únicamente en Testcontainers (D10).
 
-RLS **no aplica al propietario de la tabla**, y con un solo datasource Flyway crea las tablas con el mismo usuario que corre la app (sería owner y saltaría las políticas en silencio).
+**Valores nulos.** Si no hay identidad u organización en contexto (flujos de sistema), el parámetro va `NULL`; `current_setting` en las políticas lo evalúa como no-coincidencia → cero filas (fail-closed), salvo el flujo de auth que fija `app.user_id` explícitamente (D2, D8).
 
-**Decisión.** `ALTER TABLE ... FORCE ROW LEVEL SECURITY` en `memberships` y en cada tabla de negocio: aplica las políticas **también al owner**, permitiendo conservar **un único datasource**.
+### D7. Dos roles de base de datos (menor privilegio) + `FORCE` como defensa en profundidad
 
-**Requisito operativo, no negociable:** `DB_USERNAME` **no** puede ser `SUPERUSER` ni tener `BYPASSRLS`. Documentado en `docs/architecture.md` y `secrets.properties.example`. Descartada la alternativa de dos roles (Flyway/owner + app sin privilegios): exigiría un segundo datasource; `FORCE` da la misma garantía frente al bug de aplicación.
+RLS **no aplica al propietario de la tabla**. El error clásico es que la app corra como owner (que Flyway usa para crear las tablas) y salte todas las políticas.
+
+**Decisión (revisada tras revisión humana).** Separar **dos roles**, principio de menor privilegio:
+
+| Rol | Uso | Privilegios |
+|---|---|---|
+| `odontorisas_admin` | **Solo Flyway** (arranque). Propietario de tablas | DDL completo (`CREATE`/`ALTER`/`ENABLE RLS`) |
+| `odontorisas_app` | **Runtime** de la aplicación | Solo DML (`SELECT`/`INSERT`/`UPDATE`/`DELETE`); **no** owner |
+
+Como `odontorisas_app` **no es propietario**, PostgreSQL le aplica RLS de forma **ineludible** — sin depender críticamente de `FORCE`. Y al tener solo DML, una SQL injection **no puede** ejecutar `ALTER TABLE ... DISABLE ROW LEVEL SECURITY` (requiere ser owner). Se cierra exactamente el hueco que motiva la doble barrera. `FORCE ROW LEVEL SECURITY` **se mantiene** como defensa en profundidad (por si alguna tabla la crea el admin y algo consulta con ese rol).
+
+**No requiere un segundo datasource Java** — corrige mi objeción anterior: Spring Boot da credenciales propias a Flyway sobre el mismo datasource de la app:
+
+```yaml
+spring:
+  datasource:
+    username: odontorisas_app        # runtime, DML, no-owner
+    password: ${DB_APP_PASSWORD}
+  flyway:
+    user: odontorisas_admin          # migraciones, owner, DDL
+    password: ${DB_ADMIN_PASSWORD}
+```
+
+**Coste real (a gestionar en las migraciones):** las tablas las crea `odontorisas_admin`, así que hay que conceder acceso al rol de app. Se resuelve una vez con `ALTER DEFAULT PRIVILEGES FOR ROLE odontorisas_admin GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO odontorisas_app` (+ `USAGE` en secuencias) en la primera migración, de modo que las tablas futuras hereden los GRANT.
+
+**Requisito operativo, no negociable:** ningún rol de la app puede ser `SUPERUSER` ni tener `BYPASSRLS` (los saltan RLS en silencio). Documentado en `docs/architecture.md` y `secrets.properties.example` (dos juegos de credenciales). Los tests de aislamiento con Testcontainers corren como `odontorisas_app` para validar el camino real (no como owner).
 
 ### D8. Registro autoservicio: `Organization` + `Settings` + `User` + `Membership` en una transacción
 
@@ -166,13 +190,36 @@ Bajo una sola `@Transactional`: nunca queda una organización sin administrador 
 
 Una identidad `ACTIVE` puede tener una membresía `INACTIVE` y otra `ACTIVE`. El modelo los incluye desde ya; los **flujos** que los cambian (bloqueo, suspensión, invitación) se ejercitan en `users`. En este change solo se crean en `ACTIVE`.
 
+### D12. Todo acceso a entidades multi-tenant ocurre en una transacción (enforced)
+
+`set_config(..., true)` es **transaction-local**: una consulta en auto-commit (sin `@Transactional`, o con propagación que suspenda la transacción) fija la variable y la descarta en la misma sentencia, y la siguiente consulta de esa conexión del pool corre **sin contexto** → RLS la bloquea de forma inesperada.
+
+**Decisión.** Regla dura (a `docs/backend.md`): toda operación que acceda a una entidad bajo RLS (`memberships` y toda tabla de negocio) SHALL ejecutarse dentro de una transacción activa (`@Transactional`, o `@Transactional(readOnly = true)` para lectura). Se **enforcea con ArchUnit** (el proyecto ya usa ArchUnit para las capas): los métodos de servicio/repositorio que tocan entidades multi-tenant deben ser transaccionales. `open-in-view: false` refuerza esto.
+
+**Relación con el fallo ruidoso (D2).** Esto es la contraparte correcta de mantener `current_setting` **sin** `missing_ok`: se rechazó (en revisión) usar `missing_ok = true` en las políticas de negocio, porque convertiría el fallo ruidoso —el detector de "consultaste fuera de una transacción con contexto"— en un silencioso "cero filas" que enmascara justo el bug que esta decisión previene. Fallar ruidoso + enforce transaccional se refuerzan; `missing_ok` los anularía.
+
+### D13. Propagación del contexto a hilos asíncronos (convención documentada, implementación diferida)
+
+Los contextos viven en `ThreadLocal`, así que **no** se heredan en `@Async`/`@Scheduled`/paralelismo. Hoy no existe ningún uso async que toque datos de tenant, por lo que **no** se construye infraestructura sin consumidores.
+
+**Decisión.** Documentar en `docs/backend.md` dos patrones, y aplicarlos cuando aparezca el primer async:
+
+- **Async derivado de una petición** (p. ej. paralelizar dentro de un request): heredar el contexto con un `TaskDecorator` en el `ThreadPoolTaskExecutor` (capturar en el hilo padre, fijar en el hijo, **limpiar en `finally`**).
+- **Jobs de fondo** (`@Scheduled`, colas): **no** heredan un tenant de ninguna petición; deben fijar el contexto **explícitamente** por cada tenant que procesen (normalmente iterando organizaciones). Heredar aquí sería un error.
+
+Se deja como Open Question / tarea diferida; no bloquea este change.
+
 ---
 
 ## Risks / Trade-offs
 
 | Riesgo | Mitigación |
 |---|---|
-| **`DB_USERNAME` con `SUPERUSER`/`BYPASSRLS`** → RLS decorativa | `FORCE` (D7) + doc en `secrets.properties.example` + el test de RLS **fallaría** si el rol hiciera bypass |
+| **Rol de app con `SUPERUSER`/`BYPASSRLS` o siendo owner** → RLS decorativa | Rol de app **no-owner solo DML** (D7) + `FORCE` como defensa en profundidad + doc en `secrets.properties.example`; el test de RLS (que corre como `odontorisas_app`) **fallaría** si el rol hiciera bypass |
+| **SQL injection desactiva RLS** (`ALTER TABLE ... DISABLE RLS`) | El rol de app no es owner ni tiene DDL → no puede alterar políticas (D7) |
+| **`set_config` transaction-local + consulta en auto-commit** → contexto perdido, RLS bloquea | `@Transactional` obligatorio en acceso a entidades RLS, enforced por ArchUnit (D12) |
+| **H2 no tiene `set_config`** → slices de test rotos al abrir transacción | Alias de función en H2 solo de test; producción agnóstica (D6) |
+| **Contexto no heredado en hilos `@Async`/`@Scheduled`** | Sin uso async hoy; convención documentada (D13); `TaskDecorator` para async-de-request, contexto explícito para jobs de fondo |
 | **Refactor del rol fuera de `User`** (D4) toca `authentication` archivada | Delta MODIFIED; `V6` migra el rol antes de eliminar la columna; tests de auth actualizados |
 | **Dos variables de sesión** (D6) aumentan la superficie de propagación | Un único enganche (`afterTransactionBegin`) fija ambas desde los contextos; test concurrente + test de `/me/memberships` |
 | **`memberships` leída sin `app.user_id` fijado** (login/register) → RLS la bloquearía | El flujo de auth fija `app.user_id` explícitamente tras resolver el `User`, antes de leer/insertar membresías (D2, D8) |
@@ -190,6 +237,7 @@ Una identidad `ACTIVE` puede tener una membresía `INACTIVE` y otra `ACTIVE`. El
 
 **Migraciones** (el repo va por `V5`):
 
+- **`V6__db_roles_grants.sql`** (o incluido al inicio de `V6`): asegurar que existe el rol de app `odontorisas_app` y fijar herencia de privilegios — `ALTER DEFAULT PRIVILEGES FOR ROLE odontorisas_admin GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO odontorisas_app` + `... GRANT USAGE, SELECT ON SEQUENCES TO odontorisas_app`, y GRANT sobre las tablas ya existentes (`users`, `refresh_tokens`). La creación de los roles en sí es de provisión del entorno (no de Flyway); se documenta en `secrets.properties.example` (ver Open Question 6).
 - **`V6__organizations.sql`**
   1. `CREATE TABLE organizations (id identidad PK, name, slug UNIQUE, type, status, created_at, updated_at)`.
   2. `CREATE TABLE organization_settings (organization_id BIGINT PK REFERENCES organizations(id), timezone, locale, currency)`.
@@ -197,6 +245,7 @@ Una identidad `ACTIVE` puede tener una membresía `INACTIVE` y otra `ACTIVE`. El
   4. **Backfill idempotente**: si hay usuarios, crear una organización por defecto (`type = CLINIC`) + settings y, por cada usuario, una membresía que arrastre su `users.role`. Si `users` está vacía, no crea nada.
   5. `ALTER TABLE users ADD COLUMN status ... DEFAULT 'ACTIVE'`; `ALTER TABLE users DROP COLUMN role`.
   6. `refresh_tokens` **no** cambia (el org activo se deriva; ver revisión #3 del historial).
+  7. GRANT explícito de las tablas nuevas al rol `odontorisas_app` (o confiar en el `ALTER DEFAULT PRIVILEGES` anterior si se aplicó antes de crearlas).
 
 - **`V7__rls.sql`**
   1. `ALTER TABLE memberships ENABLE ROW LEVEL SECURITY; ... FORCE ROW LEVEL SECURITY;`
@@ -216,3 +265,5 @@ Una identidad `ACTIVE` puede tener una membresía `INACTIVE` y otra `ACTIVE`. El
 3. **Centinela del resolver** sin contexto: `Long` reservado vs fallo ruidoso. Preferencia: fallar ruidosamente en consultas de negocio. Comprobar qué permite Hibernate 7.2 sin código artificial.
 4. **`slug` en colisión.** `"Clínica Sonrisas"` dos veces → `clinica-sonrisas`, `clinica-sonrisas-2`. Propuesta: desambiguar automáticamente (el `slug` no es visible aún).
 5. **Valores por defecto de `OrganizationSettings`.** ¿`timezone`/`locale`/`currency` fijos (p. ej. `America/Lima` / `es-PE` / `PEN`) o derivados de algo en el registro? Propuesta: defaults fijos ahora; ajustables en `users`.
+6. **Provisión de los roles de BD (D7).** La creación de `odontorisas_admin`/`odontorisas_app` y la asignación de contraseñas es de entorno, no de Flyway. Definir cómo se documenta/automatiza en local (hoy el entorno usa un único `postgres`/`root`) y en despliegue: script de bootstrap idempotente vs instrucciones en `secrets.properties.example`. Confirmar además que los tests Testcontainers crean y usan el rol de app no-owner.
+7. **Enganche del alias `set_config` en H2 (D6).** Script de inicialización de test (`CREATE ALIAS`) vs bean de configuración de test; confirmar que aplica a todos los slices que abran transacción sin romper los que usan `@DataJpaTest`.
