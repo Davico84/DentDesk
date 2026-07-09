@@ -48,17 +48,17 @@
 
 ## 6. Tests derivados de los Scenario
 
-- [ ] 6.1 Introducir el slice de integración con **PostgreSQL real (Testcontainers)** para RLS (Open Question 2); confirmar que encaja con `mvn verify` en CI
-- [ ] 6.2 `multi-tenancy` — "Un usuario solo ve sus propias membresías" y "Una consulta de membresías que omite el filtro sigue estando aislada": **RLS de identidad real sobre `memberships`**; consulta sin `WHERE user_id` que RLS restringe. Fallaría si el rol de BD hiciera bypass (valida D7)
-- [ ] 6.3 `multi-tenancy` — "Una consulta que omite el filtro sigue estando aislada" (organización): entidad-fixture con `@TenantId` + migración de test con RLS; consulta sin `WHERE organization_id` que RLS restringe (valida D6, D10)
-- [ ] 6.4 `multi-tenancy` — "Una consulta de negocio solo alcanza datos de su propia organización", "Acceso directo por identificador a un recurso de otra organización", "Operación de negocio sin organización en el contexto" (sobre la entidad-fixture)
-- [ ] 6.4b `multi-tenancy` — **escritura cruzada rechazada** (D2): en el contexto de la org A, un `INSERT`/`UPDATE` con `organization_id` de la org B (vía consulta nativa) es rechazado por RLS; y `@TenantId` auto-rellena la org del contexto
-- [ ] 6.5 `multi-tenancy` — "El contexto se deriva del token", "El cliente no puede suplantar la organización", "Token de acceso sin organización activa" (security-test / webmvc-test)
-- [ ] 6.6 `multi-tenancy` — "El contexto no sobrevive a la petición": dos peticiones consecutivas de organizaciones distintas en el mismo hilo
-- [ ] 6.7 `multi-tenancy` — "Alta correcta de una organización", "El alta es atómica", "Dos organizaciones con el mismo nombre", "El slug no cambia al renombrar", "Nombre de organización ausente o inválido"
-- [ ] 6.8 `multi-tenancy` — "Un correo identifica a una única persona", "El rol pertenece a la membresía, no a la identidad", "El rol de administrador está acotado a su organización", "Deshabilitar una membresía no deshabilita la identidad"
-- [ ] 6.9 `authentication` — actualizar los tests de registro (crea `Organization`+`Settings`+`User`+`Membership` ADMIN), login (token con `oid`+rol de membresía) y refresh (`oid` derivado, rol releído)
-- [ ] 6.10 `authentication` — **gate por estado (D14)**: inyectar directamente una membresía `SUSPENDED` / usuario `DISABLED` / organización suspendida y verificar que login rechaza y refresh cierra sesión
+- [x] 6.1 Introducir el slice de integración con **PostgreSQL real (Testcontainers)** para RLS (Open Question 2); confirmar que encaja con `mvn verify` en CI
+- [x] 6.2 `multi-tenancy` — "Un usuario solo ve sus propias membresías" y "Una consulta de membresías que omite el filtro sigue estando aislada": **RLS de identidad real sobre `memberships`**; consulta sin `WHERE user_id` que RLS restringe. Fallaría si el rol de BD hiciera bypass (valida D7)
+- [x] 6.3 `multi-tenancy` — "Una consulta que omite el filtro sigue estando aislada" (organización): entidad-fixture con `@TenantId` + migración de test con RLS; consulta sin `WHERE organization_id` que RLS restringe (valida D6, D10)
+- [x] 6.4 `multi-tenancy` — "Una consulta de negocio solo alcanza datos de su propia organización", "Acceso directo por identificador a un recurso de otra organización", "Operación de negocio sin organización en el contexto" (sobre la entidad-fixture)
+- [x] 6.4b `multi-tenancy` — **escritura cruzada rechazada** (D2): en el contexto de la org A, un `INSERT`/`UPDATE` con `organization_id` de la org B (vía consulta nativa) es rechazado por RLS; y `@TenantId` auto-rellena la org del contexto
+- [x] 6.5 `multi-tenancy` — "El contexto se deriva del token", "El cliente no puede suplantar la organización", "Token de acceso sin organización activa" (security-test / webmvc-test)
+- [x] 6.6 `multi-tenancy` — "El contexto no sobrevive a la petición": dos peticiones consecutivas de organizaciones distintas en el mismo hilo
+- [x] 6.7 `multi-tenancy` — "Alta correcta de una organización", "El alta es atómica", "Dos organizaciones con el mismo nombre", "El slug no cambia al renombrar", "Nombre de organización ausente o inválido"
+- [x] 6.8 `multi-tenancy` — "Un correo identifica a una única persona", "El rol pertenece a la membresía, no a la identidad", "El rol de administrador está acotado a su organización", "Deshabilitar una membresía no deshabilita la identidad"
+- [x] 6.9 `authentication` — actualizar los tests de registro (crea `Organization`+`Settings`+`User`+`Membership` ADMIN), login (token con `oid`+rol de membresía) y refresh (`oid` derivado, rol releído)
+- [x] 6.10 `authentication` — **gate por estado (D14)**: inyectar directamente una membresía `SUSPENDED` / usuario `DISABLED` / organización suspendida y verificar que login rechaza y refresh cierra sesión
 
 ## 7. Documentación (gobernanza del ciclo, `docs/vision.md §4`)
 
