@@ -102,6 +102,18 @@ Detalle ampliado de los estándares de frontend en `docs/frontend.md` (arquitect
 
 ---
 
+## 3.5 Multi-tenancy (SaaS)
+
+Capa de plataforma **reutilizable** que aísla los datos de cada organización (tenant). Detalle en `openspec/specs/multi-tenancy/` y reglas de persistencia en `docs/backend.md §8.1`.
+
+- **Modelo**: `User` = identidad global (correo único, sin rol ni organización) · `Organization` = el tenant (`slug` inmutable, `type`, `status`; `OrganizationSettings` 1:1) · `Membership` = puente identidad↔organización que **lleva el rol**. Un usuario puede tener varias membresías (multi-organización); en el MVP el registro crea una y el selector se difiere a `users`.
+- **Aislamiento en dos claves (Row-Level Security)**: tablas de **negocio** aisladas por `organization_id`; `memberships` por **identidad** (`user_id`); `users`/`refresh_tokens` sin RLS (se leen por credencial). RLS con `@TenantId` (Hibernate filtra en app) **+** políticas RLS en PostgreSQL (barrera de motor). Hibernate 7.2 filtra en app; la generación automática de RLS llega en Hibernate 8.
+- **Contexto por petición**: `JwtAuthenticationFilter` lee `sub`/`oid` del token firmado → `IdentityContext`/`OrganizationContext` (`ThreadLocal`, limpiados en `finally`) → alimentan al `CurrentTenantIdentifierResolver` y a `set_config('app.user_id'|'app.organization_id', …, true)` (transaction-local) que consumen las políticas RLS.
+- **Dos roles de BD (menor privilegio)**: `odontorisas_admin` (owner, solo Flyway/DDL) + `odontorisas_app` (runtime, solo DML, **no** owner). Como la app no es owner, RLS le aplica de forma **ineludible** y una inyección no puede desactivarla; `FORCE ROW LEVEL SECURITY` como defensa en profundidad. **Ningún rol de app puede ser `SUPERUSER` ni tener `BYPASSRLS`** (saltan RLS). Flyway usa credenciales propias sobre el mismo datasource; en local caen a las de la app si no se definen (ver `secrets.properties.example` y `scripts/db-roles.sql`).
+- **Observabilidad**: `organizationId`/`userId` en el MDC junto al `traceId`.
+
+---
+
 ## 4. Contrato back ↔ front
 
 - **Auth**: JWT emitido por Spring Security; el front lo guarda y lo envía vía `axios` (interceptor). Refresh de token ante 401.

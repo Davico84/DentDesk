@@ -140,6 +140,25 @@ public record CreateAppointmentRequest(
 
 ---
 
+## 8.1 Multi-tenancy — reglas de aislamiento (RLS)
+
+El sistema es **multi-tenant**: cada organización (tenant) está aislada. El aislamiento es en dos capas (aplicación con Hibernate `@TenantId` + motor con Row-Level Security). Ver la capacidad `multi-tenancy` (`openspec/specs/multi-tenancy/`) y `docs/architecture.md`. **No negociable** al construir cualquier capacidad de negocio:
+
+- **Toda `@Entity` de negocio** (pertenece a una organización) lleva:
+  1. Columna `organization_id BIGINT NOT NULL` + campo `@TenantId` en la entidad (Hibernate la rellena y filtra sola).
+  2. **Índice** sobre `organization_id` (sin él, RLS filtra con un *seq scan*: el índice es parte de la política de aislamiento, no una optimización posterior).
+  3. En su migración: `ENABLE` + **`FORCE ROW LEVEL SECURITY`** y la política
+     `CREATE POLICY organization_isolation ON <tabla> USING (organization_id = current_setting('app.organization_id')::bigint);`
+     **sin `missing_ok`** (fallo ruidoso ante consulta sin contexto).
+- **Acceso siempre transaccional**: cualquier operación sobre una entidad bajo RLS va en `@Transactional` (o `@Transactional(readOnly = true)`). Las variables de sesión (`set_config(..., true)`) son *transaction-local*; fuera de transacción el contexto se pierde y RLS bloquea. **Enforced por ArchUnit**.
+- **El tenant se lee SOLO del token firmado** (`OrganizationContext`/`IdentityContext`, poblados por `JwtAuthenticationFilter` desde los claims). **Prohibido** derivar `organizationId`/`userId` de `@RequestHeader`, `@PathVariable` o `@RequestBody`.
+- **Nada de `nativeQuery` sin filtro de organización** (aunque RLS lo cubra: la claridad importa).
+- **Hilos async**: `@Async`/`@Scheduled` NO heredan el contexto (`ThreadLocal`). Antes de introducir el primero hay que cablear un `TaskDecorator` (async derivado de petición) o fijar el contexto explícitamente por tenant (jobs de fondo). Un test ArchUnit falla la build si aparece `@Async`/`@Scheduled` sin ese cableado.
+- `spring.jpa.open-in-view` debe seguir en **`false`**.
+- **Dominio de auth** (`users`, `refresh_tokens`): NO llevan RLS por organización (se consultan por credencial email/hash). `memberships` lleva RLS de **identidad** (`user_id = current_setting('app.user_id')`).
+
+---
+
 ## 9. Migraciones (Flyway)
 
 - Única fuente del esquema: `spring.jpa.hibernate.ddl-auto=none`. Hibernate **no** crea ni altera tablas.
