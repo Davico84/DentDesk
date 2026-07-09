@@ -1,13 +1,13 @@
 ## 1. Base de datos
 
-- [ ] 1.0 **Roles de BD (design.md D7)**: provisión de `odontorisas_admin` (owner/Flyway) y `odontorisas_app` (runtime, DML, no-owner) — script/instrucciones idempotentes (Open Question 6); `application.yml` con `spring.flyway.user`=admin y `spring.datasource.username`=app; `secrets.properties.example` con **dos** juegos de credenciales y la nota de que ningún rol de app puede ser `SUPERUSER`/`BYPASSRLS`
-- [ ] 1.1 `ALTER DEFAULT PRIVILEGES FOR ROLE odontorisas_admin GRANT SELECT,INSERT,UPDATE,DELETE ON TABLES` (+ `USAGE,SELECT ON SEQUENCES`) `TO odontorisas_app`; GRANT sobre `users`/`refresh_tokens` existentes
-- [ ] 1.2 Crear `V6__organizations.sql`: tabla `organizations` (`id` identidad, `name`, `slug` único, `type`, `status`, timestamps)
-- [ ] 1.3 En `V6`: tabla `organization_settings` (`organization_id` PK/FK 1:1, `timezone`, `locale`, `currency`)
-- [ ] 1.4 En `V6`: tabla `memberships` (`id`, `user_id` FK, `organization_id` FK, `role`, `status`, timestamps, único `(user_id, organization_id)`) + índice sobre `organization_id` (el único ya sirve las consultas que lideran por `user_id`)
-- [ ] 1.5 En `V6`: backfill idempotente — si hay usuarios, crear organización por defecto (`type = CLINIC`) + settings y una membresía por usuario arrastrando su `users.role`; si `users` está vacía, no crear nada
-- [ ] 1.6 En `V6`: `ALTER TABLE users ADD COLUMN status DEFAULT 'ACTIVE'`; `ALTER TABLE users DROP COLUMN role` (`refresh_tokens` **no** cambia); GRANT de las tablas nuevas al rol de app
-- [ ] 1.7 Crear `V7__rls.sql`: `ENABLE`/`FORCE ROW LEVEL SECURITY` sobre `memberships` + política de identidad `membership_identity_isolation` (`user_id = current_setting('app.user_id')::bigint`, **sin** `missing_ok` → fail-closed ruidoso)
+- [x] 1.0 **Roles de BD (design.md D7)**: provisión de `odontorisas_admin` (owner/Flyway) y `odontorisas_app` (runtime, DML, no-owner) — script/instrucciones idempotentes (Open Question 6); `application.yml` con `spring.flyway.user`=admin y `spring.datasource.username`=app; `secrets.properties.example` con **dos** juegos de credenciales y la nota de que ningún rol de app puede ser `SUPERUSER`/`BYPASSRLS`
+- [x] 1.1 `ALTER DEFAULT PRIVILEGES FOR ROLE odontorisas_admin GRANT SELECT,INSERT,UPDATE,DELETE ON TABLES` (+ `USAGE,SELECT ON SEQUENCES`) `TO odontorisas_app`; GRANT sobre `users`/`refresh_tokens` existentes
+- [x] 1.2 Crear `V6__organizations.sql`: tabla `organizations` (`id` identidad, `name`, `slug` único, `type`, `status`, timestamps)
+- [x] 1.3 En `V6`: tabla `organization_settings` (`organization_id` PK/FK 1:1, `timezone`, `locale`, `currency`)
+- [x] 1.4 En `V6`: tabla `memberships` (`id`, `user_id` FK, `organization_id` FK, `role`, `status`, timestamps, único `(user_id, organization_id)`) + índice sobre `organization_id` (el único ya sirve las consultas que lideran por `user_id`)
+- [x] 1.5 En `V6`: backfill idempotente — si hay usuarios, crear organización por defecto (`type = CLINIC`) + settings y una membresía por usuario arrastrando su `users.role`; si `users` está vacía, no crear nada
+- [x] 1.6 En `V6`: `ALTER TABLE users ADD COLUMN status DEFAULT 'ACTIVE'`; `ALTER TABLE users DROP COLUMN role` (`refresh_tokens` **no** cambia); GRANT de las tablas nuevas al rol de app
+- [x] 1.7 Crear `V7__rls.sql`: `ENABLE`/`FORCE ROW LEVEL SECURITY` sobre `memberships` + política de identidad `membership_identity_isolation` (`user_id = current_setting('app.user_id')::bigint`, **sin** `missing_ok` → fail-closed ruidoso)
 
 ## 2. Backend — modelo de plataforma
 
