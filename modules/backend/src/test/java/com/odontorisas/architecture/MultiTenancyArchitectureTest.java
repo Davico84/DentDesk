@@ -6,7 +6,7 @@ import com.tngtech.archunit.core.importer.ImportOption;
 import com.tngtech.archunit.lang.ArchRule;
 import org.junit.jupiter.api.Test;
 
-import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.classes;
+import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses;
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noMethods;
 
 /**
@@ -32,10 +32,10 @@ class MultiTenancyArchitectureTest {
 
     @Test
     void rls_access_from_services_must_be_transactional() {
-        ArchRule rule = classes()
+        ArchRule rule = noClasses()
                 .that().resideInAPackage("..service..")
-                .and().dependOnClassesThat().haveSimpleName("MembershipRepository")
-                .should().beAnnotatedWith("org.springframework.transaction.annotation.Transactional")
+                .and().areNotAnnotatedWith("org.springframework.transaction.annotation.Transactional")
+                .should().dependOnClassesThat().haveSimpleName("MembershipRepository")
                 .allowEmptyShould(true);
         rule.check(classes);
     }
