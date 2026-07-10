@@ -29,13 +29,13 @@ public class BrandingController {
     }
 
     @GetMapping
-    public BrandingResponse get() {
+    public BrandingResponse getBranding() {
         return brandingService.getForCurrentOrganization();
     }
 
     @PutMapping
     @PreAuthorize("hasRole('ADMIN')")
-    public BrandingResponse update(@Valid @RequestBody UpdateBrandingRequest request) {
+    public BrandingResponse updateBranding(@Valid @RequestBody UpdateBrandingRequest request) {
         return brandingService.update(request);
     }
 }

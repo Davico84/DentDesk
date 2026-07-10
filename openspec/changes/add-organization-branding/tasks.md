@@ -23,12 +23,12 @@
 
 ## 5. Frontend — aplicación en runtime
 
-- [ ] 5.1 **`ThemeManager`** (módulo sin React, design.md D5.1): `apply(theme)` escribe CSS vars en `:root`/`.dark` · `reset()` restaura los defaults · `setLogo(url?)`. Testeable sin React y reutilizable por la vista previa del editor
-- [ ] 5.2 Hook `useBranding` **clavado al `organizationId` activo** (no al login, design.md D5): obtiene la marca (`GET /organizations/me/branding`), deriva y llama a `ThemeManager.apply`; re-aplica al **cambiar de organización activa**; `ThemeManager.reset()` en logout
-- [ ] 5.3 **Cache-first (design.md D8)**: cache **indexada por organización** (`{activeOrgId, branding:{<orgId>:{...}}}`) en `localStorage`; pintar la última organización activa al arranque; tras `/auth/refresh`, si el `organizationId` real no coincide con `activeOrgId` → `reset()` antes de aplicar; **limpiar en logout**; revalidar comparando el payload
-- [ ] 5.4 Integrar el logo con **`<img src>` únicamente** (nunca `dangerouslySetInnerHTML`) y **`onError` → logo del producto** (design.md D7). El favicon NO se toca: siempre el del producto
-- [ ] 5.5 Verificar que las pantallas de **auth conservan la marca del producto** (no aplican branding)
-- [ ] 5.6 Tests (Vitest + MSW): tema aplicado al montar con sesión; **re-aplicado al cambiar de organización**; reset en logout; **cache de otra organización se descarta**; **logo caído cae al del producto**; auth sin branding
+- [x] 5.1 **`ThemeManager`** (módulo sin React, design.md D5.1): `apply(theme)` escribe CSS vars en `:root`/`.dark` · `reset()` restaura los defaults · `setLogo(url?)`. Testeable sin React y reutilizable por la vista previa del editor
+- [x] 5.2 Hook `useBranding` **clavado al `organizationId` activo** (no al login, design.md D5): obtiene la marca (`GET /organizations/me/branding`), deriva y llama a `ThemeManager.apply`; re-aplica al **cambiar de organización activa**; `ThemeManager.reset()` en logout
+- [x] 5.3 **Cache-first (design.md D8)**: cache **indexada por organización** (`{activeOrgId, branding:{<orgId>:{...}}}`) en `localStorage`; pintar la última organización activa al arranque; tras `/auth/refresh`, si el `organizationId` real no coincide con `activeOrgId` → `reset()` antes de aplicar; **limpiar en logout**; revalidar comparando el payload
+- [x] 5.4 Integrar el logo con **`<img src>` únicamente** (nunca `dangerouslySetInnerHTML`) y **`onError` → logo del producto** (design.md D7). El favicon NO se toca: siempre el del producto
+- [x] 5.5 Verificar que las pantallas de **auth conservan la marca del producto** (no aplican branding)
+- [x] 5.6 Tests (Vitest + MSW): tema aplicado al montar con sesión; **re-aplicado al cambiar de organización**; reset en logout; **cache de otra organización se descarta**; **logo caído cae al del producto**; auth sin branding
 
 ## 6. Frontend — pantalla de ajustes (ADMIN)
 

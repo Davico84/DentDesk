@@ -15,7 +15,7 @@ import { customInstance } from '../../config/httpClient';
 
 
 
-  export const get = (
+  export const getBranding = (
     
  ) => {
       return customInstance<BrandingResponse>(
@@ -23,7 +23,7 @@ import { customInstance } from '../../config/httpClient';
     },
       );
     }
-  export const update = (
+  export const updateBranding = (
     updateBrandingRequest: UpdateBrandingRequest,
  ) => {
       return customInstance<BrandingResponse>(
@@ -33,5 +33,5 @@ import { customInstance } from '../../config/httpClient';
     },
       );
     }
-  export type GetResult = NonNullable<Awaited<ReturnType<typeof get>>>
-export type UpdateResult = NonNullable<Awaited<ReturnType<typeof update>>>
+  export type GetBrandingResult = NonNullable<Awaited<ReturnType<typeof getBranding>>>
+export type UpdateBrandingResult = NonNullable<Awaited<ReturnType<typeof updateBranding>>>

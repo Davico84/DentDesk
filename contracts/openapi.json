@@ -27,7 +27,7 @@
         "tags": [
           "organization-branding"
         ],
-        "operationId": "get",
+        "operationId": "getBranding",
         "responses": {
           "200": {
             "description": "OK",
@@ -45,7 +45,7 @@
         "tags": [
           "organization-branding"
         ],
-        "operationId": "update",
+        "operationId": "updateBranding",
         "requestBody": {
           "content": {
             "application/json": {
