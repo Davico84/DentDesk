@@ -1,15 +1,15 @@
 ## 1. Base de datos
 
-- [ ] 1.1 Crear `V8__organization_branding.sql`: tabla `organization_branding` (`organization_id` PK/FK → `organizations`, `ON DELETE CASCADE`; `brand_primary`, `brand_secondary`, `logo_url`, `favicon_url`, todos nullable). **Sin RLS** (como `organization_settings`); sin backfill
+- [ ] 1.1 Crear `V8__organization_branding.sql`: tabla `organization_branding` (`organization_id` PK/FK → `organizations`, `ON DELETE CASCADE`; `brand_primary`, `brand_secondary`, `logo_url`, todos nullable). **Sin RLS** (como `organization_settings`); sin backfill
 - [ ] 1.2 GRANT de la tabla al rol de app (o confiar en `ALTER DEFAULT PRIVILEGES` de `V6`)
 
 ## 2. Backend
 
 - [ ] 2.1 `persistence/entity/OrganizationBranding.java` (1:1 con `Organization` vía `@MapsId`, campos nullable) + `OrganizationBrandingRepository`
 - [ ] 2.2 `service/organization/BrandingService`: leer la marca de la organización del contexto; actualizarla (upsert). **Si tras la actualización todos los campos quedan `null`, ELIMINAR la fila** (sin personalización = sin fila, design.md D6)
-- [ ] 2.3 `presentation/dto`: `BrandingResponse` y `UpdateBrandingRequest` (color `#RRGGBB` con `@Pattern`, URLs con validación de formato; campos nullable) + **`@Schema(example = ...)`** en cada campo para que el contrato OpenAPI sea autoexplicativo
+- [ ] 2.3 `presentation/dto`: `BrandingResponse` y `UpdateBrandingRequest` (color `#RRGGBB` con `@Pattern`, URL del logo con validación de formato; campos nullable) + **`@Schema(example = ...)`** en cada campo para que el contrato OpenAPI sea autoexplicativo
 - [ ] 2.4 `presentation/controller/BrandingController`: `GET /organizations/me/branding` (autenticado; devuelve siempre un objeto, exista o no la fila) y `PUT /organizations/me/branding` (**solo `ADMIN`** — autorización por rol); el `me` = organización del contexto, nunca de la petición
-- [ ] 2.5 Tests backend (slice web + service): actualización por ADMIN, denegación a no-ADMIN, validación de color/URL, restaurar campo a null, **quitar toda la personalización elimina la fila**
+- [ ] 2.5 Tests backend (slice web + service): actualización por ADMIN, denegación a no-ADMIN, validación de color/URL del logo, restaurar campo a null, **quitar toda la personalización elimina la fila**
 
 ## 3. Contrato y tipos
 
@@ -23,16 +23,16 @@
 
 ## 5. Frontend — aplicación en runtime
 
-- [ ] 5.1 **`ThemeManager`** (módulo sin React, design.md D5.1): `apply(theme)` escribe CSS vars en `:root`/`.dark` · `reset()` restaura los defaults · `setLogo(url?)` · `setFavicon(url?)`. Testeable sin React y reutilizable por la vista previa del editor
+- [ ] 5.1 **`ThemeManager`** (módulo sin React, design.md D5.1): `apply(theme)` escribe CSS vars en `:root`/`.dark` · `reset()` restaura los defaults · `setLogo(url?)`. Testeable sin React y reutilizable por la vista previa del editor
 - [ ] 5.2 Hook `useBranding` **clavado al `organizationId` activo** (no al login, design.md D5): obtiene la marca (`GET /organizations/me/branding`), deriva y llama a `ThemeManager.apply`; re-aplica al **cambiar de organización activa**; `ThemeManager.reset()` en logout
-- [ ] 5.3 **Cache-first (design.md D8)**: cachear `{organizationId, colores, urls}` en `localStorage`; pintar al instante en el arranque; tras `/auth/refresh`, si el `organizationId` cacheado no coincide con el de la sesión → `reset()` antes de aplicar; **limpiar la cache en logout**; revalidar comparando el payload
-- [ ] 5.4 Integrar el logo de la organización en la cabecera del app shell, con **`onError` → logo del producto** (design.md D7); favicon con respaldo equivalente
+- [ ] 5.3 **Cache-first (design.md D8)**: cachear `{organizationId, colores, logoUrl}` en `localStorage`; pintar al instante en el arranque; tras `/auth/refresh`, si el `organizationId` cacheado no coincide con el de la sesión → `reset()` antes de aplicar; **limpiar la cache en logout**; revalidar comparando el payload
+- [ ] 5.4 Integrar el logo de la organización en la cabecera del app shell, con **`onError` → logo del producto** (design.md D7). El favicon NO se toca: siempre el del producto
 - [ ] 5.5 Verificar que las pantallas de **auth conservan la marca del producto** (no aplican branding)
 - [ ] 5.6 Tests (Vitest + MSW): tema aplicado al montar con sesión; **re-aplicado al cambiar de organización**; reset en logout; **cache de otra organización se descarta**; **logo caído cae al del producto**; auth sin branding
 
 ## 6. Frontend — pantalla de ajustes (ADMIN)
 
-- [ ] 6.1 Ruta/pantalla de **marca** protegida por rol `ADMIN` (RouteGuard): color picker(s), inputs de URL de logo/favicon, guardar
+- [ ] 6.1 Ruta/pantalla de **marca** protegida por rol `ADMIN` (RouteGuard): color picker(s), input de URL del logo, guardar
 - [ ] 6.2 **Vista previa en vivo**: aplica `deriveTheme` sin persistir; aviso de contraste insuficiente
 - [ ] 6.3 Hook TanStack Query (mutación) sobre el fetcher generado; al guardar, refetch/aplicar la marca; toasts; validación Zod en paridad con el backend
 - [ ] 6.4 Tests (Vitest + MSW): guardar como ADMIN aplica el tema; validación en cliente; preview no persiste
@@ -47,5 +47,5 @@
 
 - [ ] 8.1 `openspec validate add-organization-branding --strict`
 - [ ] 8.2 `mvn verify` (backend) y `pnpm validate` (frontend) en verde
-- [ ] 8.3 Resolver las Open Questions del `design.md` (espacio de color HSL/OKLCH, uno o dos colores de marca, formato de favicon)
+- [ ] 8.3 Resolver las Open Questions del `design.md` (espacio de color HSL/OKLCH, uno o dos colores de marca)
 - [ ] 8.4 Commits por scope (backend / frontend / docs / openspec), Conventional Commits en español

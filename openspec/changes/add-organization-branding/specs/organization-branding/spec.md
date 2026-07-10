@@ -1,7 +1,7 @@
 ## ADDED Requirements
 
 ### Requirement: Tema de la organización aplicado en el app shell
-El sistema SHALL aplicar la marca visual de la organización activa (color de marca, logo, favicon) al app shell una vez establecida la sesión. Una organización que no ha personalizado su marca SHALL usar los valores por defecto del producto, sin requerir configuración previa.
+El sistema SHALL aplicar la marca visual de la organización activa (color de marca y logo) al app shell una vez establecida la sesión. Una organización que no ha personalizado su marca SHALL usar los valores por defecto del producto, sin requerir configuración previa.
 
 #### Scenario: Organización con color de marca
 - **WHEN** un usuario inicia sesión y su organización activa tiene un color de marca definido
@@ -86,27 +86,17 @@ El sistema SHALL aplicar la marca de la organización únicamente en el app shel
 
 #### Scenario: Reset al cerrar sesión
 - **WHEN** un usuario con una organización personalizada cierra sesión
-- **THEN** el tema y el favicon vuelven a los del producto
+- **THEN** el tema vuelve al del producto
 
-### Requirement: Favicon por organización
-El sistema SHALL usar el favicon de la organización activa cuando esté definido, y el del producto en caso contrario.
-
-#### Scenario: Favicon personalizado
-- **WHEN** la organización activa tiene un favicon definido y el usuario está autenticado
-- **THEN** la pestaña del navegador muestra el favicon de la organización
-
-#### Scenario: Sin favicon definido
-- **WHEN** la organización activa no tiene favicon definido
+#### Scenario: El favicon es el del producto siempre
+- **WHEN** un usuario autenticado navega por el app shell de cualquier organización
 - **THEN** la pestaña del navegador muestra el favicon del producto
+- **AND** ninguna organización puede cambiarlo
 
-### Requirement: Los recursos externos siempre tienen respaldo
-El logo y el favicon son URLs a recursos alojados fuera del sistema, cuya disponibilidad no se puede garantizar (la organización puede borrar la imagen o su host puede fallar). El sistema SHALL degradar con elegancia a los recursos por defecto del producto, sin mostrar nunca un recurso roto.
+### Requirement: El logo externo siempre tiene respaldo
+El logo es una URL a un recurso alojado fuera del sistema, cuya disponibilidad no se puede garantizar (la organización puede borrar la imagen o su host puede fallar). El sistema SHALL degradar con elegancia al logo por defecto del producto, sin mostrar nunca un recurso roto.
 
 #### Scenario: El logo de la organización no está disponible
 - **WHEN** la organización tiene un logo definido pero la URL no devuelve una imagen válida
 - **THEN** el app shell muestra el logo del producto en su lugar
 - **AND** no se presenta ninguna imagen rota
-
-#### Scenario: El favicon de la organización no está disponible
-- **WHEN** la organización tiene un favicon definido pero la URL no devuelve una imagen válida
-- **THEN** la pestaña del navegador conserva un favicon válido (el previo o el del producto)
