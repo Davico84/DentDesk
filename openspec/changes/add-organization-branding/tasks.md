@@ -13,7 +13,7 @@
 
 ## 3. Contrato y tipos
 
-- [ ] 3.1 Regenerar `contracts/openapi.json` (desde el backend real) y el cliente orval (`pnpm generate:api`); comprobar el gate "sin drift"
+- [x] 3.1 Regenerar `contracts/openapi.json` (desde el backend real) y el cliente orval (`pnpm generate:api`); comprobar el gate "sin drift"
 
 ## 4. Frontend — derivación de tema (el núcleo)
 

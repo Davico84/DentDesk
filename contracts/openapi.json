@@ -13,11 +13,63 @@
   ],
   "tags": [
     {
+      "name": "organization-branding",
+      "description": "Personalización visual por organización"
+    },
+    {
       "name": "auth",
       "description": "Autenticación"
     }
   ],
   "paths": {
+    "/organizations/me/branding": {
+      "get": {
+        "tags": [
+          "organization-branding"
+        ],
+        "operationId": "get",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/BrandingResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "organization-branding"
+        ],
+        "operationId": "update",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateBrandingRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/BrandingResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/auth/register": {
       "post": {
         "tags": [
@@ -134,6 +186,46 @@
   },
   "components": {
     "schemas": {
+      "UpdateBrandingRequest": {
+        "type": "object",
+        "properties": {
+          "brandPrimary": {
+            "type": "string",
+            "example": "#7f1aa6",
+            "pattern": "^#[0-9a-fA-F]{6}$"
+          },
+          "brandSecondary": {
+            "type": "string",
+            "example": "#16C3B2",
+            "pattern": "^#[0-9a-fA-F]{6}$"
+          },
+          "logoUrl": {
+            "type": "string",
+            "example": "https://cdn.example.com/clinica/logo.png",
+            "pattern": "^https://[^\\s]+$"
+          }
+        }
+      },
+      "BrandingResponse": {
+        "type": "object",
+        "properties": {
+          "brandPrimary": {
+            "type": "string",
+            "description": "Color primario de marca (hex), o null = default",
+            "example": "#7f1aa6"
+          },
+          "brandSecondary": {
+            "type": "string",
+            "description": "Color secundario (hex), o null = derivado del primario",
+            "example": "#16C3B2"
+          },
+          "logoUrl": {
+            "type": "string",
+            "description": "URL https del logo, o null = logo del producto",
+            "example": "https://cdn.example.com/clinica/logo.png"
+          }
+        }
+      },
       "RegisterRequest": {
         "type": "object",
         "properties": {
