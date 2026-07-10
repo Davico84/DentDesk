@@ -59,7 +59,18 @@ A partir de `brandPrimary` (y `brandSecondary` opcional) se produce un mapa de t
 
 Clave: al mover **solo el hue** de los neutros (manteniendo S y L), el UI se siente "de la marca" pero el contraste texto/fondo **no cambia** (depende de la luminancia ≈ L). Cero riesgo de accesibilidad ahí. El riesgo real se concentra en `primary-foreground`, que resuelve D4.
 
-**Claro vs oscuro:** el `.dark` tiene sus propias luminancias; la derivación produce **dos mapas** (uno con las reglas de L de `:root`, otro con las de `.dark`) y ambos se inyectan. Un color de marca demasiado oscuro para fondo en dark mode se corrige subiendo su L en el mapa oscuro (regla de lightness por modo).
+**Claro vs oscuro — *lightness clamping* (resuelve la elección de espacio de color):** se deriva en **HSL** (paridad directa con el sistema; permite modificadores de opacidad de Tailwind como `bg-primary/50`, que OKLCH complicaría). El `.dark` tiene sus propias luminancias, así que la derivación produce **dos mapas** ajustando la L del color de marca por modo para que siempre destaque legible sobre el fondo:
+
+```
+--primary en modo CLARO:   si L > 85%  →  L = 80%    (que no se pierda sobre el blanco)
+--primary en modo OSCURO:  si L < 50%  →  L = 55–65% (que brille sobre el fondo oscuro #170d1a)
+```
+
+Así un púrpura muy oscuro sigue siendo púrpura pero **ilumina** lo suficiente en dark mode; un color casi blanco no desaparece en light mode. El *hue* y la *saturación* del color de marca no se tocan (sigue siendo "su" color); solo se acota la L al rango usable de cada modo.
+
+**Color secundario (opcional) — con derivación por defecto:**
+- **Si la organización lo define:** se convierte a HSL y alimenta `--secondary`/`--accent` (y sus `-foreground`) desde su *hue*.
+- **Si es `null`:** se **deriva del primario** — mismo *hue*, saturación reducida y L alta (un tinte suave del primario), acotado a `L ≤ 96%` y `S ≤ 60%`. Así el UI se ve cohesivo y "premium" sin obligar a configurar dos colores.
 
 ### D4. Contraste garantizado (WCAG AA)
 
@@ -118,17 +129,23 @@ Beneficio: la lógica de tematización es **testeable sin React**, reutilizable 
 
 - `GET /organizations/me/branding` — cualquier usuario autenticado (para aplicar el tema de **su** organización activa).
 - `PUT /organizations/me/branding` — **solo `ADMIN`** de la organización activa (autorización por rol, ya disponible desde el token). El `me` es la organización del contexto (nunca de la petición).
-- Validación en el request: color `#RRGGBB` (regex) y URL `http(s)` bien formada; campos nullable (enviar `null` restaura el default de ese campo).
+- Validación en el request: color `#RRGGBB` (regex) y `logoUrl` **solo `https://`** (ver D7); campos nullable (enviar `null` restaura el default de ese campo).
 - Pantalla de ajustes (ruta ADMIN): color picker(s), input de URL del logo, y **vista previa en vivo** que aplica `deriveTheme` sin guardar.
 - **Sin personalización = sin fila.** Si tras una actualización **todos** los campos quedan `null`, el servicio **elimina la fila** en vez de persistir una fila llena de nulls. Así el estado "esta organización no personaliza" tiene una sola representación (ausencia de fila), coherente con D1. `GET` devuelve siempre un objeto (campos `null` = defaults), exista o no la fila.
 - Los DTOs llevan **ejemplos** (`@Schema(example = "#16C3B2")`) para que el contrato OpenAPI —y el cliente generado— sean autoexplicativos.
 
-### D7. El logo es un recurso externo: **siempre con fallback**
+### D7. El logo es una URL externa: **segura** y **siempre con fallback**
 
-El logo es una **URL a un recurso que la organización aloja**, así que el sistema no puede garantizar que exista: el admin puede borrar la imagen y la URL pasa a dar `404` (o el host cae, o bloquea el hotlinking).
+El logo es una **URL a un recurso que la organización aloja**, con dos consecuencias:
 
-- **Logo**: se renderiza con `onError` → cae al **logo del producto**. Nunca se muestra un icono roto.
-- **Favicon**: fuera de alcance. Siempre el del producto (`/favicon.svg`); no se manipula el `<link rel="icon">` en runtime.
+**Seguridad (la URL la escribe un humano y se renderiza).** Para cerrar el vector de `javascript:`/`data:` y el contenido mixto:
+- El backend valida **`https://` únicamente** (regex estricta; se rechaza `http://`, `javascript:`, `data:`, etc.), y el frontend repite la validación (Zod).
+- Se renderiza **exclusivamente** con `<img src={logoUrl}>`. **Nunca** `dangerouslySetInnerHTML` ni inyección de la URL en el DOM como código.
+
+**Disponibilidad (el admin puede borrar la imagen → `404`).**
+- El `<img>` lleva `onError` → cae al **logo del producto**. Nunca se muestra un icono roto.
+
+**Favicon:** fuera de alcance. Siempre el del producto (`/favicon.svg`); no se manipula el `<link rel="icon">` en runtime.
 
 ### D8. Pintura inmediata desde cache (`localStorage`), luego revalidación
 
@@ -138,13 +155,22 @@ El bootstrap es **serial** (`/auth/refresh` → token → `GET branding`), así 
 localStorage ─► pinta el tema al instante ─► GET branding ─► si cambió, re-aplica y actualiza cache
 ```
 
-Se cachea `{ organizationId, brandPrimary, brandSecondary, logoUrl }` (colores crudos; la derivación es matemática pura y barata). Reglas:
+Se cachea la marca **indexada por organización**, con la última organización activa:
 
-- **Se limpia en logout** (junto con el `reset()` del tema).
-- Al volver `/auth/refresh`, se **compara el `organizationId`** de la sesión con el cacheado: si no coincide, `reset()` antes de aplicar el de la organización correcta.
-- La revalidación es un **comparar-y-reemplazar** del payload (4 campos, ~200 B). No hace falta versionado ni `ETag` para esto.
+```json
+{ "activeOrgId": 123,
+  "branding": { "123": { "brandPrimary": "#7f1aa6", "brandSecondary": null, "logoUrl": "..." } } }
+```
 
-**Riesgo asumido (relevante en este dominio):** las clínicas **comparten estaciones de trabajo**. Si una sesión termina sin logout (cierre del navegador, expiración), el siguiente arranque pinta ~200 ms la marca de la organización anterior antes de corregirse. Es cosmético y se acota con la limpieza en logout y la comparación de `organizationId`.
+Reglas:
+
+- Al arrancar se pinta el tema de `activeOrgId` (pintura inmediata).
+- Al volver `/auth/refresh` con el `organizationId` real: si **no coincide** con `activeOrgId`, `reset()` y aplica el correcto; si coincide, revalida (comparar-y-reemplazar el payload, ~200 B — sin `ETag`).
+- **Se limpia en logout** (junto con el `reset()`).
+
+**Límite honesto (por el diseño de sesión).** El access token vive **en memoria** y el refresh es **cookie httpOnly** (no legible por JS): en un arranque en frío **no se conoce el `organizationId` hasta que `/auth/refresh` responde**. Por eso la pintura desde cache es **optimista** (pinta la última organización activa) y solo puede corregirse *después* del refresh — no antes de montar. La alternativa (no pintar hasta el refresh) elimina el leak pero reintroduce el *flash* de tema por defecto; se elige pintar-y-corregir.
+
+**Riesgo asumido (relevante en este dominio):** las clínicas **comparten estaciones**. Si una sesión termina sin logout (cierre del navegador, expiración) y luego entra otra persona/organización, el siguiente arranque pinta ~200 ms la marca anterior antes de corregirse tras el refresh. Cosmético; acotado por la limpieza en logout y la comparación de `organizationId`. Eliminarlo del todo exigiría exponer el `organizationId` a JS antes del refresh, lo que va contra el modelo de sesión (token en memoria + refresh httpOnly).
 
 **Alternativa descartada:** incrustar el branding en la respuesta de auth. Eliminaría el round-trip *y* el parpadeo sin cache alguna, pero acopla `authentication` a branding (y el proposal declara "Modified Capabilities: ninguna").
 
@@ -172,8 +198,7 @@ Se cachea `{ organizationId, brandPrimary, brandSecondary, logoUrl }` (colores c
 
 ## Open Questions
 
-1. **Espacio de color de la derivación.** HSL es lo que usa el sistema, pero OKLCH da mezclas y contraste perceptualmente más uniformes. ¿Derivar en HSL (simple, sin dependencias) u OKLCH (mejor, ¿lib?)? Propuesta: HSL en el MVP; OKLCH si el resultado visual no convence.
-2. **¿Un color de marca o dos?** El MVP admite primario (obligatorio para personalizar) + secundario opcional. Confirmar si el secundario aporta suficiente o si con el primario basta para el MVP.
+*(Resueltas en el diseño: espacio de color → **HSL con lightness clamping** (D3); uno o dos colores → **primario obligatorio + secundario opcional con derivación por defecto** (D3). No quedan preguntas abiertas; los umbrales exactos de clamping se afinan visualmente en el `apply`.)*
 
 ## Mejoras futuras (fuera del MVP, anotadas conscientemente)
 

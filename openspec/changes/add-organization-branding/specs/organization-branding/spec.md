@@ -53,7 +53,7 @@ El sistema SHALL mantener el funcionamiento del modo claro/oscuro con la marca d
 El sistema SHALL permitir consultar la marca de la organización activa a cualquier usuario autenticado, y **actualizarla solo al administrador** de esa organización. La organización sobre la que se opera SHALL ser siempre la del contexto de la sesión, nunca una indicada por el cliente.
 
 #### Scenario: El administrador actualiza la marca
-- **WHEN** un usuario con rol `ADMIN` guarda un color de marca, un logo y un favicon válidos
+- **WHEN** un usuario con rol `ADMIN` guarda un color de marca y un logo válidos
 - **THEN** el sistema persiste la marca de su organización
 - **AND** la nueva marca queda disponible para aplicarse
 
@@ -66,6 +66,11 @@ El sistema SHALL permitir consultar la marca de la organización activa a cualqu
 - **WHEN** el administrador envía un color con formato inválido o una URL malformada
 - **THEN** el sistema responde con un error de validación
 - **AND** no persiste ningún cambio
+
+#### Scenario: URL de logo con esquema no seguro
+- **WHEN** el administrador envía como URL de logo un valor con un esquema distinto de `https` (por ejemplo `javascript:`, `data:` o `http:`)
+- **THEN** el sistema rechaza la petición con un error de validación
+- **AND** no persiste ninguna URL
 
 #### Scenario: Restaurar un campo al valor por defecto
 - **WHEN** el administrador borra el color de marca (lo deja vacío) y guarda
