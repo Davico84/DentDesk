@@ -1,14 +1,16 @@
 import { Outlet } from "react-router-dom";
 import { Toaster } from "sonner";
 import { useSessionBootstrap } from "@/modules/auth/hooks/useSessionBootstrap";
+import { useBranding } from "@/modules/branding/hooks/useBranding";
 
 /**
  * Layout raíz: restaura la sesión al arrancar (splash mientras resuelve el
- * refresh) y monta el contenedor + los toasts. Los guards deciden con el
- * `status` ya resuelto.
+ * refresh), aplica la marca de la organización activa y monta el contenedor +
+ * los toasts. Los guards deciden con el `status` ya resuelto.
  */
 export function RootLayout() {
   const status = useSessionBootstrap();
+  useBranding();
 
   if (status === "idle" || status === "loading") {
     return (

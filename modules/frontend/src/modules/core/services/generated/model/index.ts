@@ -7,7 +7,9 @@
  */
 
 export * from './authResponse';
+export * from './brandingResponse';
 export * from './loginRequest';
 export * from './registerRequest';
+export * from './updateBrandingRequest';
 export * from './userResponse';
 export * from './userResponseRole';

@@ -198,6 +198,17 @@ Colores resueltos por variables CSS en `src/styles/globals.css`.
 > [!WARNING]
 > `tailwind.config.cjs` mapea colores con HSL: `background: "hsl(var(--background))"`. Las variables CSS deben contener **solo los 3 canales separados por espacios** (`--background: 220 25% 98%`), sin envoltorio. Si importas variables de diseños Tailwind v4/OKLCH (`oklch(...)`), **conviértelas a HSL puro** antes de pegarlas, o compilará a `hsl(oklch(...))` y romperá los estilos.
 
+#### 4.5.1 Tematización por organización (branding)
+Capacidad `organization-branding`: cada organización personaliza su color de marca y logo, aplicados al **app shell** (post-login). Piezas:
+
+- **`deriveTheme(colors)`** (`modules/core/theme`) — lógica **pura** (sin React, testeable): de 1-2 colores de marca deriva los tokens (claro + oscuro). Los `-foreground` se eligen por **contraste WCAG AA** (alternan solo blanco/neutro oscuro, nunca generan colores); *lightness clamping* por modo; los **neutros** conservan S/L y solo cambian el hue; los **semánticos** (éxito/aviso/error) **no** se tocan.
+- **`ThemeManager`** (sin React) — inyecta las variables en un `<style>` con `:root { … }` y `.dark { … }`; `reset()` restaura los defaults del producto. **El DOM lo toca el ThemeManager, no los hooks.**
+- **`useBranding`** (en `RootLayout`) — reactivo al **`organizationId` activo** (no al login): al cambiar, obtiene la marca, deriva y aplica; resetea al cerrar sesión.
+- **Cache-first** (`brandingCache`, `localStorage` por organización) — pinta al instante en el arranque (`applyCachedThemeOnBoot` en `main.tsx`) y se corrige tras el refresh; limpia en logout.
+- El **favicon no se personaliza** (siempre el del producto); el **logo** cae al del producto ante error (`OrgLogo`, `onError`).
+
+> Regla: personalizar **solo el/los color(es) de marca**; nunca sobreescribir semánticos ni editar el tema token a token. La derivación garantiza legibilidad; una elección con mal contraste **avisa** en el editor pero nunca produce texto ilegible.
+
 ### 4.6 Composición: patrón "Slots" / "Children"
 Cuando un componente impone **estructura** pero el **contenido** lo decide quien lo consume, compón el contenido como `children` o *slots* nombrados (`ReactNode`), no como datos en props. De mayor a menor preferencia:
 
