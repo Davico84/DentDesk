@@ -17,9 +17,9 @@
 
 ## 4. Frontend — derivación de tema (el núcleo)
 
-- [ ] 4.1 Utilidad `deriveTheme(colors)` en `modules/core`: hex→HSL, mapeo de tokens (design.md D3) con **lightness clamping** por modo (claro L>85%→80%; oscuro L<50%→55–65%) y **derivación del secundario** cuando es null (tinte del primario); mapas claro y oscuro
-- [ ] 4.2 Función de contraste WCAG (luminancia relativa) que elige `-foreground` (design.md D4) y expone si el color no alcanza AA (para el aviso del editor)
-- [ ] 4.3 Tests unitarios de la derivación (Vitest): color oscuro→foreground claro; color claro→foreground oscuro; **clamping de L por modo**; **secundario derivado del primario cuando es null**; semánticos intactos; neutros conservan S/L; flag de contraste insuficiente
+- [x] 4.1 Utilidad `deriveTheme(colors)` en `modules/core`: hex→HSL, mapeo de tokens (design.md D3) con **lightness clamping** por modo (claro L>85%→80%; oscuro L<50%→55–65%) y **derivación del secundario** cuando es null (tinte del primario); mapas claro y oscuro
+- [x] 4.2 Función de contraste WCAG (luminancia relativa) que elige `-foreground` (design.md D4) y expone si el color no alcanza AA (para el aviso del editor)
+- [x] 4.3 Tests unitarios de la derivación (Vitest): color oscuro→foreground claro; color claro→foreground oscuro; **clamping de L por modo**; **secundario derivado del primario cuando es null**; semánticos intactos; neutros conservan S/L; flag de contraste insuficiente
 
 ## 5. Frontend — aplicación en runtime
 
