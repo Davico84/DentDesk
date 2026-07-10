@@ -6,10 +6,10 @@
 ## 2. Backend
 
 - [ ] 2.1 `persistence/entity/OrganizationBranding.java` (1:1 con `Organization` vía `@MapsId`, campos nullable) + `OrganizationBrandingRepository`
-- [ ] 2.2 `service/organization/BrandingService`: leer la marca de la organización del contexto; actualizarla (upsert). Validación de negocio mínima
-- [ ] 2.3 `presentation/dto`: `BrandingResponse` y `UpdateBrandingRequest` (color `#RRGGBB` con `@Pattern`, URLs con validación de formato; campos nullable)
-- [ ] 2.4 `presentation/controller/BrandingController`: `GET /organizations/me/branding` (autenticado) y `PUT /organizations/me/branding` (**solo `ADMIN`** — autorización por rol); el `me` = organización del contexto, nunca de la petición
-- [ ] 2.5 Tests backend (slice web + service): actualización por ADMIN, denegación a no-ADMIN, validación de color/URL, restaurar campo a null
+- [ ] 2.2 `service/organization/BrandingService`: leer la marca de la organización del contexto; actualizarla (upsert). **Si tras la actualización todos los campos quedan `null`, ELIMINAR la fila** (sin personalización = sin fila, design.md D6)
+- [ ] 2.3 `presentation/dto`: `BrandingResponse` y `UpdateBrandingRequest` (color `#RRGGBB` con `@Pattern`, URLs con validación de formato; campos nullable) + **`@Schema(example = ...)`** en cada campo para que el contrato OpenAPI sea autoexplicativo
+- [ ] 2.4 `presentation/controller/BrandingController`: `GET /organizations/me/branding` (autenticado; devuelve siempre un objeto, exista o no la fila) y `PUT /organizations/me/branding` (**solo `ADMIN`** — autorización por rol); el `me` = organización del contexto, nunca de la petición
+- [ ] 2.5 Tests backend (slice web + service): actualización por ADMIN, denegación a no-ADMIN, validación de color/URL, restaurar campo a null, **quitar toda la personalización elimina la fila**
 
 ## 3. Contrato y tipos
 
@@ -23,10 +23,12 @@
 
 ## 5. Frontend — aplicación en runtime
 
-- [ ] 5.1 Hook `useBranding`: obtiene la marca (`GET /organizations/me/branding`) durante el **bootstrap** (splash de `RootLayout`), aplica CSS vars en `:root`/`.dark`, sustituye `<link rel="icon">` y expone el logo; **resetea a defaults en logout** (design.md D5, D7)
-- [ ] 5.2 Integrar el logo de la organización en la cabecera del app shell (usa `logoUrl` o el logo del producto por defecto)
-- [ ] 5.3 Verificar que las pantallas de **auth conservan la marca del producto** (no aplican branding)
-- [ ] 5.4 Tests (Vitest + MSW): tema aplicado al montar con sesión; reset en logout; auth sin branding
+- [ ] 5.1 **`ThemeManager`** (módulo sin React, design.md D5.1): `apply(theme)` escribe CSS vars en `:root`/`.dark` · `reset()` restaura los defaults · `setLogo(url?)` · `setFavicon(url?)`. Testeable sin React y reutilizable por la vista previa del editor
+- [ ] 5.2 Hook `useBranding` **clavado al `organizationId` activo** (no al login, design.md D5): obtiene la marca (`GET /organizations/me/branding`), deriva y llama a `ThemeManager.apply`; re-aplica al **cambiar de organización activa**; `ThemeManager.reset()` en logout
+- [ ] 5.3 **Cache-first (design.md D8)**: cachear `{organizationId, colores, urls}` en `localStorage`; pintar al instante en el arranque; tras `/auth/refresh`, si el `organizationId` cacheado no coincide con el de la sesión → `reset()` antes de aplicar; **limpiar la cache en logout**; revalidar comparando el payload
+- [ ] 5.4 Integrar el logo de la organización en la cabecera del app shell, con **`onError` → logo del producto** (design.md D7); favicon con respaldo equivalente
+- [ ] 5.5 Verificar que las pantallas de **auth conservan la marca del producto** (no aplican branding)
+- [ ] 5.6 Tests (Vitest + MSW): tema aplicado al montar con sesión; **re-aplicado al cambiar de organización**; reset en logout; **cache de otra organización se descarta**; **logo caído cae al del producto**; auth sin branding
 
 ## 6. Frontend — pantalla de ajustes (ADMIN)
 
@@ -45,5 +47,5 @@
 
 - [ ] 8.1 `openspec validate add-organization-branding --strict`
 - [ ] 8.2 `mvn verify` (backend) y `pnpm validate` (frontend) en verde
-- [ ] 8.3 Resolver las Open Questions del `design.md` (espacio de color, uno/dos colores, cache de tema, formato de favicon)
+- [ ] 8.3 Resolver las Open Questions del `design.md` (espacio de color HSL/OKLCH, uno o dos colores de marca, formato de favicon)
 - [ ] 8.4 Commits por scope (backend / frontend / docs / openspec), Conventional Commits en español

@@ -17,6 +17,11 @@ El sistema SHALL aplicar la marca visual de la organización activa (color de ma
 - **WHEN** el administrador guarda un nuevo color de marca
 - **THEN** el app shell refleja el nuevo tema sin necesidad de recargar la página
 
+#### Scenario: Cambiar de organización activa cambia el tema
+- **WHEN** un usuario con acceso a varias organizaciones cambia su organización activa
+- **THEN** el app shell se re-tematiza con la marca de la nueva organización
+- **AND** no conserva ningún rastro visual de la organización anterior
+
 ### Requirement: Legibilidad garantizada (contraste)
 El sistema SHALL elegir los colores de texto sobre el color de marca (`-foreground`) de modo que se mantenga un contraste legible (WCAG AA), con independencia del color elegido. El sistema NUNCA SHALL presentar texto ilegible por diseño; ante un color de marca con contraste insuficiente, SHALL advertir al editor pero aun así elegir el texto de mayor contraste disponible.
 
@@ -67,6 +72,11 @@ El sistema SHALL permitir consultar la marca de la organización activa a cualqu
 - **THEN** el sistema elimina esa personalización
 - **AND** el app shell vuelve a usar el color por defecto del producto para ese campo
 
+#### Scenario: Quitar toda la personalización
+- **WHEN** el administrador deja vacíos todos los campos de la marca y guarda
+- **THEN** el sistema deja de almacenar personalización alguna para esa organización
+- **AND** consultar la marca devuelve todos los campos vacíos (equivalente a los valores por defecto)
+
 ### Requirement: La marca solo se aplica tras el login
 El sistema SHALL aplicar la marca de la organización únicamente en el app shell (tras autenticarse). Las pantallas de autenticación (login y registro) SHALL conservar la marca del producto, porque antes de autenticar no se conoce la organización.
 
@@ -88,3 +98,15 @@ El sistema SHALL usar el favicon de la organización activa cuando esté definid
 #### Scenario: Sin favicon definido
 - **WHEN** la organización activa no tiene favicon definido
 - **THEN** la pestaña del navegador muestra el favicon del producto
+
+### Requirement: Los recursos externos siempre tienen respaldo
+El logo y el favicon son URLs a recursos alojados fuera del sistema, cuya disponibilidad no se puede garantizar (la organización puede borrar la imagen o su host puede fallar). El sistema SHALL degradar con elegancia a los recursos por defecto del producto, sin mostrar nunca un recurso roto.
+
+#### Scenario: El logo de la organización no está disponible
+- **WHEN** la organización tiene un logo definido pero la URL no devuelve una imagen válida
+- **THEN** el app shell muestra el logo del producto en su lugar
+- **AND** no se presenta ninguna imagen rota
+
+#### Scenario: El favicon de la organización no está disponible
+- **WHEN** la organización tiene un favicon definido pero la URL no devuelve una imagen válida
+- **THEN** la pestaña del navegador conserva un favicon válido (el previo o el del producto)

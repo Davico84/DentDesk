@@ -19,6 +19,11 @@ Ahora que OdontoRisas es un **SaaS multi-tenant**, cada organización (clínica)
 - **Solo estética** (app shell). Nada de email/PDF/facturas con marca por ahora.
 - **La marca se aplica DESPUÉS del login.** Las pantallas de auth (login/registro) conservan la marca del producto (OdontoRisas): antes de autenticar no se conoce la organización (login por email, sin subdominio).
 - **Aislamiento como `OrganizationSettings`**: `OrganizationBranding` es metadato del tenant (una fila por org, PK = `organization_id`), **sin** RLS por organización; se accede por el `organization_id` del contexto. Coherente con Settings y forward-compatible con una futura lectura pública por subdominio.
+- **Sin personalización = sin fila**: si el administrador vacía todos los campos, se elimina la fila (un solo estado para "no personaliza").
+- **El tema reacciona a la organización activa**, no al login: cuando llegue el selector de organización (`users`), cambiar de clínica re-tematiza.
+- **Logo y favicon siempre con respaldo**: son URLs externas que pueden dar `404`; el sistema degrada al recurso del producto sin mostrar nada roto.
+
+**Mejoras anotadas fuera del MVP**: propagación en tiempo real de la marca a sesiones abiertas (requiere push, no versionado), `ETag`/`If-None-Match` (payload de ~200 B; hoy no aporta), y CSP para recursos externos.
 
 ## Capabilities
 
