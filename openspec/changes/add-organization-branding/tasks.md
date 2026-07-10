@@ -40,12 +40,12 @@
 ## 7. Documentación (al archivar)
 
 - [ ] 7.1 `docs/domain.md`: entidad `OrganizationBranding` (1:1 con `Organization`, sin RLS)
-- [ ] 7.2 `docs/frontend.md`: mecanismo de tematización por organización (tokens CSS, `deriveTheme`, `useBranding`, contraste)
+- [x] 7.2 `docs/frontend.md`: mecanismo de tematización por organización (tokens CSS, `deriveTheme`, `useBranding`, contraste)
 - [ ] 7.3 `docs/vision.md` + `readme`: marcar `organization-branding` como construida (estado)
 
 ## 8. Cierre
 
-- [ ] 8.1 `openspec validate add-organization-branding --strict`
-- [ ] 8.2 `mvn verify` (backend) y `pnpm validate` (frontend) en verde
-- [ ] 8.3 Afinar visualmente los umbrales de lightness clamping (design.md D3) contra colores de marca reales
-- [ ] 8.4 Commits por scope (backend / frontend / docs / openspec), Conventional Commits en español
+- [x] 8.1 `openspec validate add-organization-branding --strict`
+- [x] 8.2 `mvn verify` (backend) y `pnpm validate` (frontend) en verde
+- [x] 8.3 Afinar visualmente los umbrales de lightness clamping (design.md D3) contra colores de marca reales
+- [x] 8.4 Commits por scope (backend / frontend / docs / openspec), Conventional Commits en español
