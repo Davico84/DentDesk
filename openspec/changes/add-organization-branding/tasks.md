@@ -1,15 +1,15 @@
 ## 1. Base de datos
 
-- [ ] 1.1 Crear `V8__organization_branding.sql`: tabla `organization_branding` (`organization_id` PK/FK → `organizations`, `ON DELETE CASCADE`; `brand_primary`, `brand_secondary`, `logo_url`, todos nullable). **Sin RLS** (como `organization_settings`); sin backfill
-- [ ] 1.2 GRANT de la tabla al rol de app (o confiar en `ALTER DEFAULT PRIVILEGES` de `V6`)
+- [x] 1.1 Crear `V8__organization_branding.sql`: tabla `organization_branding` (`organization_id` PK/FK → `organizations`, `ON DELETE CASCADE`; `brand_primary`, `brand_secondary`, `logo_url`, todos nullable). **Sin RLS** (como `organization_settings`); sin backfill
+- [x] 1.2 GRANT de la tabla al rol de app (o confiar en `ALTER DEFAULT PRIVILEGES` de `V6`)
 
 ## 2. Backend
 
-- [ ] 2.1 `persistence/entity/OrganizationBranding.java` (1:1 con `Organization` vía `@MapsId`, campos nullable) + `OrganizationBrandingRepository`
-- [ ] 2.2 `service/organization/BrandingService`: leer la marca de la organización del contexto; actualizarla (upsert). **Si tras la actualización todos los campos quedan `null`, ELIMINAR la fila** (sin personalización = sin fila, design.md D6)
-- [ ] 2.3 `presentation/dto`: `BrandingResponse` y `UpdateBrandingRequest` (color `#RRGGBB` con `@Pattern`, `logoUrl` **solo `https://`** con `@Pattern` estricto —rechaza javascript:/data:/http—; campos nullable) + **`@Schema(example = ...)`** en cada campo para que el contrato OpenAPI sea autoexplicativo
-- [ ] 2.4 `presentation/controller/BrandingController`: `GET /organizations/me/branding` (autenticado; devuelve siempre un objeto, exista o no la fila) y `PUT /organizations/me/branding` (**solo `ADMIN`** — autorización por rol); el `me` = organización del contexto, nunca de la petición
-- [ ] 2.5 Tests backend (slice web + service): actualización por ADMIN, denegación a no-ADMIN, validación de color, **rechazo de URL no-https (javascript:/data:/http)**, restaurar campo a null, **quitar toda la personalización elimina la fila**
+- [x] 2.1 `persistence/entity/OrganizationBranding.java` (1:1 con `Organization` vía `@MapsId`, campos nullable) + `OrganizationBrandingRepository`
+- [x] 2.2 `service/organization/BrandingService`: leer la marca de la organización del contexto; actualizarla (upsert). **Si tras la actualización todos los campos quedan `null`, ELIMINAR la fila** (sin personalización = sin fila, design.md D6)
+- [x] 2.3 `presentation/dto`: `BrandingResponse` y `UpdateBrandingRequest` (color `#RRGGBB` con `@Pattern`, `logoUrl` **solo `https://`** con `@Pattern` estricto —rechaza javascript:/data:/http—; campos nullable) + **`@Schema(example = ...)`** en cada campo para que el contrato OpenAPI sea autoexplicativo
+- [x] 2.4 `presentation/controller/BrandingController`: `GET /organizations/me/branding` (autenticado; devuelve siempre un objeto, exista o no la fila) y `PUT /organizations/me/branding` (**solo `ADMIN`** — autorización por rol); el `me` = organización del contexto, nunca de la petición
+- [x] 2.5 Tests backend (slice web + service): actualización por ADMIN, denegación a no-ADMIN, validación de color, **rechazo de URL no-https (javascript:/data:/http)**, restaurar campo a null, **quitar toda la personalización elimina la fila**
 
 ## 3. Contrato y tipos
 
