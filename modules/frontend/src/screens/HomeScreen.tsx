@@ -1,7 +1,10 @@
+import { Link } from "react-router-dom";
 import { useSessionStore } from "@/store/useSessionStore";
 import { useLogout } from "@/modules/auth/hooks/useAuth";
 import { Button } from "@/modules/core/ui/button";
+import { buttonVariants } from "@/modules/core/ui/button-variants";
 import { OrgLogo } from "@/modules/branding/components/OrgLogo";
+import { PATHS } from "@/routes/paths";
 
 /** Panel raíz (provisional): muestra la marca de la organización, saluda y cierra sesión. */
 export function HomeScreen() {
@@ -18,9 +21,16 @@ export function HomeScreen() {
           <span className="font-medium text-foreground">{user.fullName ?? user.email}</span> ({user.role})
         </p>
       ) : null}
-      <Button variant="outline" onClick={() => logout.mutate()} disabled={logout.isPending}>
-        {logout.isPending ? "Cerrando sesión…" : "Cerrar sesión"}
-      </Button>
+      <div className="flex items-center gap-3">
+        {user?.role === "ADMIN" ? (
+          <Link to={PATHS.BRANDING} className={buttonVariants({ variant: "outline" })}>
+            Personalizar marca
+          </Link>
+        ) : null}
+        <Button variant="outline" onClick={() => logout.mutate()} disabled={logout.isPending}>
+          {logout.isPending ? "Cerrando sesión…" : "Cerrar sesión"}
+        </Button>
+      </div>
     </main>
   );
 }

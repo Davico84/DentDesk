@@ -32,10 +32,10 @@
 
 ## 6. Frontend — pantalla de ajustes (ADMIN)
 
-- [ ] 6.1 Ruta/pantalla de **marca** protegida por rol `ADMIN` (RouteGuard): color picker(s), input de URL del logo, guardar
-- [ ] 6.2 **Vista previa en vivo**: aplica `deriveTheme` sin persistir; aviso de contraste insuficiente
-- [ ] 6.3 Hook TanStack Query (mutación) sobre el fetcher generado; al guardar, refetch/aplicar la marca; toasts; validación Zod en paridad (color hex + `logoUrl` solo https)
-- [ ] 6.4 Tests (Vitest + MSW): guardar como ADMIN aplica el tema; validación en cliente; preview no persiste
+- [x] 6.1 Ruta/pantalla de **marca** protegida por rol `ADMIN` (RouteGuard): color picker(s), input de URL del logo, guardar
+- [x] 6.2 **Vista previa en vivo**: aplica `deriveTheme` sin persistir; aviso de contraste insuficiente
+- [x] 6.3 Hook TanStack Query (mutación) sobre el fetcher generado; al guardar, refetch/aplicar la marca; toasts; validación Zod en paridad (color hex + `logoUrl` solo https)
+- [x] 6.4 Tests (Vitest + MSW): guardar como ADMIN aplica el tema; validación en cliente; preview no persiste
 
 ## 7. Documentación (al archivar)
 
