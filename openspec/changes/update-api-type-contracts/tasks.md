@@ -6,9 +6,9 @@
 
 ## 2. Backend — schemas de error tipados y fieles (design.md D2)
 
-- [ ] 2.1 `presentation/dto/ApiProblem`: `type`, `title`, `status`, `detail` + `timestamp` y `traceId`. **Sin `instance`** (el handler nunca lo emite) y con **`traceId` opcional** (solo se añade si el MDC lo tiene)
-- [ ] 2.2 `presentation/dto/ValidationProblem`: extiende lo anterior con **`errors: [{ field, message }]` opcional** — porque el `400` tiene **dos formas**: validación (con `errors[]`) y **JSON malformado** (sin `errors[]`)
-- [ ] 2.3 **Test (Scenario "El schema de error describe el cuerpo real")**: provocar un error de validación, uno de JSON malformado y uno estándar; fijar que el cuerpo solo contiene campos documentados, que no se documenta nada que la API no emita, y que `traceId` es opcional
+- [x] 2.1 `presentation/dto/ApiProblem`: `type`, `title`, `status`, `detail` + `timestamp` y `traceId`. **Sin `instance`** (el handler nunca lo emite) y con **`traceId` opcional** (solo se añade si el MDC lo tiene)
+- [x] 2.2 `presentation/dto/ValidationProblem`: extiende lo anterior con **`errors: [{ field, message }]` opcional** — porque el `400` tiene **dos formas**: validación (con `errors[]`) y **JSON malformado** (sin `errors[]`)
+- [x] 2.3 **Test (Scenario "El schema de error describe el cuerpo real")**: provocar un error de validación, uno de JSON malformado y uno estándar; fijar que el cuerpo solo contiene campos documentados, que no se documenta nada que la API no emita, y que `traceId` es opcional
 
 ## 3. Backend — errores transversales automáticos (design.md D3)
 

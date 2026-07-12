@@ -96,6 +96,23 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
     }
 
     /**
+     * Las excepciones que resuelve la clase padre (404, 405, JSON malformado…) construyen su
+     * {@link ProblemDetail} por su cuenta, <b>sin pasar por {@link ProblemDetails}</b>: saldrían
+     * sin {@code timestamp} ni {@code traceId} y el contrato dejaría de ser fiel (documenta
+     * {@code timestamp} como siempre presente). Aquí se les añaden las extensiones comunes, de
+     * modo que <b>todos</b> los errores de la API —sin excepción— compartan forma.
+     */
+    @Override
+    protected ResponseEntity<Object> handleExceptionInternal(
+            Exception ex, Object body, HttpHeaders headers, HttpStatusCode statusCode, WebRequest request) {
+        ResponseEntity<Object> response = super.handleExceptionInternal(ex, body, headers, statusCode, request);
+        if (response != null && response.getBody() instanceof ProblemDetail problem) {
+            ProblemDetails.addExtensions(problem);
+        }
+        return response;
+    }
+
+    /**
      * Validación de {@code @Valid} → 400 con la lista de campos inválidos. Es la única respuesta
      * que añade la extensión {@code errors} (de ahí el schema {@code ValidationProblem}); el otro
      * 400 posible —JSON malformado, que resuelve la clase padre— no la lleva.
