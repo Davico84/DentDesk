@@ -1,8 +1,8 @@
 ## 1. Backend — un único formato de error en toda la API (design.md D6)
 
-- [ ] 1.1 `SecurityConfig`: el `authenticationEntryPoint` deja de usar `sendError(401)` (que devuelve el cuerpo por defecto del contenedor) y **escribe un `ProblemDetail` RFC 9457**, con el mismo `type`/`title`/`detail` + `traceId` que el resto de errores
-- [ ] 1.2 **Test (Scenario "El error de sesión ausente usa el formato común")**: una petición a un recurso protegido **sin token** devuelve `401` **con cuerpo RFC 9457** (no el `{timestamp,status,error,path}` del contenedor). *(Hoy `AuthControllerIT.protected_route_without_token_returns_401` solo comprueba el status: hay que fijar también el cuerpo.)*
-- [ ] 1.3 Verificar que el `403` de `@PreAuthorize` y el `401` semántico de `login`/`refresh` **ya** son RFC 9457 (no requieren cambio) y dejarlo fijado por test
+- [x] 1.1 `SecurityConfig`: el `authenticationEntryPoint` deja de usar `sendError(401)` (que devuelve el cuerpo por defecto del contenedor) y **escribe un `ProblemDetail` RFC 9457**, con el mismo `type`/`title`/`detail` + `traceId` que el resto de errores
+- [x] 1.2 **Test (Scenario "El error de sesión ausente usa el formato común")**: una petición a un recurso protegido **sin token** devuelve `401` **con cuerpo RFC 9457** (no el `{timestamp,status,error,path}` del contenedor). *(Hoy `AuthControllerIT.protected_route_without_token_returns_401` solo comprueba el status: hay que fijar también el cuerpo.)*
+- [x] 1.3 Verificar que el `403` de `@PreAuthorize` y el `401` semántico de `login`/`refresh` **ya** son RFC 9457 (no requieren cambio) y dejarlo fijado por test
 
 ## 2. Backend — schemas de error tipados y fieles (design.md D2)
 
@@ -12,7 +12,7 @@
 
 ## 3. Backend — errores transversales automáticos (design.md D3)
 
-- [ ] 3.1 Extraer las **rutas públicas a una fuente única** compartida con `SecurityConfig` (hoy la lista vive solo ahí; duplicarla haría que el contrato documentara `401` donde nunca ocurre)
+- [x] 3.1 Extraer las **rutas públicas a una fuente única** compartida con `SecurityConfig` (hoy la lista vive solo ahí; duplicarla haría que el contrato documentara `401` donde nunca ocurre)
 - [ ] 3.2 `OperationCustomizer` de springdoc: añade `500` a **todas** las operaciones; `401` a las que **no** son públicas; `403` a las cuyo `HandlerMethod` lleva `@PreAuthorize`
 - [ ] 3.3 **Test (Scenario "Los errores transversales se heredan sin declararlos")**: `getBranding` declarará **solo `200`** (tarea 4.5), así que basta con asertar que el documento le añade `401` y `500` — **no hace falta un controller sintético**
 

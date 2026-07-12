@@ -13,6 +13,7 @@ import org.springframework.test.web.servlet.MvcResult;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.cookie;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -83,11 +84,19 @@ class AuthControllerIT extends AbstractIntegrationTest {
             .andExpect(cookie().exists(REFRESH_COOKIE));
     }
 
+    /**
+     * Scenario "Un error de negocio usa el formato común": este 401 (credenciales inválidas) ya
+     * era RFC 9457 —nace de una excepción de negocio—, a diferencia del de sesión ausente. Se fija
+     * por test para que siga siéndolo: ambos 401 deben compartir forma.
+     */
     @Test
-    void login_invalid_credentials_returns_401_generic() throws Exception {
+    void login_invalid_credentials_returns_401_generic_as_problem_detail() throws Exception {
         mockMvc.perform(post("/auth/login").contentType(MediaType.APPLICATION_JSON)
                 .content(registerBody("noexiste@clinica.test", "password123")))
             .andExpect(status().isUnauthorized())
+            .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
+            .andExpect(jsonPath("$.status").value(401))
+            .andExpect(jsonPath("$.timestamp").isNotEmpty())
             .andExpect(jsonPath("$.detail").value("Correo electrónico o contraseña incorrectos"));
     }
 
@@ -132,9 +141,25 @@ class AuthControllerIT extends AbstractIntegrationTest {
             .andExpect(cookie().maxAge(REFRESH_COOKIE, 0));
     }
 
+    /**
+     * Scenario "El error de sesión ausente usa el formato común": antes el entry point hacía
+     * {@code sendError(401)} y devolvía el cuerpo por defecto del contenedor
+     * ({@code {timestamp,status,error,path}}). Ahora delega en el HandlerExceptionResolver, así
+     * que sale en RFC 9457 como el resto — requisito para describir los errores con un único
+     * schema en el contrato.
+     */
     @Test
-    void protected_route_without_token_returns_401() throws Exception {
+    void protected_route_without_token_returns_401_as_problem_detail() throws Exception {
         mockMvc.perform(get("/users/me"))
-            .andExpect(status().isUnauthorized());
+            .andExpect(status().isUnauthorized())
+            .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
+            .andExpect(jsonPath("$.type").value("/errors/unauthorized"))
+            .andExpect(jsonPath("$.title").isNotEmpty())
+            .andExpect(jsonPath("$.status").value(401))
+            .andExpect(jsonPath("$.detail").isNotEmpty())
+            .andExpect(jsonPath("$.timestamp").isNotEmpty())
+            // El cuerpo por defecto del contenedor traía estas claves; ya no deben aparecer.
+            .andExpect(jsonPath("$.error").doesNotExist())
+            .andExpect(jsonPath("$.path").doesNotExist());
     }
 }
