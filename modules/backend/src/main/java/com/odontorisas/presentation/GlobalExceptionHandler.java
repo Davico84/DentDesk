@@ -11,6 +11,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.http.ProblemDetail;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
@@ -67,6 +68,23 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
         ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, detail);
         problem.setType(URI.create("/errors/" + errorType));
         problem.setTitle(HttpStatus.CONFLICT.getReasonPhrase());
+        addExtensions(problem);
+        return problem;
+    }
+
+    /**
+     * Autorización denegada por method security ({@code @PreAuthorize}) → 403. Sin este handler
+     * explícito, la {@link AccessDeniedException} —lanzada dentro del dispatcher, no en la cadena
+     * de filtros— caería en el catch-all {@code Exception} y devolvería un 500 en vez del 403 que
+     * corresponde. (Las denegaciones por URL de {@code authorizeHttpRequests} las resuelve el
+     * {@code ExceptionTranslationFilter} antes de llegar aquí.)
+     */
+    @ExceptionHandler(AccessDeniedException.class)
+    public ProblemDetail handleAccessDenied(AccessDeniedException ex) {
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(
+            HttpStatus.FORBIDDEN, "No tienes permiso para realizar esta acción.");
+        problem.setType(URI.create("/errors/access-denied"));
+        problem.setTitle(HttpStatus.FORBIDDEN.getReasonPhrase());
         addExtensions(problem);
         return problem;
     }
