@@ -1,7 +1,6 @@
 package com.odontorisas.branding;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import com.jayway.jsonpath.JsonPath;
 import com.odontorisas.AbstractIntegrationTest;
 import com.odontorisas.common.Role;
 import com.odontorisas.infra.security.TokenService;
@@ -33,9 +32,6 @@ class BrandingControllerIT extends AbstractIntegrationTest {
     @Autowired
     TokenService tokenService;
 
-    @Autowired
-    ObjectMapper objectMapper;
-
     /** Registra una organización + admin y devuelve el access token (rol ADMIN). */
     private String registerAdmin(String email) throws Exception {
         String body = "{\"organizationName\":\"Clínica Marca\",\"email\":\"" + email
@@ -44,8 +40,7 @@ class BrandingControllerIT extends AbstractIntegrationTest {
                 .contentType(MediaType.APPLICATION_JSON).content(body))
             .andExpect(status().isCreated())
             .andReturn();
-        JsonNode json = objectMapper.readTree(result.getResponse().getContentAsString());
-        return json.get("accessToken").asText();
+        return JsonPath.read(result.getResponse().getContentAsString(), "$.accessToken");
     }
 
     private String bearer(String token) {
