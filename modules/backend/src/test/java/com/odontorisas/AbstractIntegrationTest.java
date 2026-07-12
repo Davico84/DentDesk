@@ -30,5 +30,14 @@ public abstract class AbstractIntegrationTest {
         registry.add("spring.datasource.url", POSTGRES::getJdbcUrl);
         registry.add("spring.datasource.username", POSTGRES::getUsername);
         registry.add("spring.datasource.password", POSTGRES::getPassword);
+        // Flyway usa por defecto el rol admin/owner (`spring.flyway.user` en application.yml apunta
+        // a ${DB_ADMIN_USERNAME:${DB_USERNAME}}). En CI no hay secrets.properties ni env, así que
+        // esos placeholders quedarían sin resolver: aquí Flyway usa las credenciales del contenedor
+        // (que es owner del esquema, como corresponde a las migraciones).
+        registry.add("spring.flyway.user", POSTGRES::getUsername);
+        registry.add("spring.flyway.password", POSTGRES::getPassword);
+        // Secret JWT dummy: application.yml lo toma de ${JWT_SECRET} (sin default) y en CI no existe.
+        // Solo sirve para arrancar el contexto en tests; ningún test depende de su valor concreto.
+        registry.add("app.security.jwt.secret", () -> "test-secret-ci-0123456789-0123456789-0123456789");
     }
 }
