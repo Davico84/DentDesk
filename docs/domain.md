@@ -84,6 +84,11 @@ Define a qué organización pertenece un usuario y **con qué rol**. Es el coraz
 Token de refresco persistido para rotación y revocación real (logout). Se guarda el **hash** del token, nunca el valor en claro.
 - `user` (FK), `tokenHash` (único), `expiresAt`, `revoked`, `createdAt`. El access token es JWT stateless (no se persiste); lleva la organización activa en el claim `oid`.
 
+### `organization-branding` → **OrganizationBranding** *(1:1 con Organization; construida)*
+Personalización visual de una organización aplicada al app shell. Fila **opcional**: si no existe, la organización usa la marca por defecto del producto; si todos los campos quedan vacíos, la fila se elimina.
+- `organizationId` (PK/FK, comparte clave con `Organization` vía `@MapsId`), `brandPrimary` (hex `#RRGGBB`, nullable), `brandSecondary` (hex, nullable), `logoUrl` (URL `https`, nullable).
+- **Sin RLS**: es estética pública dentro de la sesión y se lee por el contexto de organización; no contiene datos de negocio sensibles (ver `docs/backend.md §8.1`). El tema se **deriva** en el frontend (contraste WCAG AA, respeta modo claro/oscuro); los colores semánticos no cambian con la marca.
+
 > **Regla de aislamiento (multi-tenancy).** Toda entidad de **negocio** (`Patient`, `Appointment`, `Treatment`, `Invoice`…) pertenece a una organización: lleva `organizationId` + Row-Level Security por organización. `users`/`refresh_tokens` son dominio de auth (sin RLS por organización); `memberships` se aísla por identidad. Ver `docs/backend.md §8.1` y `openspec/specs/multi-tenancy/`.
 
 ### `patients` → **Patient**
@@ -182,6 +187,7 @@ erDiagram
     User ||--o{ Membership : "pertenece vía"
     Organization ||--o{ Membership : "reúne a"
     Organization ||--|| OrganizationSettings : "configura"
+    Organization ||--o| OrganizationBranding : "personaliza"
     User ||--o| Patient : "puede ser"
     User ||--o{ Appointment : "atiende (dentista)"
     Patient ||--o{ Appointment : "reserva"
@@ -218,6 +224,12 @@ erDiagram
         String timezone
         String locale
         String currency
+    }
+    OrganizationBranding {
+        Long organizationId PK
+        String brandPrimary
+        String brandSecondary
+        String logoUrl
     }
     Membership {
         Long id PK
