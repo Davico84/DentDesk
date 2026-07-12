@@ -104,10 +104,16 @@ Usa `renderHook` con un `wrapper` que provea un `QueryClient` nuevo por test (co
 | Flujo completo (controller→service→repo→BD) | `@SpringBootTest` + **Testcontainers** |
 
 ### Testcontainers (base de integración)
-- Un único contenedor PostgreSQL reutilizable para los tests de integración/persistencia; conectar con `@ServiceConnection` (Spring Boot 3.1+/4) para que Spring configure el datasource automáticamente.
+- Un único contenedor PostgreSQL reutilizable (patrón *singleton container*, `AbstractIntegrationTest`) para los tests de integración/persistencia.
 - Perfil de test que **no** desactiva Flyway: las migraciones de `db/migration` se aplican sobre el contenedor limpio (así se ejerce el scenario "migración en base limpia").
 - `ddl-auto=none` también en test: se valida que **Hibernate no altera** el esquema.
 - Los slices que no tocan BD (`@WebMvcTest`, unit) **no** levantan contenedor → siguen siendo rápidos.
+- **Clases `*IT`** (integración) corren en la fase `verify` vía **maven-failsafe-plugin**; los `*Test` (unit) en `test` vía surefire. Sin failsafe los `*IT` no se ejecutan.
+- **H2 no aplica Row-Level Security.** Los slices con H2 validan el filtrado de aplicación (`@TenantId`), **no** la barrera de motor. RLS se prueba **solo** contra PostgreSQL real y **como un rol no-owner** (`AbstractRlsIntegrationTest`), porque el owner/superusuario la saltan (aun con `FORCE`). H2 necesita un alias `set_config` (no-op) para no romper transacciones.
+- **Gotcha local (Windows):** Docker Desktop puede devolver HTTP 400 al `/info` que Testcontainers usa → los `*IT` se **saltan** en local (`disabledWithoutDocker=true`) pero **corren en CI (Linux)**. No es un fallo del código.
+
+### Test de aislamiento — OBLIGATORIO por capacidad de negocio
+Toda capacidad que añada tablas de negocio SHALL incluir un test de aislamiento (contra PostgreSQL real, como rol no-owner) que verifique que **la organización A no ve —ni escribe— datos de la B**, incluso con una consulta que omite el filtro. Referencia: `MembershipRlsIT` (identidad) y `OrganizationRlsIT` (organización, sobre tabla-fixture). Es un gate, no un extra.
 
 ### Convenciones (backend)
 - Nombre de método de test orientado a comportamiento: `should_<resultado>_when_<condición>` (identificadores en inglés, propios de Java) y/o `@DisplayName` descriptivo en español referenciando el scenario.

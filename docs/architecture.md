@@ -49,11 +49,16 @@ OdontoRisas/
 ```
 presentation   → controller · dto
       ↓
-infra          → config · security · service (por dominio) · utils/mappers
+service        → <dominio> (+ mapper co-ubicado)      # lógica de negocio / casos de uso
       ↓
 persistence    → entity · repository · specification (queries dinámicas)
+
+infra          → config · security · storage · mail   # adaptadores técnicos (transversal)
+common         → utilidades / tipos compartidos
 ```
-- `presentation` no accede a `persistence` directamente: pasa por servicios de `infra`.
+- La **lógica de negocio** vive en `service.<dominio>`, **no** en `infra`. `infra` es solo adaptadores técnicos (framework, seguridad, S3, mail).
+- `presentation` no accede a `persistence` directamente: pasa por `service`.
+- `persistence` no depende de `presentation` ni de `service` (las entidades JPA son el modelo de dominio; no hexagonal puro, decisión consciente).
 - `specification` centraliza las queries dinámicas (JPA Criteria/Specifications).
 - Migraciones versionadas en `db/migration`; el schema NO lo gestiona Hibernate (`ddl-auto=none`).
 
@@ -93,7 +98,19 @@ src/
 - **Modules** encapsulan lógica reutilizable; `core/` no depende de otros módulos.
 - **RouteGuard** centraliza auth + roles: sesión activa en ruta pública → redirige por rol; sin token → login (con `?next=`); rol no permitido → 403 AccessDenied.
 
-Detalle ampliado en las docs del template: `architecture.md`, `coding-standards.md`, `react-query.md`, `zustand.md`, `ui-patterns.md`, `testing.md`, `tooling-setup.md` (en `D:/proyectos/FixRiver/ProyectoBase/template-base/modules/frontend/docs`). **Pendiente**: portarlas a `docs/` de este repo.
+Detalle ampliado de los estándares de frontend en `docs/frontend.md` (arquitectura pantallas/módulos, React Query, Zustand, patrones de UI) y `docs/coding-style.md` (estilo general de código). Adaptados del template FixRiver.
+
+---
+
+## 3.5 Multi-tenancy (SaaS)
+
+Capa de plataforma **reutilizable** que aísla los datos de cada organización (tenant). Detalle en `openspec/specs/multi-tenancy/` y reglas de persistencia en `docs/backend.md §8.1`.
+
+- **Modelo**: `User` = identidad global (correo único, sin rol ni organización) · `Organization` = el tenant (`slug` inmutable, `type`, `status`; `OrganizationSettings` 1:1) · `Membership` = puente identidad↔organización que **lleva el rol**. Un usuario puede tener varias membresías (multi-organización); en el MVP el registro crea una y el selector se difiere a `users`.
+- **Aislamiento en dos claves (Row-Level Security)**: tablas de **negocio** aisladas por `organization_id`; `memberships` por **identidad** (`user_id`); `users`/`refresh_tokens` sin RLS (se leen por credencial). RLS con `@TenantId` (Hibernate filtra en app) **+** políticas RLS en PostgreSQL (barrera de motor). Hibernate 7.2 filtra en app; la generación automática de RLS llega en Hibernate 8.
+- **Contexto por petición**: `JwtAuthenticationFilter` lee `sub`/`oid` del token firmado → `IdentityContext`/`OrganizationContext` (`ThreadLocal`, limpiados en `finally`) → alimentan al `CurrentTenantIdentifierResolver` y a `set_config('app.user_id'|'app.organization_id', …, true)` (transaction-local) que consumen las políticas RLS.
+- **Dos roles de BD (menor privilegio)**: `odontorisas_admin` (owner, solo Flyway/DDL) + `odontorisas_app` (runtime, solo DML, **no** owner). Como la app no es owner, RLS le aplica de forma **ineludible** y una inyección no puede desactivarla; `FORCE ROW LEVEL SECURITY` como defensa en profundidad. **Ningún rol de app puede ser `SUPERUSER` ni tener `BYPASSRLS`** (saltan RLS). Flyway usa credenciales propias sobre el mismo datasource; en local caen a las de la app si no se definen (ver `secrets.properties.example` y `scripts/db-roles.sql`).
+- **Observabilidad**: `organizationId`/`userId` en el MDC junto al `traceId`.
 
 ---
 
@@ -113,6 +130,7 @@ Detalle ampliado en las docs del template: `architecture.md`, `coding-standards.
 - **Frontend**: `pnpm validate` (typecheck + lint + test); e2e Playwright cuando aplique.
 - **CI por PR**: `openspec validate --strict` + validate de backend + frontend.
 - **Commits**: Conventional Commits. **Pre-commit** (front): `lint-staged`.
+- **Seguridad y observabilidad (planeado, aún NO adoptado)**: escaneo de vulnerabilidades de dependencias (empezar por **GitHub Dependabot** + `pnpm audit` / OWASP Dependency-Check en CI; **Snyk** si se requiere SAST, licencias o escaneo de contenedores, con cuenta/`SNYK_TOKEN`) y monitoreo de errores en runtime con **Sentry** (SDK front React + back Spring Boot, correlacionable con el `traceId` de RFC 9457). Se introducen con el setup de deploy/entornos. Ver `docs/vision.md §7`.
 
 ---
 

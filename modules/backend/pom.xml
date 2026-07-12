@@ -20,6 +20,7 @@
     <properties>
         <java.version>25</java.version>
         <java-jwt.version>4.5.0</java-jwt.version>
+        <springdoc.version>3.0.3</springdoc.version>
         <testcontainers.version>1.21.3</testcontainers.version>
     </properties>
 
@@ -74,6 +75,13 @@
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-validation</artifactId>
+        </dependency>
+
+        <!-- OpenAPI / Swagger (springdoc v3 = compatible con Spring Boot 4) -->
+        <dependency>
+            <groupId>org.springdoc</groupId>
+            <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
+            <version>${springdoc.version}</version>
         </dependency>
 
         <!-- Seguridad + JWT -->
@@ -146,6 +154,21 @@
 
     <build>
         <plugins>
+            <!-- Lombok como annotation processor explícito (JDK 23+ ya no procesa
+                 procesadores del classpath de forma implícita). -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <configuration>
+                    <annotationProcessorPaths>
+                        <path>
+                            <groupId>org.projectlombok</groupId>
+                            <artifactId>lombok</artifactId>
+                            <version>${lombok.version}</version>
+                        </path>
+                    </annotationProcessorPaths>
+                </configuration>
+            </plugin>
             <plugin>
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>
@@ -157,6 +180,21 @@
                         </exclude>
                     </excludes>
                 </configuration>
+            </plugin>
+            <!-- Ejecuta las clases *IT (tests de integración con Testcontainers) en la
+                 fase `verify`. Sin failsafe, surefire solo corre *Test/*Tests y los *IT
+                 nunca se ejecutan. La versión la gestiona el parent de Spring Boot. -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-failsafe-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>integration-test</goal>
+                            <goal>verify</goal>
+                        </goals>
+                    </execution>
+                </executions>
             </plugin>
         </plugins>
     </build>

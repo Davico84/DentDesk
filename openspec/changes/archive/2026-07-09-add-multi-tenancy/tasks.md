@@ -1,0 +1,76 @@
+## 1. Base de datos
+
+- [x] 1.0 **Roles de BD (design.md D7)**: provisión de `odontorisas_admin` (owner/Flyway) y `odontorisas_app` (runtime, DML, no-owner) — script/instrucciones idempotentes (Open Question 6); `application.yml` con `spring.flyway.user`=admin y `spring.datasource.username`=app; `secrets.properties.example` con **dos** juegos de credenciales y la nota de que ningún rol de app puede ser `SUPERUSER`/`BYPASSRLS`
+- [x] 1.1 `ALTER DEFAULT PRIVILEGES FOR ROLE odontorisas_admin GRANT SELECT,INSERT,UPDATE,DELETE ON TABLES` (+ `USAGE,SELECT ON SEQUENCES`) `TO odontorisas_app`; GRANT sobre `users`/`refresh_tokens` existentes
+- [x] 1.2 Crear `V6__organizations.sql`: tabla `organizations` (`id` identidad, `name`, `slug` único, `type`, `status`, timestamps)
+- [x] 1.3 En `V6`: tabla `organization_settings` (`organization_id` PK/FK 1:1, `timezone`, `locale`, `currency`)
+- [x] 1.4 En `V6`: tabla `memberships` (`id`, `user_id` FK, `organization_id` FK, `role`, `status`, timestamps, único `(user_id, organization_id)`) + índice sobre `organization_id` (el único ya sirve las consultas que lideran por `user_id`)
+- [x] 1.5 En `V6`: backfill idempotente — si hay usuarios, crear organización por defecto (`type = CLINIC`) + settings y una membresía por usuario arrastrando su `users.role`; si `users` está vacía, no crear nada
+- [x] 1.6 En `V6`: `ALTER TABLE users ADD COLUMN status DEFAULT 'ACTIVE'`; `ALTER TABLE users DROP COLUMN role` (`refresh_tokens` **no** cambia); GRANT de las tablas nuevas al rol de app
+- [x] 1.7 Crear `V7__rls.sql`: `ENABLE`/`FORCE ROW LEVEL SECURITY` sobre `memberships` + política de identidad `membership_identity_isolation` (`user_id = current_setting('app.user_id')::bigint`, **sin** `missing_ok` → fail-closed ruidoso)
+
+## 2. Backend — modelo de plataforma
+
+- [x] 2.1 `Organization.java` (+ enums `OrganizationType` con `CLINIC` y `OrganizationStatus`) y `OrganizationRepository` (búsqueda por `slug`); `slug` inmutable
+- [x] 2.2 `OrganizationSettings.java` (1:1 con `Organization`, defaults `timezone`/`locale`/`currency`) y su repositorio
+- [x] 2.3 `Membership.java` (+ enum `MembershipStatus`, `role` reutilizando `Role`) y `MembershipRepository` (por `user_id` y por `(user_id, organization_id)`)
+- [x] 2.4 Refactor de `User`: eliminar `role`; añadir `status` (`UserStatus` = `ACTIVE|LOCKED|DISABLED`); la identidad queda global
+- [x] 2.5 Servicio de derivación y desambiguación de `slug` a partir del nombre (Open Question 4)
+
+## 3. Backend — mecanismo de aislamiento (design.md D6, D7, D10)
+
+- [x] 3.1 `common/IdentityContext.java` y `common/OrganizationContext.java` (`ThreadLocal<Long>`) con `set`/`get`/`clear`
+- [x] 3.2 `CurrentTenantIdentifierResolver<Long>` que lee de `OrganizationContext`; comportamiento sin contexto (Open Question 3); registrarlo en Hibernate 7.2
+- [x] 3.3 Propagación por transacción en **una sola sentencia**: `SELECT set_config('app.user_id', ?, true), set_config('app.organization_id', ?, true)` desde ambos contextos (Interceptor de Hibernate vs `DataSource` delegado — Open Question 1); se valida con los tests 6.2 y 6.3
+- [x] 3.4 **Alias `set_config` en H2** (Open Question 7): función no-op de test + `CREATE ALIAS`, para que los slices con H2 no rompan al abrir transacción; producción agnóstica
+- [x] 3.5 **Regla transaccional (design.md D12)**: test ArchUnit que exija `@Transactional` en el acceso a entidades bajo RLS (`memberships` y futuras de negocio)
+- [x] 3.6 Convención de RLS por tabla de negocio: helper/plantilla SQL reutilizable (`ENABLE`/`FORCE` + policy `organization_isolation`) documentada para las capacidades de negocio
+- [x] 3.7 **Tripwire ArchUnit async (design.md D13)**: test que falla la build si aparece `@Async`/`@Scheduled` mientras no exista el `TenantContextTaskDecorator` cableado; el mensaje remite a `docs/backend.md`. Guarda contra pérdida de contexto en hilos, sin construir infra muerta hoy
+
+## 4. Backend — autenticación con identidad y organización activa
+
+- [x] 4.1 `AccessClaims`: `(userId, organizationId, email, role)`; emitir/leer los claims `sub`, `oid` y `role` en `TokenService`
+- [x] 4.2 `JwtAuthenticationFilter`: poblar `IdentityContext` (desde `sub`) y `OrganizationContext` (desde `oid`), exponer el rol a Spring Security y **limpiar ambos contextos en un `finally`**; rechazar como no autenticado un token válido sin `oid`
+- [x] 4.3 `AuthService.register`: crear `Organization` + `OrganizationSettings` + `User` + `Membership(ADMIN)` en una única `@Transactional`, fijando `app.user_id` antes de insertar la membresía (design.md D8); `RegisterCommand` +nombre de organización
+- [x] 4.4 `AuthService.login`: autenticar por identidad; fijar `app.user_id`; cargar la (única) membresía y emitir el token con su organización y rol (design.md D5)
+- [x] 4.5 `AuthService.refresh`: derivar la organización activa vía `User → Membership`; releer el rol vigente; emitir el token con `oid` y rol
+- [x] 4.6 **Gate por estado (design.md D14)**: login, refresh (y select-organization a futuro) exigen `user.status = ACTIVE` ∧ `membership.status = ACTIVE` ∧ `organization.status = ACTIVE`; login rechaza sin filtrar cuál falló, refresh cierra sesión
+- [x] 4.7 `RegisterRequest` +nombre de organización con Bean Validation; `UserResponse` expone la organización activa (nombre, `slug`) y el rol
+- [x] 4.8 **MDC (design.md D9)**: `JwtAuthenticationFilter` añade `organizationId`/`userId` al MDC junto al `traceId` y los retira en el `finally`
+- [x] 4.9 **Traducción de colisiones en el registro**: capturar `DataIntegrityViolationException` (carrera TOCTOU sobre el `UNIQUE` de email o `slug`, pese al pre-chequeo y a la desambiguación) en `AuthService`/`GlobalExceptionHandler` → `409 Conflict` con código específico (`EMAIL_ALREADY_EXISTS` / `ORGANIZATION_SLUG_TAKEN`), no un `500` genérico
+
+## 5. Contrato y frontend
+
+- [x] 5.1 Regenerar `contracts/openapi.json` y los artefactos de orval (`pnpm generate:api`); comprobar el gate "sin drift" de `api-type-contracts`
+- [x] 5.2 `RegisterForm`: campo "Nombre de la clínica" (mapea a `Organization.name`) con validación Zod en paridad con Bean Validation (`docs/coding-style.md §7`)
+- [x] 5.3 Store de sesión (Zustand): exponer la organización activa y el rol a partir de la respuesta de auth; ajustar `RouteGuard` para leer el rol de la sesión (cambia el origen, no el uso). Verificar que el **bootstrap ya existente** (`useSessionBootstrap` → refresh al montar, splash en `RootLayout`) repuebla organización + rol **antes** de que `RouteGuard` evalúe, para no perder estado en F5 (recarga)
+- [x] 5.4 Tests de frontend (Vitest + MSW): "Nombre de organización ausente (validación en cliente)" y "Registro exitoso"
+
+## 6. Tests derivados de los Scenario
+
+- [x] 6.1 Introducir el slice de integración con **PostgreSQL real (Testcontainers)** para RLS (Open Question 2); confirmar que encaja con `mvn verify` en CI
+- [x] 6.2 `multi-tenancy` — "Un usuario solo ve sus propias membresías" y "Una consulta de membresías que omite el filtro sigue estando aislada": **RLS de identidad real sobre `memberships`**; consulta sin `WHERE user_id` que RLS restringe. Fallaría si el rol de BD hiciera bypass (valida D7)
+- [x] 6.3 `multi-tenancy` — "Una consulta que omite el filtro sigue estando aislada" (organización): entidad-fixture con `@TenantId` + migración de test con RLS; consulta sin `WHERE organization_id` que RLS restringe (valida D6, D10)
+- [x] 6.4 `multi-tenancy` — "Una consulta de negocio solo alcanza datos de su propia organización", "Acceso directo por identificador a un recurso de otra organización", "Operación de negocio sin organización en el contexto" (sobre la entidad-fixture)
+- [x] 6.4b `multi-tenancy` — **escritura cruzada rechazada** (D2): en el contexto de la org A, un `INSERT`/`UPDATE` con `organization_id` de la org B (vía consulta nativa) es rechazado por RLS; y `@TenantId` auto-rellena la org del contexto
+- [x] 6.5 `multi-tenancy` — "El contexto se deriva del token", "El cliente no puede suplantar la organización", "Token de acceso sin organización activa" (security-test / webmvc-test)
+- [x] 6.6 `multi-tenancy` — "El contexto no sobrevive a la petición": dos peticiones consecutivas de organizaciones distintas en el mismo hilo
+- [x] 6.7 `multi-tenancy` — "Alta correcta de una organización", "El alta es atómica", "Dos organizaciones con el mismo nombre", "El slug no cambia al renombrar", "Nombre de organización ausente o inválido"
+- [x] 6.8 `multi-tenancy` — "Un correo identifica a una única persona", "El rol pertenece a la membresía, no a la identidad", "El rol de administrador está acotado a su organización", "Deshabilitar una membresía no deshabilita la identidad"
+- [x] 6.9 `authentication` — actualizar los tests de registro (crea `Organization`+`Settings`+`User`+`Membership` ADMIN), login (token con `oid`+rol de membresía) y refresh (`oid` derivado, rol releído)
+- [x] 6.10 `authentication` — **gate por estado (D14)**: inyectar directamente una membresía `SUSPENDED` / usuario `DISABLED` / organización suspendida y verificar que login rechaza y refresh cierra sesión
+
+## 7. Documentación (gobernanza del ciclo, `docs/vision.md §4`)
+
+- [ ] 7.1 `docs/vision.md`: §1 producto = SaaS multi-tenant (capa de plataforma reutilizable); §2 nueva fila `multi-tenancy` (técnica); §3 marcar 🚧 y enlazar este change; §6 secuencia (ninguna capacidad de negocio antes de ésta); §7 facturación SaaS como candidata futura, distinta de `billing`. **En lockstep: `readme.md`** — encuadre de producto (clínica → SaaS multi-tenant) y marcar `multi-tenancy` como ✅ construida en la tabla de estado (evita la staleness que ya tuvo tras archivar `add-authentication`)
+- [ ] 7.2 `docs/domain.md`: `User` como identidad global; entidades `Organization`, `OrganizationSettings`, `Membership`; actor administrador de organización; glosario (organización/tenant, membresía, aislamiento, identidad); `organizationId` en las entidades de negocio; los dos `status`; ER actualizado (rol movido a `Membership`)
+- [x] 7.3 `docs/architecture.md`: sección "Multi-tenancy" (identidad vs tenant vs membresía; RLS de dos claves; resolución del contexto; `set_config` combinado por transacción; **dos roles de BD** admin/app con menor privilegio; H2 no prueba RLS → Testcontainers)
+- [x] 7.4 `docs/backend.md`: regla de persistencia (toda `@Entity` de negocio lleva `@TenantId` + `organization_id` + **índice sobre `organization_id`** y su migración aplica `ENABLE`/`FORCE` + policy `organization_isolation` **sin `missing_ok`**; `open-in-view` en `false`); **regla transaccional** (acceso a entidades RLS siempre en `@Transactional`, enforced por ArchUnit — D12); **regla de acceso** (el `organizationId`/`userId` se leen solo de `OrganizationContext`/`IdentityContext`, nunca de `@RequestHeader`/`@PathVariable`/`@RequestBody`); **convención async** (D13: `TaskDecorator` para async-de-request, contexto explícito para jobs de fondo); prohibido `nativeQuery` sin filtro
+- [x] 7.5 `docs/testing.md`: el test de aislamiento pasa a ser obligatorio por capacidad de negocio, y se ejecuta sobre PostgreSQL real (Testcontainers), no H2
+
+## 8. Cierre
+
+- [x] 8.1 `openspec validate add-multi-tenancy --strict`
+- [x] 8.2 `mvn verify` (backend, incluye RLS de `memberships` + fixture de organización con Testcontainers) y `pnpm validate` (frontend) en verde
+- [x] 8.3 Actualizar `design.md` con la resolución de las Open Questions
+- [x] 8.4 Commits por scope (backend / frontend / docs / openspec), Conventional Commits en español (`docs/commits.md`)

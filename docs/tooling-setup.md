@@ -1,6 +1,6 @@
 # Tooling y Setup — OdontoRisas
 
-Guía **reproducible** del tooling de calidad. Adaptada del template FixRiver a la estructura real de este repo (monorepo con `modules/frontend`, hooks de git en la **raíz**). Complementa `docs/testing.md` (pruebas) y `docs/coding-standards.md`.
+Guía **reproducible** del tooling de calidad. Adaptada del template FixRiver a la estructura real de este repo (monorepo con `modules/frontend`, hooks de git en la **raíz**). Complementa `docs/testing.md` (pruebas) y `docs/coding-style.md`.
 
 > Comandos de frontend desde `modules/frontend/`. Los hooks de commit son de repo (raíz).
 
