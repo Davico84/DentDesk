@@ -86,6 +86,7 @@ Este es el corazón del proyecto. Una **capacidad** es un área cohesiva de comp
 | `authentication` | negocio | ✅ construida | [`openspec/specs/authentication/`](openspec/specs/authentication/spec.md) |
 | `api-type-contracts` | técnica | ✅ construida | [`openspec/specs/api-type-contracts/`](openspec/specs/api-type-contracts/spec.md) |
 | `multi-tenancy` | técnica | ✅ construida | [`openspec/specs/multi-tenancy/`](openspec/specs/multi-tenancy/spec.md) |
+| `organization-branding` | negocio | ✅ construida | [`openspec/specs/organization-branding/`](openspec/specs/organization-branding/spec.md) |
 | `users`, `patients`, `appointments`, `treatments`, `images`, `billing`, `inventory`, `dashboard` | negocio | ⏳ planeadas | roadmap en [`docs/vision.md`](docs/vision.md) |
 
 > El producto es un **SaaS multi-tenant** (modelo identidad/organización/membresía, aislamiento por Row-Level Security). Reglas para construir capacidades de negocio: [`docs/backend.md §8.1`](docs/backend.md).
