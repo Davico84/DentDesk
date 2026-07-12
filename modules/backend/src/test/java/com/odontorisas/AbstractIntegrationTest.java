@@ -26,18 +26,22 @@ public abstract class AbstractIntegrationTest {
     }
 
     @DynamicPropertySource
-    static void datasourceProperties(DynamicPropertyRegistry registry) {
-        registry.add("spring.datasource.url", POSTGRES::getJdbcUrl);
-        registry.add("spring.datasource.username", POSTGRES::getUsername);
-        registry.add("spring.datasource.password", POSTGRES::getPassword);
-        // Flyway usa por defecto el rol admin/owner (`spring.flyway.user` en application.yml apunta
-        // a ${DB_ADMIN_USERNAME:${DB_USERNAME}}). En CI no hay secrets.properties ni env, así que
-        // esos placeholders quedarían sin resolver: aquí Flyway usa las credenciales del contenedor
-        // (que es owner del esquema, como corresponde a las migraciones).
-        registry.add("spring.flyway.user", POSTGRES::getUsername);
-        registry.add("spring.flyway.password", POSTGRES::getPassword);
+    static void containerProperties(DynamicPropertyRegistry registry) {
+        // application.yml resuelve el datasource y Flyway desde placeholders de ENTORNO
+        // (${DB_URL}, ${DB_USERNAME}, ${DB_PASSWORD}, ${DB_ADMIN_USERNAME}, ${JWT_SECRET}...).
+        // En CI no existen (sin secrets.properties ni variables de entorno), así que aquí los
+        // proveemos con los datos del contenedor. Rellenar los placeholders que application.yml
+        // REFERENCIA (no sobreescribir spring.*) hace que TODAS las referencias resuelvan por el
+        // mecanismo normal —incluida la de Flyway, que sólo funcionó con este enfoque—.
+        registry.add("DB_URL", POSTGRES::getJdbcUrl);
+        registry.add("DB_USERNAME", POSTGRES::getUsername);
+        registry.add("DB_PASSWORD", POSTGRES::getPassword);
+        // Flyway (DDL) corre como rol owner (DB_ADMIN_*); en tests, el mismo usuario del
+        // contenedor, que es owner del esquema. Proveerlo evita el fallback anidado a ${DB_USERNAME}.
+        registry.add("DB_ADMIN_USERNAME", POSTGRES::getUsername);
+        registry.add("DB_ADMIN_PASSWORD", POSTGRES::getPassword);
         // Secret JWT dummy: application.yml lo toma de ${JWT_SECRET} (sin default) y en CI no existe.
-        // Solo sirve para arrancar el contexto en tests; ningún test depende de su valor concreto.
-        registry.add("app.security.jwt.secret", () -> "test-secret-ci-0123456789-0123456789-0123456789");
+        // Solo sirve para arrancar el contexto; ningún test depende de su valor concreto.
+        registry.add("JWT_SECRET", () -> "test-secret-ci-0123456789-0123456789-0123456789");
     }
 }
