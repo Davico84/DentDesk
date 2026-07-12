@@ -18,19 +18,19 @@
 
 ## 4. Backend — status real y errores específicos por operación (design.md D1)
 
-- [ ] 4.1 `AuthController.register`: **`201`** + `400` (validación) + `409` (con `type` que discrimina correo vs slug)
-- [ ] 4.2 `AuthController.logout`: **`204`** (sin cuerpo)
-- [ ] 4.3 `AuthController.login`: `200` + `400` + **`401` semántico** (el customizer no lo añade: es ruta pública)
-- [ ] 4.4 `AuthController.refresh`: `200` + **`401` semántico**
-- [ ] 4.5 `BrandingController.getBranding`: **solo `200`** (el `401`/`500` los pone el customizer — y eso es justo lo que verifica 3.3)
-- [ ] 4.6 `BrandingController.updateBranding`: `200` + `400` (el `401`/`403`/`500` los pone el customizer)
-- [ ] 4.7 **Verificar el riesgo de D1**: donde se declara `201`/`204`, **el `200` fantasma de springdoc desaparece** (no deben convivir)
+- [x] 4.1 `AuthController.register`: **`201`** + `400` (validación) + `409` (con `type` que discrimina correo vs slug)
+- [x] 4.2 `AuthController.logout`: **`204`** (sin cuerpo)
+- [x] 4.3 `AuthController.login`: `200` + `400` + **`401` semántico** (el customizer no lo añade: es ruta pública)
+- [x] 4.4 `AuthController.refresh`: `200` + **`401` semántico**
+- [x] 4.5 `BrandingController.getBranding`: **solo `200`** (el `401`/`500` los pone el customizer — y eso es justo lo que verifica 3.3)
+- [x] 4.6 `BrandingController.updateBranding`: `200` + `400` (el `401`/`403`/`500` los pone el customizer)
+- [x] 4.7 **Verificar el riesgo de D1**: donde se declara `201`/`204`, **el `200` fantasma de springdoc desaparece** (no deben convivir)
 
 ## 5. Contrato — regenerar y verificar
 
-- [ ] 5.1 Arrancar el backend y exportar `/v3/api-docs` → `contracts/openapi.json`
-- [ ] 5.2 **Verificar el JSON**: `201` en registro sin `200`; `204` en logout; `400`/`401`/`403`/`409`/`500` donde corresponde; los cuerpos de error referencian los schemas tipados (no `object` opaco)
-- [ ] 5.3 **Test (Scenario "El status documentado coincide con el real")**: ejecutar cada operación y comparar el status obtenido con el declarado en el contrato versionado
+- [x] 5.1 Arrancar el backend y exportar `/v3/api-docs` → `contracts/openapi.json`
+- [x] 5.2 **Verificar el JSON**: `201` en registro sin `200`; `204` en logout; `400`/`401`/`403`/`409`/`500` donde corresponde; los cuerpos de error referencian los schemas tipados (no `object` opaco)
+- [x] 5.3 **Test (Scenario "El status documentado coincide con el real")**: ejecutar cada operación y comparar el status obtenido con el declarado en el contrato versionado
 
 ## 6. CI — el guardián que faltaba: drift backend → contrato (design.md D5/D7)
 

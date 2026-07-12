@@ -7,12 +7,14 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
+import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 /**
@@ -77,5 +79,42 @@ class OpenApiContractIT extends AbstractIntegrationTest {
         Map<String, Object> schemas = JsonPath.read(apiDocs, "$.components.schemas");
 
         assertThat(schemas).containsKeys("ApiProblem", "ValidationProblem", "FieldError");
+    }
+
+    /**
+     * Scenario "El status documentado coincide con el real": ejecuta la operación y compara el
+     * status que devuelve de verdad con el que el documento declara. Es lo que impide que el
+     * contrato vuelva a mentir sobre el status (que era el defecto original: decía 200 donde la
+     * API devuelve 201 y 204).
+     */
+    @Test
+    void the_documented_success_status_matches_the_real_one() throws Exception {
+        // El registro devuelve 201 de verdad...
+        mockMvc.perform(post("/auth/register").contentType(MediaType.APPLICATION_JSON)
+                .content("{\"organizationName\":\"Clínica Contrato\",\"email\":\"contrato@clinica.test\","
+                    + "\"password\":\"password123\",\"fullName\":\"Ana Pérez\"}"))
+            .andExpect(status().isCreated());
+        // ...y eso es lo que documenta, sin dejar un 200 fantasma.
+        assertThat(responsesOf("/auth/register", "post"))
+            .containsKey("201")
+            .doesNotContainKey("200");
+
+        // El logout devuelve 204 de verdad...
+        mockMvc.perform(post("/auth/logout"))
+            .andExpect(status().isNoContent());
+        // ...y eso documenta.
+        assertThat(responsesOf("/auth/logout", "post"))
+            .containsKey("204")
+            .doesNotContainKey("200");
+    }
+
+    /** Las operaciones que sí devuelven 200 lo conservan (declararlas no debe borrar su schema). */
+    @Test
+    void operations_returning_200_keep_it_with_its_response_schema() {
+        assertThat(responsesOf("/auth/login", "post")).containsKey("200");
+        assertThat(responsesOf(BRANDING, "put")).containsKey("200");
+
+        String loginOk = JsonPath.read(apiDocs, "$.paths['/auth/login'].post.responses.200").toString();
+        assertThat(loginOk).contains("AuthResponse");
     }
 }
