@@ -13,7 +13,7 @@ Dimensión de **negocio** (sustituible por proyecto). Base de conocimiento del d
 |---|---|---|
 | **Administrador** | Gestiona la clínica: usuarios/staff, facturación, inventario y métricas del panel. | `ADMIN` |
 | **Dentista / Odontólogo** | Personal clínico: atiende citas, registra tratamientos y odontograma, notas e imágenes. | `USER` (rol clínico) |
-| **Paciente** | Persona atendida (menor o adulto). Puede tener acceso al sistema (`User` vinculado) o no. | `USER` / sin cuenta |
+| **Paciente** | Persona atendida (menor o adulto). Es un **cliente de la clínica**: un registro clínico-administrativo, **no una identidad del sistema**. No tiene cuenta ni inicia sesión; lo da de alta el staff. | — (sin cuenta) |
 | **Tutor / Responsable** | Adulto responsable de un paciente **menor**. No es necesariamente usuario del sistema; sus datos viven en el `Patient`. Otorga el consentimiento en menores. | — |
 
 > Los roles de sistema (`ADMIN`/`USER`) los define `authentication`; el mapeo fino de permisos clínicos se detalla al construir `users`/`patients`/`treatments`.
@@ -63,7 +63,7 @@ Dimensión de **negocio** (sustituible por proyecto). Base de conocimiento del d
 > Estado: **conceptual / por detallar**. Cada capacidad refina su parte al construirse.
 
 ### `authentication` / `users` → **User** *(identidad global; construida)*
-**Identidad** de una persona en la plataforma: existe **una sola vez** (correo único global) y **no tiene rol ni organización propios** (el rol vive en `Membership`). Un `User` puede o no estar vinculado a un `Patient`.
+**Identidad** de una persona en la plataforma: existe **una sola vez** (correo único global) y **no tiene rol ni organización propios** (el rol vive en `Membership`). Los `User` son el **staff de la clínica** (administrador, recepción, odontólogos): son quienes inician sesión. Los **pacientes NO son usuarios** (ver `Patient`).
 - **Construido**: `email` (único global), `passwordHash` (BCrypt), `fullName`, `status` (`ACTIVE` | `LOCKED` | `DISABLED`), `createdAt`/`updatedAt`.
 - **Movido a `Membership`** (en `multi-tenancy`): `role`. **Diferido a la capacidad `users`**: `username` (único), `phone`, `country`.
 
@@ -98,7 +98,7 @@ Ficha clínica-administrativa. Se atienden **menores y adultos**.
 - **Responsable (para menores)** — campos en el propio Patient: `guardianName`, `guardianRelationship` (madre/padre/tutor), `guardianDocument`, `guardianPhone`. Requeridos cuando el paciente es menor de edad.
 - **Contacto de emergencia**: `emergencyContactName`, `emergencyContactPhone`, `emergencyContactRelationship`
 - **Datos clínicos (anamnesis)** — condicionan el tratamiento: `allergies` (lista; anestesia, penicilina, látex…), `medicalHistory`/`conditions` (diabetes, hipertensión, embarazo, anticoagulantes, cardiopatías…), `currentMedication` (lista)
-- Vínculo opcional a `User` (si el paciente tiene acceso al sistema)
+- **NO es un usuario del sistema.** El paciente es un **cliente de la clínica**: solo un registro. No tiene cuenta, no inicia sesión y no se vincula a ningún `User`. Lo dan de alta el administrador o la recepcionista (que sí son `User`). *Un eventual portal del paciente sería una capacidad futura y añadiría el vínculo en ese momento; hoy queda fuera de alcance.*
 
 **Reglas de negocio que impactan el tratamiento** (a cubrir en los `#### Scenario:` de `patients`/`treatments`):
 - Paciente **menor de edad** ⇒ requiere responsable y **consentimiento del tutor** (ver `Consent`).
@@ -188,7 +188,6 @@ erDiagram
     Organization ||--o{ Membership : "reúne a"
     Organization ||--|| OrganizationSettings : "configura"
     Organization ||--o| OrganizationBranding : "personaliza"
-    User ||--o| Patient : "puede ser"
     User ||--o{ Appointment : "atiende (dentista)"
     Patient ||--o{ Appointment : "reserva"
     Patient ||--o{ Treatment : "recibe"
@@ -253,7 +252,6 @@ erDiagram
         String allergies
         String medicalHistory
         String currentMedication
-        Long userId FK
     }
     Appointment {
         Long id PK
