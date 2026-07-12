@@ -13,8 +13,8 @@
 ## 3. Backend — errores transversales automáticos (design.md D3)
 
 - [x] 3.1 Extraer las **rutas públicas a una fuente única** compartida con `SecurityConfig` (hoy la lista vive solo ahí; duplicarla haría que el contrato documentara `401` donde nunca ocurre)
-- [ ] 3.2 `OperationCustomizer` de springdoc: añade `500` a **todas** las operaciones; `401` a las que **no** son públicas; `403` a las cuyo `HandlerMethod` lleva `@PreAuthorize`
-- [ ] 3.3 **Test (Scenario "Los errores transversales se heredan sin declararlos")**: `getBranding` declarará **solo `200`** (tarea 4.5), así que basta con asertar que el documento le añade `401` y `500` — **no hace falta un controller sintético**
+- [x] 3.2 `OperationCustomizer` de springdoc: añade `500` a **todas** las operaciones; `401` a las que **no** son públicas; `403` a las cuyo `HandlerMethod` lleva `@PreAuthorize`
+- [x] 3.3 **Test (Scenario "Los errores transversales se heredan sin declararlos")**: `getBranding` declarará **solo `200`** (tarea 4.5), así que basta con asertar que el documento le añade `401` y `500` — **no hace falta un controller sintético**
 
 ## 4. Backend — status real y errores específicos por operación (design.md D1)
 

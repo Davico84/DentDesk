@@ -1,0 +1,81 @@
+package com.odontorisas.presentation;
+
+import com.jayway.jsonpath.JsonPath;
+import com.odontorisas.AbstractIntegrationTest;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
+import org.springframework.test.web.servlet.MockMvc;
+
+import java.util.Map;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+
+/**
+ * Verifica el <b>documento OpenAPI que el backend publica de verdad</b> (no el snapshot
+ * versionado): que declara el status real de cada operación y que los errores transversales
+ * se inyectan solos.
+ *
+ * <p>Scenario "Los errores transversales se heredan sin declararlos": la clave está en que
+ * {@code getBranding} declara <b>solo su 200</b>. Que aun así aparezca con {@code 401} y
+ * {@code 500} es la prueba de que el mecanismo funciona <b>por defecto</b> — y de que una
+ * capacidad futura ({@code patients}…) heredará sus errores sin escribir una línea.
+ */
+@SpringBootTest
+@AutoConfigureMockMvc
+class OpenApiContractIT extends AbstractIntegrationTest {
+
+    private static final String BRANDING = "/organizations/me/branding";
+
+    @Autowired
+    MockMvc mockMvc;
+
+    private String apiDocs;
+
+    @BeforeEach
+    void fetchApiDocs() throws Exception {
+        apiDocs = mockMvc.perform(get("/v3/api-docs"))
+            .andExpect(status().isOk())
+            .andReturn().getResponse().getContentAsString();
+    }
+
+    private Map<String, Object> responsesOf(String path, String method) {
+        return JsonPath.read(apiDocs, "$.paths['" + path + "']." + method + ".responses");
+    }
+
+    @Test
+    void a_protected_operation_inherits_401_and_500_without_declaring_them() {
+        // getBranding solo declara su 200: el 401 y el 500 los pone el customizer.
+        assertThat(responsesOf(BRANDING, "get")).containsKeys("401", "500");
+    }
+
+    @Test
+    void an_operation_restricted_by_role_inherits_403() {
+        // updateBranding lleva @PreAuthorize("hasRole('ADMIN')").
+        assertThat(responsesOf(BRANDING, "put")).containsKey("403");
+    }
+
+    @Test
+    void a_public_operation_does_not_get_a_session_401() {
+        // /auth/register es pública: no puede fallar por "sesión ausente", así que el customizer
+        // no debe inventarle un 401. (El 401 semántico de login/refresh se declara aparte.)
+        assertThat(responsesOf("/auth/register", "post")).doesNotContainKey("401");
+    }
+
+    @Test
+    void every_operation_documents_the_unexpected_error() {
+        assertThat(responsesOf(BRANDING, "get")).containsKey("500");
+        assertThat(responsesOf("/auth/register", "post")).containsKey("500");
+    }
+
+    @Test
+    void the_error_schemas_are_registered_so_the_refs_resolve() {
+        Map<String, Object> schemas = JsonPath.read(apiDocs, "$.components.schemas");
+
+        assertThat(schemas).containsKeys("ApiProblem", "ValidationProblem", "FieldError");
+    }
+}
