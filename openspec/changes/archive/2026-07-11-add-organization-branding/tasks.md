@@ -39,9 +39,9 @@
 
 ## 7. Documentación (al archivar)
 
-- [ ] 7.1 `docs/domain.md`: entidad `OrganizationBranding` (1:1 con `Organization`, sin RLS)
+- [x] 7.1 `docs/domain.md`: entidad `OrganizationBranding` (1:1 con `Organization`, sin RLS)
 - [x] 7.2 `docs/frontend.md`: mecanismo de tematización por organización (tokens CSS, `deriveTheme`, `useBranding`, contraste)
-- [ ] 7.3 `docs/vision.md` + `readme`: marcar `organization-branding` como construida (estado)
+- [x] 7.3 `docs/vision.md` + `readme`: marcar `organization-branding` como construida (estado)
 
 ## 8. Cierre
 

@@ -28,9 +28,11 @@ spring:
     locations: classpath:db/migration
     # Menor privilegio: las migraciones (DDL) corren con el rol admin/owner y la app
     # (datasource de arriba) con un rol solo-DML no-owner. Si no se definen credenciales
-    # de admin, Flyway usa las mismas de la app (entorno local de un solo usuario).
-    user: ${DB_ADMIN_USERNAME:${DB_USERNAME}}
-    password: ${DB_ADMIN_PASSWORD:${DB_PASSWORD}}
+    # de admin, Flyway usa las mismas de la app (entorno local de un solo usuario). El
+    # fallback apunta al datasource ya resuelto (no al env crudo ${DB_USERNAME}), así el
+    # contexto también arranca en tests/CI, donde el datasource se inyecta dinámicamente.
+    user: ${DB_ADMIN_USERNAME:${spring.datasource.username}}
+    password: ${DB_ADMIN_PASSWORD:${spring.datasource.password}}
 
 app:
   security:
