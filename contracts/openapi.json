@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "OdontoRisas API",
-    "description": "API de la clínica dental OdontoRisas",
+    "description": "API de la clÃ­nica dental OdontoRisas",
     "version": "v1"
   },
   "servers": [
@@ -14,11 +14,11 @@
   "tags": [
     {
       "name": "organization-branding",
-      "description": "Personalización visual por organización"
+      "description": "PersonalizaciÃ³n visual por organizaciÃ³n"
     },
     {
       "name": "auth",
-      "description": "Autenticación"
+      "description": "AutenticaciÃ³n"
     }
   ],
   "paths": {
@@ -35,6 +35,26 @@
               "*/*": {
                 "schema": {
                   "$ref": "#/components/schemas/BrandingResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Error inesperado del servidor.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiProblem"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No autenticado: falta la sesiÃ³n o no es vÃ¡lida.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiProblem"
                 }
               }
             }
@@ -58,11 +78,51 @@
         },
         "responses": {
           "200": {
-            "description": "OK",
+            "description": "Marca actualizada (o eliminada, si se envÃ­a vacÃ­a).",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/BrandingResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Color con formato invÃ¡lido, o URL de logo que no es https.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationProblem"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Error inesperado del servidor.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiProblem"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No autenticado: falta la sesiÃ³n o no es vÃ¡lida.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiProblem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Autenticado, pero sin el rol necesario para esta operaciÃ³n.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiProblem"
                 }
               }
             }
@@ -87,12 +147,42 @@
           "required": true
         },
         "responses": {
-          "200": {
-            "description": "OK",
+          "201": {
+            "description": "OrganizaciÃ³n y administrador creados; sesiÃ³n iniciada.",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/AuthResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Campos invÃ¡lidos (ver `errors` para el detalle por campo).",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationProblem"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "El correo ya estÃ¡ registrado, o ya existe una organizaciÃ³n con ese identificador. El campo `type` discrimina cuÃ¡l de los dos (`/errors/email-already-exists` o `/errors/organization-slug-taken`).",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiProblem"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Error inesperado del servidor.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiProblem"
                 }
               }
             }
@@ -118,11 +208,31 @@
         ],
         "responses": {
           "200": {
-            "description": "OK",
+            "description": "SesiÃ³n renovada; se rota la cookie de refresco.",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/AuthResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Falta la cookie de refresco, o es invÃ¡lida o estÃ¡ revocada.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiProblem"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Error inesperado del servidor.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiProblem"
                 }
               }
             }
@@ -147,8 +257,18 @@
           }
         ],
         "responses": {
-          "200": {
-            "description": "OK"
+          "204": {
+            "description": "SesiÃ³n cerrada; la cookie de refresco se invalida."
+          },
+          "500": {
+            "description": "Error inesperado del servidor.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiProblem"
+                }
+              }
+            }
           }
         }
       }
@@ -171,11 +291,41 @@
         },
         "responses": {
           "200": {
-            "description": "OK",
+            "description": "SesiÃ³n iniciada.",
             "content": {
-              "*/*": {
+              "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/AuthResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Campos invÃ¡lidos.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationProblem"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Correo o contraseÃ±a incorrectos.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiProblem"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Error inesperado del servidor.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiProblem"
                 }
               }
             }
@@ -223,6 +373,65 @@
             "type": "string",
             "description": "URL https del logo, o null = logo del producto",
             "example": "https://cdn.example.com/clinica/logo.png"
+          }
+        }
+      },
+      "FieldError": {
+        "description": "Campo invÃ¡lido y su motivo.",
+        "properties": {
+          "field": {
+            "type": "string",
+            "description": "Nombre del campo del request que fallÃ³.",
+            "example": "password"
+          },
+          "message": {
+            "type": "string",
+            "description": "Motivo, apto para mostrar al usuario.",
+            "example": "La contraseÃ±a debe tener al menos 8 caracteres"
+          }
+        }
+      },
+      "ValidationProblem": {
+        "description": "Error 400 en formato RFC 9457. Si viene de la validaciÃ³n, incluye el detalle por campo.",
+        "properties": {
+          "type": {
+            "type": "string",
+            "description": "Identificador del tipo de error.",
+            "example": "/errors/validation-error"
+          },
+          "title": {
+            "type": "string",
+            "description": "Resumen legible del tipo de error.",
+            "example": "Validation failed"
+          },
+          "status": {
+            "type": "integer",
+            "format": "int32",
+            "description": "CÃ³digo de estado HTTP.",
+            "example": 400
+          },
+          "detail": {
+            "type": "string",
+            "description": "ExplicaciÃ³n concreta del error.",
+            "example": "Uno o mÃ¡s campos son invÃ¡lidos."
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Momento en que se produjo el error.",
+            "example": "2026-07-12T10:15:30Z"
+          },
+          "traceId": {
+            "type": "string",
+            "description": "Identificador de traza. Opcional: solo si la peticiÃ³n lo tiene.",
+            "example": "3f2a1b4c5d6e7f80"
+          },
+          "errors": {
+            "type": "array",
+            "description": "Campos invÃ¡lidos. Ausente si el 400 no proviene de la validaciÃ³n (p. ej. JSON malformado).",
+            "items": {
+              "$ref": "#/components/schemas/FieldError"
+            }
           }
         }
       },
@@ -312,6 +521,43 @@
           "organizationSlug",
           "role"
         ]
+      },
+      "ApiProblem": {
+        "description": "Error de la API en formato RFC 9457 (ProblemDetail).",
+        "properties": {
+          "type": {
+            "type": "string",
+            "description": "Identificador del tipo de error; el cliente ramifica por Ã©l.",
+            "example": "/errors/email-already-exists"
+          },
+          "title": {
+            "type": "string",
+            "description": "Resumen legible del tipo de error.",
+            "example": "Conflict"
+          },
+          "status": {
+            "type": "integer",
+            "format": "int32",
+            "description": "CÃ³digo de estado HTTP.",
+            "example": 409
+          },
+          "detail": {
+            "type": "string",
+            "description": "ExplicaciÃ³n concreta de este error, apta para mostrar al usuario.",
+            "example": "El correo ya estÃ¡ registrado."
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Momento en que se produjo el error.",
+            "example": "2026-07-12T10:15:30Z"
+          },
+          "traceId": {
+            "type": "string",
+            "description": "Identificador de traza para correlacionar con los logs. Opcional: solo se emite si la peticiÃ³n lo tiene.",
+            "example": "3f2a1b4c5d6e7f80"
+          }
+        }
       },
       "LoginRequest": {
         "type": "object",
