@@ -1,6 +1,7 @@
 import { createBrowserRouter } from "react-router-dom";
 import { RootLayout } from "@/layouts/RootLayout";
 import { HomeScreen } from "@/screens/HomeScreen";
+import { BrandingSettingsScreen } from "@/screens/settings/BrandingSettingsScreen";
 import { LoginView } from "@/screens/auth/LoginView";
 import { RegisterView } from "@/screens/auth/RegisterView";
 import { RequireAuth } from "@/modules/core/auth/RequireAuth";
@@ -27,6 +28,10 @@ export const router = createBrowserRouter([
       {
         element: <RequireAuth />,
         children: [{ path: PATHS.ROOT, element: <HomeScreen /> }],
+      },
+      {
+        element: <RequireAuth roles={["ADMIN"]} />,
+        children: [{ path: PATHS.BRANDING, element: <BrandingSettingsScreen /> }],
       },
     ],
   },

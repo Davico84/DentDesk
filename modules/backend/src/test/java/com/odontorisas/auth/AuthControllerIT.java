@@ -32,17 +32,20 @@ class AuthControllerIT extends AbstractIntegrationTest {
     MockMvc mockMvc;
 
     private String registerBody(String email, String password) {
-        return "{\"email\":\"" + email + "\",\"password\":\"" + password + "\",\"fullName\":\"Ana Pérez\"}";
+        return "{\"organizationName\":\"Clínica Test\",\"email\":\"" + email
+            + "\",\"password\":\"" + password + "\",\"fullName\":\"Ana Pérez\"}";
     }
 
     @Test
-    void register_success_returns_201_with_token_and_refresh_cookie() throws Exception {
+    void register_success_returns_201_with_admin_membership_and_active_organization() throws Exception {
         mockMvc.perform(post("/auth/register").contentType(MediaType.APPLICATION_JSON)
                 .content(registerBody("nuevo@clinica.test", "password123")))
             .andExpect(status().isCreated())
             .andExpect(jsonPath("$.accessToken").isNotEmpty())
             .andExpect(jsonPath("$.user.email").value("nuevo@clinica.test"))
-            .andExpect(jsonPath("$.user.role").value("USER"))
+            .andExpect(jsonPath("$.user.role").value("ADMIN"))
+            .andExpect(jsonPath("$.user.organizationName").value("Clínica Test"))
+            .andExpect(jsonPath("$.user.organizationSlug").isNotEmpty())
             .andExpect(cookie().exists(REFRESH_COOKIE))
             .andExpect(cookie().httpOnly(REFRESH_COOKIE, true))
             .andExpect(header().string("Set-Cookie", org.hamcrest.Matchers.containsString("SameSite=Lax")));

@@ -1,6 +1,6 @@
 package com.odontorisas.persistence.entity;
 
-import com.odontorisas.common.Role;
+import com.odontorisas.common.UserStatus;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -20,7 +20,9 @@ import org.hibernate.annotations.UpdateTimestamp;
 import java.time.Instant;
 
 /**
- * Cuenta de acceso al sistema. La contraseña se guarda siempre como hash BCrypt.
+ * Identidad global de una persona en la plataforma. Existe una sola vez (correo único
+ * global) y NO tiene rol ni organización propios: el rol y la pertenencia viven en
+ * {@link Membership}. La contraseña se guarda siempre como hash BCrypt.
  */
 @Entity
 @Table(name = "users")
@@ -41,12 +43,12 @@ public class User {
     @Column(name = "password_hash", nullable = false)
     private String passwordHash;
 
-    @Enumerated(EnumType.STRING)
-    @Column(nullable = false, length = 20)
-    private Role role;
-
     @Column(name = "full_name", nullable = false, length = 120)
     private String fullName;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 20)
+    private UserStatus status;
 
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)

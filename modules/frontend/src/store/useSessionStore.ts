@@ -6,8 +6,12 @@ export type Role = "ADMIN" | "USER";
 export interface SessionUser {
   id: number;
   email: string;
+  fullName: string;
   role: Role;
-  fullName?: string;
+  /** Organización (clínica) activa de la sesión — el rol se interpreta dentro de ella. */
+  organizationId: number;
+  organizationName: string;
+  organizationSlug: string;
 }
 
 /**

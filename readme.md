@@ -1,6 +1,6 @@
 # OdontoRisas
 
-Sistema de gestión para una **clínica dental**: pacientes (menores y adultos), citas, tratamientos con odontograma, imágenes, facturación e inventario, con acceso por rol.
+**SaaS multi-clínica** de gestión dental: varias clínicas (organizaciones) con datos **aislados** gestionan pacientes (menores y adultos), citas, tratamientos con odontograma, imágenes, facturación e inventario, con acceso por rol dentro de su organización.
 
 Proyecto **greenfield** desarrollado con **especificaciones dirigidas (spec-driven) usando [OpenSpec](https://github.com/Fission-AI/OpenSpec)**. Monorepo modular: **backend** Java/Spring + **frontend** React/Vite.
 
@@ -25,10 +25,12 @@ Todo el desarrollo gira en torno a **capacidades** (capabilities), y cada capaci
 OdontoRisas/
 ├─ openspec/                  # 🧭 QUÉ hace el sistema (OpenSpec)
 │  ├─ specs/                  #   capacidades YA CONSTRUIDAS (1 carpeta = 1 capacidad)
-│  │  └─ project-foundation/spec.md
+│  │  ├─ project-foundation/spec.md
+│  │  ├─ authentication/spec.md
+│  │  └─ api-type-contracts/spec.md
 │  ├─ changes/                #   capacidades EN PROGRESO (propuestas de cambio)
-│  │  ├─ add-authentication/  #     proposal.md · design.md · tasks.md · specs/ (delta)
-│  │  └─ archive/             #     changes ya archivados (histórico)
+│  │  ├─ add-multi-tenancy/   #     proposal.md · design.md · tasks.md · specs/ (delta)
+│  │  └─ archive/             #     changes ya archivados (add-authentication, ...)
 │  └─ config.yaml             #   contexto del proyecto para la IA
 │
 ├─ docs/                      # 📚 CÓMO construimos (estándares perennes)
@@ -81,9 +83,12 @@ Este es el corazón del proyecto. Una **capacidad** es un área cohesiva de comp
 | Capacidad | Tipo | Estado | Dónde |
 |---|---|---|---|
 | `project-foundation` | técnica | ✅ construida | [`openspec/specs/project-foundation/`](openspec/specs/project-foundation/spec.md) |
-| `authentication` | negocio | 🚧 en progreso | [`openspec/changes/add-authentication/`](openspec/changes/add-authentication/) |
-| `api-type-contracts` | técnica | 🚧 en progreso | (mismo change `add-authentication`) |
+| `authentication` | negocio | ✅ construida | [`openspec/specs/authentication/`](openspec/specs/authentication/spec.md) |
+| `api-type-contracts` | técnica | ✅ construida | [`openspec/specs/api-type-contracts/`](openspec/specs/api-type-contracts/spec.md) |
+| `multi-tenancy` | técnica | ✅ construida | [`openspec/specs/multi-tenancy/`](openspec/specs/multi-tenancy/spec.md) |
 | `users`, `patients`, `appointments`, `treatments`, `images`, `billing`, `inventory`, `dashboard` | negocio | ⏳ planeadas | roadmap en [`docs/vision.md`](docs/vision.md) |
+
+> El producto es un **SaaS multi-tenant** (modelo identidad/organización/membresía, aislamiento por Row-Level Security). Reglas para construir capacidades de negocio: [`docs/backend.md §8.1`](docs/backend.md).
 
 > El catálogo completo, el orden sugerido y la convención de granularidad están en [`docs/vision.md`](docs/vision.md).
 
@@ -121,6 +126,30 @@ pnpm --filter odontorisas-frontend dev              # arranca en http://localhos
 cd modules/backend && ./mvnw verify                 # backend (test slices + ArchUnit)
 pnpm --filter odontorisas-frontend validate         # frontend (typecheck + lint + test)
 ```
+
+#### Estrategia de pruebas y razón de ser
+Para garantizar la estabilidad y la paridad con producción sin comprometer la velocidad de desarrollo, el proyecto clasifica y aplica las pruebas según su propósito (detalle en [`docs/testing.md`](docs/testing.md)):
+
+##### Backend
+*   **Tests de Arquitectura (ArchUnit)**: Validan de manera estática que no se rompan las dependencias entre capas (ej. `presentation` -> `service` -> `persistence`) ni las restricciones de multi-tenancy.
+*   **Tests Unitarios (JUnit 5 + Mockito)**: Prueban la lógica de negocio pura y servicios de forma aislada, mockeando la persistencia para máxima velocidad.
+*   **Tests de Integración y Slices (`@WebMvcTest`, `@SpringBootTest` + Testcontainers)**:
+    *   *Controladores y Seguridad*: Prueban los endpoints HTTP, serialización y permisos por rol.
+    *   *Persistencia y RLS (PostgreSQL real)*: Validan consultas JPA y el aislamiento multi-tenant a nivel de base de datos usando **Testcontainers**, lo que garantiza que los datos de una organización estén aislados de otra.
+
+##### Frontend
+*   **Tests Unitarios (Vitest)**: Validan funciones puras, helpers, mappers, validadores y estados globales (Zustand).
+*   **Tests de Componentes e Integración (Vitest + React Testing Library + MSW)**: Prueban la renderización, interacción de formularios y comunicación con la API interceptando peticiones de red mediante Mock Service Worker (MSW).
+*   **Tests de Extremo a Extremo (Playwright)**: Simulan flujos de usuario completos en navegadores reales (ej. workflows CRUD y flujos de login/logout).
+
+##### Ejecución: local vs CI
+Las clases **`*IT`** (integración con **Testcontainers**) corren en la fase `verify` vía `maven-failsafe-plugin`; los **`*Test`** (unitarios/ArchUnit) en `test` vía surefire.
+
+*   **Solo unitarios (rápido, sin Docker):** `cd modules/backend && ./mvnw test`
+*   **Todo, incluidos los IT (requiere Docker):** `./mvnw verify`
+
+> [!WARNING]
+> **Los IT con Testcontainers requieren Docker.** En **Windows con Docker Desktop** pueden **saltarse** en local (`Skipped`) por una incompatibilidad conocida entre el proxy de Docker Desktop y docker-java (`/info` devuelve HTTP 400) — **no es un fallo del código ni de la config del proyecto**. Estos tests **corren siempre en CI** (Linux, socket estándar). Si necesitas ejecutarlos en local en Windows, la vía fiable es lanzar `./mvnw verify` **desde una terminal WSL2** (Docker en el socket estándar, sin el proxy). Ver [`docs/testing.md`](docs/testing.md).
 
 ### Regenerar el cliente API (tras cambiar el contrato)
 ```bash

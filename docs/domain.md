@@ -22,6 +22,10 @@ Dimensión de **negocio** (sustituible por proyecto). Base de conocimiento del d
 
 | Término | Significado |
 |---|---|
+| **Organización (tenant)** | Cliente del SaaS que se aísla del resto. En este producto, una **clínica** es una organización. |
+| **Identidad** | La persona (`User`), única en toda la plataforma (correo único global). No tiene rol ni organización propios. |
+| **Membresía** | Pertenencia de una identidad a una organización, con su **rol** en ella. Un usuario puede tener varias. |
+| **Aislamiento (multi-tenant)** | Garantía de que una organización no ve ni escribe datos de otra. Dos capas: filtrado de aplicación (`@TenantId`) + Row-Level Security en PostgreSQL. |
 | **Ficha dental** | Vista compuesta (pantalla) que centraliza la atención de un paciente: datos, odontograma, tratamientos, notas, pagos, imágenes e historial de citas. No es una entidad. |
 | **Odontograma** | Representación del estado dental del paciente pieza por pieza y por superficie. |
 | **Notación FDI (ISO 3950)** | Código de dos dígitos por pieza (permanentes 11–48; temporales 51–85). |
@@ -58,14 +62,29 @@ Dimensión de **negocio** (sustituible por proyecto). Base de conocimiento del d
 
 > Estado: **conceptual / por detallar**. Cada capacidad refina su parte al construirse.
 
-### `authentication` / `users` → **User** *(construida en `authentication`)*
-Cuenta de acceso al sistema. Un `User` puede o no estar vinculado a un `Patient`.
-- **Construido** (capacidad `authentication`): `email` (único), `passwordHash` (BCrypt), `role` (`ADMIN` | `USER`), `fullName`, `createdAt`/`updatedAt`.
-- **Diferido a la capacidad `users`** (gestión de perfil): `username` (único), `phone`, `country`, `status` (activo/deshabilitado). El registro captura solo nombre/correo/contraseña.
+### `authentication` / `users` → **User** *(identidad global; construida)*
+**Identidad** de una persona en la plataforma: existe **una sola vez** (correo único global) y **no tiene rol ni organización propios** (el rol vive en `Membership`). Un `User` puede o no estar vinculado a un `Patient`.
+- **Construido**: `email` (único global), `passwordHash` (BCrypt), `fullName`, `status` (`ACTIVE` | `LOCKED` | `DISABLED`), `createdAt`/`updatedAt`.
+- **Movido a `Membership`** (en `multi-tenancy`): `role`. **Diferido a la capacidad `users`**: `username` (único), `phone`, `country`.
+
+### `multi-tenancy` → **Organization** *(el tenant; construida)*
+La organización cliente del SaaS (una **clínica** es una organización). Es el sujeto del aislamiento de datos de negocio.
+- `name`, `slug` (único, **inmutable**), `type` (`OrganizationType`, hoy `CLINIC`), `status` (`ACTIVE` | `SUSPENDED`), `createdAt`/`updatedAt`.
+
+### `multi-tenancy` → **OrganizationSettings** *(construida)*
+Configuración 1:1 de la organización (punto de extensión).
+- `organizationId` (PK/FK, comparte clave con `Organization`), `timezone`, `locale`, `currency`.
+
+### `multi-tenancy` → **Membership** *(puente identidad↔organización; construida)*
+Define a qué organización pertenece un usuario y **con qué rol**. Es el corazón del modelo multi-tenant. Un usuario puede tener varias membresías (multi-organización); en el MVP el registro crea una (rol `ADMIN`) y el selector se difiere a `users`.
+- `user` (FK), `organization` (FK), `role` (`ADMIN` | `USER`), `status` (`ACTIVE` | `INACTIVE` | `SUSPENDED`), único `(user, organization)`, timestamps.
+- Aislada por **identidad** (Row-Level Security sobre `user_id`).
 
 ### `authentication` → **RefreshToken** *(construida)*
 Token de refresco persistido para rotación y revocación real (logout). Se guarda el **hash** del token, nunca el valor en claro.
-- `user` (FK), `tokenHash` (único), `expiresAt`, `revoked`, `createdAt`. El access token es JWT stateless (no se persiste).
+- `user` (FK), `tokenHash` (único), `expiresAt`, `revoked`, `createdAt`. El access token es JWT stateless (no se persiste); lleva la organización activa en el claim `oid`.
+
+> **Regla de aislamiento (multi-tenancy).** Toda entidad de **negocio** (`Patient`, `Appointment`, `Treatment`, `Invoice`…) pertenece a una organización: lleva `organizationId` + Row-Level Security por organización. `users`/`refresh_tokens` son dominio de auth (sin RLS por organización); `memberships` se aísla por identidad. Ver `docs/backend.md §8.1` y `openspec/specs/multi-tenancy/`.
 
 ### `patients` → **Patient**
 Ficha clínica-administrativa. Se atienden **menores y adultos**.
@@ -160,6 +179,9 @@ Implicaciones:
 
 ```mermaid
 erDiagram
+    User ||--o{ Membership : "pertenece vía"
+    Organization ||--o{ Membership : "reúne a"
+    Organization ||--|| OrganizationSettings : "configura"
     User ||--o| Patient : "puede ser"
     User ||--o{ Appointment : "atiende (dentista)"
     Patient ||--o{ Appointment : "reserva"
@@ -181,6 +203,26 @@ erDiagram
         Long id PK
         String email UK
         String passwordHash
+        String fullName
+        String status
+    }
+    Organization {
+        Long id PK
+        String name
+        String slug UK
+        String type
+        String status
+    }
+    OrganizationSettings {
+        Long organizationId PK
+        String timezone
+        String locale
+        String currency
+    }
+    Membership {
+        Long id PK
+        Long userId FK
+        Long organizationId FK
         String role
         String status
     }

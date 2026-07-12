@@ -19,7 +19,7 @@ describe("httpClient — interceptor de refresh", () => {
           : HttpResponse.json({ ok: true });
       }),
       http.post("*/auth/refresh", () =>
-        HttpResponse.json({ accessToken: "nuevo", user: { id: 1, email: "a@b.c", role: "USER" } }),
+        HttpResponse.json({ accessToken: "nuevo", user: { id: 1, email: "a@b.c", fullName: "Ana Test", role: "USER", organizationId: 5, organizationName: "Clínica Test", organizationSlug: "clinica-test" } }),
       ),
     );
 
