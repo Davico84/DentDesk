@@ -26,12 +26,19 @@ Dimensión de **negocio** (sustituible por proyecto). Define **qué** construimo
 | 2 | `users` | negocio | admin | gestión de usuarios/staff (roles, alta/baja) | 1 |
 | 3 | `patients` | negocio | staff | ficha de pacientes (datos personales, contacto) | 1 |
 | 4 | `appointments` | negocio | staff / paciente | agendamiento y estado de citas | 3, (2) |
-| 5 | `treatments` | negocio | odontólogo | tratamientos, historia clínica / odontograma | 3 |
-| 6 | `images` | negocio | odontólogo | subida de imágenes (radiografías/fotos) vía S3 | 3, 5 |
-| 7 | `billing` | negocio | staff / admin | cobros y facturación de tratamientos/citas | 4, 5 |
-| 8 | `inventory` | negocio | staff / admin | insumos y stock de la clínica | 1 |
-| 9 | `dashboard` | negocio | admin | panel con métricas (citas, ingresos, ocupación) | 2–8 |
-| 10 | `organization-branding` | negocio | admin | marca visual por organización (color de marca y logo) en el app shell | `multi-tenancy` |
+| 5 | `dental-chart` | negocio | odontólogo | **odontograma**: el *estado* dental pieza a pieza y por superficie (FDI, denticiones permanente/temporal), hallazgos e histórico del estado | 3 |
+| 6 | `treatments` | negocio | odontólogo | las *acciones* sobre ese estado: procedimientos (planificados/realizados), coste, notas clínicas y consentimiento | 3, 5 |
+| 7 | `images` | negocio | odontólogo | subida de imágenes (radiografías/fotos) vía S3 | 3, 6 |
+| 8 | `billing` | negocio | staff / admin | cobros y facturación de tratamientos/citas | 4, 6 |
+| 9 | `inventory` | negocio | staff / admin | insumos y stock de la clínica | 1 |
+| 10 | `dashboard` | negocio | admin | panel con métricas (citas, ingresos, ocupación) | 2–9 |
+| 11 | `organization-branding` | negocio | admin | marca visual por organización (color de marca y logo) en el app shell | `multi-tenancy` |
+
+> **Por qué `dental-chart` y `treatments` van separadas** (aplicando §5). Juntas, su alcance necesitaba una "y" —*"tratamientos **y** odontograma"*—, que es la señal de mala granularidad que marca esta misma guía; y cargaban con cinco entidades (`Tooth`, `ToothCondition`, `Treatment`, `DentalNote`, `Consent`), muy por encima del límite de ~7–8 requirements. El corte no es por actor (ambas son del odontólogo) sino **por sustantivo**: el odontograma es el **estado** de la boca; el tratamiento es la **acción** que lo cambia.
+>
+> El acoplamiento no obliga a fusionarlas: el Scenario *"al completar un tratamiento se actualiza el odontograma"* vive en `treatments`, que **depende de** `dental-chart` (igual que `billing` depende de `treatments` y son distintas). Y cada una **se sostiene sola**: consultar el estado dental tiene sentido sin registrar nada; registrar un procedimiento y su coste, también.
+>
+> ⚠️ Cuidado con **dos historiales distintos**: la evolución *del estado* de una pieza es de `dental-chart`; el histórico *de procedimientos* y su coste es de `treatments`. Un `#### Scenario:` que los mezcle es justo el olor que hay que evitar.
 
 > `multi-tenancy` y `api-type-contracts` son capacidades **técnicas** (no numeradas aquí); ver "Estado de capacidades" abajo.
 
@@ -47,7 +54,7 @@ Dimensión de **negocio** (sustituible por proyecto). Define **qué** construimo
   - ✅ **Reforzada por el change `update-api-type-contracts`.** El contrato incumplía el propósito de su propia capacidad: documentaba `200` donde la API devuelve `201`/`204`, **no documentaba ningún error** (así que el front escribía su forma a mano), el **`401` de sesión no era RFC 9457**, y —lo más grave— **nadie vigilaba que el contrato reflejara el backend**, dejando incumplido un Scenario que la capacidad ya prometía. Ahora: **el contrato dice la verdad** (status reales + errores tipados con `errors[]` por campo), **toda la API falla con un único formato**, los errores transversales (`401`/`403`/`500`) **se inyectan solos** —las capacidades futuras los heredan sin escribir una línea— y **CI vigila las dos direcciones del drift** (`ContractDriftIT`: backend→contrato · `codegen-drift`: contrato→cliente). Convenciones en `docs/backend.md §10.1-10.2` y `docs/frontend.md §2.1`.
 - ✅ **`multi-tenancy`** (técnica, **capa de plataforma reutilizable**) — **construida**. SaaS multi-tenant con modelo identidad/organización/membresía: `User` es identidad global, `Organization` es el tenant (una clínica = una organización), `Membership` (con el rol) une ambos. Aislamiento RLS de dos claves (identidad sobre `memberships`, organización sobre el negocio) + dos roles de BD (menor privilegio), contexto de organización por petición y alta autoservicio. Spec: `openspec/specs/multi-tenancy/spec.md` · change archivado: `openspec/changes/archive/2026-07-09-add-multi-tenancy/`. Modificó también `authentication` (el registro crea organización + identidad + membresía ADMIN; el rol pasó de `User` a la membresía; el token identifica la organización activa; gate por estado en login/refresh).
 - ✅ **`organization-branding`** (negocio) — **construida**. Personalización visual por organización (color de marca y logo por URL) aplicada al **app shell** post-login; tema derivado del color de marca con foregrounds por contraste (WCAG AA), respeta dark mode y no altera los colores semánticos; edición solo `ADMIN`; logo por URL `https` con respaldo al logo del producto; el favicon sigue siendo el del producto. Spec: `openspec/specs/organization-branding/spec.md` · change archivado: `openspec/changes/archive/2026-07-11-add-organization-branding/`. Depende de `multi-tenancy` (✅).
-- ⏳ **Resto** (`users`, `patients`, `appointments`, `treatments`, `images`, `billing`, `inventory`, `dashboard`) — planeadas. *(La capacidad `users` re-añadirá al registro/perfil: nombre de usuario, teléfono, país; e invitaciones + selección de organización activa.)*
+- ⏳ **Resto** (`users`, `patients`, `dental-chart`, `treatments`, `appointments`, `images`, `billing`, `inventory`, `dashboard`) — planeadas. *(La capacidad `users` re-añadirá al registro/perfil: nombre de usuario, teléfono, país; e invitaciones + selección de organización activa. `dental-chart` es el **odontograma** —el estado dental— y `treatments` las **acciones** que lo modifican: se separaron antes de construirlas, ver §2.)*
 
 > ⛔ **Bloqueo de secuencia:** ninguna capacidad de negocio (`users`, `patients`, …) debe proponerse antes de archivar `multi-tenancy` (✅ ya archivada). Si una entidad de negocio nace sin organización, el error se arrastra a `appointments`, `treatments`, `images` y `billing`.
 

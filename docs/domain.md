@@ -109,9 +109,13 @@ Ficha clínica-administrativa. Se atienden **menores y adultos**.
 Cita agendada.
 - `patient` (FK), `dentist` (FK → User con rol clínico), `scheduledAt`, `status` (agendada/atendida/cancelada), `notes`
 
-### `treatments` → **Odontograma + Treatment + DentalNote** (núcleo clínico)
+> **Dos capacidades, no una** (`docs/vision.md §2`). El núcleo clínico se parte por **sustantivo**:
+> **`dental-chart`** es el **estado** de la boca (el odontograma) y **`treatments`** son las **acciones** que lo cambian. Juntas necesitaban una "y" y cargaban con cinco entidades: mala granularidad.
+> `treatments` **depende de** `dental-chart` (al completarse un tratamiento, actualiza el estado).
 
-El corazón clínico del producto. Notación **FDI/ISO 3950**, registro **por superficie**, denticiones **permanente y temporal**.
+### `dental-chart` → **Tooth + ToothCondition** (el odontograma: el ESTADO)
+
+El estado dental pieza a pieza y **por superficie**. Notación **FDI/ISO 3950**, denticiones **permanente y temporal**.
 
 **Tooth** (referencia; catálogo de piezas, no por paciente)
 - `fdi` (código FDI: permanente 11–48; temporal 51–85), `dentition` (`PERMANENT` | `TEMPORARY`), `quadrant` (1–8), `position` (1–8), `arch` (superior/inferior)
@@ -122,6 +126,10 @@ El corazón clínico del producto. Notación **FDI/ISO 3950**, registro **por su
 - `type` (caries, obturación, corona, endodoncia, extracción/ausente, fractura, sellante, implante, …)
 - `status` (`EXISTING` hallazgo · `PLANNED` planificado · `DONE` realizado)
 - `treatment` (FK opcional → Treatment que lo generó), `notedAt`
+
+### `treatments` → **Treatment + DentalNote + Consent** (las ACCIONES)
+
+Lo que el odontólogo *hace*, con su coste y su consentimiento. Al completarse, **actualiza el estado** que gestiona `dental-chart`.
 
 **Treatment** (procedimiento realizado o planificado)
 - `patient` (FK), `appointment` (FK, opcional), `dentist` (FK → User), `fdi` (opcional: pieza afectada), `surfaces` (superficies afectadas; opcional), `procedureType`, `status` (`PLANNED`/`IN_PROGRESS`/`DONE`), `date`, `cost`
@@ -164,7 +172,7 @@ La **ficha dental** es una **vista/pantalla** del frontend (no una entidad nueva
 | Bloque de la ficha | Fuente (entidades) | Capacidad |
 |---|---|---|
 | Cabecera del paciente | `Patient` | `patients` |
-| **Odontograma** interactivo (FDI, por superficie, permanente+temporal) | `Tooth` + `ToothCondition` | `treatments` |
+| **Odontograma** interactivo (FDI, por superficie, permanente+temporal) | `Tooth` + `ToothCondition` | **`dental-chart`** |
 | Registro de **tratamientos** (por pieza/superficie) | `Treatment` | `treatments` |
 | **Notas dentales** | `DentalNote` | `treatments` |
 | **Pagos** del paciente / por tratamiento | `Invoice` + `InvoiceLine → Treatment` | `billing` |
