@@ -8,6 +8,7 @@ import { registerSchema, type RegisterValues } from "../schemas/auth";
 import { useRegister } from "../hooks/useAuth";
 import { PasswordStrengthBar } from "./PasswordStrengthBar";
 import { cn } from "@/modules/core/utils/cn";
+import { applyServerFieldErrors } from "@/modules/core/utils/apiError";
 
 /** Formulario de registro (mínimo): nombre, correo y contraseña con confirmación. */
 export function RegisterForm() {
@@ -15,6 +16,7 @@ export function RegisterForm() {
     register: field,
     handleSubmit,
     control,
+    setError,
     formState: { errors },
   } = useForm<RegisterValues>({
     resolver: zodResolver(registerSchema),
@@ -26,7 +28,12 @@ export function RegisterForm() {
   return (
     <form
       onSubmit={handleSubmit(({ organizationName, fullName, email, password }) =>
-        registerMutation.mutate({ organizationName, fullName, email, password }),
+        registerMutation.mutate(
+          { organizationName, fullName, email, password },
+          // El 400 del servidor trae `errors[{field, message}]`: se vuelcan sobre los campos para
+          // que se pinten junto al input, igual que los de Zod (el toast genérico lo pone useAuth).
+          { onError: (error) => applyServerFieldErrors(error, setError) },
+        ),
       )}
       className="flex flex-col gap-4"
       noValidate

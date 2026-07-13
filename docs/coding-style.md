@@ -224,6 +224,20 @@ dejando el **backend como fuente de verdad** de los límites. En ese punto se ev
 schemas Zod desde el OpenAPI** para eliminar el drift manual; hasta entonces, la paridad se mantiene
 a mano según esta tabla.
 
+### 7.1 La paridad no acaba en el cliente: el servidor también marca campos
+
+Zod valida **antes** de enviar, pero el servidor es la autoridad: hay reglas que solo él conoce (un correo ya registrado) y, si la paridad se rompe, su `400` es la red de seguridad.
+
+Ese `400` llega en RFC 9457 con `errors: [{ field, message }]`, así que **el error del servidor se pinta junto al mismo input** que el de Zod — el usuario no distingue de dónde vino, que es como debe ser:
+
+```ts
+mutation.mutate(values, {
+  onError: (error) => applyServerFieldErrors(error, setError),  // core/utils/apiError.ts
+});
+```
+
+Los tipos (`ValidationProblem`, `FieldError`) **se derivan del contrato**, no se escriben a mano (ver `docs/frontend.md §2.1`).
+
 ---
 
 ## 8. Testing

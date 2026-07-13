@@ -12,14 +12,13 @@ import org.springframework.http.HttpStatusCode;
 import org.springframework.http.ProblemDetail;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.core.AuthenticationException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.context.request.WebRequest;
 import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExceptionHandler;
 
-import java.net.URI;
-import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 
@@ -27,8 +26,12 @@ import java.util.Map;
  * Manejo de errores en formato RFC 9457 (ProblemDetail). Extiende
  * {@link ResponseEntityExceptionHandler} para que las excepciones propias de
  * Spring MVC (404, 405, JSON malformado…) conserven su status como ProblemDetail
- * en vez de convertirse en 500. Añade {@code timestamp} y {@code traceId}
- * (del MDC, ver {@link TraceIdFilter}) como extensiones. Ver docs/backend.md §10.
+ * en vez de convertirse en 500. El cuerpo lo construye siempre {@link ProblemDetails},
+ * de modo que <b>todos</b> los errores de la API tengan la misma forma. Ver docs/backend.md §10.
+ *
+ * <p>Aquí aterriza también el {@code 401} de <b>sesión ausente</b>: el entry point de seguridad
+ * delega en el {@code HandlerExceptionResolver} de MVC (ver {@code SecurityConfig}) para que ese
+ * error lo renderice esta misma maquinaria, y no el cuerpo por defecto del contenedor.
  */
 @RestControllerAdvice
 public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
@@ -38,16 +41,31 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
     /** Cualquier excepción de negocio → su status + type/errorType uniforme. */
     @ExceptionHandler(BusinessException.class)
     public ProblemDetail handleBusiness(BusinessException ex) {
-        ProblemDetail problem = ProblemDetail.forStatusAndDetail(ex.getStatus(), ex.getMessage());
-        problem.setType(URI.create("/errors/" + ex.getErrorType()));
-        problem.setTitle(ex.getStatus().getReasonPhrase());
-        addExtensions(problem);
-        return problem;
+        return ProblemDetails.of(ex.getStatus(), ex.getErrorType(), ex.getMessage());
+    }
+
+    /**
+     * Sesión ausente o inválida (no autenticado). Llega aquí porque el entry point de seguridad
+     * delega en el {@code HandlerExceptionResolver}: así este {@code 401} sale con el <b>mismo</b>
+     * formato RFC 9457 que el resto, y el contrato puede describirlo con un único schema.
+     */
+    @ExceptionHandler(AuthenticationException.class)
+    public ProblemDetail handleAuthentication(AuthenticationException ex) {
+        return ProblemDetails.of(HttpStatus.UNAUTHORIZED, "unauthorized",
+            "Necesitas iniciar sesión para acceder a este recurso.");
+    }
+
+    /** Autorización denegada por method security ({@code @PreAuthorize}) → 403, no el 500 del catch-all. */
+    @ExceptionHandler(AccessDeniedException.class)
+    public ProblemDetail handleAccessDenied(AccessDeniedException ex) {
+        return ProblemDetails.of(HttpStatus.FORBIDDEN, "access-denied",
+            "No tienes permiso para realizar esta acción.");
     }
 
     /**
      * Colisión con una restricción de unicidad (carrera TOCTOU sobre el correo o el slug de la
-     * organización, pese al pre-chequeo y a la desambiguación) → 409, no un 500 genérico.
+     * organización, pese al pre-chequeo y a la desambiguación) → 409, no un 500 genérico. El
+     * {@code type} discrimina el conflicto, que es como el frontend ramifica.
      */
     @ExceptionHandler(DataIntegrityViolationException.class)
     public ProblemDetail handleDataIntegrity(DataIntegrityViolationException ex) {
@@ -65,28 +83,7 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
             errorType = "resource-conflict";
             detail = "El recurso entra en conflicto con uno existente.";
         }
-        ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, detail);
-        problem.setType(URI.create("/errors/" + errorType));
-        problem.setTitle(HttpStatus.CONFLICT.getReasonPhrase());
-        addExtensions(problem);
-        return problem;
-    }
-
-    /**
-     * Autorización denegada por method security ({@code @PreAuthorize}) → 403. Sin este handler
-     * explícito, la {@link AccessDeniedException} —lanzada dentro del dispatcher, no en la cadena
-     * de filtros— caería en el catch-all {@code Exception} y devolvería un 500 en vez del 403 que
-     * corresponde. (Las denegaciones por URL de {@code authorizeHttpRequests} las resuelve el
-     * {@code ExceptionTranslationFilter} antes de llegar aquí.)
-     */
-    @ExceptionHandler(AccessDeniedException.class)
-    public ProblemDetail handleAccessDenied(AccessDeniedException ex) {
-        ProblemDetail problem = ProblemDetail.forStatusAndDetail(
-            HttpStatus.FORBIDDEN, "No tienes permiso para realizar esta acción.");
-        problem.setType(URI.create("/errors/access-denied"));
-        problem.setTitle(HttpStatus.FORBIDDEN.getReasonPhrase());
-        addExtensions(problem);
-        return problem;
+        return ProblemDetails.of(HttpStatus.CONFLICT, errorType, detail);
     }
 
     /** Red de seguridad: cualquier error inesperado → 500 (con log del stacktrace y traceId). */
@@ -94,37 +91,44 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
     public ProblemDetail handleUncaught(Exception ex) {
         String traceId = MDC.get(TraceIdFilter.TRACE_ID_KEY);
         log.error("[trace {}] Excepción no controlada: {}", traceId, ex.getMessage(), ex);
-        ProblemDetail problem = ProblemDetail.forStatusAndDetail(
-            HttpStatus.INTERNAL_SERVER_ERROR, "Ocurrió un error inesperado.");
-        problem.setType(URI.create("/errors/internal-server-error"));
-        problem.setTitle("Internal Server Error");
-        addExtensions(problem);
-        return problem;
+        return ProblemDetails.of(HttpStatus.INTERNAL_SERVER_ERROR, "internal-server-error",
+            "Ocurrió un error inesperado.");
     }
 
-    /** Validación de {@code @Valid} → 400 con la lista de campos inválidos. */
+    /**
+     * Las excepciones que resuelve la clase padre (404, 405, JSON malformado…) construyen su
+     * {@link ProblemDetail} por su cuenta, <b>sin pasar por {@link ProblemDetails}</b>: saldrían
+     * sin {@code timestamp} ni {@code traceId} y el contrato dejaría de ser fiel (documenta
+     * {@code timestamp} como siempre presente). Aquí se les añaden las extensiones comunes, de
+     * modo que <b>todos</b> los errores de la API —sin excepción— compartan forma.
+     */
+    @Override
+    protected ResponseEntity<Object> handleExceptionInternal(
+            Exception ex, Object body, HttpHeaders headers, HttpStatusCode statusCode, WebRequest request) {
+        ResponseEntity<Object> response = super.handleExceptionInternal(ex, body, headers, statusCode, request);
+        if (response != null && response.getBody() instanceof ProblemDetail problem) {
+            ProblemDetails.addExtensions(problem);
+        }
+        return response;
+    }
+
+    /**
+     * Validación de {@code @Valid} → 400 con la lista de campos inválidos. Es la única respuesta
+     * que añade la extensión {@code errors} (de ahí el schema {@code ValidationProblem}); el otro
+     * 400 posible —JSON malformado, que resuelve la clase padre— no la lleva.
+     */
     @Override
     protected ResponseEntity<Object> handleMethodArgumentNotValid(
             MethodArgumentNotValidException ex, HttpHeaders headers, HttpStatusCode status, WebRequest request) {
-        ProblemDetail problem = ProblemDetail.forStatusAndDetail(
-            HttpStatus.BAD_REQUEST, "Uno o más campos son inválidos.");
-        problem.setType(URI.create("/errors/validation-error"));
-        problem.setTitle("Validation failed");
+        ProblemDetail problem = ProblemDetails.of(
+            HttpStatus.BAD_REQUEST, "validation-error", "Uno o más campos son inválidos.");
+        problem.setTitle("Validation failed"); // se conserva el título previo: este change no altera cuerpos
         List<Map<String, String>> errors = ex.getBindingResult().getFieldErrors().stream()
             .map(fe -> Map.of(
                 "field", fe.getField(),
                 "message", fe.getDefaultMessage() != null ? fe.getDefaultMessage() : "Valor inválido"))
             .toList();
         problem.setProperty("errors", errors);
-        addExtensions(problem);
         return ResponseEntity.badRequest().body(problem);
-    }
-
-    private void addExtensions(ProblemDetail problem) {
-        problem.setProperty("timestamp", Instant.now());
-        String traceId = MDC.get(TraceIdFilter.TRACE_ID_KEY);
-        if (traceId != null) {
-            problem.setProperty("traceId", traceId);
-        }
     }
 }

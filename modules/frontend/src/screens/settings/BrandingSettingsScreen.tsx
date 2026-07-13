@@ -11,6 +11,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/mod
 import { PATHS } from "@/routes/paths";
 import { deriveTheme } from "@/modules/core/theme/deriveTheme";
 import { brandingSchema, toRequest, type BrandingValues } from "@/modules/branding/schemas/branding";
+import { applyServerFieldErrors } from "@/modules/core/utils/apiError";
 import { useBrandingQuery, useUpdateBranding } from "@/modules/branding/hooks/useBrandingApi";
 
 /** Variables CSS (tokens claros) del tema derivado, para el contenedor de vista previa. */
@@ -36,6 +37,7 @@ export function BrandingSettingsScreen() {
     handleSubmit,
     control,
     setValue,
+    setError,
     formState: { errors },
   } = useForm<BrandingValues>({
     resolver: zodResolver(brandingSchema),
@@ -61,7 +63,13 @@ export function BrandingSettingsScreen() {
       </div>
 
       <form
-        onSubmit={handleSubmit((values) => updateBranding.mutate(toRequest(values)))}
+        onSubmit={handleSubmit((values) =>
+          // El 400 del servidor (color con formato inválido, logo que no es https) trae el detalle
+          // por campo: se pinta junto al input, igual que el de Zod.
+          updateBranding.mutate(toRequest(values), {
+            onError: (error) => applyServerFieldErrors(error, setError),
+          }),
+        )}
         className="flex flex-col gap-4"
         noValidate
       >

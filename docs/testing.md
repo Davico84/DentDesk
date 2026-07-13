@@ -123,6 +123,28 @@ Toda capacidad que añada tablas de negocio SHALL incluir un test de aislamiento
 
 ---
 
+## 5.1 El contrato también se testea (y CI vigila las dos direcciones)
+
+El contrato OpenAPI es la fuente única de verdad, así que **mentir en él es un bug**, y como tal se cubre con tests. Lo que aprendimos construyéndolo: **cada vez que se escribe el test que compara lo documentado contra lo real, aparece una mentira.** No basta con revisar el código: hay que **mirar el documento que el backend publica de verdad**.
+
+| Test | Qué fija |
+|---|---|
+| `ProblemDetailsTest` (unit) | La forma del cuerpo de error: `timestamp` siempre, `traceId` opcional, `instance` nunca |
+| `ErrorContractIT` | El cuerpo **real** solo contiene campos documentados (subconjunto estricto), y el `400` tiene sus **dos formas** |
+| `OpenApiErrorsConfigTest` (unit) | Las reglas de los errores transversales (deriva la ruta, detecta `@PreAuthorize`) — **en local, sin Docker** |
+| `OpenApiContractIT` | El documento publicado declara el **status real**, sin `200` fantasma, y los transversales **se heredan sin declararlos** |
+| `ContractDriftIT` | 🛡️ **El guardián**: el contrato versionado refleja el backend actual |
+
+**Las dos direcciones del drift** — si falta una, el contrato puede mentir impunemente:
+
+```
+backend ──[ContractDriftIT, en el verify]──► contracts/openapi.json ──[codegen-drift, en el CI del front]──► cliente generado
+```
+
+Durante mucho tiempo **solo existía la segunda**. Por eso el contrato decía `200` donde la API devuelve `201`, y no documentaba ni un error: nadie lo vigilaba.
+
+---
+
 ## 6. Cobertura
 
 - La cobertura **no** es la meta; la confianza y la mantenibilidad sí. No infles números con tests triviales.

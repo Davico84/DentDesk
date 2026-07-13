@@ -9,14 +9,34 @@ Dimensión de **negocio** (sustituible por proyecto). Base de conocimiento del d
 
 ## Actores del negocio
 
-| Actor | Descripción | Rol de sistema (aprox.) |
+| Actor | Descripción | Rol |
 |---|---|---|
-| **Administrador** | Gestiona la clínica: usuarios/staff, facturación, inventario y métricas del panel. | `ADMIN` |
-| **Dentista / Odontólogo** | Personal clínico: atiende citas, registra tratamientos y odontograma, notas e imágenes. | `USER` (rol clínico) |
+| **Administrador** | El dueño o gerente. Gestiona **el personal**, la facturación, el inventario y las métricas. En la clínica pequeña **suele ser también el odontólogo**, por eso su rol lo abarca todo. | `ADMIN` |
+| **Odontólogo / Dentista** | Personal **clínico**. Es el único que realiza el **acto clínico**: odontograma, diagnósticos, tratamientos, notas e imágenes. | `DENTIST` |
+| **Recepcionista** | Personal **administrativo**. Agenda y reprograma citas, da de alta pacientes y cobra. **No realiza actos clínicos.** | `RECEPTIONIST` |
 | **Paciente** | Persona atendida (menor o adulto). Es un **cliente de la clínica**: un registro clínico-administrativo, **no una identidad del sistema**. No tiene cuenta ni inicia sesión; lo da de alta el staff. | — (sin cuenta) |
 | **Tutor / Responsable** | Adulto responsable de un paciente **menor**. No es necesariamente usuario del sistema; sus datos viven en el `Patient`. Otorga el consentimiento en menores. | — |
 
-> Los roles de sistema (`ADMIN`/`USER`) los define `authentication`; el mapeo fino de permisos clínicos se detalla al construir `users`/`patients`/`treatments`.
+> **Actor ≠ rol.** El **actor** es *quién eres en la clínica* (existe aunque no haya software); el **rol** es *qué te deja hacer el sistema*. El mapeo **no es 1:1**:
+> - Hay **actores sin rol**: el paciente y el tutor no entran al sistema.
+> - Un **rol cubre varios actores**: `ADMIN` vale para el dueño y para un gerente.
+> - Un **actor puede tener varios roles**, porque **el rol vive en la membresía, no en la persona**: Ana es `ADMIN` en su clínica y `DENTIST` en otra donde colabora los martes. El actor es global (*"soy odontóloga"*); el rol es **por clínica**. El modelo ya lo soporta.
+
+**La frontera que de verdad importa: el acto clínico.**
+
+| | Agenda · Pacientes · Cobros | Odontograma · Diagnóstico · Tratamientos | Personal · Inventario · Ajustes |
+|---|:---:|:---:|:---:|
+| `ADMIN` | ✅ | ✅ | ✅ |
+| `DENTIST` | ✅ | ✅ | ❌ |
+| `RECEPTIONIST` | ✅ | ❌ **nunca** | ❌ |
+
+> Que un recepcionista **no pueda tocar el odontograma ni registrar un diagnóstico** no es un capricho de permisos: es un **acto clínico**, con responsabilidad profesional detrás. Es la razón de ser de este desglose.
+>
+> `ADMIN` puede todo —incluido lo clínico— porque **el dueño de una clínica pequeña normalmente es el odontólogo**. La contrapartida asumida: un gerente **no** clínico con rol `ADMIN` tendría acceso clínico. Si algún día hace falta separarlo (clínica grande con gerente administrativo), la evolución natural es desdoblar en *rol clínico* + *flag de administración*.
+
+> ⚠️ **Estado: decidido, aún no construido.** Hoy el sistema solo tiene **`ADMIN` | `USER`** (`multi-tenancy`, construida): el dentista y la recepcionista compartirían rol, y la recepcionista **podría** tocar el odontograma. Esta tabla describe el modelo **acordado**, que implementará la capacidad **`staff`** (fila 2 del roadmap) — la que asigna los roles, y que **no se puede especificar sin decidir esto primero**.
+>
+> Como `Membership.role` pertenece a `multi-tenancy`, el change `add-staff` llevará también un **delta sobre esa capacidad** (`docs/vision.md §5` lo contempla: *"si toca varias, crea un `spec.md` delta por cada una"*).
 
 ## Glosario de términos clave
 
@@ -25,7 +45,7 @@ Dimensión de **negocio** (sustituible por proyecto). Base de conocimiento del d
 | **Organización (tenant)** | Cliente del SaaS que se aísla del resto. En este producto, una **clínica** es una organización. |
 | **Identidad** | La persona (`User`), única en toda la plataforma (correo único global). No tiene rol ni organización propios. |
 | **Membresía** | Pertenencia de una identidad a una organización, con su **rol** en ella. Un usuario puede tener varias. |
-| **Aislamiento (multi-tenant)** | Garantía de que una organización no ve ni escribe datos de otra. Dos capas: filtrado de aplicación (`@TenantId`) + Row-Level Security en PostgreSQL. |
+| **Aislamiento (multi-tenant)** | Garantía de que una clínica **no ve ni modifica** los datos de otra, aunque compartan la instalación. Es la promesa central del SaaS. *(Cómo se implementa: `docs/backend.md §8.1`.)* |
 | **Ficha dental** | Vista compuesta (pantalla) que centraliza la atención de un paciente: datos, odontograma, tratamientos, notas, pagos, imágenes e historial de citas. No es una entidad. |
 | **Odontograma** | Representación del estado dental del paciente pieza por pieza y por superficie. |
 | **Notación FDI (ISO 3950)** | Código de dos dígitos por pieza (permanentes 11–48; temporales 51–85). |
@@ -52,20 +72,39 @@ Dimensión de **negocio** (sustituible por proyecto). Base de conocimiento del d
 
 ## Convenciones
 
+### 🧪 El criterio: ¿lo reconocería un odontólogo?
+
+Este documento describe **el negocio**, no cómo se implementa. Ante la duda sobre si algo pertenece aquí, pregúntate si **una persona de la clínica lo entendería sin saber programar**:
+
+| ✅ Sí es dominio | ❌ No es dominio (va a `docs/backend.md` / `architecture.md`) |
+|---|---|
+| Paciente · Odontograma · Tratamiento · Consentimiento | Flyway · Hibernate · `@MapsId` · BCrypt |
+| **Clínica** (la organización) · **quién trabaja aquí y con qué rol** | **Cómo** se aísla una clínica de otra (RLS, `@TenantId`) |
+| Que el usuario **inicia sesión** | JWT, claims, `tokenHash`, rotación del refresh |
+
+> Ojo con el error inverso: **`Organization` y `Membership` SÍ son dominio.** Que *"la clínica es el cliente del SaaS"* y que *"esta persona trabaja aquí como administradora"* son hechos del negocio, no detalles técnicos. Lo técnico es **cómo** se garantizan.
+
 - **Nivel de detalle**: aquí se listan entidades y campos **conceptuales** clave. Los tipos exactos, longitudes y validaciones finas se fijan en el `spec.md`/`design.md` de cada capacidad y en la migración Flyway correspondiente.
 - Toda entidad tiene `id` (PK) y campos de auditoría (`createdAt`, `updatedAt`) salvo que se indique.
 - Identificadores en inglés (convención de código); ver `docs/backend.md`.
 
 ---
 
-## Entidades por capacidad
+## Entidades
 
 > Estado: **conceptual / por detallar**. Cada capacidad refina su parte al construirse.
+> Se agrupan en dos planos, porque responden a preguntas distintas.
 
-### `authentication` / `users` → **User** *(identidad global; construida)*
+---
+
+# 🏢 Dominio de plataforma — *el SaaS*
+
+*Quién entra al sistema, a qué clínica pertenece y con qué rol.* Es genérico y **reutilizable en cualquier SaaS multi-tenant**, no tiene nada de dental.
+
+### `authentication` → **User** *(identidad global; construida)*
 **Identidad** de una persona en la plataforma: existe **una sola vez** (correo único global) y **no tiene rol ni organización propios** (el rol vive en `Membership`). Los `User` son el **staff de la clínica** (administrador, recepción, odontólogos): son quienes inician sesión. Los **pacientes NO son usuarios** (ver `Patient`).
-- **Construido**: `email` (único global), `passwordHash` (BCrypt), `fullName`, `status` (`ACTIVE` | `LOCKED` | `DISABLED`), `createdAt`/`updatedAt`.
-- **Movido a `Membership`** (en `multi-tenancy`): `role`. **Diferido a la capacidad `users`**: `username` (único), `phone`, `country`.
+- **Construido**: `email` (único global), la contraseña (**se guarda cifrada, nunca en claro**), `fullName`, `status` (`ACTIVE` | `LOCKED` | `DISABLED`), `createdAt`/`updatedAt`.
+- **Movido a `Membership`** (en `multi-tenancy`): `role`. **Diferido al change `update-authentication`** (el *perfil*, no el alta): `username` (único), `phone`, `country`.
 
 ### `multi-tenancy` → **Organization** *(el tenant; construida)*
 La organización cliente del SaaS (una **clínica** es una organización). Es el sujeto del aislamiento de datos de negocio.
@@ -76,20 +115,27 @@ Configuración 1:1 de la organización (punto de extensión).
 - `organizationId` (PK/FK, comparte clave con `Organization`), `timezone`, `locale`, `currency`.
 
 ### `multi-tenancy` → **Membership** *(puente identidad↔organización; construida)*
-Define a qué organización pertenece un usuario y **con qué rol**. Es el corazón del modelo multi-tenant. Un usuario puede tener varias membresías (multi-organización); en el MVP el registro crea una (rol `ADMIN`) y el selector se difiere a `users`.
-- `user` (FK), `organization` (FK), `role` (`ADMIN` | `USER`), `status` (`ACTIVE` | `INACTIVE` | `SUSPENDED`), único `(user, organization)`, timestamps.
-- Aislada por **identidad** (Row-Level Security sobre `user_id`).
+Define a qué organización pertenece un usuario y **con qué rol**. Es el corazón del modelo multi-tenant. Un usuario puede tener varias membresías (multi-organización); en el MVP el registro crea una (rol `ADMIN`); **quién más pertenece a la organización lo gestiona `staff`**, y el **selector de organización activa** se difiere al change `update-multi-tenancy` (es re-emitir el token con otro `oid`: una operación de sesión).
+- `user` (FK), `organization` (FK), **`role`**, `status` (`ACTIVE` | `INACTIVE` | `SUSPENDED`), único `(user, organization)`, timestamps.
+- **El rol vive aquí, no en el `User`** — por eso una misma persona puede ser `ADMIN` en su clínica y `DENTIST` en otra. Hoy construido: `ADMIN` | `USER`. **Decidido y pendiente**: `ADMIN` | `DENTIST` | `RECEPTIONIST` (lo implementa `add-staff`; ver la tabla de actores).
+- **Regla:** un usuario solo ve sus propias membresías (nunca las de otro). *Cómo* se garantiza, en `docs/backend.md §8.1`.
 
-### `authentication` → **RefreshToken** *(construida)*
-Token de refresco persistido para rotación y revocación real (logout). Se guarda el **hash** del token, nunca el valor en claro.
-- `user` (FK), `tokenHash` (único), `expiresAt`, `revoked`, `createdAt`. El access token es JWT stateless (no se persiste); lleva la organización activa en el claim `oid`.
+> **La sesión no se modela aquí.** Que el usuario *inicia sesión*, que la sesión *sabe en qué clínica está* y que *se puede cerrar de verdad* son hechos del negocio; el **cómo** (tokens, rotación, revocación, claims) es implementación de `authentication` — vive en `docs/backend.md §11` y en `openspec/specs/authentication/`.
 
 ### `organization-branding` → **OrganizationBranding** *(1:1 con Organization; construida)*
 Personalización visual de una organización aplicada al app shell. Fila **opcional**: si no existe, la organización usa la marca por defecto del producto; si todos los campos quedan vacíos, la fila se elimina.
-- `organizationId` (PK/FK, comparte clave con `Organization` vía `@MapsId`), `brandPrimary` (hex `#RRGGBB`, nullable), `brandSecondary` (hex, nullable), `logoUrl` (URL `https`, nullable).
-- **Sin RLS**: es estética pública dentro de la sesión y se lee por el contexto de organización; no contiene datos de negocio sensibles (ver `docs/backend.md §8.1`). El tema se **deriva** en el frontend (contraste WCAG AA, respeta modo claro/oscuro); los colores semánticos no cambian con la marca.
+- `organizationId` (comparte clave con `Organization`), `brandPrimary` (hex `#RRGGBB`), `brandSecondary`, `logoUrl` (URL `https`). Todos opcionales.
+- El tema se **deriva** del color de marca garantizando contraste legible, y respeta el modo claro/oscuro; los colores semánticos (éxito, aviso, error) **no** cambian con la marca. *(Es estética, no dato sensible: ver `ADR-0003` para por qué no lleva aislamiento a nivel de motor.)*
 
-> **Regla de aislamiento (multi-tenancy).** Toda entidad de **negocio** (`Patient`, `Appointment`, `Treatment`, `Invoice`…) pertenece a una organización: lleva `organizationId` + Row-Level Security por organización. `users`/`refresh_tokens` son dominio de auth (sin RLS por organización); `memberships` se aísla por identidad. Ver `docs/backend.md §8.1` y `openspec/specs/multi-tenancy/`.
+---
+
+# 🦷 Dominio del negocio — *la clínica dental*
+
+*A quién se atiende y qué se le hace.* Aquí vive el conocimiento dental del producto.
+
+> 🔒 **Toda entidad de este bloque pertenece a una clínica**: una clínica **nunca** ve ni modifica los datos de otra. Es la garantía central del SaaS.
+>
+> **Cómo se implementa esa garantía NO se documenta aquí** (sería duplicarlo, y dos fuentes acaban divergiendo). Vive en un único sitio: **`docs/backend.md §8.1`**.
 
 ### `patients` → **Patient**
 Ficha clínica-administrativa. Se atienden **menores y adultos**.
@@ -99,6 +145,10 @@ Ficha clínica-administrativa. Se atienden **menores y adultos**.
 - **Contacto de emergencia**: `emergencyContactName`, `emergencyContactPhone`, `emergencyContactRelationship`
 - **Datos clínicos (anamnesis)** — condicionan el tratamiento: `allergies` (lista; anestesia, penicilina, látex…), `medicalHistory`/`conditions` (diabetes, hipertensión, embarazo, anticoagulantes, cardiopatías…), `currentMedication` (lista)
 - **NO es un usuario del sistema.** El paciente es un **cliente de la clínica**: solo un registro. No tiene cuenta, no inicia sesión y no se vincula a ningún `User`. Lo dan de alta el administrador o la recepcionista (que sí son `User`). *Un eventual portal del paciente sería una capacidad futura y añadiría el vínculo en ese momento; hoy queda fuera de alcance.*
+- **El paciente pertenece a UNA clínica**, no a la plataforma. La misma persona atendida en dos clínicas son **dos `Patient` distintos**, sin relación entre sí: **ninguna clínica sabe que la otra la atiende**. Los datos demográficos se **duplican** (es el precio de la privacidad) y la información clínica **nunca se comparte**.
+  > ⚠️ **El documento (DNI) es único POR CLÍNICA**: la restricción va sobre `(organizationId, document)`, **nunca** sobre `document` a secas — eso impediría que dos clínicas atendieran al mismo paciente.
+  >
+  > El *porqué*, las alternativas descartadas y el resto de consecuencias: **`ADR-0004`**.
 
 **Reglas de negocio que impactan el tratamiento** (a cubrir en los `#### Scenario:` de `patients`/`treatments`):
 - Paciente **menor de edad** ⇒ requiere responsable y **consentimiento del tutor** (ver `Consent`).
@@ -109,9 +159,13 @@ Ficha clínica-administrativa. Se atienden **menores y adultos**.
 Cita agendada.
 - `patient` (FK), `dentist` (FK → User con rol clínico), `scheduledAt`, `status` (agendada/atendida/cancelada), `notes`
 
-### `treatments` → **Odontograma + Treatment + DentalNote** (núcleo clínico)
+> **Dos capacidades, no una** (`docs/vision.md §2`). El núcleo clínico se parte por **sustantivo**:
+> **`dental-chart`** es el **estado** de la boca (el odontograma) y **`treatments`** son las **acciones** que lo cambian. Juntas necesitaban una "y" y cargaban con cinco entidades: mala granularidad.
+> `treatments` **depende de** `dental-chart` (al completarse un tratamiento, actualiza el estado).
 
-El corazón clínico del producto. Notación **FDI/ISO 3950**, registro **por superficie**, denticiones **permanente y temporal**.
+### `dental-chart` → **Tooth + ToothCondition** (el odontograma: el ESTADO)
+
+El estado dental pieza a pieza y **por superficie**. Notación **FDI/ISO 3950**, denticiones **permanente y temporal**.
 
 **Tooth** (referencia; catálogo de piezas, no por paciente)
 - `fdi` (código FDI: permanente 11–48; temporal 51–85), `dentition` (`PERMANENT` | `TEMPORARY`), `quadrant` (1–8), `position` (1–8), `arch` (superior/inferior)
@@ -122,6 +176,10 @@ El corazón clínico del producto. Notación **FDI/ISO 3950**, registro **por su
 - `type` (caries, obturación, corona, endodoncia, extracción/ausente, fractura, sellante, implante, …)
 - `status` (`EXISTING` hallazgo · `PLANNED` planificado · `DONE` realizado)
 - `treatment` (FK opcional → Treatment que lo generó), `notedAt`
+
+### `treatments` → **Treatment + DentalNote + Consent** (las ACCIONES)
+
+Lo que el odontólogo *hace*, con su coste y su consentimiento. Al completarse, **actualiza el estado** que gestiona `dental-chart`.
 
 **Treatment** (procedimiento realizado o planificado)
 - `patient` (FK), `appointment` (FK, opcional), `dentist` (FK → User), `fdi` (opcional: pieza afectada), `surfaces` (superficies afectadas; opcional), `procedureType`, `status` (`PLANNED`/`IN_PROGRESS`/`DONE`), `date`, `cost`
@@ -143,7 +201,7 @@ El corazón clínico del producto. Notación **FDI/ISO 3950**, registro **por su
 Imagen clínica (radiografía/foto) almacenada en S3.
 - `patient` (FK), `treatment` (FK, opcional), `s3Key`, `type` (xray/foto), `uploadedAt`
 
-### `billing` → **Invoice** (+ líneas)
+### `patient-billing` → **Invoice** (+ líneas)
 Cobro/factura asociada a tratamientos/citas.
 - `patient` (FK), líneas (`InvoiceLine`: `concept`, `quantity`, `price`, `treatment` FK **opcional** → Treatment), `total`, `status` (pendiente/pagada)
 - El vínculo `InvoiceLine → Treatment` permite mostrar los **pagos por tratamiento** dentro de la ficha dental.
@@ -164,15 +222,15 @@ La **ficha dental** es una **vista/pantalla** del frontend (no una entidad nueva
 | Bloque de la ficha | Fuente (entidades) | Capacidad |
 |---|---|---|
 | Cabecera del paciente | `Patient` | `patients` |
-| **Odontograma** interactivo (FDI, por superficie, permanente+temporal) | `Tooth` + `ToothCondition` | `treatments` |
+| **Odontograma** interactivo (FDI, por superficie, permanente+temporal) | `Tooth` + `ToothCondition` | **`dental-chart`** |
 | Registro de **tratamientos** (por pieza/superficie) | `Treatment` | `treatments` |
 | **Notas dentales** | `DentalNote` | `treatments` |
-| **Pagos** del paciente / por tratamiento | `Invoice` + `InvoiceLine → Treatment` | `billing` |
+| **Pagos** del paciente / por tratamiento | `Invoice` + `InvoiceLine → Treatment` | `patient-billing` |
 | Imágenes (radiografías/fotos) | `Image` | `images` |
 | Historial de citas | `Appointment` | `appointments` |
 
 Implicaciones:
-- Es **transversal**: se construye de forma incremental a medida que aterrizan sus capacidades. El odontograma interactivo pertenece a `treatments`; los pagos a `billing`; etc.
+- Es **transversal**: se construye de forma incremental a medida que aterrizan sus capacidades. El odontograma interactivo pertenece a `dental-chart`; los tratamientos a `treatments`; los pagos a `patient-billing`; etc.
 - La pantalla vivirá en el frontend (probablemente `modules/frontend/src/screens/patients/` o un módulo `treatments`), orquestando componentes de esos módulos (ver `docs/architecture.md`).
 - Al specificar `treatments`, sus `#### Scenario:` deben cubrir el odontograma (marcar hallazgo por superficie, registrar/planificar tratamiento en una pieza, agregar nota) — porque de ahí salen los tests.
 

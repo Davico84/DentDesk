@@ -12,9 +12,12 @@ import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 
+import java.nio.charset.StandardCharsets;
+
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -40,7 +43,7 @@ class BrandingControllerIT extends AbstractIntegrationTest {
                 .contentType(MediaType.APPLICATION_JSON).content(body))
             .andExpect(status().isCreated())
             .andReturn();
-        return JsonPath.read(result.getResponse().getContentAsString(), "$.accessToken");
+        return JsonPath.read(result.getResponse().getContentAsString(StandardCharsets.UTF_8), "$.accessToken");
     }
 
     private String bearer(String token) {
@@ -82,6 +85,11 @@ class BrandingControllerIT extends AbstractIntegrationTest {
             .andExpect(jsonPath("$.brandPrimary").doesNotExist());
     }
 
+    /**
+     * Scenario "Un error de permisos usa el formato común": el 403 de {@code @PreAuthorize} ya era
+     * RFC 9457 (pasa por GlobalExceptionHandler). Se fija por test para que siga compartiendo forma
+     * con el resto de errores.
+     */
     @Test
     void non_admin_cannot_update_branding() throws Exception {
         // Token válido en firma pero con rol USER (no existe endpoint para crear USER aún).
@@ -89,7 +97,11 @@ class BrandingControllerIT extends AbstractIntegrationTest {
 
         mockMvc.perform(put("/organizations/me/branding").header("Authorization", bearer(userToken))
                 .contentType(MediaType.APPLICATION_JSON).content("{\"brandPrimary\":\"#123abc\"}"))
-            .andExpect(status().isForbidden());
+            .andExpect(status().isForbidden())
+            .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
+            .andExpect(jsonPath("$.type").value("/errors/access-denied"))
+            .andExpect(jsonPath("$.status").value(403))
+            .andExpect(jsonPath("$.timestamp").isNotEmpty());
     }
 
     @Test

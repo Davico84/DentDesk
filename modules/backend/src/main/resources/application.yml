@@ -32,6 +32,17 @@ spring:
     user: ${DB_ADMIN_USERNAME:${DB_USERNAME}}
     password: ${DB_ADMIN_PASSWORD:${DB_PASSWORD}}
 
+# Detrás de un balanceador o proxy que termina TLS, la petición llega al backend por http
+# aunque el cliente la hiciera por https. Sin esto Spring cree que el esquema es http y:
+#   - la cookie `Secure` del refresh token no se comporta como debe,
+#   - las URLs absolutas y los redirects se generan con el esquema/host equivocados,
+#   - en los logs se ve la IP del proxy, no la del cliente.
+# Con FRAMEWORK, Spring respeta las cabeceras X-Forwarded-* que envía el proxy.
+# La app es stateless (JWT, sin sesión de servidor), así que escala horizontal sin sticky
+# sessions; esto es lo único que necesitaba para vivir detrás de un balanceador.
+server:
+  forward-headers-strategy: framework
+
 app:
   security:
     jwt:
