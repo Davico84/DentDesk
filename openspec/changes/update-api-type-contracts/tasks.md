@@ -42,7 +42,7 @@
 
 - [x] 7.1 `pnpm --filter odontorisas-frontend generate:api` y **resolver la Open Question 1**: ver si orval expone el tipo de error directamente o hay que parametrizar `AxiosError<T>` con el tipo generado (en ningún caso escribir la forma del error a mano)
 - [x] 7.2 **Eliminar `interface ProblemDetailBody` de `modules/core/utils/apiError.ts`** (la forma del error escrita a mano) y derivarla del tipo generado
-- [ ] 7.3 Formularios (login, registro, marca): mapear `errors[]` del servidor → errores **por campo** de react-hook-form (paridad con la validación Zod del cliente)
+- [x] 7.3 Formularios (login, registro, marca): mapear `errors[]` del servidor → errores **por campo** de react-hook-form (paridad con la validación Zod del cliente)
 - [x] 7.4 **Tests (Vitest + MSW)**: el typecheck pasa con los tipos generados; un `400` con `errors[]` pinta el mensaje **junto al campo**; no queda ninguna forma de error escrita a mano
 
 ## 8. Documentación (estándares perennes)

@@ -7,12 +7,14 @@ import { IconInput } from "@/modules/core/ui/icon-input";
 import { loginSchema, type LoginValues } from "../schemas/auth";
 import { useLogin } from "../hooks/useAuth";
 import { cn } from "@/modules/core/utils/cn";
+import { applyServerFieldErrors } from "@/modules/core/utils/apiError";
 
 /** Formulario de inicio de sesión. La redirección por rol la maneja el RouteGuard. */
 export function LoginForm() {
   const {
     register,
     handleSubmit,
+    setError,
     formState: { errors },
   } = useForm<LoginValues>({
     resolver: zodResolver(loginSchema),
@@ -22,7 +24,11 @@ export function LoginForm() {
 
   return (
     <form
-      onSubmit={handleSubmit((values) => login.mutate(values))}
+      onSubmit={handleSubmit((values) =>
+        // El 400 del servidor trae `errors[{field, message}]`: se pintan junto al input, igual
+        // que los de Zod. El 401 de credenciales no los trae, así que cae en el toast de useAuth.
+        login.mutate(values, { onError: (error) => applyServerFieldErrors(error, setError) }),
+      )}
       className="flex flex-col gap-5"
       noValidate
     >
