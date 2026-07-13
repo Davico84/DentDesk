@@ -23,7 +23,7 @@ Dimensión de **negocio** (sustituible por proyecto). Define **qué** construimo
 |---|---|---|---|---|---|
 | 0 | `project-foundation` | técnica | dev | esqueleto ejecutable/validable del monorepo | — |
 | 1 | `authentication` | negocio | usuario | registro, login, sesión, refresh, logout, protección por rol | 0 |
-| 2 | `staff` | negocio | admin | el administrador gestiona **quién pertenece a su clínica y con qué rol**: invitar, activar/desactivar, cambiar rol (opera sobre `Membership`) | 1, `multi-tenancy` |
+| 2 | `staff` | negocio | admin | el administrador gestiona **quién pertenece a su clínica y con qué rol**: invitar, activar/desactivar, cambiar rol. **Trae el modelo de roles real** (`ADMIN`/`DENTIST`/`RECEPTIONIST`) → lleva delta sobre `multi-tenancy`, que posee `Membership.role` | 1, `multi-tenancy` |
 | 3 | `patients` | negocio | staff | ficha de pacientes (datos personales, contacto) | 1 |
 | 4 | `appointments` | negocio | **staff** | agendamiento **interno**: la recepción agenda, reprograma y cambia el estado de las citas | 3, (2) |
 | 5 | `dental-chart` | negocio | odontólogo | **odontograma**: el *estado* dental pieza a pieza y por superficie (FDI, denticiones permanente/temporal), hallazgos e histórico del estado | 3 |
@@ -86,6 +86,7 @@ Dimensión de **negocio** (sustituible por proyecto). Define **qué** construimo
 **Pendientes sobre capacidades ya construidas** (salen de disolver `users`, ver §2 — son `update-*`, no capacidades nuevas):
 
 - 📌 **`update-authentication`** — el **perfil del usuario**: `username` (único), `phone`, `country` y cambio de contraseña. Es dato de la **identidad**, así que amplía `authentication` en vez de inventar una capacidad. *(Estos campos ya estuvieron y se retiraron del registro en `add-multi-tenancy`; aquí vuelven, pero al perfil, no al alta.)*
+- 📌 **Modelo de roles** — hoy solo hay `ADMIN` | `USER`, así que **la recepcionista y el odontólogo compartirían rol** y la recepcionista podría tocar el odontograma (un **acto clínico**). Se desdobla en `ADMIN` | `DENTIST` | `RECEPTIONIST`. **No es un change aparte**: lo lleva `add-staff` como delta sobre `multi-tenancy`, porque `staff` *es* asignar roles y no se puede especificar sin decidirlos. Ver la tabla de actores en `docs/domain.md`.
 - 📌 **`update-multi-tenancy`** — el **selector de organización activa**: un usuario con varias membresías cambia de clínica, lo que **re-emite el token con otro `oid`**. Es una operación de **sesión**, no de gestión de usuarios.
 
 > ⛔ **Bloqueo de secuencia:** ninguna capacidad de negocio (`staff`, `patients`, …) debe proponerse antes de archivar `multi-tenancy` (✅ ya archivada). Si una entidad de negocio nace sin organización, el error se arrastra a `appointments`, `treatments`, `images` y `patient-billing`.

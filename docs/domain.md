@@ -9,14 +9,34 @@ Dimensión de **negocio** (sustituible por proyecto). Base de conocimiento del d
 
 ## Actores del negocio
 
-| Actor | Descripción | Rol de sistema (aprox.) |
+| Actor | Descripción | Rol |
 |---|---|---|
-| **Administrador** | Gestiona la clínica: usuarios/staff, facturación, inventario y métricas del panel. | `ADMIN` |
-| **Dentista / Odontólogo** | Personal clínico: atiende citas, registra tratamientos y odontograma, notas e imágenes. | `USER` (rol clínico) |
+| **Administrador** | El dueño o gerente. Gestiona **el personal**, la facturación, el inventario y las métricas. En la clínica pequeña **suele ser también el odontólogo**, por eso su rol lo abarca todo. | `ADMIN` |
+| **Odontólogo / Dentista** | Personal **clínico**. Es el único que realiza el **acto clínico**: odontograma, diagnósticos, tratamientos, notas e imágenes. | `DENTIST` |
+| **Recepcionista** | Personal **administrativo**. Agenda y reprograma citas, da de alta pacientes y cobra. **No realiza actos clínicos.** | `RECEPTIONIST` |
 | **Paciente** | Persona atendida (menor o adulto). Es un **cliente de la clínica**: un registro clínico-administrativo, **no una identidad del sistema**. No tiene cuenta ni inicia sesión; lo da de alta el staff. | — (sin cuenta) |
 | **Tutor / Responsable** | Adulto responsable de un paciente **menor**. No es necesariamente usuario del sistema; sus datos viven en el `Patient`. Otorga el consentimiento en menores. | — |
 
-> Los roles de sistema (`ADMIN`/`USER`) los define `authentication`; quién los tiene lo gestiona `staff`; el mapeo fino de permisos clínicos se detalla al construir `patients`/`treatments`.
+> **Actor ≠ rol.** El **actor** es *quién eres en la clínica* (existe aunque no haya software); el **rol** es *qué te deja hacer el sistema*. El mapeo **no es 1:1**:
+> - Hay **actores sin rol**: el paciente y el tutor no entran al sistema.
+> - Un **rol cubre varios actores**: `ADMIN` vale para el dueño y para un gerente.
+> - Un **actor puede tener varios roles**, porque **el rol vive en la membresía, no en la persona**: Ana es `ADMIN` en su clínica y `DENTIST` en otra donde colabora los martes. El actor es global (*"soy odontóloga"*); el rol es **por clínica**. El modelo ya lo soporta.
+
+**La frontera que de verdad importa: el acto clínico.**
+
+| | Agenda · Pacientes · Cobros | Odontograma · Diagnóstico · Tratamientos | Personal · Inventario · Ajustes |
+|---|:---:|:---:|:---:|
+| `ADMIN` | ✅ | ✅ | ✅ |
+| `DENTIST` | ✅ | ✅ | ❌ |
+| `RECEPTIONIST` | ✅ | ❌ **nunca** | ❌ |
+
+> Que un recepcionista **no pueda tocar el odontograma ni registrar un diagnóstico** no es un capricho de permisos: es un **acto clínico**, con responsabilidad profesional detrás. Es la razón de ser de este desglose.
+>
+> `ADMIN` puede todo —incluido lo clínico— porque **el dueño de una clínica pequeña normalmente es el odontólogo**. La contrapartida asumida: un gerente **no** clínico con rol `ADMIN` tendría acceso clínico. Si algún día hace falta separarlo (clínica grande con gerente administrativo), la evolución natural es desdoblar en *rol clínico* + *flag de administración*.
+
+> ⚠️ **Estado: decidido, aún no construido.** Hoy el sistema solo tiene **`ADMIN` | `USER`** (`multi-tenancy`, construida): el dentista y la recepcionista compartirían rol, y la recepcionista **podría** tocar el odontograma. Esta tabla describe el modelo **acordado**, que implementará la capacidad **`staff`** (fila 2 del roadmap) — la que asigna los roles, y que **no se puede especificar sin decidir esto primero**.
+>
+> Como `Membership.role` pertenece a `multi-tenancy`, el change `add-staff` llevará también un **delta sobre esa capacidad** (`docs/vision.md §5` lo contempla: *"si toca varias, crea un `spec.md` delta por cada una"*).
 
 ## Glosario de términos clave
 
@@ -96,7 +116,8 @@ Configuración 1:1 de la organización (punto de extensión).
 
 ### `multi-tenancy` → **Membership** *(puente identidad↔organización; construida)*
 Define a qué organización pertenece un usuario y **con qué rol**. Es el corazón del modelo multi-tenant. Un usuario puede tener varias membresías (multi-organización); en el MVP el registro crea una (rol `ADMIN`); **quién más pertenece a la organización lo gestiona `staff`**, y el **selector de organización activa** se difiere al change `update-multi-tenancy` (es re-emitir el token con otro `oid`: una operación de sesión).
-- `user` (FK), `organization` (FK), `role` (`ADMIN` | `USER`), `status` (`ACTIVE` | `INACTIVE` | `SUSPENDED`), único `(user, organization)`, timestamps.
+- `user` (FK), `organization` (FK), **`role`**, `status` (`ACTIVE` | `INACTIVE` | `SUSPENDED`), único `(user, organization)`, timestamps.
+- **El rol vive aquí, no en el `User`** — por eso una misma persona puede ser `ADMIN` en su clínica y `DENTIST` en otra. Hoy construido: `ADMIN` | `USER`. **Decidido y pendiente**: `ADMIN` | `DENTIST` | `RECEPTIONIST` (lo implementa `add-staff`; ver la tabla de actores).
 - **Regla:** un usuario solo ve sus propias membresías (nunca las de otro). *Cómo* se garantiza, en `docs/backend.md §8.1`.
 
 > **La sesión no se modela aquí.** Que el usuario *inicia sesión*, que la sesión *sabe en qué clínica está* y que *se puede cerrar de verdad* son hechos del negocio; el **cómo** (tokens, rotación, revocación, claims) es implementación de `authentication` — vive en `docs/backend.md §11` y en `openspec/specs/authentication/`.
