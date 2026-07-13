@@ -55,10 +55,10 @@
 
 ## 9. Documentación de estado (al archivar)
 
-- [ ] 9.1 `docs/vision.md` + `readme`: `api-type-contracts` sigue ✅ construida; reflejar que el contrato ahora documenta status reales y errores tipados, y que **CI vigila las dos direcciones** del drift
+- [x] 9.1 `docs/vision.md` + `readme`: `api-type-contracts` sigue ✅ construida; reflejar que el contrato ahora documenta status reales y errores tipados, y que **CI vigila las dos direcciones** del drift
 
 ## 10. Cierre
 
-- [ ] 10.1 `openspec validate update-api-type-contracts --strict`
-- [ ] 10.2 `mvn verify` (backend) y `pnpm validate` (frontend) en verde, **y los DOS jobs de drift en verde** (`contract-drift` + `codegen-drift`)
-- [ ] 10.3 Commits por scope, Conventional Commits en español. **El contrato regenerado y los artefactos del codegen van en un commit aparte** del código escrito a mano, para que la revisión sea legible
+- [x] 10.1 `openspec validate update-api-type-contracts --strict`
+- [x] 10.2 `mvn verify` (backend) y `pnpm validate` (frontend) en verde, **y los DOS jobs de drift en verde** (`contract-drift` + `codegen-drift`)
+- [x] 10.3 Commits por scope, Conventional Commits en español. **El contrato regenerado y los artefactos del codegen van en un commit aparte** del código escrito a mano, para que la revisión sea legible

@@ -85,6 +85,7 @@ Este es el corazón del proyecto. Una **capacidad** es un área cohesiva de comp
 | `project-foundation` | técnica | ✅ construida | [`openspec/specs/project-foundation/`](openspec/specs/project-foundation/spec.md) |
 | `authentication` | negocio | ✅ construida | [`openspec/specs/authentication/`](openspec/specs/authentication/spec.md) |
 | `api-type-contracts` | técnica | ✅ construida | [`openspec/specs/api-type-contracts/`](openspec/specs/api-type-contracts/spec.md) |
+| ↳ *reforzada* | | ✅ | El contrato declara **status reales y errores tipados**; los errores transversales se inyectan solos; **CI vigila las dos direcciones del drift** (backend→contrato→cliente) |
 | `multi-tenancy` | técnica | ✅ construida | [`openspec/specs/multi-tenancy/`](openspec/specs/multi-tenancy/spec.md) |
 | `organization-branding` | negocio | ✅ construida | [`openspec/specs/organization-branding/`](openspec/specs/organization-branding/spec.md) |
 | `users`, `patients`, `appointments`, `treatments`, `images`, `billing`, `inventory`, `dashboard` | negocio | ⏳ planeadas | roadmap en [`docs/vision.md`](docs/vision.md) |
