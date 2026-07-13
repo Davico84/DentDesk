@@ -16,7 +16,7 @@ Dimensión de **negocio** (sustituible por proyecto). Base de conocimiento del d
 | **Paciente** | Persona atendida (menor o adulto). Es un **cliente de la clínica**: un registro clínico-administrativo, **no una identidad del sistema**. No tiene cuenta ni inicia sesión; lo da de alta el staff. | — (sin cuenta) |
 | **Tutor / Responsable** | Adulto responsable de un paciente **menor**. No es necesariamente usuario del sistema; sus datos viven en el `Patient`. Otorga el consentimiento en menores. | — |
 
-> Los roles de sistema (`ADMIN`/`USER`) los define `authentication`; el mapeo fino de permisos clínicos se detalla al construir `users`/`patients`/`treatments`.
+> Los roles de sistema (`ADMIN`/`USER`) los define `authentication`; quién los tiene lo gestiona `staff`; el mapeo fino de permisos clínicos se detalla al construir `patients`/`treatments`.
 
 ## Glosario de términos clave
 
@@ -62,10 +62,10 @@ Dimensión de **negocio** (sustituible por proyecto). Base de conocimiento del d
 
 > Estado: **conceptual / por detallar**. Cada capacidad refina su parte al construirse.
 
-### `authentication` / `users` → **User** *(identidad global; construida)*
+### `authentication` → **User** *(identidad global; construida)*
 **Identidad** de una persona en la plataforma: existe **una sola vez** (correo único global) y **no tiene rol ni organización propios** (el rol vive en `Membership`). Los `User` son el **staff de la clínica** (administrador, recepción, odontólogos): son quienes inician sesión. Los **pacientes NO son usuarios** (ver `Patient`).
 - **Construido**: `email` (único global), `passwordHash` (BCrypt), `fullName`, `status` (`ACTIVE` | `LOCKED` | `DISABLED`), `createdAt`/`updatedAt`.
-- **Movido a `Membership`** (en `multi-tenancy`): `role`. **Diferido a la capacidad `users`**: `username` (único), `phone`, `country`.
+- **Movido a `Membership`** (en `multi-tenancy`): `role`. **Diferido al change `update-authentication`** (el *perfil*, no el alta): `username` (único), `phone`, `country`.
 
 ### `multi-tenancy` → **Organization** *(el tenant; construida)*
 La organización cliente del SaaS (una **clínica** es una organización). Es el sujeto del aislamiento de datos de negocio.
@@ -76,7 +76,7 @@ Configuración 1:1 de la organización (punto de extensión).
 - `organizationId` (PK/FK, comparte clave con `Organization`), `timezone`, `locale`, `currency`.
 
 ### `multi-tenancy` → **Membership** *(puente identidad↔organización; construida)*
-Define a qué organización pertenece un usuario y **con qué rol**. Es el corazón del modelo multi-tenant. Un usuario puede tener varias membresías (multi-organización); en el MVP el registro crea una (rol `ADMIN`) y el selector se difiere a `users`.
+Define a qué organización pertenece un usuario y **con qué rol**. Es el corazón del modelo multi-tenant. Un usuario puede tener varias membresías (multi-organización); en el MVP el registro crea una (rol `ADMIN`); **quién más pertenece a la organización lo gestiona `staff`**, y el **selector de organización activa** se difiere al change `update-multi-tenancy` (es re-emitir el token con otro `oid`: una operación de sesión).
 - `user` (FK), `organization` (FK), `role` (`ADMIN` | `USER`), `status` (`ACTIVE` | `INACTIVE` | `SUSPENDED`), único `(user, organization)`, timestamps.
 - Aislada por **identidad** (Row-Level Security sobre `user_id`).
 
