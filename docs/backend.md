@@ -206,13 +206,13 @@ Dos fugas que hubo que tapar (no las reintroduzcas):
 - **El `401` de sesión ausente.** El entry point de seguridad hacía `sendError(401)`, que devuelve el cuerpo por defecto del contenedor (`{timestamp,status,error,path}`). Ahora **delega en el `HandlerExceptionResolver` de MVC**, así que lo renderiza el mismo `GlobalExceptionHandler`. Nunca serialices un error a mano en un filtro: delega.
 - **Los errores de la clase padre** (404, 405, JSON malformado). Construyen su `ProblemDetail` por su cuenta, sin pasar por la fábrica, así que salían **sin `timestamp` ni `traceId`**. Se sobrescribe `handleExceptionInternal` para enriquecerlos.
 
-**Fidelidad del cuerpo** (la documentan `ApiProblem`/`ValidationProblem`, y la fija `ProblemDetailsTest`):
+**Fidelidad del cuerpo** (la documentan `ApiProblem`/`ValidationProblem`, y **la fija `ErrorContractIT` comparando contra la respuesta real** — no te fíes de leer el handler: `instance` se emite sin que nadie lo asigne):
 
 | Campo | Regla |
 |---|---|
 | `timestamp` | **siempre** |
 | `traceId` | **opcional** — solo si el MDC lo tiene |
-| `instance` | **nunca se emite** → no debe documentarse |
+| `instance` | **sí se emite** — Spring lo rellena con la URI **al renderizar**, aunque el handler nunca llame a `setInstance` ⚠️ |
 | `errors` | **opcional** — el `400` tiene dos formas: validación (con detalle por campo) y JSON malformado (sin él) |
 
 ### 10.2 Documentar una operación en el contrato

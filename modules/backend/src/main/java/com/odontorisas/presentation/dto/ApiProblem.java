@@ -14,9 +14,11 @@ import java.time.Instant;
  * que la herramienta <b>no ve</b>: el schema saldría sin {@code timestamp} ni {@code traceId},
  * y el frontend no podría tiparlos.
  *
- * <p>Fidelidad (fijada por {@code ProblemDetailsTest}): <b>no se documenta {@code instance}</b>
- * porque la API nunca lo emite, y {@code traceId} es <b>opcional</b> porque solo se envía si el
- * MDC lo tiene. Documentar de más sería volver a mentir en el contrato.
+ * <p>Fidelidad (la fija {@code ErrorContractIT} comparando contra el cuerpo <b>real</b>):
+ * {@code traceId} es <b>opcional</b> (solo si el MDC lo tiene) e {@code instance} <b>sí se emite</b>,
+ * aunque el handler nunca llame a {@code setInstance}: <b>Spring lo rellena con la URI de la
+ * petición al renderizar</b>. Se descubrió al comparar el schema con la respuesta real — leer el
+ * código no bastaba.
  */
 @Schema(name = "ApiProblem", description = "Error de la API en formato RFC 9457 (ProblemDetail).")
 public record ApiProblem(
@@ -24,6 +26,9 @@ public record ApiProblem(
     @Schema(description = "Identificador del tipo de error; el cliente ramifica por él.",
         example = "/errors/email-already-exists")
     String type,
+
+    @Schema(description = "URI de la petición que produjo el error.", example = "/auth/register")
+    String instance,
 
     @Schema(description = "Resumen legible del tipo de error.", example = "Conflict")
     String title,

@@ -13,6 +13,8 @@ import type { FieldError } from './fieldError';
 export interface ValidationProblem {
   /** Identificador del tipo de error. */
   type?: string;
+  /** URI de la petición que produjo el error. */
+  instance?: string;
   /** Resumen legible del tipo de error. */
   title?: string;
   /** Código de estado HTTP. */

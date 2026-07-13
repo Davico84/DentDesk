@@ -12,6 +12,8 @@
 export interface ApiProblem {
   /** Identificador del tipo de error; el cliente ramifica por él. */
   type?: string;
+  /** URI de la petición que produjo el error. */
+  instance?: string;
   /** Resumen legible del tipo de error. */
   title?: string;
   /** Código de estado HTTP. */

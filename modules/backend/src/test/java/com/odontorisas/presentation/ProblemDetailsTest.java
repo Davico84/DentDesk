@@ -53,9 +53,20 @@ class ProblemDetailsTest {
         assertThat(withoutTrace.getProperties()).doesNotContainKey("traceId");
     }
 
-    /** {@code instance} NUNCA se emite → documentarlo describiría un campo que la API no envía. */
+    /**
+     * ⚠️ <b>Cuidado con lo que este test NO prueba.</b> La fábrica no fija {@code instance}… pero la
+     * API <b>sí lo emite</b>: Spring lo rellena con la URI de la petición <b>al renderizar</b>. Es
+     * decir, este test pasa y aun así {@code instance} aparece en la respuesta.
+     *
+     * <p>Me costó un fallo en CI: concluí "la API nunca emite {@code instance}" leyendo el código
+     * (nadie llama a {@code setInstance}) y dejé el campo fuera del schema. Solo comparar el schema
+     * con la <b>respuesta real</b> lo destapó ({@code ErrorContractIT}).
+     *
+     * <p><b>Moraleja</b>: la autoridad sobre la forma del cuerpo es el test que mira la respuesta
+     * de la API, no este. Este solo cubre lo que la fábrica pone <em>de su parte</em>.
+     */
     @Test
-    void never_emits_instance() {
+    void the_factory_itself_does_not_set_instance_but_spring_adds_it_when_rendering() {
         ProblemDetail problem = ProblemDetails.of(HttpStatus.INTERNAL_SERVER_ERROR, "internal-server-error", "Ups.");
 
         assertThat(problem.getInstance()).isNull();

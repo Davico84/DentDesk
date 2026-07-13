@@ -27,6 +27,9 @@ public record ValidationProblem(
     @Schema(description = "Identificador del tipo de error.", example = "/errors/validation-error")
     String type,
 
+    @Schema(description = "URI de la petición que produjo el error.", example = "/auth/register")
+    String instance,
+
     @Schema(description = "Resumen legible del tipo de error.", example = "Validation failed")
     String title,
 

@@ -34,11 +34,11 @@ class ErrorContractIT extends AbstractIntegrationTest {
 
     /** Campos de `ApiProblem`. `instance` NO está: la API nunca lo emite. */
     private static final Set<String> API_PROBLEM_FIELDS =
-        Set.of("type", "title", "status", "detail", "timestamp", "traceId");
+        Set.of("type", "instance", "title", "status", "detail", "timestamp", "traceId");
 
     /** `ValidationProblem` = lo anterior + la extensión `errors`. */
     private static final Set<String> VALIDATION_PROBLEM_FIELDS =
-        Set.of("type", "title", "status", "detail", "timestamp", "traceId", "errors");
+        Set.of("type", "instance", "title", "status", "detail", "timestamp", "traceId", "errors");
 
     @Autowired
     MockMvc mockMvc;
@@ -58,8 +58,10 @@ class ErrorContractIT extends AbstractIntegrationTest {
 
         assertThat(problem.keySet()).isSubsetOf(VALIDATION_PROBLEM_FIELDS);
         assertThat(problem).containsKeys("type", "title", "status", "detail", "timestamp", "errors");
-        // `instance` está documentado en RFC 9457 pero la API NO lo emite: no debe aparecer.
-        assertThat(problem).doesNotContainKey("instance");
+        // `instance` SI se emite: Spring lo rellena con la URI al renderizar, aunque el handler
+        // nunca llame a setInstance(). Leer el codigo no bastaba; solo comparar con la respuesta
+        // real lo destapo. Por eso se documenta en el schema.
+        assertThat(problem).containsKey("instance");
 
         // El detalle por campo es lo que permite pintar el error junto al input.
         List<Map<String, String>> errors = JsonPath.read(body, "$.errors");
@@ -84,7 +86,7 @@ class ErrorContractIT extends AbstractIntegrationTest {
         assertThat(problem.keySet()).isSubsetOf(VALIDATION_PROBLEM_FIELDS);
         assertThat(problem).doesNotContainKey("errors");   // por eso es opcional en el contrato
         assertThat(problem).containsKey("timestamp");      // uniformidad: también lo recibe
-        assertThat(problem).doesNotContainKey("instance");
+        assertThat(problem).containsKey("instance");
     }
 
     /** Un error estándar (sesión ausente): solo campos de `ApiProblem`, sin `errors` ni `instance`. */
@@ -99,6 +101,6 @@ class ErrorContractIT extends AbstractIntegrationTest {
         assertThat(problem.keySet()).isSubsetOf(API_PROBLEM_FIELDS);
         assertThat(problem).containsKeys("type", "title", "status", "detail", "timestamp");
         assertThat(problem).doesNotContainKey("errors");
-        assertThat(problem).doesNotContainKey("instance");
+        assertThat(problem).containsKey("instance");
     }
 }
