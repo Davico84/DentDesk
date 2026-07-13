@@ -145,6 +145,10 @@ Ficha clínica-administrativa. Se atienden **menores y adultos**.
 - **Contacto de emergencia**: `emergencyContactName`, `emergencyContactPhone`, `emergencyContactRelationship`
 - **Datos clínicos (anamnesis)** — condicionan el tratamiento: `allergies` (lista; anestesia, penicilina, látex…), `medicalHistory`/`conditions` (diabetes, hipertensión, embarazo, anticoagulantes, cardiopatías…), `currentMedication` (lista)
 - **NO es un usuario del sistema.** El paciente es un **cliente de la clínica**: solo un registro. No tiene cuenta, no inicia sesión y no se vincula a ningún `User`. Lo dan de alta el administrador o la recepcionista (que sí son `User`). *Un eventual portal del paciente sería una capacidad futura y añadiría el vínculo en ese momento; hoy queda fuera de alcance.*
+- **El paciente pertenece a UNA clínica**, no a la plataforma. La misma persona atendida en dos clínicas son **dos `Patient` distintos**, sin relación entre sí: **ninguna clínica sabe que la otra la atiende**. Los datos demográficos se **duplican** (es el precio de la privacidad) y la información clínica **nunca se comparte**.
+  > ⚠️ **El documento (DNI) es único POR CLÍNICA**: la restricción va sobre `(organizationId, document)`, **nunca** sobre `document` a secas — eso impediría que dos clínicas atendieran al mismo paciente.
+  >
+  > El *porqué*, las alternativas descartadas y el resto de consecuencias: **`ADR-0004`**.
 
 **Reglas de negocio que impactan el tratamiento** (a cubrir en los `#### Scenario:` de `patients`/`treatments`):
 - Paciente **menor de edad** ⇒ requiere responsable y **consentimiento del tutor** (ver `Consent`).
