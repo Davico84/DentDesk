@@ -8,6 +8,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.test.web.servlet.MockMvc;
 
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Map;
@@ -64,7 +65,7 @@ class ContractDriftIT extends AbstractIntegrationTest {
     void the_versioned_contract_reflects_the_current_backend() throws Exception {
         String live = mockMvc.perform(get("/v3/api-docs"))
             .andExpect(status().isOk())
-            .andReturn().getResponse().getContentAsString();
+            .andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8);
 
         assertThat(VERSIONED_CONTRACT)
             .as("No se encuentra contracts/openapi.json")

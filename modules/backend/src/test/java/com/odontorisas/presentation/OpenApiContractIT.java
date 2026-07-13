@@ -10,6 +10,7 @@ import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 
+import java.nio.charset.StandardCharsets;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -42,7 +43,7 @@ class OpenApiContractIT extends AbstractIntegrationTest {
     void fetchApiDocs() throws Exception {
         apiDocs = mockMvc.perform(get("/v3/api-docs"))
             .andExpect(status().isOk())
-            .andReturn().getResponse().getContentAsString();
+            .andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8);
     }
 
     private Map<String, Object> responsesOf(String path, String method) {

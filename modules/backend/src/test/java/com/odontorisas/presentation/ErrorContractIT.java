@@ -9,6 +9,7 @@ import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -51,7 +52,7 @@ class ErrorContractIT extends AbstractIntegrationTest {
         String body = mockMvc.perform(post("/auth/register").contentType(MediaType.APPLICATION_JSON)
                 .content("{\"organizationName\":\"C\",\"email\":\"no-es-email\",\"password\":\"1\",\"fullName\":\"A\"}"))
             .andExpect(status().isBadRequest())
-            .andReturn().getResponse().getContentAsString();
+            .andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8);
 
         Map<String, Object> problem = errorBodyOf(body);
 
@@ -76,7 +77,7 @@ class ErrorContractIT extends AbstractIntegrationTest {
         String body = mockMvc.perform(post("/auth/register").contentType(MediaType.APPLICATION_JSON)
                 .content("{ esto no es json "))
             .andExpect(status().isBadRequest())
-            .andReturn().getResponse().getContentAsString();
+            .andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8);
 
         Map<String, Object> problem = errorBodyOf(body);
 
@@ -91,7 +92,7 @@ class ErrorContractIT extends AbstractIntegrationTest {
     void standard_error_body_only_contains_documented_fields() throws Exception {
         String body = mockMvc.perform(get("/users/me"))
             .andExpect(status().isUnauthorized())
-            .andReturn().getResponse().getContentAsString();
+            .andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8);
 
         Map<String, Object> problem = errorBodyOf(body);
 
