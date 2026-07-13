@@ -151,7 +151,7 @@ Lo que el odontólogo *hace*, con su coste y su consentimiento. Al completarse, 
 Imagen clínica (radiografía/foto) almacenada en S3.
 - `patient` (FK), `treatment` (FK, opcional), `s3Key`, `type` (xray/foto), `uploadedAt`
 
-### `billing` → **Invoice** (+ líneas)
+### `patient-billing` → **Invoice** (+ líneas)
 Cobro/factura asociada a tratamientos/citas.
 - `patient` (FK), líneas (`InvoiceLine`: `concept`, `quantity`, `price`, `treatment` FK **opcional** → Treatment), `total`, `status` (pendiente/pagada)
 - El vínculo `InvoiceLine → Treatment` permite mostrar los **pagos por tratamiento** dentro de la ficha dental.
@@ -175,12 +175,12 @@ La **ficha dental** es una **vista/pantalla** del frontend (no una entidad nueva
 | **Odontograma** interactivo (FDI, por superficie, permanente+temporal) | `Tooth` + `ToothCondition` | **`dental-chart`** |
 | Registro de **tratamientos** (por pieza/superficie) | `Treatment` | `treatments` |
 | **Notas dentales** | `DentalNote` | `treatments` |
-| **Pagos** del paciente / por tratamiento | `Invoice` + `InvoiceLine → Treatment` | `billing` |
+| **Pagos** del paciente / por tratamiento | `Invoice` + `InvoiceLine → Treatment` | `patient-billing` |
 | Imágenes (radiografías/fotos) | `Image` | `images` |
 | Historial de citas | `Appointment` | `appointments` |
 
 Implicaciones:
-- Es **transversal**: se construye de forma incremental a medida que aterrizan sus capacidades. El odontograma interactivo pertenece a `treatments`; los pagos a `billing`; etc.
+- Es **transversal**: se construye de forma incremental a medida que aterrizan sus capacidades. El odontograma interactivo pertenece a `dental-chart`; los tratamientos a `treatments`; los pagos a `patient-billing`; etc.
 - La pantalla vivirá en el frontend (probablemente `modules/frontend/src/screens/patients/` o un módulo `treatments`), orquestando componentes de esos módulos (ver `docs/architecture.md`).
 - Al specificar `treatments`, sus `#### Scenario:` deben cubrir el odontograma (marcar hallazgo por superficie, registrar/planificar tratamiento en una pieza, agregar nota) — porque de ahí salen los tests.
 
