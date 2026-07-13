@@ -25,7 +25,7 @@ Dimensión de **negocio** (sustituible por proyecto). Base de conocimiento del d
 | **Organización (tenant)** | Cliente del SaaS que se aísla del resto. En este producto, una **clínica** es una organización. |
 | **Identidad** | La persona (`User`), única en toda la plataforma (correo único global). No tiene rol ni organización propios. |
 | **Membresía** | Pertenencia de una identidad a una organización, con su **rol** en ella. Un usuario puede tener varias. |
-| **Aislamiento (multi-tenant)** | Garantía de que una organización no ve ni escribe datos de otra. Dos capas: filtrado de aplicación (`@TenantId`) + Row-Level Security en PostgreSQL. |
+| **Aislamiento (multi-tenant)** | Garantía de que una clínica **no ve ni modifica** los datos de otra, aunque compartan la instalación. Es la promesa central del SaaS. *(Cómo se implementa: `docs/backend.md §8.1`.)* |
 | **Ficha dental** | Vista compuesta (pantalla) que centraliza la atención de un paciente: datos, odontograma, tratamientos, notas, pagos, imágenes e historial de citas. No es una entidad. |
 | **Odontograma** | Representación del estado dental del paciente pieza por pieza y por superficie. |
 | **Notación FDI (ISO 3950)** | Código de dos dígitos por pieza (permanentes 11–48; temporales 51–85). |
@@ -52,19 +52,38 @@ Dimensión de **negocio** (sustituible por proyecto). Base de conocimiento del d
 
 ## Convenciones
 
+### 🧪 El criterio: ¿lo reconocería un odontólogo?
+
+Este documento describe **el negocio**, no cómo se implementa. Ante la duda sobre si algo pertenece aquí, pregúntate si **una persona de la clínica lo entendería sin saber programar**:
+
+| ✅ Sí es dominio | ❌ No es dominio (va a `docs/backend.md` / `architecture.md`) |
+|---|---|
+| Paciente · Odontograma · Tratamiento · Consentimiento | Flyway · Hibernate · `@MapsId` · BCrypt |
+| **Clínica** (la organización) · **quién trabaja aquí y con qué rol** | **Cómo** se aísla una clínica de otra (RLS, `@TenantId`) |
+| Que el usuario **inicia sesión** | JWT, claims, `tokenHash`, rotación del refresh |
+
+> Ojo con el error inverso: **`Organization` y `Membership` SÍ son dominio.** Que *"la clínica es el cliente del SaaS"* y que *"esta persona trabaja aquí como administradora"* son hechos del negocio, no detalles técnicos. Lo técnico es **cómo** se garantizan.
+
 - **Nivel de detalle**: aquí se listan entidades y campos **conceptuales** clave. Los tipos exactos, longitudes y validaciones finas se fijan en el `spec.md`/`design.md` de cada capacidad y en la migración Flyway correspondiente.
 - Toda entidad tiene `id` (PK) y campos de auditoría (`createdAt`, `updatedAt`) salvo que se indique.
 - Identificadores en inglés (convención de código); ver `docs/backend.md`.
 
 ---
 
-## Entidades por capacidad
+## Entidades
 
 > Estado: **conceptual / por detallar**. Cada capacidad refina su parte al construirse.
+> Se agrupan en dos planos, porque responden a preguntas distintas.
+
+---
+
+# 🏢 Dominio de plataforma — *el SaaS*
+
+*Quién entra al sistema, a qué clínica pertenece y con qué rol.* Es genérico y **reutilizable en cualquier SaaS multi-tenant**, no tiene nada de dental.
 
 ### `authentication` → **User** *(identidad global; construida)*
 **Identidad** de una persona en la plataforma: existe **una sola vez** (correo único global) y **no tiene rol ni organización propios** (el rol vive en `Membership`). Los `User` son el **staff de la clínica** (administrador, recepción, odontólogos): son quienes inician sesión. Los **pacientes NO son usuarios** (ver `Patient`).
-- **Construido**: `email` (único global), `passwordHash` (BCrypt), `fullName`, `status` (`ACTIVE` | `LOCKED` | `DISABLED`), `createdAt`/`updatedAt`.
+- **Construido**: `email` (único global), la contraseña (**se guarda cifrada, nunca en claro**), `fullName`, `status` (`ACTIVE` | `LOCKED` | `DISABLED`), `createdAt`/`updatedAt`.
 - **Movido a `Membership`** (en `multi-tenancy`): `role`. **Diferido al change `update-authentication`** (el *perfil*, no el alta): `username` (único), `phone`, `country`.
 
 ### `multi-tenancy` → **Organization** *(el tenant; construida)*
@@ -78,18 +97,24 @@ Configuración 1:1 de la organización (punto de extensión).
 ### `multi-tenancy` → **Membership** *(puente identidad↔organización; construida)*
 Define a qué organización pertenece un usuario y **con qué rol**. Es el corazón del modelo multi-tenant. Un usuario puede tener varias membresías (multi-organización); en el MVP el registro crea una (rol `ADMIN`); **quién más pertenece a la organización lo gestiona `staff`**, y el **selector de organización activa** se difiere al change `update-multi-tenancy` (es re-emitir el token con otro `oid`: una operación de sesión).
 - `user` (FK), `organization` (FK), `role` (`ADMIN` | `USER`), `status` (`ACTIVE` | `INACTIVE` | `SUSPENDED`), único `(user, organization)`, timestamps.
-- Aislada por **identidad** (Row-Level Security sobre `user_id`).
+- **Regla:** un usuario solo ve sus propias membresías (nunca las de otro). *Cómo* se garantiza, en `docs/backend.md §8.1`.
 
-### `authentication` → **RefreshToken** *(construida)*
-Token de refresco persistido para rotación y revocación real (logout). Se guarda el **hash** del token, nunca el valor en claro.
-- `user` (FK), `tokenHash` (único), `expiresAt`, `revoked`, `createdAt`. El access token es JWT stateless (no se persiste); lleva la organización activa en el claim `oid`.
+> **La sesión no se modela aquí.** Que el usuario *inicia sesión*, que la sesión *sabe en qué clínica está* y que *se puede cerrar de verdad* son hechos del negocio; el **cómo** (tokens, rotación, revocación, claims) es implementación de `authentication` — vive en `docs/backend.md §11` y en `openspec/specs/authentication/`.
 
 ### `organization-branding` → **OrganizationBranding** *(1:1 con Organization; construida)*
 Personalización visual de una organización aplicada al app shell. Fila **opcional**: si no existe, la organización usa la marca por defecto del producto; si todos los campos quedan vacíos, la fila se elimina.
-- `organizationId` (PK/FK, comparte clave con `Organization` vía `@MapsId`), `brandPrimary` (hex `#RRGGBB`, nullable), `brandSecondary` (hex, nullable), `logoUrl` (URL `https`, nullable).
-- **Sin RLS**: es estética pública dentro de la sesión y se lee por el contexto de organización; no contiene datos de negocio sensibles (ver `docs/backend.md §8.1`). El tema se **deriva** en el frontend (contraste WCAG AA, respeta modo claro/oscuro); los colores semánticos no cambian con la marca.
+- `organizationId` (comparte clave con `Organization`), `brandPrimary` (hex `#RRGGBB`), `brandSecondary`, `logoUrl` (URL `https`). Todos opcionales.
+- El tema se **deriva** del color de marca garantizando contraste legible, y respeta el modo claro/oscuro; los colores semánticos (éxito, aviso, error) **no** cambian con la marca. *(Es estética, no dato sensible: ver `ADR-0003` para por qué no lleva aislamiento a nivel de motor.)*
 
-> **Regla de aislamiento (multi-tenancy).** Toda entidad de **negocio** (`Patient`, `Appointment`, `Treatment`, `Invoice`…) pertenece a una organización: lleva `organizationId` + Row-Level Security por organización. `users`/`refresh_tokens` son dominio de auth (sin RLS por organización); `memberships` se aísla por identidad. Ver `docs/backend.md §8.1` y `openspec/specs/multi-tenancy/`.
+---
+
+# 🦷 Dominio del negocio — *la clínica dental*
+
+*A quién se atiende y qué se le hace.* Aquí vive el conocimiento dental del producto.
+
+> 🔒 **Toda entidad de este bloque pertenece a una clínica**: una clínica **nunca** ve ni modifica los datos de otra. Es la garantía central del SaaS.
+>
+> **Cómo se implementa esa garantía NO se documenta aquí** (sería duplicarlo, y dos fuentes acaban divergiendo). Vive en un único sitio: **`docs/backend.md §8.1`**.
 
 ### `patients` → **Patient**
 Ficha clínica-administrativa. Se atienden **menores y adultos**.
