@@ -6,10 +6,13 @@
  * OpenAPI spec version: v1
  */
 
+export * from './apiProblem';
 export * from './authResponse';
 export * from './brandingResponse';
+export * from './fieldError';
 export * from './loginRequest';
 export * from './registerRequest';
 export * from './updateBrandingRequest';
 export * from './userResponse';
 export * from './userResponseRole';
+export * from './validationProblem';
