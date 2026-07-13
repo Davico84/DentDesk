@@ -47,11 +47,11 @@
 
 ## 8. Documentación (estándares perennes)
 
-- [ ] 8.1 `docs/backend.md`: **un único formato de error** (incluido el `401` de sesión); convención de documentar el status real y los errores por operación, y **qué NO hay que escribir** en un endpoint nuevo (los transversales son automáticos)
-- [ ] 8.2 `docs/frontend.md`: manejo de errores **tipados desde el contrato** (capa API + formularios)
-- [ ] 8.3 `docs/coding-style.md §7`: la paridad de validación cliente/servidor incluye el mapeo `errors[]` → campo
-- [ ] 8.4 `docs/testing.md`: cómo se testea el contrato (status real, forma del error, herencia de transversales) y los **dos** jobs de drift
-- [ ] 8.5 `docs/tooling-setup.md`: documentar el job `contract-drift`
+- [x] 8.1 `docs/backend.md`: **un único formato de error** (incluido el `401` de sesión); convención de documentar el status real y los errores por operación, y **qué NO hay que escribir** en un endpoint nuevo (los transversales son automáticos)
+- [x] 8.2 `docs/frontend.md`: manejo de errores **tipados desde el contrato** (capa API + formularios)
+- [x] 8.3 `docs/coding-style.md §7`: la paridad de validación cliente/servidor incluye el mapeo `errors[]` → campo
+- [x] 8.4 `docs/testing.md`: cómo se testea el contrato (status real, forma del error, herencia de transversales) y los **dos** jobs de drift
+- [x] 8.5 `docs/tooling-setup.md`: documentar el job `contract-drift`
 
 ## 9. Documentación de estado (al archivar)
 

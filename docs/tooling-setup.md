@@ -82,8 +82,32 @@ Un workflow **por área** en `.github/workflows/`, cada uno con **path filter** 
 | Workflow | Filtro de rutas | Jobs |
 |---|---|---|
 | `openspec.yml` | `openspec/**` | `validate` → `openspec validate --all --strict` |
-| `frontend.yml` | `modules/frontend/**` | `lint` (typecheck + eslint) · `test` (`vitest --coverage` + artifact) |
-| `backend.yml` | `modules/backend/**` | `verify` (`./mvnw -B verify`) · *(futuro: lint Spotless/Checkstyle, coverage JaCoCo)* |
+| `frontend.yml` | `modules/frontend/**`, `contracts/**` | `lint` (typecheck + eslint) · `test` (`vitest --coverage` + artifact) · **`codegen-drift`** |
+| `backend.yml` | `modules/backend/**` | `verify` (`./mvnw -B verify`, incluye **`ContractDriftIT`**) · *(futuro: lint Spotless/Checkstyle, coverage JaCoCo)* |
+
+### 5.1 Los dos guardianes del contrato
+
+El contrato OpenAPI es la fuente única de verdad, así que CI vigila que **la cadena entera** siga sincronizada. Hacen falta **las dos direcciones**: con una sola, el contrato puede mentir sobre el backend sin que nadie se entere (que es exactamente lo que pasaba).
+
+```
+backend ──[ContractDriftIT]──► contracts/openapi.json ──[codegen-drift]──► cliente generado
+```
+
+| Guardián | Dónde | Qué hace |
+|---|---|---|
+| **`ContractDriftIT`** | test, dentro del `verify` del backend | Compara la especificación que el backend publica **ahora** con `contracts/openapi.json`. **Cambiar la API sin regenerar el contrato rompe la build.** |
+| **`codegen-drift`** | job del workflow de frontend | Regenera el cliente con orval y falla si difiere de lo commiteado. |
+
+> **Por qué el primero es un test y no un job que arranque un servidor**: usa la misma maquinaria de springdoc, corre dentro del `verify` que CI ya ejecuta y rompe la build igual — sin añadir un servidor y un `curl` como piezas frágiles.
+
+**Si CI te dice que hay drift**, regenera y commitea ambos:
+```bash
+# con el backend arrancado — OJO: con `-o`, nunca canalizando por un script
+curl -o contracts/openapi.json http://localhost:8080/v3/api-docs
+pnpm --filter odontorisas-frontend generate:api
+```
+> [!WARNING]
+> Exporta el contrato con `curl -o`. Un `curl | python` en Windows lo dejó **doble codificado** (el `stdin` de Python usa cp1252, no UTF-8), lo que reventaba a `ContractDriftIT` y propagaba *mojibake* al cliente generado.
 
 > [!NOTE]
 > **Path filters + branch protection**: si más adelante marcas estos checks como *required*, un workflow que no dispara (porque su área no cambió) aparece como *pending/skipped* y puede bloquear el merge. Cuando llegue ese momento, usar "required workflows" a nivel de organización o un job agregador. Por ahora no hay branch protection.

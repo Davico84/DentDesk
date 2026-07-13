@@ -113,6 +113,32 @@ queryFn: async () => {
 
 ---
 
+### 2.1 Errores de la API — tipados desde el contrato
+
+**Nunca escribas a mano la forma de un error.** El backend responde RFC 9457 y el contrato lo documenta, así que orval genera los tipos (`ApiProblem`, `ValidationProblem`, `FieldError`). Si el backend cambia la forma del error, lo detecta el **typecheck** en vez de romperse en producción.
+
+> Antes había literalmente un `interface ProblemDetailBody { detail?: string }` escrito a mano. Eso es lo que la capacidad `api-type-contracts` existe para impedir. Si te descubres declarando la forma de un error, **el contrato es el que está incompleto**: arréglalo allí.
+
+En axios el cuerpo del error viaja en `AxiosError<T>`, así que se **parametriza con el tipo generado** (sigue siendo derivado del contrato). Todo pasa por `modules/core/utils/apiError.ts`:
+
+| Helper | Para qué |
+|---|---|
+| `getUserFriendlyError(e)` | El `detail` del problema, redactado para el usuario → aviso genérico (toast) |
+| `getFieldErrors(e)` | Los `errors[{field, message}]` del `400` de validación |
+| `applyServerFieldErrors(e, setError)` | Los vuelca **sobre los campos** de react-hook-form |
+
+**Errores de validación → junto al campo.** Un `400` del servidor trae el detalle por campo: se pinta **en el input**, igual que los de Zod. En la mutación:
+
+```ts
+mutation.mutate(values, {
+  onError: (error) => applyServerFieldErrors(error, setError),
+});
+```
+
+`errors` es **opcional**: el otro `400` posible (JSON malformado) no lo trae. Por eso `getFieldErrors` devuelve `[]` y la UI cae en el aviso genérico.
+
+---
+
 ## 3. Estado del cliente (Zustand)
 
 ### 3.1 Cuándo usar Zustand

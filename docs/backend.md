@@ -197,6 +197,44 @@ Ejemplo de respuesta (validación):
 
 ---
 
+### 10.1 Un único formato de error — sin excepciones
+
+**Regla dura: TODA respuesta de error sale de `presentation.ProblemDetails`.** Es la fábrica única del cuerpo. Si un error se escapa de ella, la API falla con dos formas distintas, el contrato no puede describirlas con un solo schema y el frontend no puede tipar el manejo de errores.
+
+Dos fugas que hubo que tapar (no las reintroduzcas):
+
+- **El `401` de sesión ausente.** El entry point de seguridad hacía `sendError(401)`, que devuelve el cuerpo por defecto del contenedor (`{timestamp,status,error,path}`). Ahora **delega en el `HandlerExceptionResolver` de MVC**, así que lo renderiza el mismo `GlobalExceptionHandler`. Nunca serialices un error a mano en un filtro: delega.
+- **Los errores de la clase padre** (404, 405, JSON malformado). Construyen su `ProblemDetail` por su cuenta, sin pasar por la fábrica, así que salían **sin `timestamp` ni `traceId`**. Se sobrescribe `handleExceptionInternal` para enriquecerlos.
+
+**Fidelidad del cuerpo** (la documentan `ApiProblem`/`ValidationProblem`, y la fija `ProblemDetailsTest`):
+
+| Campo | Regla |
+|---|---|
+| `timestamp` | **siempre** |
+| `traceId` | **opcional** — solo si el MDC lo tiene |
+| `instance` | **nunca se emite** → no debe documentarse |
+| `errors` | **opcional** — el `400` tiene dos formas: validación (con detalle por campo) y JSON malformado (sin él) |
+
+### 10.2 Documentar una operación en el contrato
+
+El contrato OpenAPI es la **fuente única de verdad** (capacidad `api-type-contracts`): el frontend deriva de él sus tipos, y `ContractDriftIT` **rompe la build** si el contrato no refleja el backend.
+
+**Lo que NO tienes que escribir** en un endpoint nuevo — los errores transversales se inyectan solos (`OpenApiErrorsConfig`):
+
+| Respuesta | Se añade sola cuando… |
+|---|---|
+| `500` | siempre |
+| `401` | la ruta **no** es pública (ver `PublicPaths`) |
+| `403` | el método lleva `@PreAuthorize` |
+
+**Lo que SÍ tienes que declarar** (solo tú lo sabes):
+
+- **El status de éxito, si no es `200`.** Los controllers devuelven `ResponseEntity`, así que la herramienta **no puede inferirlo**: declara `@ApiResponse(responseCode = "201"/"204", ...)`.
+- ⚠️ **Si declaras cualquier `@ApiResponse`, la herramienta descarta la respuesta de éxito que infería.** Entonces **declara también el `200`** con su schema, o el contrato perderá el tipo de la respuesta exitosa.
+- El **`400`** donde haya `@Valid` (schema `ValidationProblem`), el **`409`** de conflicto, y el `401` **semántico** de rutas públicas (p. ej. credenciales inválidas), que el customizer no añade.
+
+Tras tocar la API: regenera `contracts/openapi.json` **y** el cliente del frontend. Y **exporta el contrato con `curl -o`, nunca canalizándolo por un script**: un `curl | python` en Windows lo dejó doble codificado (cp1252) y reventaba el guardián.
+
 ## 11. Seguridad
 
 - **Spring Security + JWT** (`com.auth0:java-jwt`). Configuración en `infra.security`.
