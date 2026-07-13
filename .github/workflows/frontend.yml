@@ -44,8 +44,9 @@ jobs:
         run: pnpm lint
 
   # Verifica que el cliente generado (orval) esté sincronizado con contracts/openapi.json.
-  # (La sincronización contrato ↔ backend real se verificará en un job del backend
-  #  cuando se automatice el export de /v3/api-docs.)
+  # Es una de las DOS direcciones del drift; la otra —que el contrato refleje el backend real—
+  # la vigila ContractDriftIT en el `verify` del backend. Entre ambas, la cadena
+  # backend → contrato → cliente no puede desincronizarse sin que CI lo detecte.
   codegen-drift:
     runs-on: ubuntu-latest
     steps:

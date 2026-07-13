@@ -34,9 +34,9 @@
 
 ## 6. CI — el guardián que faltaba: drift backend → contrato (design.md D5/D7)
 
-- [ ] 6.1 Job `contract-drift` en el workflow de **backend**: obtiene la especificación OpenAPI del backend actual y **falla si difiere de `contracts/openapi.json`**. **Resolver la Open Question 2**: exportarla arrancando el servidor o desde un test de integración (elegir la vía **más estable** en CI)
-- [ ] 6.2 **Test/verificación (Scenario "Un endpoint nuevo sin regenerar el contrato rompe CI")**: comprobar que el job falla si el backend y el contrato divergen
-- [ ] 6.3 Retirar del workflow del frontend el comentario que decía que esta verificación estaba pendiente (ya no lo está)
+- [x] 6.1 Job `contract-drift` en el workflow de **backend**: obtiene la especificación OpenAPI del backend actual y **falla si difiere de `contracts/openapi.json`**. **Resolver la Open Question 2**: exportarla arrancando el servidor o desde un test de integración (elegir la vía **más estable** en CI)
+- [x] 6.2 **Test/verificación (Scenario "Un endpoint nuevo sin regenerar el contrato rompe CI")**: comprobar que el job falla si el backend y el contrato divergen
+- [x] 6.3 Retirar del workflow del frontend el comentario que decía que esta verificación estaba pendiente (ya no lo está)
 
 ## 7. Frontend — tipos de error derivados del contrato (design.md D4)
 
