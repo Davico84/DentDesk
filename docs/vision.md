@@ -6,7 +6,7 @@ Dimensión de **negocio** (sustituible por proyecto). Define **qué** construimo
 
 ## 1. Producto
 
-**OdontoRisas** es un **SaaS multi-clínica** de gestión dental: varias clínicas (organizaciones) independientes comparten la instalación con sus datos **aislados**, y cada una administra sus pacientes (menores y adultos), citas, tratamientos con **odontograma** (notación FDI, por superficie, denticiones permanente y temporal), imágenes clínicas, facturación e inventario, con acceso controlado por rol dentro de su organización. La capa de plataforma (identidad, organización, membresía, aislamiento) se diseña **genérica y reutilizable** (ver capacidad `multi-tenancy`).
+**OdontoRisas** es un **SaaS multi-clínica** de gestión dental: varias clínicas (organizaciones) independientes comparten la instalación con sus datos **aislados**, y cada una administra sus pacientes (menores y adultos), citas, el **odontograma** (el *estado* dental: notación FDI, por superficie, denticiones permanente y temporal), los **tratamientos** que lo modifican, imágenes clínicas, cobros al paciente e inventario, con acceso controlado por rol dentro de su organización. La capa de plataforma (identidad, organización, membresía, aislamiento) se diseña **genérica y reutilizable** (ver capacidad `multi-tenancy`).
 
 **Objetivos:**
 - Centralizar la **ficha dental** del paciente (datos clínicos/anamnesis, odontograma, tratamientos, notas, pagos, imágenes e historial de citas) en una vista única.
@@ -25,7 +25,7 @@ Dimensión de **negocio** (sustituible por proyecto). Define **qué** construimo
 | 1 | `authentication` | negocio | usuario | registro, login, sesión, refresh, logout, protección por rol | 0 |
 | 2 | `staff` | negocio | admin | el administrador gestiona **quién pertenece a su clínica y con qué rol**: invitar, activar/desactivar, cambiar rol (opera sobre `Membership`) | 1, `multi-tenancy` |
 | 3 | `patients` | negocio | staff | ficha de pacientes (datos personales, contacto) | 1 |
-| 4 | `appointments` | negocio | staff / paciente | agendamiento y estado de citas | 3, (2) |
+| 4 | `appointments` | negocio | **staff** | agendamiento **interno**: la recepción agenda, reprograma y cambia el estado de las citas | 3, (2) |
 | 5 | `dental-chart` | negocio | odontólogo | **odontograma**: el *estado* dental pieza a pieza y por superficie (FDI, denticiones permanente/temporal), hallazgos e histórico del estado | 3 |
 | 6 | `treatments` | negocio | odontólogo | las *acciones* sobre ese estado: procedimientos (planificados/realizados), coste, notas clínicas y consentimiento | 3, 5 |
 | 7 | `images` | negocio | odontólogo | subida de imágenes (radiografías/fotos) vía S3 | 3, 6 |
@@ -49,6 +49,12 @@ Dimensión de **negocio** (sustituible por proyecto). Define **qué** construimo
 > | Cambiar de **organización activa** | usuario con varias membresías | change **`update-multi-tenancy`** — es re-emitir el token con otro `oid`: una operación de **sesión**, no de gestión de usuarios |
 >
 > El nombre es **`staff`** y no `memberships` porque §5 pide un **sustantivo de negocio**: el admin piensa *"gestiono el personal de mi clínica"*. `Membership` es la **entidad** sobre la que opera (de `multi-tenancy`), no la capacidad — igual que `treatments` opera sobre `ToothCondition`, que es de `dental-chart`.
+
+> ⚠️ **El actor de `appointments` es SOLO el staff.** Antes decía *"staff / paciente"*, y eso era **inimplementable**: el paciente **no es usuario del sistema** (no tiene cuenta ni inicia sesión, ver `docs/domain.md`), así que **no puede agendar**. Un actor que no puede autenticarse no genera Scenarios válidos — y de los Scenarios salen los tests.
+>
+> Si ese actor hubiera sobrevivido, al proponer la capacidad alguien habría escrito *"#### Scenario: el paciente reserva una cita"*, y para hacerlo pasar habría que **darle cuenta al paciente**, deshaciendo una decisión de dominio y arrastrando un portal del paciente entero.
+>
+> 💡 Pero esa celda **escondía un deseo real**: la **reserva online**. No se pierde — se nombra como `public-booking` en §7. Y **no requiere dar cuenta al paciente**: se resuelve con un formulario **público sin login** (el visitante pide hueco, la clínica confirma), que es como funciona la mayoría. Sería una capacidad propia, con **otro actor** (visitante anónimo) y sus propios problemas (spam, verificación por correo). Nada que ver con el agendamiento **interno** de la fila 4.
 
 > ⚠️ **`patient-billing` no es "el billing del SaaS".** En un SaaS multi-clínica conviven **dos negocios de cobro completamente distintos**, y confundirlos es un error caro:
 >
@@ -121,7 +127,8 @@ Regla equivalente para agentes en `CLAUDE.md → Flujo de trabajo → Gobernanza
 ## 6. Notas de secuencia
 
 - **`authentication` primero**: todo lo demás asume identidad + roles.
-- **`patients` es el núcleo del dominio**: `appointments`, `treatments` e `images` cuelgan de él.
+- **`patients` es el núcleo del dominio**: `appointments`, `dental-chart`, `treatments` e `images` cuelgan de él.
+- **`dental-chart` antes que `treatments`**: el tratamiento *modifica* el estado dental, así que el estado debe existir primero.
 - **`dashboard` al final**: agrega datos de casi todas las capacidades; construirlo antes obligaría a rehacerlo.
 - `inventory` es relativamente independiente; puede adelantarse si el negocio lo prioriza.
 
@@ -129,6 +136,8 @@ Regla equivalente para agentes en `CLAUDE.md → Flujo de trabajo → Gobernanza
 
 - **`subscriptions`** — **el negocio del SaaS: cobrarle a la clínica.** Plan contratado, límites del plan, ciclo de facturación, impago y suspensión. **No confundir con `patient-billing`** (fila 8), que es la clínica cobrando *al paciente*: son dos negocios distintos (ver el aviso en §2).
   > Se nombra aquí **aunque no esté priorizada** porque un SaaS sin forma de cobrar su suscripción es un hueco que conviene **ver desde el principio**, no descubrir tarde. La plataforma ya dejó el gancho: `Organization.status` contempla `SUSPENDED` y el login/refresh hacen *gate* por él — cortar el acceso por impago **no requeriría tocar `authentication`**.
+- **`public-booking`** — **la reserva online**: un visitante (sin cuenta) solicita hueco desde la web y la clínica confirma. Actor: **visitante anónimo**, distinto del staff de `appointments` (fila 4, agendamiento *interno*).
+  > **No requiere dar cuenta al paciente** —que sigue sin ser usuario del sistema—: se resuelve con un formulario **público sin login**. Trae problemas propios (endpoint público → spam y abuso, verificación por correo, huecos disponibles sin filtrar datos de otros pacientes), por eso es capacidad aparte y no un Scenario más de `appointments`.
 - `chatbot` (Spring AI ya está en el stack "para el bot") — no priorizada aún.
 - `notifications` (correo/realtime STOMP) — se evaluará cuando `appointments` lo requiera.
 
