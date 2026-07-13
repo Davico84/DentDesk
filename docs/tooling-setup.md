@@ -111,3 +111,15 @@ pnpm --filter odontorisas-frontend generate:api
 
 > [!NOTE]
 > **Path filters + branch protection**: si más adelante marcas estos checks como *required*, un workflow que no dispara (porque su área no cambió) aparece como *pending/skipped* y puede bloquear el merge. Cuando llegue ese momento, usar "required workflows" a nivel de organización o un job agregador. Por ahora no hay branch protection.
+
+> [!WARNING]
+> ### 🚩 Al leer un fallo de CI: mira SIEMPRE el SHA del run
+>
+> Los workflows llevan `concurrency: cancel-in-progress: true`, así que **cada push cancela el run anterior a media ejecución**. Si haces varios pushes seguidos arreglando algo, quedan runs **cancelados** cuyos logs **siguen visibles** y muestran **fallos ya resueltos**.
+>
+> Esto nos ha costado **tres rondas** de diagnosticar bugs que ya no existían. Dos síntomas que lo delatan:
+>
+> - **El error "no desaparece"** por más que lo arregles → estás leyendo el log de un run viejo. **Comprueba el SHA en la cabecera del run** y contrástalo con `git log -1`.
+> - **El donut del commit sale rojo aunque los checks estén todos en verde** → el donut agrega **todos** los check runs del commit, y un run **cancelado** no cuenta como verde. Si los checks del último SHA están ✅, está bien.
+>
+> **Y para encontrar el fallo real:** los tests que fallan por aserción lanzan `AssertionError`, **no tienen `Caused by:`**. Busca `<<< FAILURE!` o `Tests run: … Failures:`. El `Caused by:` solo aparece si el contexto de Spring no arranca.
