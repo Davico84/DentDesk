@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "OdontoRisas API",
-    "description": "API de la clÃ­nica dental OdontoRisas",
+    "description": "API de la clínica dental OdontoRisas",
     "version": "v1"
   },
   "servers": [
@@ -14,11 +14,11 @@
   "tags": [
     {
       "name": "organization-branding",
-      "description": "PersonalizaciÃ³n visual por organizaciÃ³n"
+      "description": "Personalización visual por organización"
     },
     {
       "name": "auth",
-      "description": "AutenticaciÃ³n"
+      "description": "Autenticación"
     }
   ],
   "paths": {
@@ -50,7 +50,7 @@
             }
           },
           "401": {
-            "description": "No autenticado: falta la sesiÃ³n o no es vÃ¡lida.",
+            "description": "No autenticado: falta la sesión o no es válida.",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -78,7 +78,7 @@
         },
         "responses": {
           "200": {
-            "description": "Marca actualizada (o eliminada, si se envÃ­a vacÃ­a).",
+            "description": "Marca actualizada (o eliminada, si se envía vacía).",
             "content": {
               "application/json": {
                 "schema": {
@@ -88,7 +88,7 @@
             }
           },
           "400": {
-            "description": "Color con formato invÃ¡lido, o URL de logo que no es https.",
+            "description": "Color con formato inválido, o URL de logo que no es https.",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -108,7 +108,7 @@
             }
           },
           "401": {
-            "description": "No autenticado: falta la sesiÃ³n o no es vÃ¡lida.",
+            "description": "No autenticado: falta la sesión o no es válida.",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -118,7 +118,7 @@
             }
           },
           "403": {
-            "description": "Autenticado, pero sin el rol necesario para esta operaciÃ³n.",
+            "description": "Autenticado, pero sin el rol necesario para esta operación.",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -148,7 +148,7 @@
         },
         "responses": {
           "201": {
-            "description": "OrganizaciÃ³n y administrador creados; sesiÃ³n iniciada.",
+            "description": "Organización y administrador creados; sesión iniciada.",
             "content": {
               "application/json": {
                 "schema": {
@@ -158,7 +158,7 @@
             }
           },
           "400": {
-            "description": "Campos invÃ¡lidos (ver `errors` para el detalle por campo).",
+            "description": "Campos inválidos (ver `errors` para el detalle por campo).",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -168,7 +168,7 @@
             }
           },
           "409": {
-            "description": "El correo ya estÃ¡ registrado, o ya existe una organizaciÃ³n con ese identificador. El campo `type` discrimina cuÃ¡l de los dos (`/errors/email-already-exists` o `/errors/organization-slug-taken`).",
+            "description": "El correo ya está registrado, o ya existe una organización con ese identificador. El campo `type` discrimina cuál de los dos (`/errors/email-already-exists` o `/errors/organization-slug-taken`).",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -208,7 +208,7 @@
         ],
         "responses": {
           "200": {
-            "description": "SesiÃ³n renovada; se rota la cookie de refresco.",
+            "description": "Sesión renovada; se rota la cookie de refresco.",
             "content": {
               "application/json": {
                 "schema": {
@@ -218,7 +218,7 @@
             }
           },
           "401": {
-            "description": "Falta la cookie de refresco, o es invÃ¡lida o estÃ¡ revocada.",
+            "description": "Falta la cookie de refresco, o es inválida o está revocada.",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -258,7 +258,7 @@
         ],
         "responses": {
           "204": {
-            "description": "SesiÃ³n cerrada; la cookie de refresco se invalida."
+            "description": "Sesión cerrada; la cookie de refresco se invalida."
           },
           "500": {
             "description": "Error inesperado del servidor.",
@@ -291,7 +291,7 @@
         },
         "responses": {
           "200": {
-            "description": "SesiÃ³n iniciada.",
+            "description": "Sesión iniciada.",
             "content": {
               "application/json": {
                 "schema": {
@@ -301,7 +301,7 @@
             }
           },
           "400": {
-            "description": "Campos invÃ¡lidos.",
+            "description": "Campos inválidos.",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -311,7 +311,7 @@
             }
           },
           "401": {
-            "description": "Correo o contraseÃ±a incorrectos.",
+            "description": "Correo o contraseña incorrectos.",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -377,22 +377,22 @@
         }
       },
       "FieldError": {
-        "description": "Campo invÃ¡lido y su motivo.",
+        "description": "Campo inválido y su motivo.",
         "properties": {
           "field": {
             "type": "string",
-            "description": "Nombre del campo del request que fallÃ³.",
+            "description": "Nombre del campo del request que falló.",
             "example": "password"
           },
           "message": {
             "type": "string",
             "description": "Motivo, apto para mostrar al usuario.",
-            "example": "La contraseÃ±a debe tener al menos 8 caracteres"
+            "example": "La contraseña debe tener al menos 8 caracteres"
           }
         }
       },
       "ValidationProblem": {
-        "description": "Error 400 en formato RFC 9457. Si viene de la validaciÃ³n, incluye el detalle por campo.",
+        "description": "Error 400 en formato RFC 9457. Si viene de la validación, incluye el detalle por campo.",
         "properties": {
           "type": {
             "type": "string",
@@ -407,13 +407,13 @@
           "status": {
             "type": "integer",
             "format": "int32",
-            "description": "CÃ³digo de estado HTTP.",
+            "description": "Código de estado HTTP.",
             "example": 400
           },
           "detail": {
             "type": "string",
-            "description": "ExplicaciÃ³n concreta del error.",
-            "example": "Uno o mÃ¡s campos son invÃ¡lidos."
+            "description": "Explicación concreta del error.",
+            "example": "Uno o más campos son inválidos."
           },
           "timestamp": {
             "type": "string",
@@ -423,12 +423,12 @@
           },
           "traceId": {
             "type": "string",
-            "description": "Identificador de traza. Opcional: solo si la peticiÃ³n lo tiene.",
+            "description": "Identificador de traza. Opcional: solo si la petición lo tiene.",
             "example": "3f2a1b4c5d6e7f80"
           },
           "errors": {
             "type": "array",
-            "description": "Campos invÃ¡lidos. Ausente si el 400 no proviene de la validaciÃ³n (p. ej. JSON malformado).",
+            "description": "Campos inválidos. Ausente si el 400 no proviene de la validación (p. ej. JSON malformado).",
             "items": {
               "$ref": "#/components/schemas/FieldError"
             }
@@ -527,7 +527,7 @@
         "properties": {
           "type": {
             "type": "string",
-            "description": "Identificador del tipo de error; el cliente ramifica por Ã©l.",
+            "description": "Identificador del tipo de error; el cliente ramifica por él.",
             "example": "/errors/email-already-exists"
           },
           "title": {
@@ -538,13 +538,13 @@
           "status": {
             "type": "integer",
             "format": "int32",
-            "description": "CÃ³digo de estado HTTP.",
+            "description": "Código de estado HTTP.",
             "example": 409
           },
           "detail": {
             "type": "string",
-            "description": "ExplicaciÃ³n concreta de este error, apta para mostrar al usuario.",
-            "example": "El correo ya estÃ¡ registrado."
+            "description": "Explicación concreta de este error, apta para mostrar al usuario.",
+            "example": "El correo ya está registrado."
           },
           "timestamp": {
             "type": "string",
@@ -554,7 +554,7 @@
           },
           "traceId": {
             "type": "string",
-            "description": "Identificador de traza para correlacionar con los logs. Opcional: solo se emite si la peticiÃ³n lo tiene.",
+            "description": "Identificador de traza para correlacionar con los logs. Opcional: solo se emite si la petición lo tiene.",
             "example": "3f2a1b4c5d6e7f80"
           }
         }
