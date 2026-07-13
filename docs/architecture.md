@@ -134,6 +134,35 @@ Capa de plataforma **reutilizable** que aísla los datos de cada organización (
 
 ---
 
+## 5.1 Despliegue y escalado horizontal
+
+**La API es stateless, así que escala horizontal sin *sticky sessions*.** Cualquier instancia puede servir cualquier petición. Esto no es casualidad: cae solo de las decisiones de `authentication` y `multi-tenancy`, y **hay que no romperlo**.
+
+| Decisión | Por qué permite balancear |
+|---|---|
+| `SessionCreationPolicy.STATELESS` | **No hay sesión en memoria del servidor** — la propiedad clave |
+| Access token = JWT | Se valida con la firma, sin consultar a nadie |
+| Refresh token **persistido en BD** (hash) | Rotación y revocación funcionan entre instancias, no en la RAM de una |
+| Contexto de tenant desde el claim `oid` **en cada petición** | `ThreadLocal` que se limpia en el `finally`: cero estado entre peticiones |
+| RLS con `set_config(..., true)` | Es **transaction-local**: sirve con cualquier pool o instancia |
+| `ddl-auto=none` + Flyway | Flyway **bloquea** su tabla de historial: N réplicas arrancando a la vez es seguro (una migra, las demás esperan) |
+| Imágenes → S3 | Nada en el disco local de la instancia |
+| `/actuator/health` expuesto | El balanceador (o k8s) ya tiene su health check |
+
+**Lo único que hacía falta añadir:**
+
+```yaml
+server:
+  forward-headers-strategy: framework
+```
+
+Detrás de un proxy que termina TLS, la petición llega por `http` aunque el cliente usara `https`. Sin esto, la **cookie `Secure` del refresh token** no se comporta como debe y las URLs absolutas salen con el esquema equivocado. Con `framework`, Spring respeta las cabeceras `X-Forwarded-*`.
+
+> ⚠️ **Lo que SÍ rompería el balanceo** (hoy no existe, pero llegará):
+> - **`@Scheduled`**: un job correría en **todas** las réplicas (trabajo duplicado) → necesitaría ShedLock o *leader election*. *(Hay un tripwire de ArchUnit que rompe la build si entra `@Async`/`@Scheduled` sin resolver la propagación de contexto.)*
+> - **WebSocket/STOMP** (las `notifications` de `vision.md §7`): son stateful por conexión → sticky sessions o un *broker relay* (Redis/RabbitMQ).
+> - **Rate limiting en memoria**: no funcionaría entre réplicas → necesitaría Redis.
+
 ## 6. Andamiaje (change `add-project-scaffolding`)
 
 - [x] `modules/backend/`: proyecto Maven + Spring Boot (capas, config única+secrets, Flyway).
