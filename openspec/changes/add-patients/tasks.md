@@ -1,15 +1,15 @@
 > ⚠️ **Depende de `update-multi-tenancy`.** El contexto de organización se fija **solo** en cada transacción, así que `patients` **no escribe ni una línea de código de aislamiento**: declara su entidad siguiendo `docs/backend.md §8.1` y el aislamiento **ya está**. Es precisamente lo que ese change viene a garantizar — y esta capacidad es su primera prueba real.
 
-## 1. Backend — la tabla del paciente y su aislamiento (design.md D2, y `docs/backend.md §8.1`)
+## 1. Backend — la tabla del paciente y su aislamiento (design.md D1, y `docs/backend.md §8.1`)
 
 - [ ] 1.1 Migración **V9**: tabla `patients` con `organization_id BIGINT NOT NULL`, datos personales, contacto, responsable, contacto de emergencia y anamnesis
 - [ ] 1.2 **Índice sobre `organization_id`** — es **parte de la política de aislamiento**, no una optimización: sin él RLS filtra con *seq scan* y el listado se degrada con cada clínica nueva
 - [ ] 1.3 `ENABLE` + **`FORCE ROW LEVEL SECURITY`** y política `organization_isolation` **sin `missing_ok`** (fallo ruidoso ante consulta sin contexto)
 - [ ] 1.4 🚨 **Unicidad `(organization_id, document)`**, **NUNCA** sobre `document` a secas: eso impediría que dos clínicas atendieran a la misma persona (`ADR-0004`). El documento admite `NULL` (un bebé puede no tenerlo)
-- [ ] 1.5 Anamnesis como **listas** (`allergies`, `conditions`, `currentMedication`), no texto libre — `treatments` tendrá que recorrerlas para **alertar**, y un blob no permite alertar de forma fiable (design.md D4)
+- [ ] 1.5 Anamnesis como **listas** (`allergies`, `conditions`, `currentMedication`), no texto libre — `treatments` tendrá que recorrerlas para **alertar**, y un blob no permite alertar de forma fiable (design.md D3)
 - [ ] 1.6 Entidad `Patient` con **`@TenantId`** + repositorio. **Sin código de aislamiento propio**: el contexto lo pone `update-multi-tenancy`
 
-## 2. Backend — reglas de negocio (design.md D3, D5)
+## 2. Backend — reglas de negocio (design.md D2, D4)
 
 - [ ] 2.1 **Menor de edad derivado de la fecha de nacimiento** — `isMinor` **NO es un campo persistido**: un dato declarado se desincroniza el día del cumpleaños
 - [ ] 2.2 **Validación condicional**: si el paciente es menor, los datos del responsable pasan a **obligatorios**. No se expresa campo a campo: hace falta validación **a nivel de objeto**
@@ -17,7 +17,7 @@
 - [ ] 2.4 Servicio de pacientes: alta, consulta, edición, baja y listado. **Todo `@Transactional`** (las variables de RLS son *transaction-local*; fuera de transacción el contexto se pierde). El `organizationId` sale **solo del contexto**, jamás de la petición
 - [ ] 2.5 **Tests (Scenarios de alta, menor de edad, anamnesis y baja)**: incluidos el documento duplicado en la misma clínica (→ conflicto) y el **mismo documento en otra clínica** (→ permitido)
 
-## 3. Backend — la API (design.md D6, `docs/backend.md §10.2`)
+## 3. Backend — la API (design.md D5, `docs/backend.md §10.2`)
 
 - [ ] 3.1 Controller: alta, consulta, edición, baja y **listado con búsqueda** (por nombre y por documento) + paginación. **`GET` + query params**, NO el método `QUERY` (`ADR-0002`)
 - [ ] 3.2 Declarar **solo** lo que la herramienta no infiere: el status de éxito, el `400` de validación y el `409` del documento duplicado. **El `401`/`403`/`500` se inyectan solos** — no escribirlos
