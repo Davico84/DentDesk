@@ -115,6 +115,16 @@ Usa `renderHook` con un `wrapper` que provea un `QueryClient` nuevo por test (co
 ### Test de aislamiento — OBLIGATORIO por capacidad de negocio
 Toda capacidad que añada tablas de negocio SHALL incluir un test de aislamiento (contra PostgreSQL real, como rol no-owner) que verifique que **la organización A no ve —ni escribe— datos de la B**, incluso con una consulta que omite el filtro. Referencia: `MembershipRlsIT` (identidad) y `OrganizationRlsIT` (organización, sobre tabla-fixture). Es un gate, no un extra.
 
+> 🚨 **El test NO puede fijar el contexto él mismo.** Si llama a `TenantSession.bind(...)`, está probando `bind()` —que ya funciona— y **no el aislamiento de tu capacidad**: pasaría en verde con el mecanismo roto. Debe poblar `OrganizationContext` **como lo hace el filtro JWT** y entrar por una operación `@Transactional` normal. **La ausencia de `bind` en el test es el aserto.** Referencia: `AutomaticTenantBindingIT`.
+>
+> Y debe correr **como el rol de aplicación no-superusuario** (`AbstractTenantAwareIntegrationTest`). Con el superusuario del contenedor, **RLS ni se aplica** y el test pasaría en verde aunque el aislamiento no existiera.
+
+### Una regla de arquitectura que nunca ha fallado no sabes si funciona
+Dos lecciones que costaron caro y que ahora son estándar:
+
+1. **Prueba que la regla falla.** Al escribir una regla de ArchUnit, introduce temporalmente la violación y comprueba que **rompe la build**. Si nunca la has visto fallar, no sabes si protege algo.
+2. **Un importador roto deja la regla verde y vacía.** ArchUnit 1.3.0 no sabía leer el bytecode de Java 25 (*class file major 69*): fallaba **en silencio**, importaba **cero clases**, y el `allowEmptyShould(true)` daba por buenas todas las reglas. Estuvieron verdes meses **sin comprobar nada** — y al arreglarlo aparecieron violaciones de capas que llevaban ahí desde el principio. Por eso cada test de ArchUnit lleva ahora un **guardián del importador** (`the_importer_actually_reads_the_bytecode`) que falla si la lista de clases viene vacía.
+
 ### Convenciones (backend)
 - Nombre de método de test orientado a comportamiento: `should_<resultado>_when_<condición>` (identificadores en inglés, propios de Java) y/o `@DisplayName` descriptivo en español referenciando el scenario.
 - Estructura AAA con comentarios `// Arrange / // Act / // Assert`.
