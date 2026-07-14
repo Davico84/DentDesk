@@ -3,6 +3,7 @@ package com.odontorisas.presentation.controller;
 import com.odontorisas.presentation.dto.BrandingResponse;
 import com.odontorisas.presentation.dto.UpdateBrandingRequest;
 import com.odontorisas.presentation.dto.ValidationProblem;
+import com.odontorisas.service.organization.Branding;
 import com.odontorisas.service.organization.BrandingService;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -41,7 +42,7 @@ public class BrandingController {
      */
     @GetMapping
     public BrandingResponse getBranding() {
-        return brandingService.getForCurrentOrganization();
+        return BrandingResponse.from(brandingService.getForCurrentOrganization());
     }
 
     /**
@@ -61,6 +62,9 @@ public class BrandingController {
     @PutMapping
     @PreAuthorize("hasRole('ADMIN')")
     public BrandingResponse updateBranding(@Valid @RequestBody UpdateBrandingRequest request) {
-        return brandingService.update(request);
+        // La traducción entre el DTO de la API y el tipo del servicio vive AQUÍ: el controller es
+        // quien conoce el contrato HTTP. El servicio no debe saber que existe una API REST.
+        Branding requested = new Branding(request.brandPrimary(), request.brandSecondary(), request.logoUrl());
+        return BrandingResponse.from(brandingService.update(requested));
     }
 }
