@@ -70,6 +70,45 @@ Este es el corazón del proyecto. Una **capacidad** es un área cohesiva de comp
   `## Requirements` → `### Requirement:` (con **SHALL**) → `#### Scenario:` (**WHEN/THEN**). Cada requirement tiene ≥ 1 scenario, y **los tests se derivan de esos scenarios**.
 - **`openspec/changes/<id>/`** → capacidades **en progreso**: `proposal.md` (por qué), `design.md` (cómo), `tasks.md` (pasos) y `specs/<cap>/spec.md` (el **delta**: `## ADDED | MODIFIED | REMOVED Requirements`). Al terminar, el delta se fusiona en `openspec/specs/` y el change pasa a `changes/archive/`.
 
+### Anatomía de una spec: por qué tiene *esas* secciones
+
+Una spec de OdontoRisas **no** lleva las secciones clásicas de un documento funcional (*Objetivo · Actores · Alcance · Reglas de negocio · Casos excepcionales · Restricciones · Criterios de aceptación · Fuera de alcance*). Lleva **estas**, porque son las que **OpenSpec exige** — su propio parser rechaza una spec que no las tenga:
+
+```
+# <capacidad> Specification
+
+## Purpose            ← para qué existe la capacidad  (obligatorio: el parser falla sin él)
+
+## Requirements
+### Requirement: <nombre>          ← una regla, redactada con SHALL
+#### Scenario: <nombre>            ← un caso comprobable
+- **WHEN**  <condición>
+- **THEN**  <resultado esperado>
+```
+
+La razón de fondo es que **una spec no es un documento que se lee: es un documento que se ejecuta.** Cada `#### Scenario` es un **test**: la regla del proyecto es *un WHEN/THEN → un test*. Un apartado como "Reglas de negocio" en prosa no se puede verificar; un `Scenario` sí, y la CI se encarga de que no mienta.
+
+**Entonces, ¿dónde están las otras secciones?** No desaparecen — están **repartidas** por el artefacto que de verdad les corresponde, en vez de amontonadas en un único documento:
+
+| Sección clásica | Dónde vive aquí |
+|---|---|
+| **Objetivo** | `## Purpose` de la spec · y el `## Why` del `proposal.md` |
+| **Actores** | dentro del `### Requirement:` que los nombra · catálogo en [`docs/domain.md`](docs/domain.md) |
+| **Alcance** | `## What Changes` del `proposal.md` |
+| **Fuera de alcance** | `## Non-goals` del `proposal.md` |
+| **Reglas de negocio** | **son** los `### Requirement:` (SHALL) |
+| **Casos excepcionales** | `#### Scenario:` de error y de borde (**obligatorios**, no un anexo) |
+| **Restricciones** | `## Decisions` y `## Risks / Trade-offs` del `design.md` |
+| **Criterios de aceptación** | **son** los `#### Scenario:` — no se escriben aparte |
+
+> Reglas de negocio y criterios de aceptación **son la misma cosa escrita una sola vez**. Ahí está la ganancia: en un documento clásico se escriben dos veces y **se desincronizan**.
+
+#### Una desviación deliberada: el `Purpose` va también en el *delta*
+
+OpenSpec **obliga** a que la spec construida tenga `## Purpose`… pero **su plantilla del delta no te lo pide**. Resultado: el objetivo de la capacidad acababa escribiéndose **al archivar**, cuando ya está todo construido y no queda nada que discutir — la **única** parte del spec que se saltaba la revisión humana.
+
+Por eso, **en este proyecto el delta de una capacidad nueva (`add-*`) lleva su `## Purpose` desde el `propose`**, para que se revise como todo lo demás; al archivar solo se copia. Un `update-*` **no** lo repite: ya vive en la spec construida, y duplicarlo sería crear una segunda fuente de verdad que se desincroniza. (Convención nuestra, no de OpenSpec; queda registrada en [`docs/vision.md`](docs/vision.md) y [`CLAUDE.md`](CLAUDE.md).)
+
 **El ciclo** (detalle en [`SETUP-OPENSPEC.md`](SETUP-OPENSPEC.md)):
 
 ```
@@ -88,7 +127,9 @@ Este es el corazón del proyecto. Una **capacidad** es un área cohesiva de comp
 | ↳ *reforzada* | | ✅ | El contrato declara **status reales y errores tipados**; los errores transversales se inyectan solos; **CI vigila las dos direcciones del drift** (backend→contrato→cliente) |
 | `multi-tenancy` | técnica | ✅ construida | [`openspec/specs/multi-tenancy/`](openspec/specs/multi-tenancy/spec.md) |
 | `organization-branding` | negocio | ✅ construida | [`openspec/specs/organization-branding/`](openspec/specs/organization-branding/spec.md) |
-| `users`, `patients`, `appointments`, `treatments`, `images`, `billing`, `inventory`, `dashboard` | negocio | ⏳ planeadas | roadmap en [`docs/vision.md`](docs/vision.md) |
+| ↳ *cierre del aislamiento* | | 🚧 en progreso | El contexto de tenant se fija **solo** en cada transacción: [`changes/update-multi-tenancy/`](openspec/changes/update-multi-tenancy/proposal.md) |
+| `patients` | negocio | 🚧 en progreso | [`changes/add-patients/`](openspec/changes/add-patients/proposal.md) |
+| `staff`, `appointments`, `dental-chart`, `treatments`, `images`, `patient-billing`, `inventory`, `dashboard` | negocio | ⏳ planeadas | roadmap en [`docs/vision.md`](docs/vision.md) |
 
 > El producto es un **SaaS multi-tenant** (modelo identidad/organización/membresía, aislamiento por Row-Level Security). Reglas para construir capacidades de negocio: [`docs/backend.md §8.1`](docs/backend.md).
 
