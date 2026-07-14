@@ -1,3 +1,11 @@
+## Purpose
+
+La ficha clínico-administrativa de la persona atendida en una clínica. Es el **núcleo del dominio**: de ella cuelgan el odontograma, los tratamientos, las citas, las imágenes y los cobros.
+
+El paciente es un **cliente de la clínica**, no un usuario del sistema: no tiene cuenta ni inicia sesión — lo registra el personal (administrador, recepcionista u odontólogo). Y **pertenece a una sola clínica**: la misma persona atendida en dos clínicas son dos fichas distintas, y ninguna sabe de la otra.
+
+Cubre el alta, la consulta, la edición, la baja (que **archiva**, nunca borra) y el **listado con búsqueda** —el uso diario de recepción—, con las reglas que el dominio exige: **el menor de edad requiere responsable**, y la anamnesis (alergias, antecedentes, medicación) se registra de forma que **pueda alertarse** antes de un tratamiento.
+
 ## ADDED Requirements
 
 ### Requirement: Alta del paciente en la clínica

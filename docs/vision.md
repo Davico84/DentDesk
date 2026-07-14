@@ -105,6 +105,8 @@ planeada (este roadmap) → en progreso (change activo: proposal.md + design.md)
 Disciplina para que el contexto de la IA se mantenga preciso (su contexto se extrae de `specs/` y `docs/`):
 
 - **En `/opsx:propose`**: enlaza el change nuevo (`openspec/changes/<id>/proposal.md` y `design.md`) en "Estado de capacidades" y márcala 🚧/en progreso.
+  - 📌 **Si la capacidad es NUEVA, su delta lleva el `## Purpose` desde el propose** (antes del `## ADDED Requirements`). El *objetivo* —el "para qué existe esta capacidad"— **tiene que pasar por la revisión humana como todo lo demás**. Si se escribe al archivar, aparece en un commit donde ya no hay nada que discutir: es la única parte del spec que se saltaría el ciclo de aprobación.
+  - En un change **`update-*`** (capacidad ya construida) el delta **NO** repite el `Purpose`: ya vive en la spec. Solo se toca si el propósito de la capacidad cambia de verdad.
 - **En `/opsx:archive`** (en el **mismo commit/PR** que el archivado):
   1. Si la capacidad tocó el dominio, **actualiza `docs/domain.md`** — es la fuente de la que la IA extrae el modelo; desincronizarla degrada la precisión.
   2. Marca la capacidad como ✅ **construida** y enlaza su `spec.md` en `openspec/specs/`.
