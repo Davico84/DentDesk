@@ -53,6 +53,8 @@ export const userKeys = {
 - **Subclaves**: funciones que extienden el array raíz por desestructuración (mantienen la jerarquía de cache).
 - **Invalidación coherente**: `queryClient.invalidateQueries({ queryKey: userKeys.all })` refresca todas las subclaves.
 
+> **Estado actual (objetivo, aún no adoptado):** los hooks existentes (`auth`, `branding`, `patients`) usan una **clave raíz inline** (`const BRANDING_KEY = ["branding", "me"] as const`) e invalidan por ella, no una factoría `xKeys`. Es la convención **real** hoy, y mantiene la jerarquía. Adopta la factoría cuando un módulo tenga **varias** lecturas con parámetros y la invalidación por subclaves aporte de verdad.
+
 ### 2.3 Estructura de la capa de API (generada con orval)
 
 La capa de API se divide en dos: orval genera los **tipos + funciones fetch tipadas** desde el contrato; los **hooks de TanStack Query se escriben a mano** (tu estilo) sobre esas funciones. **No** se escriben clientes axios a mano ni tipos a mano. Flujo:
@@ -110,6 +112,8 @@ queryFn: async () => {
 },
 ```
 - **Solo en lecturas que la UI renderiza** (adopción incremental); **no sobre-valides el envelope** (metadata de paginación). A futuro, inferir tipos desde los schemas (`z.infer`) para una única fuente de verdad.
+
+> **Estado actual (objetivo, aún no adoptado):** `modules/core/utils/validateApiResponse.ts` (`parseApiResponse`) **todavía no existe** y ningún hook valida la respuesta con Zod. Los hooks actuales confían en el tipo del contrato (que el `codegen-drift` mantiene sincronizado). Cuando se adopte, se crea primero el util y se aplica **incrementalmente** a las lecturas que la UI renderiza.
 
 ---
 
@@ -199,11 +203,18 @@ export const useSortingStore = createSelectors(useSortingStoreBase);
 > **Antes de crear un componente visual o añadir una librería**, revisa si ya existe en `modules/core/ui/`. Reutilizar garantiza temas (claro/oscuro), overrides de marca, estilos consistentes (bordes, sombras, transiciones, accesibilidad) y evita duplicación y bundle innecesario.
 
 > [!IMPORTANT]
-> **Nunca uses el atributo nativo `title`** en un elemento interactivo: usa el componente `Tooltip` (`modules/core/ui/tooltip.tsx`). El `Button` de core/ui acepta prop `tooltip`. Mantén siempre `aria-label` (el tooltip no lo sustituye).
+> **Nunca uses el atributo nativo `title`** en un elemento interactivo: cuando exista un componente `Tooltip` en `core/ui`, úsalo. Mantén siempre `aria-label` (el tooltip no lo sustituye).
 
-Componentes base en `modules/core/ui/`: `Dialog`, `Sheet`, `Popover`, `DropdownMenu`, `Select`, `Tooltip`, `Table`, `Badge`, etc.
+**Estado actual de `modules/core/ui/`** (lo que HAY hoy): `button` (+ `button-variants`), `card`, `input`, `icon-input`, `password-input`, `label`, `logo`, `theme-toggle`.
+
+**Por incorporar** (aún NO existen; añádelos con `pnpx shadcn@latest add <componente>` desde el registro oficial, la **primera vez que una pantalla los necesite**): `dialog`, `sheet`, `popover`, `dropdown-menu`, `select`, `tooltip`, `table`, `badge`.
+
+> Regla: un componente **genérico y reutilizable** (un `Badge` base, una `Table`) vive en `core/ui`, no en `modules/<cap>/`. Lo específico de un dominio (p. ej. `PatientStatusBadge`, que conoce el enum de estado del paciente) sí vive en `modules/<cap>/components/`, y puede componerse sobre el primitivo de `core/ui`.
 
 ### 4.2 Animación (Framer Motion)
+> **Estado actual:** `framer-motion` figura en el stack pero **NO está instalado** todavía. Hasta entonces, usa **transiciones CSS de Tailwind** (`transition-colors`, `animate-pulse` para skeletons, `hover:`/`focus:`). Instálalo (`pnpm --filter odontorisas-frontend add framer-motion`) la **primera vez** que una pantalla necesite entradas/salidas del árbol o transiciones de layout, no antes.
+
+Cuando esté instalado:
 - **`<AnimatePresence>`** para componentes que entran/salen del árbol (diálogos, menús colapsables).
 - **`layout`/`layoutId`** para transiciones fluidas de posición/tamaño (ej. píldora de pestaña activa).
 - **Micro-interacciones rápidas** (0.2s–0.3s); prefiere `spring` (con `stiffness`/`damping`) sobre curvas lineales.
