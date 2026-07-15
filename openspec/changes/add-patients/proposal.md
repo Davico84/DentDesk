@@ -2,7 +2,7 @@
 
 `patients` es **el núcleo del dominio**: de la ficha del paciente cuelgan `dental-chart`, `treatments`, `appointments`, `images` y `patient-billing`. Sin ella no hay producto.
 
-Y es, además, **la primera capacidad de negocio del producto**: la primera que se aísla por organización de verdad, y la que estrena las convenciones que dejamos preparadas — el contrato que **inyecta los errores transversales solos** y los tipos de error **derivados** en el frontend.
+Y es la **primera capacidad de negocio con una entidad bajo RLS por organización** —la primera que se aísla de verdad; `organization-branding`, la otra capacidad de negocio ya construida, es **metadato del tenant y no lleva RLS** (`ADR-0003`)—, y la que estrena las convenciones que dejamos preparadas: el contrato que **inyecta los errores transversales solos** y los tipos de error **derivados** en el frontend.
 
 > **Depende de `update-multi-tenancy`.** El enganche automático del contexto de tenant —lo que hace que una entidad de negocio quede aislada **sin escribir código de aislamiento**— es un cimiento **transversal** que necesitan *todas* las capacidades de negocio, no solo esta. Por eso vive en su propio change, sobre `multi-tenancy`, y no aquí: que le tocara a `patients` destaparlo es un **accidente de calendario** (le tocó ser la primera), no un diseño.
 >

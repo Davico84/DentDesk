@@ -2,7 +2,7 @@
 
 `patients` es la ficha de la persona atendida: el **núcleo del dominio**, del que cuelgan `dental-chart`, `treatments`, `appointments`, `images` y `patient-billing`.
 
-Es también la **primera capacidad de negocio** del producto, así que es la primera que se aísla por organización de verdad. Pero **el mecanismo de aislamiento no se construye aquí**: el enganche automático del contexto de tenant es un cimiento transversal que vive en su propio change (**`update-multi-tenancy`**), porque lo necesitan *todas* las capacidades de negocio.
+Es también la **primera capacidad de negocio con una entidad bajo RLS por organización** (`organization-branding`, ya construida, es metadato del tenant **sin** RLS — `ADR-0003`), así que es la primera que se aísla por organización de verdad. Pero **el mecanismo de aislamiento no se construye aquí**: el enganche automático del contexto de tenant es un cimiento transversal que vive en su propio change (**`update-multi-tenancy`**), porque lo necesitan *todas* las capacidades de negocio.
 
 > **Consecuencia práctica, y es la clave del diseño:** `patients` **no escribe ni una línea de código de aislamiento**. Declara su entidad siguiendo la convención y el aislamiento **ya está**. Si este diseño necesitara "acordarse" de fijar el contexto en algún sitio, sería la señal de que el cimiento está mal — **por defecto, no por disciplina**.
 
@@ -30,6 +30,8 @@ Restricción heredada (`docs/backend.md §8.1`, **no negociable**): columna `org
 ### D1 — La unicidad del documento es **por clínica**, y el documento es **opcional**
 
 **Decisión:** restricción única sobre **`(organization_id, document)`**, **nunca** sobre `document` a secas — eso impediría que dos clínicas atendieran a la misma persona, rompiendo `ADR-0004`. El intento de duplicar dentro de la misma clínica responde **`409`**, con `type` que lo identifica.
+
+**El índice es incondicional, no parcial sobre activos.** Un documento identifica **una** ficha por clínica, para siempre: si el paciente se dio de baja, su documento **sigue ocupado** y re-registrarlo responde `409`. Es deliberado y coherente con D4 —la baja *archiva*—: cuando la persona vuelve, se **reactiva su ficha** (conserva su historia clínica), no se crea una segunda. La restricción vale para el alta **y para la edición**: poner en un paciente un documento que ya tiene otro de la clínica también da `409` (lo fuerza el mismo índice).
 
 **El documento es opcional** (`NULL` permitido): un bebé o un menor pueden no tener DNI todavía, y **la clínica no puede negarse a atenderlo por eso**. PostgreSQL permite múltiples `NULL` en un índice único, así que la restricción sigue siendo correcta.
 
@@ -95,4 +97,4 @@ Los errores transversales (`401`/`403`/`500`) **se inyectan solos** en el contra
 
 ## Open Questions
 
-1. **¿Qué campos son obligatorios en el alta?** Propuesta: `fullName` y `birthDate` (la fecha es imprescindible: de ella se derivan la minoría de edad y la dentición del odontograma). El **documento es opcional** (D1). El resto, opcional. Confirmar al implementar el formulario.
+1. ✅ **Campos obligatorios en el alta — RESUELTA: solo `fullName` y `birthDate`.** La fecha es imprescindible (de ella se derivan la minoría de edad y la dentición del odontograma). El **documento es opcional** (D1); también lo son el contacto, el contacto de emergencia y la anamnesis. El responsable es obligatorio **solo si el paciente es menor** (D2). Recepción puede *recomendar* un teléfono en la UI sin hacerlo obligatorio — no bloquear el alta rápida (una urgencia, un bebé sin datos) es el criterio.

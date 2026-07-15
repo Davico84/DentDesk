@@ -5,7 +5,7 @@
 - [ ] 1.1 Migración **V9**: tabla `patients` con `organization_id BIGINT NOT NULL`, datos personales, contacto, responsable, contacto de emergencia y anamnesis
 - [ ] 1.2 **Índice sobre `organization_id`** — es **parte de la política de aislamiento**, no una optimización: sin él RLS filtra con *seq scan* y el listado se degrada con cada clínica nueva
 - [ ] 1.3 `ENABLE` + **`FORCE ROW LEVEL SECURITY`** y política `organization_isolation` **sin `missing_ok`** (fallo ruidoso ante consulta sin contexto)
-- [ ] 1.4 🚨 **Unicidad `(organization_id, document)`**, **NUNCA** sobre `document` a secas: eso impediría que dos clínicas atendieran a la misma persona (`ADR-0004`). El documento admite `NULL` (un bebé puede no tenerlo)
+- [ ] 1.4 🚨 **Unicidad `(organization_id, document)`**, **NUNCA** sobre `document` a secas: eso impediría que dos clínicas atendieran a la misma persona (`ADR-0004`). El documento admite `NULL` (un bebé puede no tenerlo). **Índice incondicional, NO parcial sobre activos** (design.md D1): el documento de un paciente dado de baja sigue ocupado → re-registrarlo da `409` (se reactiva su ficha, no se duplica)
 - [ ] 1.5 Anamnesis como **listas** (`allergies`, `conditions`, `currentMedication`), no texto libre — `treatments` tendrá que recorrerlas para **alertar**, y un blob no permite alertar de forma fiable (design.md D3)
 - [ ] 1.6 Entidad `Patient` con **`@TenantId`** + repositorio. **Sin código de aislamiento propio**: el contexto lo pone `TenantAwareTransactionManager`. 🚨 **Ni siquiera importes `TenantSession`** — una regla de ArchUnit **rompe la build** si `service`/`presentation` dependen de él (`docs/backend.md §8.1.1`). Si un fallo cerrado te tienta a fijar el contexto a mano, el problema está en el cimiento, no aquí
 
@@ -15,7 +15,7 @@
 - [ ] 2.2 **Validación condicional**: si el paciente es menor, los datos del responsable pasan a **obligatorios**. No se expresa campo a campo: hace falta validación **a nivel de objeto**
 - [ ] 2.3 **La baja es lógica, no borrado** (`status`): la historia clínica tiene retención legal y de ella cuelgan tratamientos, citas y cobros. "Dar de baja" en una clínica es **archivar**
 - [ ] 2.4 Servicio de pacientes: alta, consulta, edición, baja y listado. **Todo `@Transactional`** (las variables de RLS son *transaction-local*; fuera de transacción el contexto se pierde). El `organizationId` sale **solo del contexto**, jamás de la petición. 🚨 **El servicio habla su propio tipo de dominio, NO `PatientResponse`/`CreatePatientRequest` de `presentation`** (design.md D6): `LayeredArchitectureTest` **rompe la build** si un servicio depende de un DTO de la API. El controller traduce — patrón ya en el repo: `Branding` + `BrandingController`
-- [ ] 2.5 **Tests (Scenarios de alta, menor de edad, anamnesis y baja)**: incluidos el documento duplicado en la misma clínica (→ conflicto) y el **mismo documento en otra clínica** (→ permitido)
+- [ ] 2.5 **Tests (Scenarios de alta, menor de edad, anamnesis y baja)**: incluidos el documento duplicado en la misma clínica (→ `409`), el **mismo documento en otra clínica** (→ permitido), el **documento de un paciente dado de baja** (→ `409`, sigue ocupado) y la **edición** a un documento ya existente en la clínica (→ `409`)
 - [ ] 2.6 🚨 **Test de aislamiento a nivel de MOTOR (RLS), OBLIGATORIO** (`docs/testing.md`; Scenario "Una consulta solo alcanza a los pacientes propios" y "…que omite el filtro sigue aislada"): entra por el **repositorio de `Patient`** con la app conectada como **rol no-superusuario** — extiende **`AbstractTenantAwareIntegrationTest`**, NO `AbstractIntegrationTest` (con el superusuario del contenedor RLS ni se aplica y el test pasaría en verde con el aislamiento roto). Sigue el patrón de **`AutomaticTenantBindingIT`**: puebla `OrganizationContext` como el filtro y **NUNCA llama a `bind()`** — esa ausencia es el aserto
 
 ## 3. Backend — la API (design.md D5, `docs/backend.md §10.2`)
@@ -47,5 +47,5 @@
 
 - [ ] 7.1 `openspec validate add-patients --strict`
 - [ ] 7.2 `mvn verify` (backend) y `pnpm validate` (frontend) en verde, **y los dos guardianes de drift**
-- [ ] 7.3 **Resolver la Open Question 2**: confirmar los campos obligatorios del alta (`fullName` y `birthDate`; el documento **opcional**)
+- [ ] 7.3 **Campos obligatorios del alta** (Open Question 1, ya resuelta en design.md): implementar `fullName` y `birthDate` como únicos obligatorios; documento, contacto, emergencia y anamnesis **opcionales**; responsable obligatorio **solo si es menor**
 - [ ] 7.4 Commits por scope. **El contrato regenerado y el cliente van en un commit aparte** del código escrito a mano

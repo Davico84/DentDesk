@@ -31,6 +31,11 @@ El sistema SHALL permitir al personal de una clínica registrar a una persona at
 - **THEN** el sistema rechaza el alta indicando que el documento ya está registrado
 - **AND** no crea un segundo registro
 
+#### Scenario: El documento de un paciente dado de baja sigue ocupado
+- **WHEN** se intenta registrar a una persona con el documento de un paciente **dado de baja** de la misma clínica
+- **THEN** el sistema rechaza el alta indicando que el documento ya está registrado
+- **AND** no crea un segundo registro para esa persona (su ficha existente puede reactivarse)
+
 #### Scenario: El mismo documento SÍ puede existir en otra clínica
 - **WHEN** una clínica registra a un paciente con un documento que **ya existe en otra clínica** de la plataforma
 - **THEN** el alta se completa con normalidad
@@ -97,6 +102,11 @@ El sistema SHALL permitir consultar y editar la ficha de un paciente de la clín
 - **WHEN** se modifican los datos de un paciente de la clínica
 - **THEN** los cambios quedan guardados
 - **AND** se recuperan en la siguiente consulta
+
+#### Scenario: No se puede editar el documento a uno que ya existe en la clínica
+- **WHEN** se edita un paciente para ponerle un documento que **ya tiene otro paciente de la misma clínica** (activo o dado de baja)
+- **THEN** el sistema rechaza el cambio indicando que el documento ya está registrado
+- **AND** no modifica nada
 
 #### Scenario: Dar de baja no destruye
 - **WHEN** se da de baja a un paciente
