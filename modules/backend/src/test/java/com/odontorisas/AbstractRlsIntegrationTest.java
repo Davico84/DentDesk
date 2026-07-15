@@ -32,7 +32,7 @@ public abstract class AbstractRlsIntegrationTest extends AbstractIntegrationTest
     }
 
     /** Crea el rol de app (idempotente) y le concede DML sobre el esquema ya migrado. */
-    private static synchronized void ensureAppRole() throws SQLException {
+    protected static synchronized void ensureAppRole() throws SQLException {
         if (prepared) {
             return;
         }
@@ -44,9 +44,24 @@ public abstract class AbstractRlsIntegrationTest extends AbstractIntegrationTest
                 + "CREATE ROLE " + APP_USER + " LOGIN NOSUPERUSER NOBYPASSRLS PASSWORD '" + APP_PWD + "'; "
                 + "END IF; END $$;");
             s.execute("GRANT USAGE ON SCHEMA public TO " + APP_USER);
+        }
+        prepared = true;
+        grantDmlOnMigratedSchema();
+    }
+
+    /**
+     * Concede DML sobre las tablas ya existentes. Es idempotente y se puede reinvocar: los
+     * {@code GRANT ... ON ALL TABLES} solo alcanzan a las tablas que existen <b>en ese momento</b>,
+     * así que si el rol se crea antes de que Flyway migre (lo que hace
+     * {@code AbstractTenantAwareIntegrationTest}, porque el pool necesita el rol para conectar),
+     * hay que volver a concederlos <b>después</b> de la migración.
+     */
+    protected static void grantDmlOnMigratedSchema() throws SQLException {
+        try (Connection c = DriverManager.getConnection(
+                POSTGRES.getJdbcUrl(), POSTGRES.getUsername(), POSTGRES.getPassword());
+             Statement s = c.createStatement()) {
             s.execute("GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO " + APP_USER);
             s.execute("GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO " + APP_USER);
         }
-        prepared = true;
     }
 }

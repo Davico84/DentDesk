@@ -1,5 +1,6 @@
 package com.odontorisas.architecture;
 
+import com.tngtech.archunit.core.domain.JavaClass;
 import com.tngtech.archunit.core.domain.JavaClasses;
 import com.tngtech.archunit.core.importer.ClassFileImporter;
 import com.tngtech.archunit.core.importer.ImportOption;
@@ -8,6 +9,7 @@ import org.junit.jupiter.api.Test;
 
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses;
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noMethods;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Reglas de arquitectura de la capacidad multi-tenancy.
@@ -30,12 +32,55 @@ class MultiTenancyArchitectureTest {
             .withImportOption(ImportOption.Predefined.DO_NOT_INCLUDE_TESTS)
             .importPackages("com.odontorisas");
 
+    /**
+     * <b>El guardián del guardián.</b> Si el importador no puede leer el bytecode (p. ej. tras
+     * subir de versión de Java: ArchUnit 1.3.0 no entendía el <em>class file major 69</em> y
+     * fallaba <em>en silencio</em>), {@code classes} queda <b>vacío</b> y todas las reglas de
+     * abajo pasan en verde <b>sin comprobar nada</b> — las salva el {@code allowEmptyShould(true)},
+     * que existe para reglas legítimamente vacías, no para un importador roto.
+     *
+     * <p>Es exactamente el fallo que una red de seguridad no puede permitirse: <b>parecer verde
+     * porque está vacía</b>. Este test lo hace imposible.
+     */
+    @Test
+    void the_importer_actually_reads_the_bytecode() {
+        assertThat(classes).isNotEmpty();
+        assertThat(classes.stream().map(JavaClass::getSimpleName))
+                .as("si el importador estuviera roto, las demás reglas pasarían sin comprobar nada")
+                .contains("TenantSession", "TenantAwareTransactionManager");
+    }
+
     @Test
     void rls_access_from_services_must_be_transactional() {
         ArchRule rule = noClasses()
                 .that().resideInAPackage("..service..")
                 .and().areNotAnnotatedWith("org.springframework.transaction.annotation.Transactional")
                 .should().dependOnClassesThat().haveSimpleName("MembershipRepository")
+                .allowEmptyShould(true);
+        rule.check(classes);
+    }
+
+    /**
+     * El riesgo real de este mecanismo no es que falle: es que <b>alguien lo desactive sin
+     * querer</b>. El día que RLS bloquee una consulta por falta de contexto, la reacción natural
+     * será <em>"pues fijo el contexto aquí y ya"</em> — y el aislamiento vuelve a depender de que
+     * nadie se olvide, <b>sin que nadie se entere</b>.
+     *
+     * <p>Un párrafo en {@code docs/backend.md} no lo impide. Esta regla sí: <b>rompe la build</b>.
+     *
+     * <p>Única excepción, {@code service.auth}: en el registro la organización se crea <em>dentro
+     * de esa misma transacción</em>, así que no hay token del que leer el contexto y no hay nada
+     * que propagar. No es una grieta en la regla — es que en el bootstrap no existe el contexto.
+     */
+    @Test
+    void business_code_must_not_bind_the_tenant_context_by_hand() {
+        ArchRule rule = noClasses()
+                .that().resideInAnyPackage("..service..", "..presentation..")
+                .and().resideOutsideOfPackage("..service.auth..")
+                .should().dependOnClassesThat().haveSimpleName("TenantSession")
+                .because("el contexto de tenant se fija SOLO, en TenantAwareTransactionManager. "
+                        + "Una capacidad de negocio queda aislada sin escribir código de "
+                        + "aislamiento: por defecto, no por disciplina (docs/backend.md §8.1)")
                 .allowEmptyShould(true);
         rule.check(classes);
     }

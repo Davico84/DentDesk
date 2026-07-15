@@ -16,6 +16,7 @@ Monorepo modular: `modules/backend/` (Java/Spring) + `modules/frontend/` (React/
 - `specs/` = lo **YA construido**, no un backlog. Cada capacidad nace como *change* y llega a `specs/` al archivar.
 - Capacidad = un solo `spec.md`. Formato: `## Requirements` → `### Requirement:` (SHALL) → `#### Scenario:` (WHEN/THEN). Cada requirement ≥ 1 scenario.
 - Spec delta del change: `changes/<id>/specs/<cap>/spec.md` con `## ADDED | MODIFIED | REMOVED Requirements`.
+  - **Capacidad NUEVA** (`add-*`): el delta lleva además su **`## Purpose`** (antes de los requirements). El objetivo debe pasar por la **revisión humana**; escribirlo al archivar lo colaría sin revisar. **Capacidad ya construida** (`update-*`): el delta **no** repite el Purpose.
 - `change-id` en kebab-case liderado por verbo: `add-...`, `update-...`, `remove-...`.
 - Tests **derivados de los Scenario** del spec (uno por WHEN/THEN).
 

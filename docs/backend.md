@@ -157,6 +157,33 @@ El sistema es **multi-tenant**: cada organización (tenant) está aislada. El ai
 - `spring.jpa.open-in-view` debe seguir en **`false`**.
 - **Dominio de auth** (`users`, `refresh_tokens`): NO llevan RLS por organización (se consultan por credencial email/hash). `memberships` lleva RLS de **identidad** (`user_id = current_setting('app.user_id')`).
 
+### 8.1.1 El contexto se fija SOLO — qué NO hay que escribir
+
+**`TenantAwareTransactionManager` establece el contexto de tenant en toda transacción**, leyendo `IdentityContext`/`OrganizationContext`. Cumple con la lista de arriba y tu capacidad **ya está aislada**. No hay nada que recordar.
+
+> **Por defecto, no por disciplina.** Un mecanismo que exija acordarse de una llamada acabará olvidándose — y ese olvido **no falla de forma visible: filtra historia clínica entre clínicas**.
+
+**❌ NO escribas esto en un servicio de negocio:**
+
+```java
+@Service
+public class PatientService {
+    private final TenantSession tenantSession;          // ❌ la build falla
+
+    @Transactional
+    public List<Patient> findAll() {
+        tenantSession.bind(userId, organizationId);     // ❌ ya está hecho
+        ...
+    }
+}
+```
+
+**Una regla de ArchUnit rompe la build** si una clase de `service` (salvo `service.auth`) o de `presentation` depende de `TenantSession`. No es un consejo: es un candado. Y está probado que **falla de verdad** cuando se viola.
+
+**Si una consulta te falla con "unrecognized configuration parameter app.organization_id"**, el impulso natural será fijar el contexto a mano. **No lo hagas** — ese fallo significa que estás fuera de una petición autenticada (una tarea de sistema, un test mal montado) o fuera de transacción. **Es el mecanismo funcionando**, no un estorbo: RLS **falla cerrado** en vez de devolverte una lista vacía que confundirías con *"esta clínica no tiene pacientes"*.
+
+La única excepción es `service.auth`: en el registro la organización **se crea en esa misma transacción**, así que no hay token del que leer el contexto. Ahí `bindIdentity(...)` se llama explícitamente — no es una grieta, es que en el bootstrap **no hay nada que propagar**.
+
 ---
 
 ## 9. Migraciones (Flyway)
