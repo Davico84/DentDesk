@@ -14,7 +14,7 @@
 - [x] 2.2 🚨 **El test NO debe llamar a `TenantSession.bind(...)`**. Si lo llama, prueba `bind()` —que ya funciona— y **no el enganche**: sería un test decorativo que pasa en verde con el mecanismo roto. Debe **poblar `OrganizationContext` como lo haría el filtro** y entrar por una operación `@Transactional` normal. **La ausencia de `bind` en el test es el aserto**
 - [x] 2.3 **Test fail-closed**: sin contexto, la operación de negocio **lanza error**; **NO** devuelve vacío. *(Cumple el Scenario que `multi-tenancy` **ya tiene** —"Operación de negocio sin organización en el contexto"—, que hasta hoy era inverificable porque no había tablas de negocio. Un vacío se confundiría con "esta clínica no tiene datos" y ocultaría el fallo durante meses.)*
 - [x] 2.4 **Test de los flujos previos a la sesión** (Scenario "Los flujos previos a la sesión siguen funcionando"): el alta de una organización con su primer administrador **se completa**, y el mecanismo automático **no la bloquea** por falta de contexto
-- [ ] 2.5 Confirmar que **toda la suite de auth sigue en verde** (el enganche no debe alterar login, refresco ni logout)
+- [x] 2.5 Confirmar que **toda la suite de auth sigue en verde** (el enganche no debe alterar login, refresco ni logout)
 
 ## 3. El tripwire — la regla la defiende la build, no un documento (design.md D5)
 
@@ -31,5 +31,5 @@
 ## 5. Cierre
 
 - [x] 5.1 `openspec validate update-multi-tenancy --strict`
-- [ ] 5.2 `mvn verify` en verde (incluidos los `*IT` de RLS contra PostgreSQL real). ⚠️ **Los `*IT` de Testcontainers se saltan en local (Windows/Docker Desktop): la verificación real es la de CI en Linux**
+- [x] 5.2 `mvn verify` en verde (incluidos los `*IT` de RLS contra PostgreSQL real). ⚠️ **Los `*IT` de Testcontainers se saltan en local (Windows/Docker Desktop): la verificación real es la de CI en Linux**
 - [x] 5.3 Commits por scope, Conventional Commits en español
