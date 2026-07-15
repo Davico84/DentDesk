@@ -42,8 +42,17 @@ import org.springframework.transaction.support.TransactionSynchronizationManager
  * datos del cliente) y limpia al terminar la petición. Depende, por tanto, de que la petición
  * se atienda en <b>un solo hilo</b>: por eso el tripwire de ArchUnit contra {@code @Async} y
  * {@code @Scheduled} no es un detalle suelto, <b>sostiene este mecanismo</b>.
+ *
+ * <p><b>El nombre del bean es {@code transactionManager} a propósito.</b> Al declarar nuestro
+ * propio {@code TransactionManager}, la autoconfiguración de Boot se echa atrás
+ * ({@code @ConditionalOnMissingBean}) y deja de crear el bean que llamaba {@code transactionManager}.
+ * <b>Spring Data JPA busca el gestor por ese nombre exacto</b> ({@code @EnableJpaRepositories}
+ * lo usa por defecto): sin él, cualquier {@code save}/{@code findById} de un repositorio falla con
+ * <em>«No bean named 'transactionManager' available»</em>. Los {@code @Transactional} de los
+ * servicios resolverían por tipo, pero los repositorios resuelven por nombre — así que el nombre
+ * es funcional, no cosmético.
  */
-@Component
+@Component("transactionManager")
 public class TenantAwareTransactionManager extends JpaTransactionManager {
 
     public TenantAwareTransactionManager(EntityManagerFactory entityManagerFactory) {
