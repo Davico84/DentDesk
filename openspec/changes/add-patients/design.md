@@ -8,6 +8,8 @@ Es también la **primera capacidad de negocio con una entidad bajo RLS por organ
 
 Restricción heredada (`docs/backend.md §8.1`, **no negociable**): columna `organization_id` + `@TenantId`, **índice** sobre ella, `ENABLE`/`FORCE ROW LEVEL SECURITY` con política `organization_isolation` **sin `missing_ok`** (fallo ruidoso), acceso **siempre transaccional**, y el tenant **solo desde el token firmado** — jamás de la petición.
 
+**Los campos de la ficha son los de `docs/domain.md` (§Patient)** —personales (incluido `sex`, opcional), contacto, responsable, contacto de emergencia (`emergencyContactName/Phone/Relationship`) y anamnesis—; **no se reenumeran aquí** para no duplicar el modelo (dos listas divergen). Este change solo **decide** sobre ellos lo que no es obvio: obligatorios **solo** `fullName` + `birthDate` (OQ1), responsable **si es menor** (D2), y la anamnesis en **JSONB** (D7).
+
 ## Goals / Non-Goals
 
 **Goals:**
@@ -39,7 +41,7 @@ Restricción heredada (`docs/backend.md §8.1`, **no negociable**): columna `org
 
 **Decisión:** `isMinor` **NO es un campo**: se calcula de `birthDate` (< 18 años). Un campo declarable se desincroniza el día del cumpleaños — un dato derivado, nunca.
 
-**Si el paciente es menor, los datos del responsable son obligatorios** (nombre, parentesco, teléfono). Es una **validación condicional**: no se expresa con un `@NotNull` por campo, hace falta validación **a nivel de objeto** (en servidor) y su equivalente en el cliente.
+**Si el paciente es menor, los datos del responsable son obligatorios** (nombre, parentesco, teléfono; el **documento del tutor es opcional** — no siempre está a mano y no debe bloquear la atención). Es una **validación condicional**: no se expresa con un `@NotNull` por campo, hace falta validación **a nivel de objeto** (en servidor) y su equivalente en el cliente.
 
 > La paridad de validación cliente/servidor (`docs/coding-style.md §7`) es aquí más delicada que de costumbre, porque la regla es condicional. El servidor es la autoridad: si el cliente se despista, su `400` trae el **detalle por campo** y se pinta junto al input (ya lo tenemos resuelto).
 
@@ -57,6 +59,8 @@ Restricción heredada (`docs/backend.md §8.1`, **no negociable**): columna `org
 
 **Razón:** la historia clínica tiene **retención legal** y, además, el paciente cuelga de tratamientos, citas e facturas. Un borrado físico o es imposible (integridad referencial) o destruye información que **no nos pertenece destruir**. "Dar de baja" en una clínica significa **archivar**, no eliminar.
 
+**La baja se puede revertir: reactivar** es volver a poner `status` en activo. **No es opcional, cierra un ciclo:** como el índice de documento es incondicional (D1), re-registrar a una persona dada de baja da `409` — y **la salida es reactivar su ficha** (conserva su historia), no crear otra. Por eso el listado **puede incluir los inactivos** bajo petición explícita (hay que poder encontrarlos para reactivarlos).
+
 ### D5 — El listado es `GET` + query params (`ADR-0002`)
 
 Búsqueda por nombre o documento, con paginación. **No** se usa el método HTTP `QUERY` (es un borrador; el contrato no podría describirlo y orval no generaría cliente — rompería la cadena "el contrato es la fuente única de verdad").
@@ -70,6 +74,16 @@ Los errores transversales (`401`/`403`/`500`) **se inyectan solos** en el contra
 **Por qué se decide aquí explícitamente y no se da por hecho:** `organization-branding` cometió justo el error contrario —el servicio devolvía `BrandingResponse` y el DTO leía la entidad JPA— y **pasó desapercibido durante meses porque `LayeredArchitectureTest` estaba ciego** (ArchUnit no leía el bytecode de Java 25). Arreglado eso, la regla **rompe la build**. Si `patients` copia el patrón malo, no compila. Referencia del patrón correcto ya en el repo: `Branding` (record de servicio) + `BrandingController` (traduce).
 
 > Es el mismo principio que el aislamiento automático: lo que protege no es la disciplina, es que **la build falla**. Escribir el servicio atado al transporte ya no es "código mejorable" — es código que no entra.
+
+### D7 — La anamnesis se persiste como **JSONB en `patients`**, no en tablas hijas ⭐
+
+**Decisión:** `allergies`, `conditions` y `currentMedication` son **columnas JSONB (arrays)** en la propia tabla `patients`.
+
+**Por qué es una decisión de aislamiento, no de comodidad:** `patients` es la **primera entidad del proyecto con colecciones** (no hay ni un `@ElementCollection` en el código), y `docs/backend.md §8.1` solo cubre tablas de negocio **de primer nivel**. Una tabla hija (`@ElementCollection`, p. ej. `patient_allergies`) **no llevaría `organization_id` ni RLS**: a nivel de motor sería un **agujero latente** —una consulta directa como rol de app no quedaría aislada—. Con JSONB, las listas viven **dentro de la fila del paciente**, así que la **RLS de `patients` las cubre por completo**: no hay una segunda superficie que aislar.
+
+`treatments` las **lee** para alertar (D3), no ejecuta SQL sobre ellas, así que no se pierde capacidad de consulta.
+
+- *Alternativa — `@ElementCollection` / tablas hijas.* Rechazada: o introduce tablas de negocio **sin RLS** (el agujero), o exige darles `organization_id` + `@TenantId` + política propia, multiplicando ×3 tablas/políticas/tests para datos que **siempre** se acceden a través del paciente. Si algún día hiciera falta un catálogo codificado y consultable por SQL, esa evolución traería sus tablas **con** la convención completa — hoy sería maquinaria sin uso.
 
 ## Risks / Trade-offs
 
@@ -88,7 +102,7 @@ Los errores transversales (`401`/`403`/`500`) **se inyectan solos** en el contra
 ## Migration Plan
 
 0. **Prerrequisito: `update-multi-tenancy` en verde** (el contexto se fija solo).
-1. Migración **V9**: tabla `patients` con `organization_id`, **índice**, `FORCE ROW LEVEL SECURITY` y política `organization_isolation`; unique `(organization_id, document)`.
+1. Migración **V9**: tabla `patients` con `organization_id`, **índice**, `FORCE ROW LEVEL SECURITY` y política `organization_isolation`; unique `(organization_id, document)`; anamnesis en **JSONB** (D7); campos de `domain.md §Patient` (incl. `sex`, emergencia).
 2. Entidad (`@TenantId`), repositorio, servicio y controller — **sin código de aislamiento**.
 3. Regenerar contrato + cliente (el guardián `ContractDriftIT` rompe la build si no).
 4. Frontend: listado con búsqueda + ficha.

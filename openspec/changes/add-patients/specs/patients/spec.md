@@ -95,6 +95,11 @@ El sistema SHALL permitir buscar y listar los pacientes **de la clínica activa*
 - **WHEN** se lista la clínica sin pedir nada especial
 - **THEN** solo aparecen los pacientes **activos**
 
+#### Scenario: Se pueden listar los pacientes dados de baja
+- **WHEN** se pide **explícitamente** incluir a los dados de baja
+- **THEN** también aparecen los pacientes inactivos de la clínica
+- **AND** se distinguen de los activos
+
 ### Requirement: Consulta, edición y baja del paciente
 El sistema SHALL permitir consultar y editar la ficha de un paciente de la clínica activa. **Dar de baja a un paciente NO SHALL borrarlo**: su historia clínica tiene retención legal y de él cuelgan tratamientos, citas y cobros. La baja SHALL ser un **archivado**.
 
@@ -112,6 +117,11 @@ El sistema SHALL permitir consultar y editar la ficha de un paciente de la clín
 - **WHEN** se da de baja a un paciente
 - **THEN** deja de aparecer en el listado por defecto
 - **AND** su ficha y su información clínica **siguen existiendo** y pueden recuperarse
+
+#### Scenario: Reactivar a un paciente dado de baja
+- **WHEN** se reactiva a un paciente que estaba dado de baja
+- **THEN** vuelve a aparecer en el listado por defecto
+- **AND** conserva toda su información y su historia clínica
 
 #### Scenario: Consultar un paciente inexistente
 - **WHEN** se consulta un paciente que no existe en la clínica activa
