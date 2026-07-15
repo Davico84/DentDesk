@@ -27,18 +27,18 @@
 
 ## 4. Contrato
 
-- [ ] 4.1 Arrancar el backend y exportar `/v3/api-docs` → `contracts/openapi.json` **con `curl -o`**, nunca canalizándolo por un script (un `curl | python` en Windows lo dejó doble codificado y reventó el guardián)
-- [ ] 4.2 Regenerar el cliente del frontend. **El guardián `ContractDriftIT` rompe la build** si el contrato no refleja el backend
+- [x] 4.1 Arrancar el backend y exportar `/v3/api-docs` → `contracts/openapi.json` **con `curl -o`**, nunca canalizándolo por un script (un `curl | python` en Windows lo dejó doble codificado y reventó el guardián)
+- [x] 4.2 Regenerar el cliente del frontend. **El guardián `ContractDriftIT` rompe la build** si el contrato no refleja el backend
 
 ## 5. Frontend
 
 > 🌐 **Rutas en inglés** (regla del proyecto, como `/settings/branding`): `/patients`, `/patients/new`, `/patients/:id`, `/patients/:id/edit`. **Nunca** `/pacientes` ni mezcla español/inglés, aunque el dominio sea en español.
 
-- [ ] 5.1 **Listado con búsqueda** (el uso diario de recepción): tabla paginada, búsqueda por nombre o documento
-- [ ] 5.2 **Ficha del paciente**: alta y edición, con las secciones de datos personales, contacto, responsable (solo si es menor), emergencia y anamnesis
-- [ ] 5.3 **Paridad de la validación condicional** (`docs/coding-style.md §7`): el cliente exige el responsable cuando la fecha indica menor de edad. El servidor es la autoridad: si el cliente se despista, su `400` trae el detalle **por campo** y se pinta junto al input (ya resuelto)
-- [ ] 5.4 Tipos y errores **derivados del contrato** (`docs/frontend.md §2.1`) — ninguna forma de error escrita a mano
-- [ ] 5.5 **Tests (Vitest + MSW)**: alta válida; menor sin responsable → el error del servidor se pinta junto al campo; la búsqueda filtra
+- [x] 5.1 **Listado con búsqueda** (el uso diario de recepción): tabla paginada, búsqueda por nombre o documento
+- [x] 5.2 **Ficha del paciente**: alta y edición, con las secciones de datos personales, contacto, responsable (solo si es menor), emergencia y anamnesis
+- [x] 5.3 **Paridad de la validación condicional** (`docs/coding-style.md §7`): el cliente exige el responsable cuando la fecha indica menor de edad. El servidor es la autoridad: si el cliente se despista, su `400` trae el detalle **por campo** y se pinta junto al input (ya resuelto)
+- [x] 5.4 Tipos y errores **derivados del contrato** (`docs/frontend.md §2.1`) — ninguna forma de error escrita a mano
+- [x] 5.5 **Tests (Vitest + MSW)**: alta válida; menor sin responsable → el error del servidor se pinta junto al campo; la búsqueda filtra
 
 ## 6. Documentación de estado (al archivar)
 
