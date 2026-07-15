@@ -1,0 +1,121 @@
+import { useForm, useWatch } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { Link, useNavigate, useParams } from "react-router-dom";
+import { ArrowLeft, Loader2 } from "lucide-react";
+import { Button } from "@/modules/core/ui/button";
+import { buttonVariants } from "@/modules/core/ui/button-variants";
+import { PATHS, patientDetailPath } from "@/routes/paths";
+import { applyServerFieldErrors } from "@/modules/core/utils/apiError";
+import {
+  patientSchema,
+  toRequest,
+  toDefaults,
+  isMinor,
+  type PatientValues,
+} from "@/modules/patients/schemas/patient";
+import { useCreatePatient, usePatient, useUpdatePatient } from "@/modules/patients/hooks/usePatientsApi";
+import { FormSection, FormField } from "@/modules/core/ui/form-field";
+
+/** Feature del alta/edición de un paciente. La pantalla solo la monta. */
+export function PatientForm() {
+  const params = useParams();
+  const id = params.id ? Number(params.id) : undefined;
+  const isEdit = id != null;
+
+  const patientQuery = usePatient(id);
+  const createPatient = useCreatePatient();
+  const updatePatient = useUpdatePatient(id ?? 0);
+  const navigate = useNavigate();
+
+  const {
+    register,
+    handleSubmit,
+    control,
+    setError,
+    formState: { errors },
+  } = useForm<PatientValues>({
+    resolver: zodResolver(patientSchema),
+    values: toDefaults(patientQuery.data),
+  });
+
+  const birthDate = useWatch({ control, name: "birthDate" });
+  const minor = isMinor(birthDate ?? "");
+  const pending = createPatient.isPending || updatePatient.isPending;
+
+  if (isEdit && patientQuery.isLoading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center">
+        <Loader2 className="size-6 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
+  const onSubmit = (values: PatientValues) => {
+    const request = toRequest(values);
+    const options = {
+      onSuccess: (saved: { id?: number }) => navigate(patientDetailPath(saved.id ?? id!)),
+      onError: (error: unknown) => applyServerFieldErrors(error, setError),
+    };
+    if (isEdit) updatePatient.mutate(request, options);
+    else createPatient.mutate(request, options);
+  };
+
+  return (
+    <main className="mx-auto flex min-h-screen w-full max-w-2xl flex-col gap-6 p-6">
+      <header className="flex items-center gap-3">
+        <Link
+          to={isEdit ? patientDetailPath(id!) : PATHS.PATIENTS}
+          aria-label="Volver"
+          className={buttonVariants({ variant: "ghost", size: "icon" })}
+        >
+          <ArrowLeft className="size-4" />
+        </Link>
+        <h1 className="text-2xl font-bold tracking-tight">{isEdit ? "Editar paciente" : "Nuevo paciente"}</h1>
+      </header>
+
+      <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-5" noValidate>
+        <FormSection title="Datos personales">
+          <FormField label="Nombre completo" name="fullName" register={register} error={errors.fullName} required wide />
+          <FormField label="Fecha de nacimiento" name="birthDate" type="date" register={register} error={errors.birthDate} required />
+          <FormField label="Documento" name="document" register={register} error={errors.document} />
+          <FormField label="Sexo" name="sex" register={register} error={errors.sex} />
+        </FormSection>
+
+        <FormSection title="Contacto">
+          <FormField label="Teléfono" name="phone" register={register} error={errors.phone} />
+          <FormField label="Correo" name="email" register={register} error={errors.email} />
+          <FormField label="Dirección" name="address" register={register} error={errors.address} wide />
+        </FormSection>
+
+        {minor ? (
+          <FormSection
+            title="Responsable"
+            description="Este paciente es menor de edad: sus datos de responsable son obligatorios."
+          >
+            <FormField label="Nombre del responsable" name="guardianName" register={register} error={errors.guardianName} required />
+            <FormField label="Parentesco" name="guardianRelationship" register={register} error={errors.guardianRelationship} required />
+            <FormField label="Teléfono del responsable" name="guardianPhone" register={register} error={errors.guardianPhone} required />
+            <FormField label="Documento del responsable" name="guardianDocument" register={register} error={errors.guardianDocument} />
+          </FormSection>
+        ) : null}
+
+        <FormSection title="Contacto de emergencia">
+          <FormField label="Nombre" name="emergencyContactName" register={register} error={errors.emergencyContactName} />
+          <FormField label="Teléfono" name="emergencyContactPhone" register={register} error={errors.emergencyContactPhone} />
+          <FormField label="Parentesco" name="emergencyContactRelationship" register={register} error={errors.emergencyContactRelationship} wide />
+        </FormSection>
+
+        <FormSection title="Anamnesis" description="Separa cada elemento con comas. Sirven para alertar antes de un tratamiento.">
+          <FormField label="Alergias" name="allergies" register={register} error={errors.allergies} placeholder="penicilina, látex" wide />
+          <FormField label="Condiciones / antecedentes" name="conditions" register={register} error={errors.conditions} placeholder="diabetes, hipertensión" wide />
+          <FormField label="Medicación actual" name="currentMedication" register={register} error={errors.currentMedication} wide />
+        </FormSection>
+
+        <Button type="submit" disabled={pending} size="lg" className="self-start rounded-xl">
+          {pending ? <Loader2 className="mr-2 size-4 animate-spin" /> : null}
+          {isEdit ? "Guardar cambios" : "Registrar paciente"}
+        </Button>
+      </form>
+    </main>
+  );
+}
