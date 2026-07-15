@@ -61,9 +61,24 @@ Búsqueda por nombre o documento, con paginación. **No** se usa el método HTTP
 
 Los errores transversales (`401`/`403`/`500`) **se inyectan solos** en el contrato (`docs/backend.md §10.2`): solo hay que declarar el status de éxito, el `400` de validación y el `409` del documento duplicado.
 
+### D6 — El servicio NO habla DTOs de la API — y ahora **la build lo exige**
+
+**Decisión:** `PatientService` recibe y devuelve **tipos propios de la capa de servicio** (un `Patient` de dominio / un command), **nunca** `PatientResponse` ni `CreatePatientRequest` de `presentation`. La traducción a/desde los DTOs vive en `PatientController`, que es quien conoce el contrato HTTP.
+
+**Por qué se decide aquí explícitamente y no se da por hecho:** `organization-branding` cometió justo el error contrario —el servicio devolvía `BrandingResponse` y el DTO leía la entidad JPA— y **pasó desapercibido durante meses porque `LayeredArchitectureTest` estaba ciego** (ArchUnit no leía el bytecode de Java 25). Arreglado eso, la regla **rompe la build**. Si `patients` copia el patrón malo, no compila. Referencia del patrón correcto ya en el repo: `Branding` (record de servicio) + `BrandingController` (traduce).
+
+> Es el mismo principio que el aislamiento automático: lo que protege no es la disciplina, es que **la build falla**. Escribir el servicio atado al transporte ya no es "código mejorable" — es código que no entra.
+
 ## Risks / Trade-offs
 
-- **[Un olvido de aislamiento no falla: filtra historia clínica entre clínicas]** ⭐ → Por eso el mecanismo es **automático** (`update-multi-tenancy`, del que este change depende) y hay un **test de aislamiento obligatorio** contra PostgreSQL real. El `FORCE ROW LEVEL SECURITY` + el rol de aplicación no-owner hacen que el motor sea la última red. **Si al implementar `patients` hiciera falta fijar el contexto a mano en algún sitio, el cimiento estaría mal** — y hay que arreglarlo allí, no parchearlo aquí.
+- **[Un olvido de aislamiento no falla: filtra historia clínica entre clínicas]** ⭐ → Por eso el mecanismo es **automático** (`TenantAwareTransactionManager`, de `update-multi-tenancy`) y hay un **test de aislamiento obligatorio** contra PostgreSQL real. **Si al implementar `patients` hiciera falta fijar el contexto a mano, el cimiento estaría mal** — se arregla allí, no aquí. De hecho no se puede: una regla de ArchUnit **rompe la build** si `PatientService` importa `TenantSession`.
+
+  > 🚨 **Hay DOS tests de aislamiento y corren sobre bases distintas — no confundirlos:**
+  >
+  > 1. **A nivel de motor (RLS), el obligatorio** (`docs/testing.md`): entra por el **repositorio de `Patient`** con la app conectada como **rol no-superusuario** — extiende **`AbstractTenantAwareIntegrationTest`**, no `AbstractIntegrationTest`. Si conecta como el superusuario del contenedor, **RLS ni se aplica** y el test pasa en verde con el aislamiento roto. Sigue el patrón de **`AutomaticTenantBindingIT`**: puebla `OrganizationContext` como el filtro y **nunca llama a `bind()`**.
+  > 2. **A nivel HTTP (el 404 por identificador)**: lo garantiza el filtro de aplicación (`@TenantId`), que funciona aunque el rol sea superusuario. Puede correr sobre la base normal. Prueba que la clínica A recibe **404** —no 403— al pedir un paciente de B por su id, sin revelar que existe.
+  >
+  > El primero prueba que **el motor** aísla; el segundo, que **la API** no filtra la existencia. Hacen falta los dos.
 - **[La validación condicional del menor se desincroniza entre cliente y servidor]** (D2) → El servidor es la autoridad y su `400` trae detalle por campo. Los Scenarios cubren **ambos** lados.
 - **[Las listas de anamnesis son texto sin vocabulario]** (D3) → Aceptado: `treatments` podrá alertar mostrándolas; codificarlas es una evolución, no un requisito de hoy.
 - **[El índice por organización se olvida]** → `docs/backend.md §8.1` lo exige explícitamente ("el índice **es parte de la política de aislamiento**, no una optimización posterior"): sin él, RLS filtra con *seq scan* y el listado se degrada con cada clínica nueva.
