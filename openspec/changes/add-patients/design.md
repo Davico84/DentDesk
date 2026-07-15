@@ -85,6 +85,19 @@ Los errores transversales (`401`/`403`/`500`) **se inyectan solos** en el contra
 
 - *Alternativa — `@ElementCollection` / tablas hijas.* Rechazada: o introduce tablas de negocio **sin RLS** (el agujero), o exige darles `organization_id` + `@TenantId` + política propia, multiplicando ×3 tablas/políticas/tests para datos que **siempre** se acceden a través del paciente. Si algún día hiciera falta un catálogo codificado y consultable por SQL, esa evolución traería sus tablas **con** la convención completa — hoy sería maquinaria sin uso.
 
+### D8 — Los campos son de **tipo cerrado y formato validado**, no texto libre suelto
+
+Auditoría del modelo antes de fijar la tabla (la pidió la revisión humana). Decisiones:
+
+- **`sex` → enum** `MALE | FEMALE | OTHER`. Conjunto cerrado en app + **`CHECK` en BD** + contrato → el cliente lo hereda como enum (un `Select`, no un input).
+- **`guardianRelationship` → enum** `MOTHER | FATHER | GUARDIAN | OTHER`.
+- **`documentType` → enum** `DNI | CE | PASSPORT`, **campo nuevo**. El **`document` sigue siendo `string`, nunca numérico**: un tipo numérico tira los ceros a la izquierda y el pasaporte es **alfanumérico**. "Numérico" es una **regla de formato**, no un tipo de columna.
+- **Documento y tipo van EMPAREJADOS** (o ambos o ninguno): un número sin tipo no se puede validar; un tipo sin número no identifica. Enforced en BD (`CHECK`) **y** en la app (validación a nivel de objeto, como el menor→responsable). El documento sigue siendo **opcional**.
+- **El formato del documento es condicional al tipo** (la regla vive en el enum `DocumentType`): DNI = 8 dígitos, CE = 9–12, pasaporte = alfanumérico 6–12.
+- **Teléfonos** (`phone`, `guardianPhone`, `emergencyContactPhone`): `string` con **formato** (`@Pattern`: dígitos, `+`, espacios), **no** tipo numérico.
+
+> Regla que deja este change: un campo con **conjunto cerrado** se modela como **enum** (app + `CHECK` + contrato); uno con **formato** se valida en el boundary (`@Pattern`/validador). El tipo de columna **nunca** es numérico para identificadores ni teléfonos.
+
 ## Risks / Trade-offs
 
 - **[Un olvido de aislamiento no falla: filtra historia clínica entre clínicas]** ⭐ → Por eso el mecanismo es **automático** (`TenantAwareTransactionManager`, de `update-multi-tenancy`) y hay un **test de aislamiento obligatorio** contra PostgreSQL real. **Si al implementar `patients` hiciera falta fijar el contexto a mano, el cimiento estaría mal** — se arregla allí, no aquí. De hecho no se puede: una regla de ArchUnit **rompe la build** si `PatientService` importa `TenantSession`.

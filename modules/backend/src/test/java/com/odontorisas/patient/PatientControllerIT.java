@@ -42,8 +42,9 @@ class PatientControllerIT extends AbstractIntegrationTest {
     }
 
     private String adultBody(String fullName, String document) {
+        // Si hay documento, va emparejado con su tipo (DNI = 8 dígitos), como exige @ValidDocument.
         return "{\"fullName\":\"" + fullName + "\",\"birthDate\":\"1990-01-01\""
-            + (document == null ? "" : ",\"document\":\"" + document + "\"") + "}";
+            + (document == null ? "" : ",\"documentType\":\"DNI\",\"document\":\"" + document + "\"") + "}";
     }
 
     private long createPatient(String token, String body) throws Exception {
@@ -57,7 +58,7 @@ class PatientControllerIT extends AbstractIntegrationTest {
     @Test
     void create_and_read_back_a_patient() throws Exception {
         String token = registerAdmin("Clinica Alta", "patients-create@clinica.test");
-        long id = createPatient(token, adultBody("Ada Lovelace", "DOC-1"));
+        long id = createPatient(token, adultBody("Ada Lovelace", "10000001"));
 
         mockMvc.perform(get("/patients/" + id).header("Authorization", "Bearer " + token))
             .andExpect(status().isOk())
@@ -79,10 +80,10 @@ class PatientControllerIT extends AbstractIntegrationTest {
     @Test
     void a_duplicate_document_in_the_same_clinic_is_a_conflict() throws Exception {
         String token = registerAdmin("Clinica Dup", "patients-dup@clinica.test");
-        createPatient(token, adultBody("Primero", "SAME"));
+        createPatient(token, adultBody("Primero", "20000002"));
 
         mockMvc.perform(post("/patients").header("Authorization", "Bearer " + token)
-                .contentType(MediaType.APPLICATION_JSON).content(adultBody("Segundo", "SAME")))
+                .contentType(MediaType.APPLICATION_JSON).content(adultBody("Segundo", "20000002")))
             .andExpect(status().isConflict())
             .andExpect(jsonPath("$.type").value("/errors/patient-document-taken"));
     }
@@ -91,7 +92,7 @@ class PatientControllerIT extends AbstractIntegrationTest {
     void a_clinic_cannot_read_a_patient_of_another_clinic_even_by_id() throws Exception {
         String tokenA = registerAdmin("Clinica A HTTP", "patients-a@clinica.test");
         String tokenB = registerAdmin("Clinica B HTTP", "patients-b@clinica.test");
-        long idInA = createPatient(tokenA, adultBody("Paciente de A", "ONLY-A"));
+        long idInA = createPatient(tokenA, adultBody("Paciente de A", "30000003"));
 
         // B pide el paciente de A por su id EXACTO → 404, sin revelar que existe en otra clínica.
         mockMvc.perform(get("/patients/" + idInA).header("Authorization", "Bearer " + tokenB))
@@ -103,18 +104,18 @@ class PatientControllerIT extends AbstractIntegrationTest {
     void the_same_document_is_allowed_in_a_different_clinic() throws Exception {
         String tokenA = registerAdmin("Clinica Doc A", "patients-doc-a@clinica.test");
         String tokenB = registerAdmin("Clinica Doc B", "patients-doc-b@clinica.test");
-        createPatient(tokenA, adultBody("Persona en A", "SHARED"));
+        createPatient(tokenA, adultBody("Persona en A", "40000004"));
 
         // Misma persona, otra clínica: mismo documento, sin conflicto.
-        createPatient(tokenB, adultBody("Persona en B", "SHARED"));
+        createPatient(tokenB, adultBody("Persona en B", "40000004"));
     }
 
     @Test
     void the_list_only_shows_patients_of_the_active_clinic() throws Exception {
         String tokenA = registerAdmin("Clinica List A", "patients-list-a@clinica.test");
         String tokenB = registerAdmin("Clinica List B", "patients-list-b@clinica.test");
-        createPatient(tokenA, adultBody("Solo en A", "LIST-A"));
-        createPatient(tokenB, adultBody("Solo en B", "LIST-B"));
+        createPatient(tokenA, adultBody("Solo en A", "50000005"));
+        createPatient(tokenB, adultBody("Solo en B", "60000006"));
 
         mockMvc.perform(get("/patients").header("Authorization", "Bearer " + tokenB))
             .andExpect(status().isOk())

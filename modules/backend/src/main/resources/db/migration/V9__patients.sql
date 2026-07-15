@@ -13,9 +13,13 @@ CREATE TABLE patients (
 
     -- Datos personales (fullName y birthDate son los únicos obligatorios; ver design.md OQ1).
     full_name                      VARCHAR(200) NOT NULL,
+    -- Documento: tipo (conjunto cerrado) + número (string, NUNCA numérico: ceros a la izquierda y
+    -- pasaporte alfanumérico). Emparejados: o ambos o ninguno (design.md D8). El FORMATO por tipo
+    -- (DNI=8 díg, CE=9-12, pasaporte alfanum) se valida en la app (Bean Validation condicional).
+    document_type                  VARCHAR(20) CHECK (document_type IN ('DNI', 'CE', 'PASSPORT')),
     document                       VARCHAR(50),            -- opcional; único POR CLÍNICA (ADR-0004)
     birth_date                     DATE NOT NULL,          -- de ella se deriva isMinor (no se persiste)
-    sex                            VARCHAR(20),
+    sex                            VARCHAR(20) CHECK (sex IN ('MALE', 'FEMALE', 'OTHER')),
 
     -- Contacto.
     phone                          VARCHAR(40),
@@ -24,7 +28,7 @@ CREATE TABLE patients (
 
     -- Responsable / tutor (obligatorio cuando el paciente es menor; el documento del tutor es opcional).
     guardian_name                  VARCHAR(200),
-    guardian_relationship          VARCHAR(50),
+    guardian_relationship          VARCHAR(20) CHECK (guardian_relationship IN ('MOTHER', 'FATHER', 'GUARDIAN', 'OTHER')),
     guardian_document              VARCHAR(50),
     guardian_phone                 VARCHAR(40),
 
@@ -44,7 +48,13 @@ CREATE TABLE patients (
     status                         VARCHAR(20) NOT NULL DEFAULT 'ACTIVE',
 
     created_at                     TIMESTAMPTZ NOT NULL DEFAULT now(),
-    updated_at                     TIMESTAMPTZ NOT NULL DEFAULT now()
+    updated_at                     TIMESTAMPTZ NOT NULL DEFAULT now(),
+
+    -- Documento y tipo van EMPAREJADOS: o ambos presentes o ambos ausentes (design.md D8).
+    CONSTRAINT patients_document_paired CHECK (
+        (document IS NULL AND document_type IS NULL)
+        OR (document IS NOT NULL AND document_type IS NOT NULL)
+    )
 );
 
 -- El índice sobre organization_id es PARTE de la política de aislamiento (docs/backend.md §8.1),

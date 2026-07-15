@@ -1,6 +1,7 @@
 package com.odontorisas.patient;
 
 import com.odontorisas.AbstractTenantAwareIntegrationTest;
+import com.odontorisas.common.DocumentType;
 import com.odontorisas.common.IdentityContext;
 import com.odontorisas.common.OrganizationContext;
 import com.odontorisas.service.patient.DocumentAlreadyExistsException;
@@ -68,7 +69,8 @@ class PatientRlsIT extends AbstractTenantAwareIntegrationTest {
     }
 
     private PatientData patient(String fullName, String document) {
-        return new PatientData(fullName, document, LocalDate.of(2000, 1, 1), null,
+        DocumentType type = document == null ? null : DocumentType.DNI;
+        return new PatientData(fullName, type, document, LocalDate.of(2000, 1, 1), null,
             null, null, null, null, null, null, null, null, null, null, null, null, null);
     }
 

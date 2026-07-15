@@ -100,6 +100,7 @@ public class PatientService {
 
     private void apply(PatientData d, Patient p) {
         p.setFullName(d.fullName());
+        p.setDocumentType(d.documentType());
         p.setDocument(d.document());
         p.setBirthDate(d.birthDate());
         p.setSex(d.sex());

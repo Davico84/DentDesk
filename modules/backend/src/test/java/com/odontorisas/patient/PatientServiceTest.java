@@ -40,7 +40,7 @@ class PatientServiceTest {
     PatientService patientService;
 
     private PatientData data(String fullName, String document) {
-        return new PatientData(fullName, document, LocalDate.of(1990, 1, 1), null,
+        return new PatientData(fullName, null, document, LocalDate.of(1990, 1, 1), null,
             null, null, null, null, null, null, null, null, null, null, null, null, null);
     }
 

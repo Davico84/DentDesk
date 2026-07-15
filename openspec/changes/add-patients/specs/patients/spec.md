@@ -26,6 +26,16 @@ El sistema SHALL permitir al personal de una clínica registrar a una persona at
 - **THEN** el alta se completa igualmente
 - **AND** la clínica no queda impedida de atenderlo
 
+#### Scenario: El documento va emparejado con su tipo
+- **WHEN** se registra a un paciente con un **número de documento pero sin indicar el tipo** (o al revés)
+- **THEN** el sistema rechaza el alta indicando qué falta (el tipo, o el número)
+- **AND** no registra nada
+
+#### Scenario: El documento tiene el formato del tipo elegido
+- **WHEN** se registra a un paciente con un documento cuyo **formato no corresponde a su tipo** (p. ej. un DNI que no son 8 dígitos)
+- **THEN** el sistema rechaza el alta indicando que el documento no es válido para ese tipo
+- **AND** no registra nada
+
 #### Scenario: Un documento no puede repetirse dentro de la misma clínica
 - **WHEN** se intenta registrar en una clínica a un paciente con un documento que **ya existe en esa clínica**
 - **THEN** el sistema rechaza el alta indicando que el documento ya está registrado

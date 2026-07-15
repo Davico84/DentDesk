@@ -1,5 +1,9 @@
 package com.odontorisas.service.patient;
 
+import com.odontorisas.common.DocumentType;
+import com.odontorisas.common.GuardianRelationship;
+import com.odontorisas.common.Sex;
+
 import java.time.LocalDate;
 import java.util.List;
 
@@ -15,14 +19,15 @@ import java.util.List;
  */
 public record PatientData(
     String fullName,
+    DocumentType documentType,
     String document,
     LocalDate birthDate,
-    String sex,
+    Sex sex,
     String phone,
     String email,
     String address,
     String guardianName,
-    String guardianRelationship,
+    GuardianRelationship guardianRelationship,
     String guardianDocument,
     String guardianPhone,
     String emergencyContactName,

@@ -124,7 +124,7 @@ public class PatientController {
     /** El controller traduce el DTO de la API al tipo del servicio (design.md D6). */
     private static PatientData toData(PatientRequest r) {
         return new PatientData(
-            r.fullName(), r.document(), r.birthDate(), r.sex(),
+            r.fullName(), r.documentType(), r.document(), r.birthDate(), r.sex(),
             r.phone(), r.email(), r.address(),
             r.guardianName(), r.guardianRelationship(), r.guardianDocument(), r.guardianPhone(),
             r.emergencyContactName(), r.emergencyContactPhone(), r.emergencyContactRelationship(),

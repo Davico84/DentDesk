@@ -1,6 +1,9 @@
 package com.odontorisas.presentation.dto;
 
+import com.odontorisas.common.DocumentType;
+import com.odontorisas.common.GuardianRelationship;
 import com.odontorisas.common.PatientStatus;
+import com.odontorisas.common.Sex;
 import com.odontorisas.service.patient.PatientView;
 import io.swagger.v3.oas.annotations.media.Schema;
 
@@ -15,16 +18,17 @@ import java.util.List;
 public record PatientResponse(
     Long id,
     String fullName,
+    DocumentType documentType,
     String document,
     LocalDate birthDate,
     @Schema(description = "Derivado de birthDate; el servidor es la autoridad.")
     boolean minor,
-    String sex,
+    Sex sex,
     String phone,
     String email,
     String address,
     String guardianName,
-    String guardianRelationship,
+    GuardianRelationship guardianRelationship,
     String guardianDocument,
     String guardianPhone,
     String emergencyContactName,
@@ -37,7 +41,7 @@ public record PatientResponse(
 
     public static PatientResponse from(PatientView v) {
         return new PatientResponse(
-            v.id(), v.fullName(), v.document(), v.birthDate(), v.minor(), v.sex(),
+            v.id(), v.fullName(), v.documentType(), v.document(), v.birthDate(), v.minor(), v.sex(),
             v.phone(), v.email(), v.address(),
             v.guardianName(), v.guardianRelationship(), v.guardianDocument(), v.guardianPhone(),
             v.emergencyContactName(), v.emergencyContactPhone(), v.emergencyContactRelationship(),

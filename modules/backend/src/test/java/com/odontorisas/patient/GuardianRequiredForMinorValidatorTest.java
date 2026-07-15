@@ -1,5 +1,6 @@
 package com.odontorisas.patient;
 
+import com.odontorisas.common.GuardianRelationship;
 import com.odontorisas.presentation.dto.PatientRequest;
 import jakarta.validation.ConstraintViolation;
 import jakarta.validation.Validation;
@@ -35,8 +36,8 @@ class GuardianRequiredForMinorValidatorTest {
         factory.close();
     }
 
-    private PatientRequest request(LocalDate birthDate, String guardianName, String guardianRelationship, String guardianPhone) {
-        return new PatientRequest("Nombre Válido", null, birthDate, null, null, null, null,
+    private PatientRequest request(LocalDate birthDate, String guardianName, GuardianRelationship guardianRelationship, String guardianPhone) {
+        return new PatientRequest("Nombre Válido", null, null, birthDate, null, null, null, null,
             guardianName, guardianRelationship, null, guardianPhone,
             null, null, null, null, null, null);
     }
@@ -62,7 +63,7 @@ class GuardianRequiredForMinorValidatorTest {
     @Test
     void a_minor_with_guardian_is_accepted() {
         Set<ConstraintViolation<PatientRequest>> violations =
-            validator.validate(request(minorBirthDate(), "María", "madre", "+51999888777"));
+            validator.validate(request(minorBirthDate(), "María", GuardianRelationship.MOTHER, "+51999888777"));
 
         assertThat(violations).isEmpty();
     }
@@ -78,7 +79,7 @@ class GuardianRequiredForMinorValidatorTest {
     @Test
     void a_minor_missing_only_the_phone_is_flagged_only_on_the_phone() {
         Set<ConstraintViolation<PatientRequest>> violations =
-            validator.validate(request(minorBirthDate(), "María", "madre", null));
+            validator.validate(request(minorBirthDate(), "María", GuardianRelationship.MOTHER, null));
 
         assertThat(violations)
             .extracting(v -> v.getPropertyPath().toString())

@@ -1,7 +1,10 @@
 package com.odontorisas.persistence.entity;
 
 import com.odontorisas.common.Ages;
+import com.odontorisas.common.DocumentType;
+import com.odontorisas.common.GuardianRelationship;
 import com.odontorisas.common.PatientStatus;
+import com.odontorisas.common.Sex;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -63,7 +66,12 @@ public class Patient {
     @Column(name = "full_name", nullable = false, length = 200)
     private String fullName;
 
-    /** Documento de identidad, opcional; único POR CLÍNICA (ADR-0004). */
+    /** Tipo de documento (design.md D8); emparejado con {@link #document} (o ambos o ninguno). */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "document_type", length = 20)
+    private DocumentType documentType;
+
+    /** Documento de identidad, opcional; único POR CLÍNICA (ADR-0004). Formato según el tipo. */
     @Column(length = 50)
     private String document;
 
@@ -71,8 +79,9 @@ public class Patient {
     @Column(name = "birth_date", nullable = false)
     private LocalDate birthDate;
 
+    @Enumerated(EnumType.STRING)
     @Column(length = 20)
-    private String sex;
+    private Sex sex;
 
     // --- Contacto ---
     @Column(length = 40)
@@ -88,8 +97,9 @@ public class Patient {
     @Column(name = "guardian_name", length = 200)
     private String guardianName;
 
-    @Column(name = "guardian_relationship", length = 50)
-    private String guardianRelationship;
+    @Enumerated(EnumType.STRING)
+    @Column(name = "guardian_relationship", length = 20)
+    private GuardianRelationship guardianRelationship;
 
     @Column(name = "guardian_document", length = 50)
     private String guardianDocument;
