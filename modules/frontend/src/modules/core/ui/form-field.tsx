@@ -41,7 +41,15 @@ export function FormField<T extends FieldValues>({
   placeholder,
   hint,
   wide,
-}: BaseProps<T> & { type?: string; placeholder?: string }) {
+  maxLength,
+  inputMode,
+}: BaseProps<T> & {
+  type?: string;
+  placeholder?: string;
+  /** Tope duro de caracteres: impedir que se pase es mejor que avisarle después. */
+  maxLength?: number;
+  inputMode?: "text" | "numeric" | "tel" | "email";
+}) {
   const errorId = `${name}-error`;
   const hintId = `${name}-hint`;
   return (
@@ -50,6 +58,8 @@ export function FormField<T extends FieldValues>({
         id={name}
         type={type}
         placeholder={placeholder}
+        maxLength={maxLength}
+        inputMode={inputMode}
         className="h-11 rounded-xl"
         aria-invalid={error ? true : undefined}
         aria-describedby={describedBy(error ? errorId : undefined, hint ? hintId : undefined)}

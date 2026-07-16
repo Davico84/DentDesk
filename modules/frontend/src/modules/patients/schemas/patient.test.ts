@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { patientSchema, toRequest, toDefaults, isMinor, type PatientValues } from "./patient";
+import { patientSchema, toRequest, toDefaults, isMinor, documentMaxLength, type PatientValues } from "./patient";
 
 function isoYearsAgo(years: number): string {
   const d = new Date();
@@ -57,6 +57,32 @@ describe("patientSchema", () => {
   });
 });
 
+/** Paridad con el @PastOrPresent del backend: la edad DERIVA de esta fecha. */
+describe("patientSchema — fecha de nacimiento", () => {
+  it("rechaza una fecha futura", () => {
+    const future = new Date();
+    future.setFullYear(future.getFullYear() + 1);
+    const result = patientSchema.safeParse(values({ birthDate: future.toISOString().slice(0, 10) }));
+    expect(result.success).toBe(false);
+  });
+
+  it("acepta hoy (un recién nacido) — que, siendo menor, necesita responsable", () => {
+    const result = patientSchema.safeParse(
+      values({
+        birthDate: new Date().toISOString().slice(0, 10),
+        guardianName: "María",
+        guardianRelationship: "MOTHER",
+        guardianPhone: "+51999888",
+      }),
+    );
+    expect(result.success).toBe(true);
+  });
+
+  it("rechaza una fecha inválida", () => {
+    expect(patientSchema.safeParse(values({ birthDate: "no-es-fecha" })).success).toBe(false);
+  });
+});
+
 /** Paridad con el backend (design.md D8): emparejamiento tipo↔número y formato según el tipo. */
 describe("patientSchema — documento", () => {
   function pathsInError(v: PatientValues): unknown[] {
@@ -83,6 +109,17 @@ describe("patientSchema — documento", () => {
   it("rechaza un DNI con formato inválido", () => {
     expect(pathsInError(values({ documentType: "DNI", document: "123" }))).toContain("document");
     expect(pathsInError(values({ documentType: "DNI", document: "1234567X" }))).toContain("document");
+  });
+
+  it("rechaza un DNI de MÁS de 8 dígitos (pasarse también es inválido)", () => {
+    expect(pathsInError(values({ documentType: "DNI", document: "123456789" }))).toContain("document");
+  });
+
+  it("el largo máximo depende del tipo: impide pasarse en vez de avisar después", () => {
+    expect(documentMaxLength("DNI")).toBe(8);
+    expect(documentMaxLength("CE")).toBe(12);
+    expect(documentMaxLength("PASSPORT")).toBe(12);
+    expect(documentMaxLength("")).toBeUndefined();
   });
 
   it("acepta un pasaporte alfanumérico", () => {

@@ -12,6 +12,8 @@ import {
   toDefaults,
   isMinor,
   documentHint,
+  documentMaxLength,
+  PHONE_HINT,
   type PatientValues,
 } from "@/modules/patients/schemas/patient";
 import { useCreatePatient, usePatient, useUpdatePatient } from "@/modules/patients/hooks/usePatientsApi";
@@ -133,6 +135,8 @@ export function PatientForm() {
             register={register}
             error={errors.document}
             hint={documentHint(documentType ?? "")}
+            maxLength={documentMaxLength(documentType ?? "")}
+            inputMode={documentType === "PASSPORT" ? "text" : "numeric"}
           />
         </FormSection>
 
@@ -143,7 +147,7 @@ export function PatientForm() {
           collapsible
           hasError={Boolean(errors.phone || errors.email || errors.address)}
         >
-          <FormField label={LABELS.phone} name="phone" type="tel" register={register} error={errors.phone} />
+          <FormField label={LABELS.phone} name="phone" type="tel" register={register} error={errors.phone} hint={PHONE_HINT} />
           <FormField label={LABELS.email} name="email" type="email" register={register} error={errors.email} />
           <FormField label={LABELS.address} name="address" register={register} error={errors.address} wide />
         </FormSection>
@@ -162,7 +166,7 @@ export function PatientForm() {
               options={guardianRelationshipOptions}
               required
             />
-            <FormField label={LABELS.guardianPhone} name="guardianPhone" type="tel" register={register} error={errors.guardianPhone} required />
+            <FormField label={LABELS.guardianPhone} name="guardianPhone" type="tel" register={register} error={errors.guardianPhone} hint={PHONE_HINT} required />
             <FormField label={LABELS.guardianDocument} name="guardianDocument" register={register} error={errors.guardianDocument} />
           </FormSection>
         ) : null}
@@ -177,7 +181,7 @@ export function PatientForm() {
           hasError={Boolean(errors.emergencyContactName || errors.emergencyContactPhone || errors.emergencyContactRelationship)}
         >
           <FormField label={LABELS.emergencyContactName} name="emergencyContactName" register={register} error={errors.emergencyContactName} />
-          <FormField label={LABELS.emergencyContactPhone} name="emergencyContactPhone" type="tel" register={register} error={errors.emergencyContactPhone} />
+          <FormField label={LABELS.emergencyContactPhone} name="emergencyContactPhone" type="tel" register={register} error={errors.emergencyContactPhone} hint={PHONE_HINT} />
           <FormField label={LABELS.emergencyContactRelationship} name="emergencyContactRelationship" register={register} error={errors.emergencyContactRelationship} wide />
         </FormSection>
 

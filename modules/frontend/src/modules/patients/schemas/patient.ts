@@ -46,9 +46,32 @@ export function documentHint(documentType: string): string | undefined {
   }
 }
 
+/**
+ * Largo máximo del documento según su tipo. **Impedir es mejor que corregir**: sin esto puedes
+ * teclear 20 dígitos en un DNI y solo enterarte al fallar. El input no te deja pasar del límite.
+ */
+export function documentMaxLength(documentType: string): number | undefined {
+  switch (documentType) {
+    case PatientRequestDocumentType.DNI:
+      return 8;
+    case PatientRequestDocumentType.CE:
+    case PatientRequestDocumentType.PASSPORT:
+      return 12;
+    default:
+      return undefined;
+  }
+}
+
 /** Teléfono: dígitos, «+» y espacios (paridad con el `@Pattern` del backend). */
 const PHONE = /^\+?[0-9 ]{7,20}$/;
 const PHONE_MESSAGE = "Solo dígitos, «+» y espacios";
+
+/**
+ * Ayuda **persistente** del teléfono. Va bajo el campo, no en un placeholder: el placeholder
+ * desaparece justo al escribir, que es cuando hace falta. Sin esto, la regla solo se descubre
+ * fallando.
+ */
+export const PHONE_HINT = "Dígitos, «+» y espacios.";
 
 /** Campo opcional de conjunto cerrado: el valor del enum, o "" cuando no se ha elegido. */
 const optionalEnum = <T extends Record<string, string>>(values: T) =>
@@ -68,7 +91,14 @@ export const patientSchema = z
     fullName: z.string().trim().min(1, "El nombre es obligatorio").max(200),
     documentType: optionalEnum(PatientRequestDocumentType),
     document: z.string().trim().max(50),
-    birthDate: z.string().min(1, "La fecha de nacimiento es obligatoria"),
+    // Paridad con el @PastOrPresent del backend. Sin esto se podía escribir que el paciente nace
+    // en 2050: el cliente lo aceptaba y el servidor devolvía un 400. Y la edad DERIVA de esta
+    // fecha (menor→responsable, dentición), así que una fecha futura envenena el resto.
+    birthDate: z
+      .string()
+      .min(1, "La fecha de nacimiento es obligatoria")
+      .refine((v) => !Number.isNaN(new Date(v).getTime()), "Fecha inválida")
+      .refine((v) => new Date(v) <= new Date(), "La fecha no puede estar en el futuro"),
     sex: optionalEnum(PatientRequestSex),
     phone: optionalPhone,
     email: z.union([z.string().email("Correo inválido"), z.literal("")]),
