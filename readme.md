@@ -128,7 +128,7 @@ Por eso, **en este proyecto el delta de una capacidad nueva (`add-*`) lleva su `
 | `multi-tenancy` | técnica | ✅ construida | [`openspec/specs/multi-tenancy/`](openspec/specs/multi-tenancy/spec.md) |
 | `organization-branding` | negocio | ✅ construida | [`openspec/specs/organization-branding/`](openspec/specs/organization-branding/spec.md) |
 | ↳ *cierre del aislamiento* | | ✅ construido | El contexto de tenant se fija **solo** en cada transacción, defendido por una regla de build ([`update-multi-tenancy`](openspec/changes/archive/2026-07-15-update-multi-tenancy/proposal.md), archivado) |
-| `patients` | negocio | 🚧 en progreso | [`changes/add-patients/`](openspec/changes/add-patients/proposal.md) |
+| `patients` | negocio | ✅ construida | La ficha del paciente: **núcleo del dominio** y **primera entidad de negocio aislada por organización** — [`openspec/specs/patients/`](openspec/specs/patients/spec.md) |
 | `staff`, `appointments`, `dental-chart`, `treatments`, `images`, `patient-billing`, `inventory`, `dashboard` | negocio | ⏳ planeadas | roadmap en [`docs/vision.md`](docs/vision.md) |
 
 > El producto es un **SaaS multi-tenant** (modelo identidad/organización/membresía, aislamiento por Row-Level Security). Reglas para construir capacidades de negocio: [`docs/backend.md §8.1`](docs/backend.md).

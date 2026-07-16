@@ -42,12 +42,12 @@
 
 ## 6. Documentación de estado (al archivar)
 
-- [ ] 6.1 `docs/domain.md`: consolidar `Patient` como **construida** (campos reales) y actualizar el ER
-- [ ] 6.2 `docs/vision.md` + `readme`: marcar `patients` ✅ construida
+- [x] 6.1 `docs/domain.md`: consolidar `Patient` como **construida** (campos reales) y actualizar el ER
+- [x] 6.2 `docs/vision.md` + `readme`: marcar `patients` ✅ construida
 
 ## 7. Cierre
 
 - [x] 7.1 `openspec validate add-patients --strict`
-- [ ] 7.2 `mvn verify` (backend) y `pnpm validate` (frontend) en verde, **y los dos guardianes de drift**
+- [x] 7.2 `mvn verify` (backend) y `pnpm validate` (frontend) en verde, **y los dos guardianes de drift**
 - [x] 7.3 **Campos obligatorios del alta** (Open Question 1, ya resuelta en design.md): implementar `fullName` y `birthDate` como únicos obligatorios; documento, contacto, emergencia y anamnesis **opcionales**; responsable obligatorio **solo si es menor**
 - [x] 7.4 Commits por scope. **El contrato regenerado y el cliente van en un commit aparte** del código escrito a mano
