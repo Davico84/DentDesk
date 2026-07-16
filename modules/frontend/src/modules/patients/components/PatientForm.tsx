@@ -62,9 +62,11 @@ export function PatientForm() {
     formState: { errors },
   } = useForm<PatientValues>({
     resolver: zodResolver(patientSchema),
-    // Validación en BLUR, no solo al enviar: el error aparece al salir del campo, cuando ya
-    // terminaste de escribirlo (no en cada tecla, que sería ruido).
-    mode: "onBlur",
+    // "onTouched" = avisa tarde, corrige pronto. La PRIMERA validación es al salir del campo (no
+    // te grita "correo inválido" cuando llevas una letra); pero una vez avisado, revalida en cada
+    // tecla, así el error se va SOLO al llegar al 8º dígito. Con "onBlur" tendrías que salir del
+    // campo para descubrir que ya lo arreglaste: el mensaje se quedaría mintiendo.
+    mode: "onTouched",
     values: toDefaults(patientQuery.data),
   });
 

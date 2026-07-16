@@ -48,6 +48,24 @@ describe("PatientFormScreen (alta)", () => {
     expect(await screen.findByText("Documento inválido")).toBeInTheDocument();
   });
 
+  it("avisa al salir del campo, pero el error se va SOLO al corregirlo (sin salir)", async () => {
+    const user = userEvent.setup();
+    renderWithProviders(<PatientFormScreen />, { initialEntries: ["/patients/new"] });
+
+    await user.selectOptions(screen.getByLabelText(/tipo de documento/i), "DNI");
+    const document = screen.getByLabelText(/^documento$/i);
+
+    // Mientras escribes por primera vez NO molesta: el aviso llega al salir del campo.
+    await user.type(document, "123");
+    expect(screen.queryByText(/formato inválido/i)).not.toBeInTheDocument();
+    await user.tab();
+    expect(await screen.findByText(/formato inválido/i)).toBeInTheDocument();
+
+    // Ya avisado: al completar los 8 dígitos el error desaparece sin salir del campo.
+    await user.type(document, "45678");
+    await waitFor(() => expect(screen.queryByText(/formato inválido/i)).not.toBeInTheDocument());
+  });
+
   it("registra un alta válida", async () => {
     let received: unknown = null;
     server.use(
