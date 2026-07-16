@@ -25,7 +25,17 @@ src/
 
 **Reglas de arquitectura:**
 - **`screens` orquestan; `modules` encapsulan lógica.** Las pantallas montan features dentro de un layout; no contienen lógica de negocio.
+  > [!IMPORTANT]
+  > **Una pantalla es una línea.** `screens/<área>/XScreen.tsx` → `return <XFeature />;`. **NO declares sub-componentes dentro de la screen** —ni skeletons, ni estados vacíos/error, ni campos de formulario, ni filas—: van a `modules/<cap>/components/`, agrupados por tipo (la feature, filas, loaders/skeletons, estados, modales). Señal de mal uso: una screen con `function SkeletonRows()` o `function Field()` debajo.
+  > ```tsx
+  > // ✅ screens/patients/PatientListScreen.tsx
+  > export function PatientListScreen() { return <PatientList />; }
+  > // ❌ una screen con su tabla, su skeleton y su estado vacío declarados dentro
+  > ```
 - **`core` no depende de otros módulos** (es la base transversal: UI, auth guard, utils). Los demás módulos pueden depender de `core`.
+  > [!IMPORTANT]
+  > **Un componente genérico se crea EN `core`, no en el módulo.** Si **no conoce el dominio** (un `FormField`, un `SelectField`, un `InfoCard`, un `Badge` base) → `core/ui` (primitivo) o `core/components` (compuesto), y **genérico** (`<T extends FieldValues>` si aplica). Solo lo **específico del dominio** (p. ej. `PatientStatusBadge`, que conoce el enum del paciente) vive en `modules/<cap>/components/`, **componiéndose** sobre el primitivo de `core`. Pregunta de control: *"¿esto lo usaría otra capacidad?"* → sí = `core`.
+- **La validación de formularios vive en el schema Zod del módulo** (`modules/<cap>/schemas/`), **nunca dentro del componente**: ahí van las reglas (incluidas las condicionales, con `superRefine`), en **paridad con el backend** (`docs/coding-style.md §7`). El componente de campo **solo pinta** el error —venga de Zod o del servidor (`applyServerFieldErrors`)—. El servidor es la autoridad.
 - **Mapeo capacidad ↔ código**: cada capacidad de negocio `<cap>` se materializa en `modules/<cap>/` (hooks de dominio, components, schemas Zod) y sus pantallas en `screens/<área>/`. El **cliente API tipado se genera** en `core/services/generated/` (ver §2.3); lo transversal (guard, roles) en `modules/core/`.
 
 ---
