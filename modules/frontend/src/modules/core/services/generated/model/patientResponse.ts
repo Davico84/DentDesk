@@ -5,21 +5,25 @@
  * API de la clínica dental OdontoRisas
  * OpenAPI spec version: v1
  */
+import type { PatientResponseDocumentType } from './patientResponseDocumentType';
+import type { PatientResponseSex } from './patientResponseSex';
+import type { PatientResponseGuardianRelationship } from './patientResponseGuardianRelationship';
 import type { PatientResponseStatus } from './patientResponseStatus';
 
 export interface PatientResponse {
   id?: number;
   fullName?: string;
+  documentType?: PatientResponseDocumentType;
   document?: string;
   birthDate?: string;
   /** Derivado de birthDate; el servidor es la autoridad. */
   minor?: boolean;
-  sex?: string;
+  sex?: PatientResponseSex;
   phone?: string;
   email?: string;
   address?: string;
   guardianName?: string;
-  guardianRelationship?: string;
+  guardianRelationship?: PatientResponseGuardianRelationship;
   guardianDocument?: string;
   guardianPhone?: string;
   emergencyContactName?: string;

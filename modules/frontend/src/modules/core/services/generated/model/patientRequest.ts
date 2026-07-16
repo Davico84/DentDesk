@@ -5,6 +5,9 @@
  * API de la clínica dental OdontoRisas
  * OpenAPI spec version: v1
  */
+import type { PatientRequestDocumentType } from './patientRequestDocumentType';
+import type { PatientRequestSex } from './patientRequestSex';
+import type { PatientRequestGuardianRelationship } from './patientRequestGuardianRelationship';
 
 export interface PatientRequest {
   /**
@@ -12,23 +15,19 @@ export interface PatientRequest {
    * @maxLength 200
    */
   fullName: string;
+  /** Tipo de documento. Obligatorio si se envía el número (y viceversa). */
+  documentType?: PatientRequestDocumentType;
   /**
-   * Documento de identidad. Opcional; único por clínica.
+   * Número de documento. Formato según el tipo. Único por clínica.
    * @minLength 0
    * @maxLength 50
    */
   document?: string;
   /** De ella se deriva la minoría de edad. */
   birthDate: string;
-  /**
-   * @minLength 0
-   * @maxLength 20
-   */
-  sex?: string;
-  /**
-   * @minLength 0
-   * @maxLength 40
-   */
+  /** Sexo (conjunto cerrado). */
+  sex?: PatientRequestSex;
+  /** @pattern ^\+?[0-9 ]{7,20}$ */
   phone?: string;
   /**
    * @minLength 0
@@ -46,12 +45,8 @@ export interface PatientRequest {
    * @maxLength 200
    */
   guardianName?: string;
-  /**
-   * Parentesco del responsable. Obligatorio si es menor.
-   * @minLength 0
-   * @maxLength 50
-   */
-  guardianRelationship?: string;
+  /** Parentesco del responsable. Obligatorio si es menor. */
+  guardianRelationship?: PatientRequestGuardianRelationship;
   /**
    * Documento del responsable. Opcional, incluso para menores.
    * @minLength 0
@@ -60,8 +55,7 @@ export interface PatientRequest {
   guardianDocument?: string;
   /**
    * Teléfono del responsable. Obligatorio si el paciente es menor.
-   * @minLength 0
-   * @maxLength 40
+   * @pattern ^\+?[0-9 ]{7,20}$
    */
   guardianPhone?: string;
   /**
@@ -69,10 +63,7 @@ export interface PatientRequest {
    * @maxLength 200
    */
   emergencyContactName?: string;
-  /**
-   * @minLength 0
-   * @maxLength 40
-   */
+  /** @pattern ^\+?[0-9 ]{7,20}$ */
   emergencyContactPhone?: string;
   /**
    * @minLength 0
