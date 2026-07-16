@@ -1,4 +1,19 @@
+import type { PatientResponse } from "@/modules/core/services/generated/model";
+import { documentTypeOptions, labelOf } from "./patientOptions";
+
 /** Utilidades de presentación de pacientes (compartidas entre listado, ficha y detalle). */
+
+/** "DNI 12345678" — el tipo va con el número, que es como se lee de verdad. */
+export function documentLabel(patient: PatientResponse): string {
+  if (!patient.document) return "";
+  const type = labelOf(documentTypeOptions, patient.documentType);
+  return type ? `${type} ${patient.document}` : patient.document;
+}
+
+/** Lista legible ("penicilina, látex"), o vacío para que la fila muestre su "—". */
+export function joinOrDash(values: string[] | undefined): string {
+  return values && values.length > 0 ? values.join(", ") : "";
+}
 
 /** Iniciales (una o dos) a partir del nombre, para el avatar. */
 export function initials(fullName: string): string {

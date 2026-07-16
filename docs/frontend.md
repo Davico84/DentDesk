@@ -32,6 +32,14 @@ src/
   > export function PatientListScreen() { return <PatientList />; }
   > // ❌ una screen con su tabla, su skeleton y su estado vacío declarados dentro
   > ```
+- **Un archivo = un componente.** La regla de arriba **no es solo para las screens**: un componente de módulo tampoco declara otros dentro. **Skeletons, estados (vacío/error/no encontrado), filas, modales y campos van SIEMPRE a su propio archivo**, aunque solo los use un sitio. Los helpers de presentación, a su `xDisplay.ts`.
+  > [!IMPORTANT]
+  > Señal de mal uso: `PatientDetail.tsx` con `function PatientDetailSkeleton()` debajo. **Un skeleton nunca vive dentro del componente que reemplaza** — es una unidad independiente (se prueba y se reutiliza sola), y enterrarlo obliga a leer la feature entera para encontrarlo.
+  > ```
+  > ✅ PatientDetail.tsx · PatientDetailSkeleton.tsx · PatientDetailStates.tsx · patientDisplay.ts
+  > ❌ PatientDetail.tsx con el skeleton, el "no encontrado" y dos helpers dentro
+  > ```
+  > **Única excepción:** una **familia de primitivos** de `core/ui` diseñada para usarse junta puede compartir archivo, siguiendo la convención de shadcn (`dialog.tsx` exporta `Dialog`, `DialogContent`, `DialogHeader`…). No es excusa para meter la feature y su skeleton en el mismo sitio.
 - **`core` no depende de otros módulos** (es la base transversal: UI, auth guard, utils). Los demás módulos pueden depender de `core`.
   > [!IMPORTANT]
   > **Un componente genérico se crea EN `core`, no en el módulo.** Si **no conoce el dominio** (un `FormField`, un `SelectField`, un `InfoCard`, un `Badge` base) → `core/ui` (primitivo) o `core/components` (compuesto), y **genérico** (`<T extends FieldValues>` si aplica). Solo lo **específico del dominio** (p. ej. `PatientStatusBadge`, que conoce el enum del paciente) vive en `modules/<cap>/components/`, **componiéndose** sobre el primitivo de `core`. Pregunta de control: *"¿esto lo usaría otra capacidad?"* → sí = `core`.
