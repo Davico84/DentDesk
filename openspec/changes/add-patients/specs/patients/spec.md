@@ -26,10 +26,25 @@ El sistema SHALL permitir al personal de una clínica registrar a una persona at
 - **THEN** el alta se completa igualmente
 - **AND** la clínica no queda impedida de atenderlo
 
+#### Scenario: El documento va emparejado con su tipo
+- **WHEN** se registra a un paciente con un **número de documento pero sin indicar el tipo** (o al revés)
+- **THEN** el sistema rechaza el alta indicando qué falta (el tipo, o el número)
+- **AND** no registra nada
+
+#### Scenario: El documento tiene el formato del tipo elegido
+- **WHEN** se registra a un paciente con un documento cuyo **formato no corresponde a su tipo** (p. ej. un DNI que no son 8 dígitos)
+- **THEN** el sistema rechaza el alta indicando que el documento no es válido para ese tipo
+- **AND** no registra nada
+
 #### Scenario: Un documento no puede repetirse dentro de la misma clínica
 - **WHEN** se intenta registrar en una clínica a un paciente con un documento que **ya existe en esa clínica**
 - **THEN** el sistema rechaza el alta indicando que el documento ya está registrado
 - **AND** no crea un segundo registro
+
+#### Scenario: El documento de un paciente dado de baja sigue ocupado
+- **WHEN** se intenta registrar a una persona con el documento de un paciente **dado de baja** de la misma clínica
+- **THEN** el sistema rechaza el alta indicando que el documento ya está registrado
+- **AND** no crea un segundo registro para esa persona (su ficha existente puede reactivarse)
 
 #### Scenario: El mismo documento SÍ puede existir en otra clínica
 - **WHEN** una clínica registra a un paciente con un documento que **ya existe en otra clínica** de la plataforma
@@ -90,6 +105,11 @@ El sistema SHALL permitir buscar y listar los pacientes **de la clínica activa*
 - **WHEN** se lista la clínica sin pedir nada especial
 - **THEN** solo aparecen los pacientes **activos**
 
+#### Scenario: Se pueden listar los pacientes dados de baja
+- **WHEN** se pide **explícitamente** incluir a los dados de baja
+- **THEN** también aparecen los pacientes inactivos de la clínica
+- **AND** se distinguen de los activos
+
 ### Requirement: Consulta, edición y baja del paciente
 El sistema SHALL permitir consultar y editar la ficha de un paciente de la clínica activa. **Dar de baja a un paciente NO SHALL borrarlo**: su historia clínica tiene retención legal y de él cuelgan tratamientos, citas y cobros. La baja SHALL ser un **archivado**.
 
@@ -98,10 +118,20 @@ El sistema SHALL permitir consultar y editar la ficha de un paciente de la clín
 - **THEN** los cambios quedan guardados
 - **AND** se recuperan en la siguiente consulta
 
+#### Scenario: No se puede editar el documento a uno que ya existe en la clínica
+- **WHEN** se edita un paciente para ponerle un documento que **ya tiene otro paciente de la misma clínica** (activo o dado de baja)
+- **THEN** el sistema rechaza el cambio indicando que el documento ya está registrado
+- **AND** no modifica nada
+
 #### Scenario: Dar de baja no destruye
 - **WHEN** se da de baja a un paciente
 - **THEN** deja de aparecer en el listado por defecto
 - **AND** su ficha y su información clínica **siguen existiendo** y pueden recuperarse
+
+#### Scenario: Reactivar a un paciente dado de baja
+- **WHEN** se reactiva a un paciente que estaba dado de baja
+- **THEN** vuelve a aparecer en el listado por defecto
+- **AND** conserva toda su información y su historia clínica
 
 #### Scenario: Consultar un paciente inexistente
 - **WHEN** se consulta un paciente que no existe en la clínica activa

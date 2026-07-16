@@ -3,5 +3,15 @@
   "references": [
     { "path": "./tsconfig.app.json" },
     { "path": "./tsconfig.node.json" }
-  ]
+  ],
+  // Este archivo es un tsconfig "solution": no compila nada (files: []), solo referencia a los
+  // reales. Pero las herramientas externas —el CLI de shadcn -- leen ESTE para resolver el alias,
+  // y sin los paths aquí `shadcn add` escribe los componentes en una carpeta literal "@/".
+  // La fuente para el build sigue siendo tsconfig.app.json; esto es solo para el tooling.
+  "compilerOptions": {
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["./src/*"]
+    }
+  }
 }

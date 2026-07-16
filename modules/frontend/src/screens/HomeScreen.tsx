@@ -22,6 +22,9 @@ export function HomeScreen() {
         </p>
       ) : null}
       <div className="flex items-center gap-3">
+        <Link to={PATHS.PATIENTS} className={buttonVariants({ variant: "default" })}>
+          Pacientes
+        </Link>
         {user?.role === "ADMIN" ? (
           <Link to={PATHS.BRANDING} className={buttonVariants({ variant: "outline" })}>
             Personalizar marca

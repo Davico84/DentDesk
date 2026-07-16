@@ -2,6 +2,9 @@ import { createBrowserRouter } from "react-router-dom";
 import { RootLayout } from "@/layouts/RootLayout";
 import { HomeScreen } from "@/screens/HomeScreen";
 import { BrandingSettingsScreen } from "@/screens/settings/BrandingSettingsScreen";
+import { PatientListScreen } from "@/screens/patients/PatientListScreen";
+import { PatientFormScreen } from "@/screens/patients/PatientFormScreen";
+import { PatientDetailScreen } from "@/screens/patients/PatientDetailScreen";
 import { LoginView } from "@/screens/auth/LoginView";
 import { RegisterView } from "@/screens/auth/RegisterView";
 import { RequireAuth } from "@/modules/core/auth/RequireAuth";
@@ -27,7 +30,14 @@ export const router = createBrowserRouter([
       },
       {
         element: <RequireAuth />,
-        children: [{ path: PATHS.ROOT, element: <HomeScreen /> }],
+        children: [
+          { path: PATHS.ROOT, element: <HomeScreen /> },
+          // Pacientes: los tres roles los gestionan; basta con estar autenticado (sin rol).
+          { path: PATHS.PATIENTS, element: <PatientListScreen /> },
+          { path: PATHS.PATIENT_NEW, element: <PatientFormScreen /> },
+          { path: PATHS.PATIENT_DETAIL, element: <PatientDetailScreen /> },
+          { path: PATHS.PATIENT_EDIT, element: <PatientFormScreen /> },
+        ],
       },
       {
         element: <RequireAuth roles={["ADMIN"]} />,

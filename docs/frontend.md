@@ -25,7 +25,29 @@ src/
 
 **Reglas de arquitectura:**
 - **`screens` orquestan; `modules` encapsulan lógica.** Las pantallas montan features dentro de un layout; no contienen lógica de negocio.
+  > [!IMPORTANT]
+  > **Una pantalla es una línea.** `screens/<área>/XScreen.tsx` → `return <XFeature />;`. **NO declares sub-componentes dentro de la screen** —ni skeletons, ni estados vacíos/error, ni campos de formulario, ni filas—: van a `modules/<cap>/components/`, agrupados por tipo (la feature, filas, loaders/skeletons, estados, modales). Señal de mal uso: una screen con `function SkeletonRows()` o `function Field()` debajo.
+  > ```tsx
+  > // ✅ screens/patients/PatientListScreen.tsx
+  > export function PatientListScreen() { return <PatientList />; }
+  > // ❌ una screen con su tabla, su skeleton y su estado vacío declarados dentro
+  > ```
+- **Un archivo = un componente.** La regla de arriba **no es solo para las screens**: un componente de módulo tampoco declara otros dentro. **Skeletons, estados (vacío/error/no encontrado), filas, modales y campos van SIEMPRE a su propio archivo**, aunque solo los use un sitio. Los helpers de presentación, a su `xDisplay.ts`.
+  > ✅ **Lo impide la build, no la disciplina.** `react/no-multi-comp` (ESLint) está activa en `src/screens/**` y `src/modules/*/components/**`: **un archivo con dos componentes no compila**. Es el equivalente frontend del *tripwire* de ArchUnit del backend — esta regla ya estaba escrita y se incumplió tres veces, así que dejó de ser un consejo. `core/ui` está **exento** a propósito (la excepción de la familia de primitivos, abajo).
+  > [!IMPORTANT]
+  > Señal de mal uso: `PatientDetail.tsx` con `function PatientDetailSkeleton()` debajo. **Un skeleton nunca vive dentro del componente que reemplaza** — es una unidad independiente (se prueba y se reutiliza sola), y enterrarlo obliga a leer la feature entera para encontrarlo.
+  > ```
+  > ✅ PatientDetail.tsx · PatientDetailSkeleton.tsx · PatientDetailStates.tsx · patientDisplay.ts
+  > ❌ PatientDetail.tsx con el skeleton, el "no encontrado" y dos helpers dentro
+  > ```
+  > **Única excepción:** una **familia de primitivos** de `core/ui` diseñada para usarse junta puede compartir archivo, siguiendo la convención de shadcn (`dialog.tsx` exporta `Dialog`, `DialogContent`, `DialogHeader`…). No es excusa para meter la feature y su skeleton en el mismo sitio.
 - **`core` no depende de otros módulos** (es la base transversal: UI, auth guard, utils). Los demás módulos pueden depender de `core`.
+  > [!IMPORTANT]
+  > **Un componente genérico se crea EN `core`, no en el módulo.** Si **no conoce el dominio** (un `FormField`, un `SelectField`, un `InfoCard`, un `Badge` base) → `core/ui` (primitivo) o `core/components` (compuesto), y **genérico** (`<T extends FieldValues>` si aplica). Solo lo **específico del dominio** (p. ej. `PatientStatusBadge`, que conoce el enum del paciente) vive en `modules/<cap>/components/`, **componiéndose** sobre el primitivo de `core`. Pregunta de control: *"¿esto lo usaría otra capacidad?"* → sí = `core`.
+- **La validación de formularios vive en el schema Zod del módulo** (`modules/<cap>/schemas/`), **nunca dentro del componente**: ahí van las reglas (incluidas las condicionales, con `superRefine`), en **paridad con el backend** (`docs/coding-style.md §7`). El componente de campo **solo pinta** el error —venga de Zod o del servidor (`applyServerFieldErrors`)—. El servidor es la autoridad.
+  > [!IMPORTANT]
+  > **`useForm({ mode: "onTouched" })` — avisa tarde, corrige pronto.** La primera validación es **al salir** del campo (no le grites "correo inválido" a quien lleva una letra escrita); pero una vez avisado, **revalida en cada tecla**, así el error **desaparece solo** en cuanto el valor pasa a ser válido.
+  > **No uses `"onBlur"`**: obliga a salir del campo para descubrir que ya lo arreglaste — el mensaje se queda en pantalla mintiendo mientras corriges. Y **no uses `"onChange"`**: valida desde la primera tecla, así que te marca en rojo por no haber terminado de escribir.
 - **Mapeo capacidad ↔ código**: cada capacidad de negocio `<cap>` se materializa en `modules/<cap>/` (hooks de dominio, components, schemas Zod) y sus pantallas en `screens/<área>/`. El **cliente API tipado se genera** en `core/services/generated/` (ver §2.3); lo transversal (guard, roles) en `modules/core/`.
 
 ---
@@ -52,6 +74,8 @@ export const userKeys = {
 - **Clave raíz (`all`)**: única por módulo, `["nombre-modulo"] as const`.
 - **Subclaves**: funciones que extienden el array raíz por desestructuración (mantienen la jerarquía de cache).
 - **Invalidación coherente**: `queryClient.invalidateQueries({ queryKey: userKeys.all })` refresca todas las subclaves.
+
+> **Estado actual (objetivo, aún no adoptado):** los hooks existentes (`auth`, `branding`, `patients`) usan una **clave raíz inline** (`const BRANDING_KEY = ["branding", "me"] as const`) e invalidan por ella, no una factoría `xKeys`. Es la convención **real** hoy, y mantiene la jerarquía. Adopta la factoría cuando un módulo tenga **varias** lecturas con parámetros y la invalidación por subclaves aporte de verdad.
 
 ### 2.3 Estructura de la capa de API (generada con orval)
 
@@ -110,6 +134,8 @@ queryFn: async () => {
 },
 ```
 - **Solo en lecturas que la UI renderiza** (adopción incremental); **no sobre-valides el envelope** (metadata de paginación). A futuro, inferir tipos desde los schemas (`z.infer`) para una única fuente de verdad.
+
+> **Estado actual (objetivo, aún no adoptado):** `modules/core/utils/validateApiResponse.ts` (`parseApiResponse`) **todavía no existe** y ningún hook valida la respuesta con Zod. Los hooks actuales confían en el tipo del contrato (que el `codegen-drift` mantiene sincronizado). Cuando se adopte, se crea primero el util y se aplica **incrementalmente** a las lecturas que la UI renderiza.
 
 ---
 
@@ -199,11 +225,23 @@ export const useSortingStore = createSelectors(useSortingStoreBase);
 > **Antes de crear un componente visual o añadir una librería**, revisa si ya existe en `modules/core/ui/`. Reutilizar garantiza temas (claro/oscuro), overrides de marca, estilos consistentes (bordes, sombras, transiciones, accesibilidad) y evita duplicación y bundle innecesario.
 
 > [!IMPORTANT]
-> **Nunca uses el atributo nativo `title`** en un elemento interactivo: usa el componente `Tooltip` (`modules/core/ui/tooltip.tsx`). El `Button` de core/ui acepta prop `tooltip`. Mantén siempre `aria-label` (el tooltip no lo sustituye).
+> **Nunca uses el atributo nativo `title`** en un elemento interactivo: cuando exista un componente `Tooltip` en `core/ui`, úsalo. Mantén siempre `aria-label` (el tooltip no lo sustituye).
 
-Componentes base en `modules/core/ui/`: `Dialog`, `Sheet`, `Popover`, `DropdownMenu`, `Select`, `Tooltip`, `Table`, `Badge`, etc.
+**Estado actual de `modules/core/ui/`** (lo que HAY hoy): `button` (+ `button-variants`), `card`, `input`, `icon-input`, `password-input`, `label`, `logo`, `theme-toggle`, `form-field` (`FormField`/`SelectField`/`FormSection`, genéricos sobre react-hook-form), `dialog` (shadcn/Radix) y `confirm-dialog`.
+
+**Por incorporar** (aún NO existen; añádelos con `pnpm dlx shadcn@latest add <componente>` desde el registro oficial, la **primera vez que una pantalla los necesite**): `sheet`, `popover`, `dropdown-menu`, `select`, `tooltip`, `table`, `badge`.
+
+> [!WARNING]
+> **`components.json` ya existe (escrito a mano) — no dejes que el CLI haga `init`.** Un `init` reescribiría `src/styles/globals.css` y `tailwind.config.cjs` con sus defaults, y ahí vive la **tematización por organización** (§4.5.1): la romperías.
+> Los `paths` del alias están **duplicados en el `tsconfig.json` raíz solo para el tooling**: es un tsconfig *solution* (`files: []`) y sin ellos el CLI no resuelve `@/` y escribe los componentes en una carpeta **literal `@/`**.
+> **Tras cada `add`, verifica con `git diff` que no tocó `globals.css` ni `tailwind.config.cjs`.**
+
+> Regla: un componente **genérico y reutilizable** (un `Badge` base, una `Table`) vive en `core/ui`, no en `modules/<cap>/`. Lo específico de un dominio (p. ej. `PatientStatusBadge`, que conoce el enum de estado del paciente) sí vive en `modules/<cap>/components/`, y puede componerse sobre el primitivo de `core/ui`.
 
 ### 4.2 Animación (Framer Motion)
+> **Estado actual:** `framer-motion` figura en el stack pero **NO está instalado** todavía. Hasta entonces, usa **transiciones CSS de Tailwind** (`transition-colors`, `animate-pulse` para skeletons, `hover:`/`focus:`). Instálalo (`pnpm --filter odontorisas-frontend add framer-motion`) la **primera vez** que una pantalla necesite entradas/salidas del árbol o transiciones de layout, no antes.
+
+Cuando esté instalado:
 - **`<AnimatePresence>`** para componentes que entran/salen del árbol (diálogos, menús colapsables).
 - **`layout`/`layoutId`** para transiciones fluidas de posición/tamaño (ej. píldora de pestaña activa).
 - **Micro-interacciones rápidas** (0.2s–0.3s); prefiere `spring` (con `stiffness`/`damping`) sobre curvas lineales.
