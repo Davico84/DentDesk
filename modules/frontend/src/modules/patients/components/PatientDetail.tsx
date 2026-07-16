@@ -1,7 +1,9 @@
+import { useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { ArrowLeft, Loader2, Pencil } from "lucide-react";
 import { Button } from "@/modules/core/ui/button";
 import { buttonVariants } from "@/modules/core/ui/button-variants";
+import { ConfirmDialog } from "@/modules/core/ui/confirm-dialog";
 import { InfoCard, InfoRow } from "@/modules/core/components/info-card";
 import { PATHS, patientEditPath } from "@/routes/paths";
 import type { PatientResponse } from "@/modules/core/services/generated/model";
@@ -23,6 +25,7 @@ export function PatientDetail() {
   const { data: patient, isLoading, isError } = usePatient(id);
   const deactivate = useDeactivatePatient();
   const reactivate = useReactivatePatient();
+  const [confirmingBaja, setConfirmingBaja] = useState(false);
 
   if (isLoading) {
     return (
@@ -74,7 +77,7 @@ export function PatientDetail() {
               Reactivar
             </Button>
           ) : (
-            <Button variant="outline" disabled={deactivate.isPending} onClick={() => deactivate.mutate(id)}>
+            <Button variant="outline" disabled={deactivate.isPending} onClick={() => setConfirmingBaja(true)}>
               Dar de baja
             </Button>
           )}
@@ -113,6 +116,21 @@ export function PatientDetail() {
         <InfoRow label="Condiciones" value={joinOrDash(patient.conditions)} />
         <InfoRow label="Medicación actual" value={joinOrDash(patient.currentMedication)} />
       </InfoCard>
+
+      {/*
+        Dar de baja ARCHIVA (design.md D4): es reversible y no destruye nada, así que NO usa el
+        rojo destructivo — sería exagerar la consecuencia. El texto dice qué pasa de verdad, en vez
+        de un "¿estás seguro?" que no informa.
+      */}
+      <ConfirmDialog
+        open={confirmingBaja}
+        onOpenChange={setConfirmingBaja}
+        title={`¿Dar de baja a ${patient.fullName}?`}
+        description="Dejará de aparecer en el listado, pero su ficha y su historia clínica se conservan. Puedes reactivarlo cuando vuelva."
+        confirmLabel="Dar de baja"
+        pending={deactivate.isPending}
+        onConfirm={() => deactivate.mutate(id, { onSuccess: () => setConfirmingBaja(false) })}
+      />
     </main>
   );
 }
