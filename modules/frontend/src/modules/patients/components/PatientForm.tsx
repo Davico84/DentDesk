@@ -37,6 +37,9 @@ export function PatientForm() {
     formState: { errors },
   } = useForm<PatientValues>({
     resolver: zodResolver(patientSchema),
+    // Validación en BLUR, no solo al enviar: el error aparece al salir del campo, cuando ya
+    // terminaste de escribirlo (no en cada tecla, que sería ruido).
+    mode: "onBlur",
     values: toDefaults(patientQuery.data),
   });
 
@@ -97,9 +100,14 @@ export function PatientForm() {
           />
         </FormSection>
 
-        <FormSection title="Contacto">
-          <FormField label="Teléfono" name="phone" register={register} error={errors.phone} />
-          <FormField label="Correo" name="email" register={register} error={errors.email} />
+        {/* type="tel"/"email": abren el teclado correcto en móvil (recepción trabaja en tablet). */}
+        <FormSection
+          title="Contacto"
+          collapsible
+          hasError={Boolean(errors.phone || errors.email || errors.address)}
+        >
+          <FormField label="Teléfono" name="phone" type="tel" register={register} error={errors.phone} />
+          <FormField label="Correo" name="email" type="email" register={register} error={errors.email} />
           <FormField label="Dirección" name="address" register={register} error={errors.address} wide />
         </FormSection>
 
@@ -117,18 +125,31 @@ export function PatientForm() {
               options={guardianRelationshipOptions}
               required
             />
-            <FormField label="Teléfono del responsable" name="guardianPhone" register={register} error={errors.guardianPhone} required />
+            <FormField label="Teléfono del responsable" name="guardianPhone" type="tel" register={register} error={errors.guardianPhone} required />
             <FormField label="Documento del responsable" name="guardianDocument" register={register} error={errors.guardianDocument} />
           </FormSection>
         ) : null}
 
-        <FormSection title="Contacto de emergencia">
+        {/* Divulgación progresiva: lo opcional empieza plegado — el alta rápida son 2 campos. */}
+        <FormSection
+          title="Contacto de emergencia"
+          description="Opcional."
+          collapsible
+          defaultOpen={false}
+          hasError={Boolean(errors.emergencyContactName || errors.emergencyContactPhone || errors.emergencyContactRelationship)}
+        >
           <FormField label="Nombre" name="emergencyContactName" register={register} error={errors.emergencyContactName} />
-          <FormField label="Teléfono" name="emergencyContactPhone" register={register} error={errors.emergencyContactPhone} />
+          <FormField label="Teléfono" name="emergencyContactPhone" type="tel" register={register} error={errors.emergencyContactPhone} />
           <FormField label="Parentesco" name="emergencyContactRelationship" register={register} error={errors.emergencyContactRelationship} wide />
         </FormSection>
 
-        <FormSection title="Anamnesis" description="Separa cada elemento con comas. Sirven para alertar antes de un tratamiento.">
+        <FormSection
+          title="Anamnesis"
+          description="Opcional. Separa cada elemento con comas: sirven para alertar antes de un tratamiento."
+          collapsible
+          defaultOpen={false}
+          hasError={Boolean(errors.allergies || errors.conditions || errors.currentMedication)}
+        >
           <FormField label="Alergias" name="allergies" register={register} error={errors.allergies} placeholder="penicilina, látex" wide />
           <FormField label="Condiciones / antecedentes" name="conditions" register={register} error={errors.conditions} placeholder="diabetes, hipertensión" wide />
           <FormField label="Medicación actual" name="currentMedication" register={register} error={errors.currentMedication} wide />

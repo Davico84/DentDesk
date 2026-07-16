@@ -1,6 +1,7 @@
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import type { FieldError, FieldValues, Path, UseFormRegister } from "react-hook-form";
 import { ChevronDown } from "lucide-react";
+import { cn } from "@/modules/core/utils/cn";
 import { Label } from "./label";
 import { Input } from "./input";
 
@@ -144,23 +145,66 @@ function describedBy(...ids: Array<string | undefined>): string | undefined {
   return present.length > 0 ? present.join(" ") : undefined;
 }
 
-/** Sección de formulario como tarjeta, con rejilla de dos columnas. Primitivo de `core/ui`. */
+/**
+ * Sección de formulario como tarjeta, con rejilla de dos columnas. Primitivo de `core/ui`.
+ *
+ * <p>Con `collapsible` se pliega para aplicar <b>divulgación progresiva</b>: lo opcional no abruma
+ * de entrada, pero sigue a un clic. Se abre **sola si alguno de sus campos tiene error** (`hasError`)
+ * — un error escondido en una sección plegada sería una trampa, y además el foco automático al
+ * primer campo inválido no podría alcanzarlo.
+ */
 export function FormSection({
   title,
   description,
+  collapsible = false,
+  defaultOpen = true,
+  hasError = false,
   children,
 }: {
   title: string;
   description?: string;
+  collapsible?: boolean;
+  defaultOpen?: boolean;
+  hasError?: boolean;
   children: ReactNode;
 }) {
+  const [open, setOpen] = useState(defaultOpen);
+  // Un error FUERZA abrir, derivándolo en render (sin efecto ni setState en cascada). Mientras
+  // haya error no se puede plegar: esconderlo dejaría al usuario sin saber qué corregir.
+  const isOpen = open || hasError;
+
+  const grid = <div className="grid gap-4 sm:grid-cols-2">{children}</div>;
+
+  if (!collapsible) {
+    return (
+      <section className="rounded-2xl border bg-card p-5 shadow-sm">
+        <SectionHeading title={title} description={description} className="mb-4" />
+        {grid}
+      </section>
+    );
+  }
+
   return (
-    <section className="rounded-2xl border bg-card p-5 shadow-sm">
-      <div className="mb-4">
-        <h2 className="text-sm font-semibold">{title}</h2>
-        {description ? <p className="mt-0.5 text-xs text-muted-foreground">{description}</p> : null}
-      </div>
-      <div className="grid gap-4 sm:grid-cols-2">{children}</div>
+    <section className="overflow-hidden rounded-2xl border bg-card shadow-sm">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        aria-expanded={isOpen}
+        className="flex w-full items-center justify-between gap-4 p-5 text-left transition-colors hover:bg-muted/30"
+      >
+        <SectionHeading title={title} description={description} />
+        <ChevronDown className={cn("size-4 shrink-0 text-muted-foreground transition-transform", isOpen && "rotate-180")} />
+      </button>
+      {isOpen ? <div className="px-5 pb-5">{grid}</div> : null}
     </section>
+  );
+}
+
+function SectionHeading({ title, description, className }: { title: string; description?: string; className?: string }) {
+  return (
+    <div className={className}>
+      <h2 className="text-sm font-semibold">{title}</h2>
+      {description ? <p className="mt-0.5 text-xs text-muted-foreground">{description}</p> : null}
+    </div>
   );
 }
