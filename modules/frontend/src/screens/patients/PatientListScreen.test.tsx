@@ -36,7 +36,10 @@ describe("PatientListScreen", () => {
     await screen.findByText("Bruno Díaz");
     await user.type(screen.getByLabelText(/buscar pacientes/i), "Ada");
 
+    // Se espera al RESULTADO ya filtrado: la búsqueda va con debounce y entre medias se pinta el
+    // skeleton (queryKey nueva, sin caché). Esperar solo a que Bruno desaparezca pasaría con el
+    // skeleton en pantalla, sin haber comprobado nada.
+    expect(await screen.findByText("Ada Lovelace")).toBeInTheDocument();
     await waitFor(() => expect(screen.queryByText("Bruno Díaz")).not.toBeInTheDocument());
-    expect(screen.getByText("Ada Lovelace")).toBeInTheDocument();
   });
 });

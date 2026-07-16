@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { Search, UserPlus } from "lucide-react";
 import { buttonVariants } from "@/modules/core/ui/button-variants";
 import { Input } from "@/modules/core/ui/input";
+import { useDebouncedValue } from "@/modules/core/hooks/useDebouncedValue";
 import { PATHS } from "@/routes/paths";
 import { usePatientsSearch } from "@/modules/patients/hooks/usePatientsApi";
 import { PatientRow } from "./PatientRow";
@@ -10,6 +11,10 @@ import { PatientListSkeleton } from "./PatientListSkeleton";
 import { PatientListEmpty, PatientListError } from "./PatientListStates";
 
 const PAGE_SIZE = 20;
+
+/** 44px de alto (h-11): el mínimo táctil. Por debajo, fallar el toque en tablet es cuestión de tiempo. */
+const PAGER_BUTTON =
+  "h-11 cursor-pointer rounded-xl border border-input bg-card px-4 font-medium transition-colors duration-200 hover:bg-muted/50 disabled:cursor-not-allowed disabled:opacity-40";
 
 /**
  * Feature del listado de pacientes: búsqueda, inclusión de inactivos, paginación y estados. Vive
@@ -20,8 +25,12 @@ export function PatientList() {
   const [includeInactive, setIncludeInactive] = useState(false);
   const [page, setPage] = useState(0);
 
+  // Se consulta cuando dejas de escribir, no en cada tecla: "Ada Lovelace" serían 12 peticiones,
+  // y las respuestas podrían llegar desordenadas. Lo que se teclea sigue siendo inmediato.
+  const debouncedQuery = useDebouncedValue(query, 300);
+
   const { data, isLoading, isError } = usePatientsSearch({
-    query: query.trim() || undefined,
+    query: debouncedQuery.trim() || undefined,
     includeInactive,
     page,
     size: PAGE_SIZE,
@@ -29,8 +38,12 @@ export function PatientList() {
 
   const patients = data?.content ?? [];
   const total = data?.totalElements ?? 0;
+  const totalPages = data?.totalPages ?? 1;
   const isLast = data?.last ?? true;
   const hasResults = !isLoading && !isError && patients.length > 0;
+  // Se compara con la query YA aplicada: si no, al teclear diría "nadie coincide" mientras el
+  // resultado en pantalla todavía es el anterior.
+  const searching = debouncedQuery.trim().length > 0;
 
   return (
     <main className="mx-auto flex min-h-screen w-full max-w-4xl flex-col gap-6 p-6">
@@ -53,6 +66,7 @@ export function PatientList() {
         <div className="relative min-w-[220px] flex-1">
           <Search className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
           <Input
+            type="search"
             className="h-11 rounded-xl pl-10"
             placeholder="Buscar por nombre o documento…"
             value={query}
@@ -71,7 +85,7 @@ export function PatientList() {
             setPage(0);
           }}
           className={[
-            "h-11 rounded-xl border px-4 text-sm font-medium transition-colors",
+            "h-11 cursor-pointer rounded-xl border px-4 text-sm font-medium transition-colors duration-200",
             includeInactive
               ? "border-primary/30 bg-primary/10 text-primary"
               : "border-input bg-card text-muted-foreground hover:bg-muted/50",
@@ -87,7 +101,7 @@ export function PatientList() {
         ) : isError ? (
           <PatientListError />
         ) : patients.length === 0 ? (
-          <PatientListEmpty hasQuery={query.trim().length > 0} />
+          <PatientListEmpty hasQuery={searching} />
         ) : (
           <ul className="divide-y">
             {patients.map((p) => (
@@ -98,25 +112,21 @@ export function PatientList() {
       </div>
 
       {hasResults ? (
-        <footer className="flex items-center justify-between text-sm text-muted-foreground">
+        <footer className="flex flex-wrap items-center justify-between gap-3 text-sm text-muted-foreground">
           <span>
-            Página {page + 1} · {total} en total
+            Página {page + 1} de {totalPages} · {total} en total
           </span>
+          {/* Botones de 44px: por debajo, fallar el toque en tablet es cuestión de tiempo. */}
           <div className="flex items-center gap-2">
             <button
               type="button"
               disabled={page === 0}
               onClick={() => setPage((p) => Math.max(0, p - 1))}
-              className="rounded-lg border border-input bg-card px-3 py-1.5 font-medium transition-colors hover:bg-muted/50 disabled:cursor-not-allowed disabled:opacity-40"
+              className={PAGER_BUTTON}
             >
               Anterior
             </button>
-            <button
-              type="button"
-              disabled={isLast}
-              onClick={() => setPage((p) => p + 1)}
-              className="rounded-lg border border-input bg-card px-3 py-1.5 font-medium transition-colors hover:bg-muted/50 disabled:cursor-not-allowed disabled:opacity-40"
-            >
+            <button type="button" disabled={isLast} onClick={() => setPage((p) => p + 1)} className={PAGER_BUTTON}>
               Siguiente
             </button>
           </div>

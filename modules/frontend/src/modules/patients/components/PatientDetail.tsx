@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { ArrowLeft, Loader2, Pencil } from "lucide-react";
+import { ArrowLeft, Pencil, UserX } from "lucide-react";
 import { Button } from "@/modules/core/ui/button";
 import { buttonVariants } from "@/modules/core/ui/button-variants";
 import { ConfirmDialog } from "@/modules/core/ui/confirm-dialog";
@@ -27,19 +27,24 @@ export function PatientDetail() {
   const reactivate = useReactivatePatient();
   const [confirmingBaja, setConfirmingBaja] = useState(false);
 
-  if (isLoading) {
-    return (
-      <div className="flex min-h-screen items-center justify-center">
-        <Loader2 className="size-6 animate-spin text-muted-foreground" />
-      </div>
-    );
-  }
+  if (isLoading) return <PatientDetailSkeleton />;
 
+  // El error lleva SALIDA (regla error-recovery): un "no encontrado" sin acción es un callejón.
   if (isError || !patient) {
     return (
-      <main className="mx-auto flex min-h-screen w-full max-w-2xl flex-col gap-4 p-6">
-        <BackLink />
-        <p className="py-12 text-center text-sm text-destructive">No se ha encontrado el paciente.</p>
+      <main className="mx-auto flex min-h-screen w-full max-w-2xl flex-col items-center justify-center gap-4 p-6 text-center">
+        <span className="flex size-14 items-center justify-center rounded-full bg-muted text-muted-foreground">
+          <UserX className="size-7" />
+        </span>
+        <div className="space-y-1">
+          <p className="font-medium">No encontramos este paciente</p>
+          <p className="text-sm text-muted-foreground">
+            Puede que se haya eliminado, o que el enlace no sea de esta clínica.
+          </p>
+        </div>
+        <Link to={PATHS.PATIENTS} className={buttonVariants({ variant: "default", size: "lg" })}>
+          Volver al listado
+        </Link>
       </main>
     );
   }
@@ -68,16 +73,16 @@ export function PatientDetail() {
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <Link to={patientEditPath(id)} className={buttonVariants({ variant: "outline" })}>
+          <Link to={patientEditPath(id)} className={buttonVariants({ variant: "outline", size: "lg" })}>
             <Pencil className="mr-2 size-4" />
             Editar
           </Link>
           {inactive ? (
-            <Button disabled={reactivate.isPending} onClick={() => reactivate.mutate(id)}>
+            <Button size="lg" disabled={reactivate.isPending} onClick={() => reactivate.mutate(id)}>
               Reactivar
             </Button>
           ) : (
-            <Button variant="outline" disabled={deactivate.isPending} onClick={() => setConfirmingBaja(true)}>
+            <Button variant="outline" size="lg" disabled={deactivate.isPending} onClick={() => setConfirmingBaja(true)}>
               Dar de baja
             </Button>
           )}
@@ -140,6 +145,33 @@ function BackLink() {
     <Link to={PATHS.PATIENTS} aria-label="Volver al listado" className={buttonVariants({ variant: "ghost", size: "icon" })}>
       <ArrowLeft className="size-4" />
     </Link>
+  );
+}
+
+/**
+ * Espera con la FORMA de lo que va a llegar, en vez de un spinner: se percibe más corta y no
+ * "salta" el layout al pintar. `motion-reduce`: sin pulso para quien pide menos movimiento.
+ */
+function PatientDetailSkeleton() {
+  const pulse = "animate-pulse rounded bg-muted motion-reduce:animate-none";
+  return (
+    <main className="mx-auto flex min-h-screen w-full max-w-2xl flex-col gap-6 p-6" aria-busy="true">
+      <div className={`h-9 w-24 ${pulse}`} />
+      <div className="flex items-center gap-4 rounded-2xl border bg-card p-5 shadow-sm">
+        <div className={`size-14 shrink-0 rounded-full ${pulse}`} />
+        <div className="flex-1 space-y-2">
+          <div className={`h-5 w-48 ${pulse}`} />
+          <div className={`h-3 w-32 ${pulse}`} />
+        </div>
+      </div>
+      {Array.from({ length: 3 }).map((_, i) => (
+        <div key={i} className="space-y-3 rounded-2xl border bg-card p-5 shadow-sm">
+          <div className={`h-4 w-32 ${pulse}`} />
+          <div className={`h-3 w-full ${pulse}`} />
+          <div className={`h-3 w-2/3 ${pulse}`} />
+        </div>
+      ))}
+    </main>
   );
 }
 
