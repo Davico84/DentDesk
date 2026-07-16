@@ -3,7 +3,11 @@ import { UserPlus, Users } from "lucide-react";
 import { buttonVariants } from "@/modules/core/ui/button-variants";
 import { PATHS } from "@/routes/paths";
 
-/** Estado vacío del listado, con voz cálida y CTA cuando no hay ninguna búsqueda. */
+/**
+ * Listado sin resultados. Distingue los dos vacíos, que no son el mismo problema: **no hay nadie
+ * todavía** (→ invita a registrar al primero) vs **la búsqueda no encuentra** (→ sugiere qué
+ * probar). Un "0 resultados" a secas es un callejón.
+ */
 export function PatientListEmpty({ hasQuery }: { hasQuery: boolean }) {
   return (
     <div className="flex flex-col items-center gap-4 px-6 py-16 text-center">
@@ -27,16 +31,6 @@ export function PatientListEmpty({ hasQuery }: { hasQuery: boolean }) {
           Registrar al primero
         </Link>
       ) : null}
-    </div>
-  );
-}
-
-/** Estado de error del listado. */
-export function PatientListError() {
-  return (
-    <div className="px-6 py-16 text-center">
-      <p className="font-medium text-destructive">No pudimos cargar los pacientes</p>
-      <p className="mt-1 text-sm text-muted-foreground">Revisa tu conexión e inténtalo de nuevo en un momento.</p>
     </div>
   );
 }

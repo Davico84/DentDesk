@@ -3,7 +3,8 @@ import { ChevronRight } from "lucide-react";
 import type { PatientSummaryResponse } from "@/modules/core/services/generated/model";
 import { patientDetailPath } from "@/routes/paths";
 import { PatientAvatar } from "./PatientAvatar";
-import { StatusBadge, MinorBadge } from "./PatientBadges";
+import { PatientStatusBadge } from "./PatientStatusBadge";
+import { PatientMinorBadge } from "./PatientMinorBadge";
 import { ageLabel } from "./patientDisplay";
 
 /** Una fila del listado: avatar, nombre + documento, edad, teléfono, estado. Fila entera clicable. */
@@ -19,7 +20,7 @@ export function PatientRow({ patient }: { patient: PatientSummaryResponse }) {
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
             <span className="truncate font-medium">{patient.fullName}</span>
-            {patient.minor ? <MinorBadge /> : null}
+            {patient.minor ? <PatientMinorBadge /> : null}
           </div>
           <span className="text-xs text-muted-foreground">
             {patient.document ? `Doc. ${patient.document}` : "Sin documento"}
@@ -27,7 +28,7 @@ export function PatientRow({ patient }: { patient: PatientSummaryResponse }) {
         </div>
         <span className="hidden w-24 text-sm text-muted-foreground sm:block">{ageLabel(patient.birthDate!)}</span>
         <span className="hidden w-36 truncate text-sm text-muted-foreground md:block">{patient.phone ?? "—"}</span>
-        <StatusBadge status={patient.status} />
+        <PatientStatusBadge status={patient.status} />
         <ChevronRight className="size-4 shrink-0 text-muted-foreground/50 transition-transform group-hover:translate-x-0.5" />
       </Link>
     </li>

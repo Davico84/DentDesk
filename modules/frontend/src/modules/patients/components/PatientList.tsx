@@ -8,7 +8,8 @@ import { PATHS } from "@/routes/paths";
 import { usePatientsSearch } from "@/modules/patients/hooks/usePatientsApi";
 import { PatientRow } from "./PatientRow";
 import { PatientListSkeleton } from "./PatientListSkeleton";
-import { PatientListEmpty, PatientListError } from "./PatientListStates";
+import { PatientListEmpty } from "./PatientListEmpty";
+import { PatientListError } from "./PatientListError";
 
 const PAGE_SIZE = 20;
 

@@ -12,9 +12,10 @@ import {
   useReactivatePatient,
 } from "@/modules/patients/hooks/usePatientsApi";
 import { PatientAvatar } from "./PatientAvatar";
-import { StatusBadge, MinorBadge } from "./PatientBadges";
+import { PatientStatusBadge } from "./PatientStatusBadge";
+import { PatientMinorBadge } from "./PatientMinorBadge";
 import { PatientDetailSkeleton } from "./PatientDetailSkeleton";
-import { PatientNotFound } from "./PatientDetailStates";
+import { PatientNotFound } from "./PatientNotFound";
 import { ageLabel, documentLabel, joinOrDash } from "./patientDisplay";
 import { guardianRelationshipOptions, labelOf, sexOptions } from "./patientOptions";
 
@@ -52,10 +53,10 @@ export function PatientDetail() {
           <div>
             <div className="flex items-center gap-2">
               <h1 className="text-xl font-bold tracking-tight">{patient.fullName}</h1>
-              {patient.minor ? <MinorBadge /> : null}
+              {patient.minor ? <PatientMinorBadge /> : null}
             </div>
             <div className="mt-1 flex items-center gap-2 text-sm text-muted-foreground">
-              <StatusBadge status={patient.status} />
+              <PatientStatusBadge status={patient.status} />
               <span>· {ageLabel(patient.birthDate!)}</span>
             </div>
           </div>
