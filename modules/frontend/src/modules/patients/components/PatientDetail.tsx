@@ -13,6 +13,7 @@ import {
 import { PatientAvatar } from "./PatientAvatar";
 import { StatusBadge, MinorBadge } from "./PatientBadges";
 import { ageLabel } from "./patientDisplay";
+import { documentTypeOptions, guardianRelationshipOptions, labelOf, sexOptions } from "./patientOptions";
 
 /** Feature de la consulta de una ficha: datos, y acciones de edición/baja/reactivación. */
 export function PatientDetail() {
@@ -81,9 +82,9 @@ export function PatientDetail() {
       </header>
 
       <InfoCard title="Datos personales">
-        <InfoRow label="Documento" value={patient.document} />
+        <InfoRow label="Documento" value={documentLabel(patient)} />
         <InfoRow label="Fecha de nacimiento" value={patient.birthDate} />
-        <InfoRow label="Sexo" value={patient.sex} />
+        <InfoRow label="Sexo" value={labelOf(sexOptions, patient.sex)} />
       </InfoCard>
 
       <InfoCard title="Contacto">
@@ -95,7 +96,7 @@ export function PatientDetail() {
       {patient.guardianName || patient.guardianPhone ? (
         <InfoCard title="Responsable">
           <InfoRow label="Nombre" value={patient.guardianName} />
-          <InfoRow label="Parentesco" value={patient.guardianRelationship} />
+          <InfoRow label="Parentesco" value={labelOf(guardianRelationshipOptions, patient.guardianRelationship)} />
           <InfoRow label="Teléfono" value={patient.guardianPhone} />
           <InfoRow label="Documento" value={patient.guardianDocument} />
         </InfoCard>
@@ -126,4 +127,11 @@ function BackLink() {
 
 function joinOrDash(values: PatientResponse["allergies"]): string {
   return values && values.length > 0 ? values.join(", ") : "";
+}
+
+/** "DNI 12345678" — el tipo va con el número, que es como se lee de verdad. */
+function documentLabel(patient: PatientResponse): string {
+  if (!patient.document) return "";
+  const type = labelOf(documentTypeOptions, patient.documentType);
+  return type ? `${type} ${patient.document}` : patient.document;
 }

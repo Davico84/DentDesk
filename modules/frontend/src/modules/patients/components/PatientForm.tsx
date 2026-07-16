@@ -11,10 +11,12 @@ import {
   toRequest,
   toDefaults,
   isMinor,
+  documentHint,
   type PatientValues,
 } from "@/modules/patients/schemas/patient";
 import { useCreatePatient, usePatient, useUpdatePatient } from "@/modules/patients/hooks/usePatientsApi";
-import { FormSection, FormField } from "@/modules/core/ui/form-field";
+import { FormSection, FormField, SelectField } from "@/modules/core/ui/form-field";
+import { documentTypeOptions, sexOptions, guardianRelationshipOptions } from "./patientOptions";
 
 /** Feature del alta/edición de un paciente. La pantalla solo la monta. */
 export function PatientForm() {
@@ -39,6 +41,7 @@ export function PatientForm() {
   });
 
   const birthDate = useWatch({ control, name: "birthDate" });
+  const documentType = useWatch({ control, name: "documentType" });
   const minor = isMinor(birthDate ?? "");
   const pending = createPatient.isPending || updatePatient.isPending;
 
@@ -74,11 +77,24 @@ export function PatientForm() {
       </header>
 
       <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-5" noValidate>
-        <FormSection title="Datos personales">
+        <FormSection title="Datos personales" description="Solo el nombre y la fecha de nacimiento son obligatorios.">
           <FormField label="Nombre completo" name="fullName" register={register} error={errors.fullName} required wide />
           <FormField label="Fecha de nacimiento" name="birthDate" type="date" register={register} error={errors.birthDate} required />
-          <FormField label="Documento" name="document" register={register} error={errors.document} />
-          <FormField label="Sexo" name="sex" register={register} error={errors.sex} />
+          <SelectField label="Sexo" name="sex" register={register} error={errors.sex} options={sexOptions} />
+          <SelectField
+            label="Tipo de documento"
+            name="documentType"
+            register={register}
+            error={errors.documentType}
+            options={documentTypeOptions}
+          />
+          <FormField
+            label="Documento"
+            name="document"
+            register={register}
+            error={errors.document}
+            hint={documentHint(documentType ?? "")}
+          />
         </FormSection>
 
         <FormSection title="Contacto">
@@ -93,7 +109,14 @@ export function PatientForm() {
             description="Este paciente es menor de edad: sus datos de responsable son obligatorios."
           >
             <FormField label="Nombre del responsable" name="guardianName" register={register} error={errors.guardianName} required />
-            <FormField label="Parentesco" name="guardianRelationship" register={register} error={errors.guardianRelationship} required />
+            <SelectField
+              label="Parentesco"
+              name="guardianRelationship"
+              register={register}
+              error={errors.guardianRelationship}
+              options={guardianRelationshipOptions}
+              required
+            />
             <FormField label="Teléfono del responsable" name="guardianPhone" register={register} error={errors.guardianPhone} required />
             <FormField label="Documento del responsable" name="guardianDocument" register={register} error={errors.guardianDocument} />
           </FormSection>

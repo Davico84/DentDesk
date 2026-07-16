@@ -10,6 +10,7 @@ function isoYearsAgo(years: number): string {
 function values(overrides: Partial<PatientValues> = {}): PatientValues {
   return {
     fullName: "Ada Lovelace",
+    documentType: "",
     document: "",
     birthDate: isoYearsAgo(30),
     sex: "",
@@ -46,13 +47,56 @@ describe("patientSchema", () => {
 
   it("acepta un menor con responsable", () => {
     const result = patientSchema.safeParse(
-      values({ birthDate: isoYearsAgo(10), guardianName: "María", guardianRelationship: "madre", guardianPhone: "+51999" }),
+      values({ birthDate: isoYearsAgo(10), guardianName: "María", guardianRelationship: "MOTHER", guardianPhone: "+51999888" }),
     );
     expect(result.success).toBe(true);
   });
 
   it("exige el nombre", () => {
     expect(patientSchema.safeParse(values({ fullName: "" })).success).toBe(false);
+  });
+});
+
+/** Paridad con el backend (design.md D8): emparejamiento tipo↔número y formato según el tipo. */
+describe("patientSchema — documento", () => {
+  function pathsInError(v: PatientValues): unknown[] {
+    const result = patientSchema.safeParse(v);
+    return result.success ? [] : result.error.issues.map((i) => i.path[0]);
+  }
+
+  it("acepta no tener documento (es opcional)", () => {
+    expect(patientSchema.safeParse(values()).success).toBe(true);
+  });
+
+  it("acepta un DNI válido de 8 dígitos", () => {
+    expect(patientSchema.safeParse(values({ documentType: "DNI", document: "12345678" })).success).toBe(true);
+  });
+
+  it("exige el tipo si se da el número", () => {
+    expect(pathsInError(values({ document: "12345678" }))).toContain("documentType");
+  });
+
+  it("exige el número si se da el tipo", () => {
+    expect(pathsInError(values({ documentType: "DNI" }))).toContain("document");
+  });
+
+  it("rechaza un DNI con formato inválido", () => {
+    expect(pathsInError(values({ documentType: "DNI", document: "123" }))).toContain("document");
+    expect(pathsInError(values({ documentType: "DNI", document: "1234567X" }))).toContain("document");
+  });
+
+  it("acepta un pasaporte alfanumérico", () => {
+    expect(patientSchema.safeParse(values({ documentType: "PASSPORT", document: "AB123456" })).success).toBe(true);
+  });
+});
+
+describe("patientSchema — teléfono", () => {
+  it("rechaza letras en el teléfono", () => {
+    expect(patientSchema.safeParse(values({ phone: "no-es-un-numero" })).success).toBe(false);
+  });
+
+  it("acepta dígitos, «+» y espacios", () => {
+    expect(patientSchema.safeParse(values({ phone: "+51 987 654 321" })).success).toBe(true);
   });
 });
 

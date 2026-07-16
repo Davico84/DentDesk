@@ -37,9 +37,12 @@ describe("PatientFormScreen (alta)", () => {
     const user = userEvent.setup();
     renderWithProviders(<PatientFormScreen />, { initialEntries: ["/patients/new"] });
 
+    // El formulario pasa la validación del CLIENTE (DNI de 8 dígitos con su tipo): así la petición
+    // llega al servidor y se comprueba que SU 400 se pinta junto al campo.
     await user.type(screen.getByLabelText(/nombre completo/i), "Ada Lovelace");
     fireEvent.change(screen.getByLabelText(/fecha de nacimiento/i), { target: { value: isoYearsAgo(30) } });
-    await user.type(screen.getByLabelText(/^documento$/i), "###");
+    await user.selectOptions(screen.getByLabelText(/tipo de documento/i), "DNI");
+    await user.type(screen.getByLabelText(/^documento$/i), "12345678");
     await user.click(screen.getByRole("button", { name: /registrar paciente/i }));
 
     expect(await screen.findByText("Documento inválido")).toBeInTheDocument();

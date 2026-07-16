@@ -1,4 +1,9 @@
 import { z } from "zod";
+import {
+  PatientRequestDocumentType,
+  PatientRequestGuardianRelationship,
+  PatientRequestSex,
+} from "@/modules/core/services/generated/model";
 import type { PatientRequest, PatientResponse } from "@/modules/core/services/generated/model";
 
 /** Mayoría de edad, en paridad con el backend (`common/Ages`, design.md D2). */
@@ -17,50 +22,111 @@ export function isMinor(birthDate: string): boolean {
 }
 
 /**
+ * Formato del documento **según su tipo**, en paridad con el enum `DocumentType` del backend
+ * (design.md D8). El documento es texto, nunca numérico: el pasaporte es alfanumérico y un número
+ * tiraría los ceros a la izquierda.
+ */
+const DOCUMENT_PATTERNS: Record<string, RegExp> = {
+  [PatientRequestDocumentType.DNI]: /^\d{8}$/,
+  [PatientRequestDocumentType.CE]: /^\d{9,12}$/,
+  [PatientRequestDocumentType.PASSPORT]: /^[A-Za-z0-9]{6,12}$/,
+};
+
+/** Ayuda de formato que se muestra bajo el número, según el tipo elegido. */
+export function documentHint(documentType: string): string | undefined {
+  switch (documentType) {
+    case PatientRequestDocumentType.DNI:
+      return "8 dígitos.";
+    case PatientRequestDocumentType.CE:
+      return "9 a 12 dígitos.";
+    case PatientRequestDocumentType.PASSPORT:
+      return "6 a 12 caracteres alfanuméricos.";
+    default:
+      return undefined;
+  }
+}
+
+/** Teléfono: dígitos, «+» y espacios (paridad con el `@Pattern` del backend). */
+const PHONE = /^\+?[0-9 ]{7,20}$/;
+const PHONE_MESSAGE = "Solo dígitos, «+» y espacios";
+
+/** Campo opcional de conjunto cerrado: el valor del enum, o "" cuando no se ha elegido. */
+const optionalEnum = <T extends Record<string, string>>(values: T) =>
+  z.union([z.enum(values), z.literal("")]);
+
+const optionalPhone = z.union([z.string().regex(PHONE, PHONE_MESSAGE), z.literal("")]);
+
+/**
  * Formulario de la ficha del paciente. Solo `fullName` y `birthDate` son obligatorios (design.md
- * OQ1). La **validación condicional del menor** (design.md D2, `docs/coding-style.md §7`) exige el
- * responsable cuando la fecha indica menor de edad, en paridad con `@GuardianRequiredForMinor` del
- * servidor. El servidor sigue siendo la autoridad: si el cliente se despista, su `400` trae el
- * detalle por campo y se pinta junto al input.
+ * OQ1). En **paridad con el servidor** (`docs/coding-style.md §7`): el responsable es obligatorio
+ * si la fecha indica menor (D2), y el documento va **emparejado con su tipo** con **formato según
+ * el tipo** (D8). El servidor sigue siendo la autoridad: si el cliente se despista, su `400` trae
+ * el detalle por campo y se pinta junto al input.
  */
 export const patientSchema = z
   .object({
     fullName: z.string().trim().min(1, "El nombre es obligatorio").max(200),
+    documentType: optionalEnum(PatientRequestDocumentType),
     document: z.string().trim().max(50),
     birthDate: z.string().min(1, "La fecha de nacimiento es obligatoria"),
-    sex: z.string().trim().max(20),
-    phone: z.string().trim().max(40),
+    sex: optionalEnum(PatientRequestSex),
+    phone: optionalPhone,
     email: z.union([z.string().email("Correo inválido"), z.literal("")]),
     address: z.string().trim().max(500),
     guardianName: z.string().trim().max(200),
-    guardianRelationship: z.string().trim().max(50),
+    guardianRelationship: optionalEnum(PatientRequestGuardianRelationship),
     guardianDocument: z.string().trim().max(50),
-    guardianPhone: z.string().trim().max(40),
+    guardianPhone: optionalPhone,
     emergencyContactName: z.string().trim().max(200),
-    emergencyContactPhone: z.string().trim().max(40),
+    emergencyContactPhone: optionalPhone,
     emergencyContactRelationship: z.string().trim().max(50),
-    // Anamnesis: en el formulario se editan como texto separado por comas; se convierten a lista.
+    // Anamnesis: en el formulario se edita como texto separado por comas; se convierte a lista.
     allergies: z.string(),
     conditions: z.string(),
     currentMedication: z.string(),
   })
   .superRefine((values, ctx) => {
-    if (!isMinor(values.birthDate)) return;
-    const required: Array<keyof PatientValues> = ["guardianName", "guardianRelationship", "guardianPhone"];
-    for (const field of required) {
-      if (!values[field] || values[field].trim() === "") {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          path: [field],
-          message: "Obligatorio para un paciente menor de edad.",
-        });
+    // --- Responsable obligatorio si es menor (design.md D2) ---
+    if (isMinor(values.birthDate)) {
+      if (!values.guardianName.trim()) {
+        ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["guardianName"], message: MINOR_REQUIRED });
       }
+      if (!values.guardianRelationship) {
+        ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["guardianRelationship"], message: MINOR_REQUIRED });
+      }
+      if (!values.guardianPhone.trim()) {
+        ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["guardianPhone"], message: MINOR_REQUIRED });
+      }
+    }
+
+    // --- Documento: emparejado con su tipo, y con formato según el tipo (design.md D8) ---
+    const hasNumber = values.document.trim().length > 0;
+    const hasType = values.documentType !== "";
+    if (!hasType && !hasNumber) return; // el documento es opcional
+
+    if (!hasType) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["documentType"], message: "Indica el tipo de documento." });
+      return;
+    }
+    if (!hasNumber) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["document"], message: "Indica el número de documento." });
+      return;
+    }
+    const pattern = DOCUMENT_PATTERNS[values.documentType];
+    if (pattern && !pattern.test(values.document.trim())) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["document"],
+        message: `Formato inválido. ${documentHint(values.documentType) ?? ""}`.trim(),
+      });
     }
   });
 
+const MINOR_REQUIRED = "Obligatorio para un paciente menor de edad.";
+
 export type PatientValues = z.infer<typeof patientSchema>;
 
-/** Lista separada por comas → array de valores limpios (sin vacíos ni duplicados de espacio). */
+/** Lista separada por comas → array de valores limpios. */
 function toList(text: string): string[] {
   return text
     .split(",")
@@ -75,16 +141,18 @@ function joinList(values: string[] | undefined): string {
 /** Convierte el formulario al request del contrato. Los vacíos se omiten (`undefined`). */
 export function toRequest(values: PatientValues): PatientRequest {
   const clean = (v: string) => (v.trim() === "" ? undefined : v.trim());
+  const pick = <T extends string>(v: T | "") => (v === "" ? undefined : v);
   return {
     fullName: values.fullName.trim(),
+    documentType: pick(values.documentType),
     document: clean(values.document),
     birthDate: values.birthDate,
-    sex: clean(values.sex),
+    sex: pick(values.sex),
     phone: clean(values.phone),
     email: clean(values.email),
     address: clean(values.address),
     guardianName: clean(values.guardianName),
-    guardianRelationship: clean(values.guardianRelationship),
+    guardianRelationship: pick(values.guardianRelationship),
     guardianDocument: clean(values.guardianDocument),
     guardianPhone: clean(values.guardianPhone),
     emergencyContactName: clean(values.emergencyContactName),
@@ -100,6 +168,7 @@ export function toRequest(values: PatientValues): PatientRequest {
 export function toDefaults(patient?: PatientResponse): PatientValues {
   return {
     fullName: patient?.fullName ?? "",
+    documentType: patient?.documentType ?? "",
     document: patient?.document ?? "",
     birthDate: patient?.birthDate ?? "",
     sex: patient?.sex ?? "",
