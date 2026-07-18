@@ -30,3 +30,7 @@ modules/**/test-results/
 
 # === OpenSpec ===
 .worktrees/
+
+# === Skills con motor Python (ui-ux-pro-max): bytecode generado ===
+__pycache__/
+*.pyc
