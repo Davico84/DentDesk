@@ -99,6 +99,21 @@ public class AppointmentController {
 }
 ```
 
+### 5.1 Paginación
+
+Patrón real (`PatientController`/`PatientService`): el controller recibe `Pageable` como parámetro
+(`@ParameterObject @PageableDefault(size = 20) Pageable pageable`, `springdoc` lo documenta solo) y
+el service lo pasa tal cual al repositorio (`JpaSpecificationExecutor.findAll(spec, pageable)`).
+
+- Query params estándar (los da Spring Data): `page` (base 0), `size`, `sort`.
+- `size` por defecto **20** vía `@PageableDefault`. Documenta el que uses en cada endpoint si difiere.
+- **Nunca** devuelvas `Page<T>` de Spring Data directamente (su serialización JSON es inestable y no
+  debe filtrarse a un contrato del que el frontend genera cliente) — envuelve en `PageResponse<T>`
+  (`presentation.dto.PageResponse`, ya existe: `content`/`page`/`size`/`totalElements`/`totalPages`/`last`).
+- **Pendiente de decidir**: hoy no hay tope máximo de `size` (un cliente podría pedir `size=100000`).
+  Cuando aparezca el segundo endpoint paginado, cablear un `PageableHandlerMethodArgumentResolverCustomizer`
+  con un máximo (p. ej. 100) — no se resuelve especulativamente para uno solo.
+
 ---
 
 ## 6. DTOs, validación y mapeo
@@ -115,7 +130,7 @@ public class AppointmentController {
 ```java
 public record CreateAppointmentRequest(
     @NotNull Long patientId,
-    @NotNull @Future LocalDateTime scheduledAt,
+    @NotNull @Future Instant scheduledAt,   // instante → Instant, nunca LocalDateTime (§8.2)
     @Size(max = 500) String notes
 ) {}
 ```
@@ -185,6 +200,74 @@ public class PatientService {
 **Si una consulta te falla con "unrecognized configuration parameter app.organization_id"**, el impulso natural será fijar el contexto a mano. **No lo hagas** — ese fallo significa que estás fuera de una petición autenticada (una tarea de sistema, un test mal montado) o fuera de transacción. **Es el mecanismo funcionando**, no un estorbo: RLS **falla cerrado** en vez de devolverte una lista vacía que confundirías con *"esta clínica no tiene pacientes"*.
 
 La única excepción es `service.auth`: en el registro la organización **se crea en esa misma transacción**, así que no hay token del que leer el contexto. Ahí `bindIdentity(...)` se llama explícitamente — no es una grieta, es que en el bootstrap **no hay nada que propagar**.
+
+---
+
+## 8.2 Fechas y zonas horarias — todo en UTC
+
+La app se ve desde cualquier país: **ningún instante se representa con la zona horaria del
+servidor**. Regla, ya vigente de facto en el código (`createdAt`/`updatedAt`/`expiresAt` en
+`User`, `Organization`, `Membership`, `RefreshToken`, `Patient`):
+
+- **Instante** (un momento concreto en el tiempo — cuándo se creó un registro, cuándo vence un
+  token, cuándo empieza una cita) → Java `Instant` + columna Postgres `TIMESTAMPTZ`.
+  `TIMESTAMPTZ` normaliza y guarda en UTC sin importar la zona de la sesión; `Instant` es UTC por
+  definición. Genera el valor con `Instant.now()`.
+- **Prohibido `LocalDateTime`** para representar un instante: no lleva zona, es ambiguo apenas hay
+  más de un huso horario en juego (justo el caso de este SaaS). El ejemplo de `CreateAppointmentRequest`
+  en §6 usa `Instant` por esto.
+- **Fecha de calendario sin hora** (cumpleaños, `Patient.birthDate`) → Java `LocalDate` + columna
+  `DATE`. No es un instante — es una fecha civil, no lleva ni necesita zona horaria.
+- **Presentación**: Jackson serializa `Instant` a ISO-8601 con sufijo `Z` (UTC) automáticamente, sin
+  anotar nada. La conversión a la hora local del usuario es responsabilidad del **frontend**, nunca
+  del backend.
+
+---
+
+## 8.3 Concurrencia — bloqueo optimista (`@Version`)
+
+Hoy **ninguna entidad lo usa** (no hace falta: los flujos actuales no tienen edición concurrente
+real). Regla para cuando aparezca una que sí — candidatas previsibles: `appointments` (agenda
+compartida por recepción/dentista) o cualquier entidad de facturación:
+
+- Añade `@Version private Long version;` en la entidad + columna `version BIGINT NOT NULL DEFAULT 0`
+  en su migración. Hibernate la gestiona sola: incrementa en cada `UPDATE` y lanza
+  `ObjectOptimisticLockingFailureException` si la fila cambió entre lectura y escritura.
+- Esa excepción se mapea a **`409`** en `GlobalExceptionHandler` (§10) el día que se introduzca el
+  primer `@Version` — no antes (no hay nada que mapear todavía).
+- No lo añadas de forma especulativa a entidades sin edición concurrente real: es ruido y una
+  fuente de `409` que nadie espera.
+
+---
+
+## 8.4 Modelado de dominio — conjuntos cerrados y formatos
+
+Lecciones de la auditoría de dominio de `patients` (`openspec/changes/archive/2026-07-16-add-patients/design.md`),
+ya vigentes como estándar para toda capacidad nueva:
+
+- **Conjunto cerrado de valores → enum, nunca `String` libre.** Se refleja en **tres** sitios para
+  que el frontend lo herede: enum Java en la entidad, `CHECK` en la migración, y el enum aparece en
+  el contrato OpenAPI (springdoc lo infiere del tipo Java). Ejemplos reales: `DocumentType`, `Sex`,
+  `GuardianRelationship` en `Patient`.
+- **Nunca tipo numérico para identificadores con formato** (documento, teléfono): pierden ceros a la
+  izquierda y los pasaportes son alfanuméricos. `VARCHAR` + validación de formato explícita (Bean
+  Validation o un validador propio — ver `ValidDocument`).
+- **Colección embebida de una entidad bajo RLS → columna `JSONB` en la misma tabla, no tabla hija.**
+  Una tabla hija sin su propio `organization_id` es un agujero de aislamiento: RLS no la protege.
+  Ejemplo real: `allergies`/`conditions`/`currentMedication` en `Patient`.
+
+---
+
+## 8.5 `Optional` y valores ausentes
+
+- **Sí**: `Optional<T>` como **tipo de retorno** de un método de repositorio o service que busca
+  **un único resultado que puede no existir** (`findByEmail`, `findBySlug`, `findByTokenHash`) — es
+  la convención de Spring Data y ya la sigue todo el código.
+- **No**: `Optional` como **parámetro** de método, como **campo** de entidad/DTO/record, ni
+  envolviendo una **colección** (`Optional<List<T>>` — usa lista vacía).
+- Un `Optional` vacío que representa "no encontrado" en un flujo de negocio se traduce a la
+  excepción de dominio correspondiente (`PatientNotFoundException`, §10) **en el service** — no
+  propagues el `Optional` hasta `presentation`.
 
 ---
 
@@ -326,4 +409,6 @@ No se duplica aquí: la estrategia (niveles, slices, **Testcontainers**, puente 
 - [ ] ¿Sin N+1 (fetch join/`@EntityGraph`), consultas dinámicas vía `Specification`?
 - [ ] ¿Cambios de esquema como nueva migración Flyway (no editar aplicadas)?
 - [ ] ¿Errores centralizados con formato consistente; sin secretos en logs?
+- [ ] ¿Instantes en `Instant`/`TIMESTAMPTZ` (nunca `LocalDateTime`, §8.2)? ¿`LocalDate` solo para fechas de calendario sin hora?
+- [ ] ¿Conjunto cerrado de valores como enum (app + `CHECK` + contrato, §8.4)? ¿Documento/teléfono como `VARCHAR`, nunca numérico?
 - [ ] ¿Pruebas por scenario según `docs/testing.md`; `./mvnw verify` verde?
