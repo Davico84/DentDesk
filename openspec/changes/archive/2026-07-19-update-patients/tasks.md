@@ -38,4 +38,5 @@
       corrieron de verdad, cero `Skipped`).
 - [x] 5.3 Confirmar que `PatientResponse` y el contrato OpenAPI **no** cambiaron (alcance decidido:
       solo persistencia). Confirmado: `git diff --stat` sin cambios en ninguno de los dos.
-- [ ] 5.4 Commit (`docs/commits.md`) — este change no toca frontend ni contrato.
+- [x] 5.4 Commit (`docs/commits.md`) — este change no toca frontend ni contrato. Commit `5667d4e`,
+      PR #24, mergeado en `dev`.
