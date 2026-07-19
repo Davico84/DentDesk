@@ -1,6 +1,7 @@
 import { Link } from "react-router-dom";
 import { UserX } from "lucide-react";
 import { buttonVariants } from "@/modules/core/ui/button-variants";
+import { DataState } from "@/modules/core/components/DataState";
 import { PATHS } from "@/routes/paths";
 
 /**
@@ -13,18 +14,17 @@ import { PATHS } from "@/routes/paths";
 export function PatientNotFound() {
   return (
     <main className="mx-auto flex min-h-screen w-full max-w-2xl flex-col items-center justify-center gap-4 p-6 text-center">
-      <span className="flex size-14 items-center justify-center rounded-full bg-muted text-muted-foreground">
-        <UserX className="size-7" />
-      </span>
-      <div className="space-y-1">
-        <p className="font-medium">No encontramos este paciente</p>
-        <p className="text-sm text-muted-foreground">
-          Puede que se haya eliminado, o que el enlace no sea de esta clínica.
-        </p>
-      </div>
-      <Link to={PATHS.PATIENTS} className={buttonVariants({ variant: "default", size: "lg" })}>
-        Volver al listado
-      </Link>
+      <DataState
+        icon={UserX}
+        variant="muted"
+        title="No encontramos este paciente"
+        description="Puede que se haya eliminado, o que el enlace no sea de esta clínica."
+        action={
+          <Link to={PATHS.PATIENTS} className={buttonVariants({ variant: "default", size: "lg" })}>
+            Volver al listado
+          </Link>
+        }
+      />
     </main>
   );
 }
