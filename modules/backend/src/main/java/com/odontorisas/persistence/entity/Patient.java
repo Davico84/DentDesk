@@ -7,6 +7,7 @@ import com.odontorisas.common.PatientStatus;
 import com.odontorisas.common.Sex;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EntityListeners;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
@@ -23,6 +24,9 @@ import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.annotations.TenantId;
 import org.hibernate.annotations.UpdateTimestamp;
 import org.hibernate.type.SqlTypes;
+import org.springframework.data.annotation.CreatedBy;
+import org.springframework.data.annotation.LastModifiedBy;
+import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
 import java.time.Instant;
 import java.time.LocalDate;
@@ -42,6 +46,7 @@ import java.util.List;
  */
 @Entity
 @Table(name = "patients")
+@EntityListeners(AuditingEntityListener.class)
 @Getter
 @Setter
 @NoArgsConstructor
@@ -141,6 +146,20 @@ public class Patient {
     @UpdateTimestamp
     @Column(name = "updated_at", nullable = false)
     private Instant updatedAt;
+
+    /**
+     * Autoría automática (docs/backend.md §8.6): quién creó/modificó por última vez la ficha.
+     * La rellena {@code IdentityAuditorAware} —sin código propio—; en pacientes anteriores a este
+     * mecanismo queda {@code NULL} para siempre (design.md D2 de {@code update-patients}: inventar
+     * autoría sería peor que no tenerla).
+     */
+    @CreatedBy
+    @Column(name = "created_by", updatable = false)
+    private Long createdBy;
+
+    @LastModifiedBy
+    @Column(name = "updated_by")
+    private Long updatedBy;
 
     /**
      * Minoría de edad <b>derivada</b> de la fecha de nacimiento (design.md D2): se recalcula en
