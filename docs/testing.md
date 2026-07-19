@@ -96,12 +96,44 @@ Usa `renderHook` con un `wrapper` que provea un `QueryClient` nuevo por test (co
 | Si el cambio afecta a… | Nivel / Anotación |
 | :--- | :--- |
 | Lógica de dominio, services, mappers, validadores | Unit (JUnit + Mockito) |
-| Controllers (request/response, validación, status) | `@WebMvcTest` (service mockeado) |
-| Seguridad / autorización por rol | `@WebMvcTest` + `spring-security-test` |
-| Repositorios / `Specification` / queries | `@DataJpaTest` + **Testcontainers** |
+| Controllers (request/response, validación, status) | `@WebMvcTest` (service mockeado) — ver §5.1 |
+| Seguridad / autorización por rol (`@PreAuthorize`) | `@WebMvcTest` + `@EnableMethodSecurity` + `spring-security-test` (`@WithMockUser`) — ver §5.1 |
+| Repositorios / `Specification` / queries | Alcance de repositorio (solo `Repository`, sin pasar por el service) — ver §5.1, nota sobre por qué NO es `@DataJpaTest` |
 | Migraciones Flyway | Integración + **Testcontainers** |
 | WebSocket/STOMP | `@SpringBootTest` (websocket) |
-| Flujo completo (controller→service→repo→BD) | `@SpringBootTest` + **Testcontainers** |
+| Flujo completo (controller→service→repo→BD) | `@SpringBootTest` + **Testcontainers** (los `*ControllerIT`/`*RlsIT` existentes) |
+
+### 5.1 Dos capas para Controller/Repository — no una reemplaza a la otra
+
+**Ambas conviven, cada una prueba algo distinto.** Los `*ControllerIT` (HTTP contra PostgreSQL
+real) siguen siendo la fuente de verdad del comportamiento de negocio (aislamiento, conflictos
+reales); los slices nuevos (`*ControllerTest`, sin sufijo `IT`) prueban la **forma** de la API
+—status codes, validación, mapeo de excepciones a `ProblemDetail`, autorización por rol— rápido y
+sin BD. Referencia: `PatientControllerTest`/`BrandingControllerTest` (slice) junto a
+`PatientControllerIT`/`BrandingControllerIT` (integración) — mismo controller, capas distintas.
+
+**Convención de nombre**: `*Test` (sin `IT`) corre en `test` vía Surefire, no necesita Docker.
+`*IT` corre en `verify` vía Failsafe, sí lo necesita.
+
+**Piezas necesarias para un slice de Controller** (ninguna está incluida por defecto):
+- Excluir `JwtAuthenticationFilter` del scan (`@WebMvcTest(..., excludeFilters = ...)`): es un
+  `Filter` real, `@WebMvcTest` lo detecta e intenta construirlo — y necesita `TokenService`, que
+  el slice no tiene. `@AutoConfigureMockMvc(addFilters = false)` no evita esto (solo evita que
+  MockMvc lo *registre*; Spring igual intenta *crear* el bean).
+- Para probar `@PreAuthorize`: importar un `@TestConfiguration` con solo `@EnableMethodSecurity`
+  (la `SecurityConfig` real no se carga en el slice, así que sin esto el rol no se evalúa — un
+  test de "no-admin" pasaría en falso) y usar `@WithMockUser(roles = "...")`, no un JWT real.
+
+**Por qué `Repository`/`Specification` NO usa `@DataJpaTest`** (aunque la matriz de arriba lo
+prometía y aunque `H2Functions.java` — ya borrado — insinuaba ese camino a medio empezar): se
+probó, con las piezas de tenencia importadas a mano (`OrganizationTenantResolver`,
+`TenantAwareTransactionManager`), y el contexto de tenant **nunca se fijaba** (`unrecognized
+configuration parameter "app.organization_id"` — la variable de sesión de Postgres ni se creaba).
+Además, `@DataJpaTest` con H2 contradice §2 (*"Testcontainers desde el inicio, no H2"*). La
+maquinaria de tenencia de este proyecto es demasiado profunda para que el slice la reconstruya de
+forma confiable — mejor un test correcto con `@SpringBootTest` (mismo patrón que el resto de la
+suite) **acotado al repositorio** (sin pasar por el service) que un slice rápido con falsa
+confianza. Referencia: `PatientSpecificationsTest`.
 
 ### Testcontainers (base de integración)
 - Un único contenedor PostgreSQL reutilizable (patrón *singleton container*, `AbstractIntegrationTest`) para los tests de integración/persistencia.
