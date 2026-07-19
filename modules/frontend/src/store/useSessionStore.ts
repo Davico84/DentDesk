@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { createSelectors } from "./createSelectors";
 
 /** Rol de acceso (espejo del backend). */
 export type Role = "ADMIN" | "USER";
@@ -31,7 +32,7 @@ interface SessionState {
   clear: () => void;
 }
 
-export const useSessionStore = create<SessionState>((set) => ({
+const useSessionStoreBase = create<SessionState>((set) => ({
   accessToken: null,
   user: null,
   status: "idle",
@@ -40,3 +41,5 @@ export const useSessionStore = create<SessionState>((set) => ({
   setStatus: (status) => set({ status }),
   clear: () => set({ accessToken: null, user: null, status: "unauthenticated" }),
 }));
+
+export const useSessionStore = createSelectors(useSessionStoreBase);

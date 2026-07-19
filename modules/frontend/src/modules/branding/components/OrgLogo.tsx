@@ -11,7 +11,7 @@ type OrgLogoProps = Omit<ImgHTMLAttributes<HTMLImageElement>, "src" | "alt">;
  * reintentar automáticamente cuando cambia el logo, sin efectos.
  */
 export function OrgLogo({ className, ...props }: OrgLogoProps) {
-  const logoUrl = useBrandingStore((s) => s.logoUrl);
+  const logoUrl = useBrandingStore.use.logoUrl();
   const [failedUrl, setFailedUrl] = useState<string | null>(null);
 
   if (logoUrl && logoUrl !== failedUrl) {

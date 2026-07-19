@@ -75,7 +75,7 @@ Base: template FixRiver `modules/frontend/proyecto-base`.
 | Datos servidor | `@tanstack/react-query` + `axios` |
 | Estado cliente | Zustand |
 | Formularios | `react-hook-form` + `zod` (`@hookform/resolvers`) |
-| Routing | `react-router-dom` v7 + `RouteGuard` central (roles ADMIN/USER/ALL) |
+| Routing | `react-router-dom` v7 + guards centrales `RequireAuth`/`RequireGuest` (roles ADMIN/USER; sin `roles` = cualquier autenticado) |
 | Realtime | `@stomp/stompjs` + `sockjs-client` |
 | Testing | Vitest + React Testing Library + MSW · e2e con Playwright |
 | Calidad | ESLint + typescript-eslint · pre-commit con `lint-staged` |
@@ -96,7 +96,7 @@ src/
 ```
 - **Screens** orquestan e instancian componentes de módulos; no llaman a axios ni renderizan tablas directas.
 - **Modules** encapsulan lógica reutilizable; `core/` no depende de otros módulos.
-- **RouteGuard** centraliza auth + roles: sesión activa en ruta pública → redirige por rol; sin token → login (con `?next=`); rol no permitido → 403 AccessDenied.
+- **`RequireAuth`/`RequireGuest`** centralizan auth + roles: sesión activa en ruta pública (`RequireGuest`) → redirige por rol; sin sesión en ruta privada (`RequireAuth`) → login (con `?next=`); rol no permitido → `AccessDenied`.
 
 Detalle ampliado de los estándares de frontend en `docs/frontend.md` (arquitectura pantallas/módulos, React Query, Zustand, patrones de UI) y `docs/coding-style.md` (estilo general de código). Adaptados del template FixRiver.
 

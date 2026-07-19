@@ -18,8 +18,8 @@ import { useBrandingStore } from "@/store/useBrandingStore";
  */
 export function useBranding(): void {
   const organizationId = useSessionStore((s) => s.user?.organizationId ?? null);
-  const setBranding = useBrandingStore((s) => s.setBranding);
-  const clear = useBrandingStore((s) => s.clear);
+  const setBranding = useBrandingStore.use.setBranding();
+  const clear = useBrandingStore.use.clear();
 
   useEffect(() => {
     if (organizationId == null) {

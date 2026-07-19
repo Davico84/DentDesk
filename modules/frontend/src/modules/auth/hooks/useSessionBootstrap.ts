@@ -10,9 +10,9 @@ import { useSessionStore, type SessionStatus } from "@/store/useSessionStore";
  * Devuelve el `status` para mostrar un splash mientras resuelve.
  */
 export function useSessionBootstrap(): SessionStatus {
-  const status = useSessionStore((s) => s.status);
-  const setStatus = useSessionStore((s) => s.setStatus);
-  const clear = useSessionStore((s) => s.clear);
+  const status = useSessionStore.use.status();
+  const setStatus = useSessionStore.use.setStatus();
+  const clear = useSessionStore.use.clear();
 
   useEffect(() => {
     setStatus("loading");

@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { createSelectors } from "./createSelectors";
 
 /**
  * Estado de la marca de la organización activa que consume la UI (el logo y el aviso de
@@ -12,9 +13,11 @@ interface BrandingState {
   clear: () => void;
 }
 
-export const useBrandingStore = create<BrandingState>((set) => ({
+const useBrandingStoreBase = create<BrandingState>((set) => ({
   logoUrl: null,
   contrastWarning: false,
   setBranding: (logoUrl, contrastWarning) => set({ logoUrl, contrastWarning }),
   clear: () => set({ logoUrl: null, contrastWarning: false }),
 }));
+
+export const useBrandingStore = createSelectors(useBrandingStoreBase);
