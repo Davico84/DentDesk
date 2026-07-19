@@ -123,3 +123,18 @@ pnpm --filter odontorisas-frontend generate:api
 > - **El donut del commit sale rojo aunque los checks estén todos en verde** → el donut agrega **todos** los check runs del commit, y un run **cancelado** no cuenta como verde. Si los checks del último SHA están ✅, está bien.
 >
 > **Y para encontrar el fallo real:** los tests que fallan por aserción lanzan `AssertionError`, **no tienen `Caused by:`**. Busca `<<< FAILURE!` o `Tests run: … Failures:`. El `Caused by:` solo aparece si el contexto de Spring no arranca.
+
+---
+
+## 6. Testcontainers local (Docker Desktop reciente)
+
+Los `*IT` (Testcontainers) llevan `@Testcontainers(disabledWithoutDocker = true)`: si Testcontainers no valida el entorno Docker, **se saltan limpios** en vez de fallar — así que un `mvn verify` "en verde" localmente puede en realidad no haber probado nada.
+
+**Síntoma**: en Windows, con Docker Desktop reciente (Docker Engine ≥ 29), los `*IT` se saltaban siempre, aunque `docker info`/`docker run` funcionaran perfecto. El log de Maven solo decía *"Could not find a valid Docker environment"*, sin más detalle (hace falta `-Dorg.slf4j.simpleLogger.log.org.testcontainers=debug` para ver la causa real).
+
+**Causa real**: el `pom.xml` fijaba `testcontainers.version=1.21.3` a mano (resto del scaffolding inicial), sobrescribiendo lo que `spring-boot-starter-parent:4.0.6` ya gestiona por su cuenta (`2.0.5` — la versión con la que el propio Spring Boot 4.0 se probó). Esa `1.21.3` habla API Docker `1.32`; Docker Engine 29 exige mínimo `1.44` → el cliente Java de Testcontainers no podía ni validar el entorno.
+
+**Fix** (aplicado): quitar la fijación manual (`testcontainers.version` + el `<dependencyManagement>` que importaba `testcontainers-bom`) y dejar que `spring-boot-starter-parent` decida — hereda `2.0.5` solo. En 2.x, dos `artifactId` cambiaron de nombre (`junit-jupiter`→`testcontainers-junit-jupiter`, `postgresql`→`testcontainers-postgresql`); los paquetes Java (`org.testcontainers.junit.jupiter.Testcontainers`, `org.testcontainers.containers.PostgreSQLContainer`) **no cambiaron** — cero cambios de código.
+
+> [!WARNING]
+> **Trampa aparte, ya resuelta pero vale la pena conocerla**: Testcontainers cachea la estrategia de conexión que le funcionó en `~/.testcontainers.properties` (`docker.client.strategy=...`). Si ese archivo quedó con una estrategia rota de un intento anterior, **ignora cualquier `DOCKER_HOST` que fijes después** hasta que lo borres. Si Testcontainers "no ve" un Docker que sabes que funciona, borra ese archivo antes de seguir investigando.
