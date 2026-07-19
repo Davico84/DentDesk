@@ -24,7 +24,7 @@
 - [x] 3.2 `./mvnw -B verify` en verde (unit tests verdes; `AutomaticAuditingIT` y el resto de ITs
       Testcontainers se saltan limpios sin Docker en este entorno — mismo comportamiento que ya
       tenía el resto de la suite, no es nuevo de este change).
-- [ ] 3.3 Commit(s) por scope (`docs/commits.md`) — este change no toca frontend ni contrato.
+- [x] 3.3 Commit(s) por scope (`docs/commits.md`) — este change no toca frontend ni contrato.
 
 > **Nota (D5):** la regla ArchUnit que exige autoría en toda `@Entity` con `@TenantId` **no se
 > activa en este change**: `Patient` aún no cumple y rompería esta misma build. La activa el
