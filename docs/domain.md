@@ -246,6 +246,7 @@ erDiagram
     Organization ||--o{ Membership : "reúne a"
     Organization ||--|| OrganizationSettings : "configura"
     Organization ||--o| OrganizationBranding : "personaliza"
+    Organization ||--o{ Patient : "atiende a"
     User ||--o{ Appointment : "atiende (dentista)"
     Patient ||--o{ Appointment : "reserva"
     Patient ||--o{ Treatment : "recibe"
@@ -297,19 +298,26 @@ erDiagram
     }
     Patient {
         Long id PK
+        Long organizationId FK
         String fullName
+        DocumentType documentType
         String document
         Date birthDate
+        Sex sex
         String phone
         String email
+        String address
         String guardianName
-        String guardianRelationship
+        GuardianRelationship guardianRelationship
+        String guardianDocument
         String guardianPhone
         String emergencyContactName
         String emergencyContactPhone
-        String allergies
-        String medicalHistory
-        String currentMedication
+        String emergencyContactRelationship
+        JSONB allergies
+        JSONB conditions
+        JSONB currentMedication
+        PatientStatus status
     }
     Appointment {
         Long id PK

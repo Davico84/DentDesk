@@ -19,6 +19,9 @@ Combina el formato convencional (tipos + scope) con las buenas prácticas del sk
 - **Body** cuando el cambio no es trivial: bullets con el qué y el porqué.
 - Un commit = un cambio coherente y **focalizado** (no mezclar features).
 
+> [!WARNING]
+> **commitlint rechaza el subject en mayúscula inicial, PascalCase o TODO-MAYÚSCULAS** (`subject-case`). Un nombre propio al arranque tumba el commit: `fix: ArchUnit no leía…` **falla** → `fix: archunit no leía…`. Reformula para que empiece en minúscula (mueve el nombre propio o baja su inicial). Igual con `Flyway…`, `BrandingControllerIT…`, `ADR…`.
+
 ## 2. Tipos permitidos
 
 | Tipo | Uso |
@@ -89,6 +92,8 @@ Reglas:
 ## 5. Reglas de trabajo (del skill `commit` del demo)
 
 - **Focalizado**: si se indican features/tickets, se commitean **solo** esos cambios; el resto queda sin stagear.
+  - Si un **mismo archivo mezcla** cambios de la feature y otros no relacionados, usa **`git add -p`** para stagear **solo los hunks** que tocan — no arrastres lo demás en el commit.
+- **Modo solo-mensaje (dry-run)**: si se pide *"solo el mensaje"*, *"no toques git"*, *"solo el commit"* o *"dry run"*, se produce el **plan de staging + el mensaje** (subject + body) **sin ejecutar `git`** (ni `add`, ni `commit`, ni `push`, ni `gh`). Para revisarlo o pegarlo a mano.
 - **No commitear** secrets, `.env`, artefactos generados ni `target/`, `dist/`, `node_modules/`.
 - **PRs con `gh`** (GitHub CLI). Título alineado con el commit; descripción con resumen, testing y follow-ups.
 - **Nada destructivo** sin permiso explícito (`git push --force`, `reset --hard`). Ante push rechazado: reportar y sugerir pull/rebase.

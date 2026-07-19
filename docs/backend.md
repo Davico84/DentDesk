@@ -19,7 +19,7 @@ infra (config · security · storage · mail) = adaptadores técnicos (transvers
 | Capa | Paquete | Responsabilidad | NO debe |
 |---|---|---|---|
 | Presentación | `presentation.controller`, `presentation.dto` | Recibir HTTP, validar request (DTO + Bean Validation), delegar en services, construir respuesta | Contener lógica de negocio ni acceder a `persistence`/entidades |
-| Servicio | `service.<dominio>` (+ `mapper` co-ubicado) | **Lógica de negocio**, transacciones, orquestación, mapeo DTO↔entidad | Depender de `presentation` |
+| Servicio | `service.<dominio>` | **Lógica de negocio**, transacciones, orquestación, mapeo entidad→record del servicio (view) | Depender de `presentation` |
 | Persistencia | `persistence.entity`, `persistence.repository`, `persistence.specification` | Entidades JPA, repositorios Spring Data, queries dinámicas (Specifications) | Contener reglas de negocio; depender de `presentation`/`service` |
 | Infraestructura | `infra.config`, `infra.security`, `infra.storage`, `infra.mail` | Adaptadores técnicos: configuración del framework, seguridad, S3, mail | Contener lógica de negocio |
 | Común | `common` | Utilidades transversales y tipos compartidos | Depender de un dominio |
@@ -27,7 +27,7 @@ infra (config · security · storage · mail) = adaptadores técnicos (transvers
 **Reglas de oro:**
 - La **lógica de negocio vive en `service.<dominio>`**, no en `infra` (infra = solo técnico).
 - `presentation` **nunca** importa de `persistence` (ni entidades ni repositorios). Habla con `service`.
-- Las **entidades JPA no salen de `persistence`**: se convierten a DTO en el `mapper` del servicio antes de llegar a `presentation`.
+- Las **entidades JPA no salen de `persistence`... ni de `service`**: el service las convierte a **records propios** (views: `PatientView`, `Branding`, `AuthResult`) y `presentation` traduce esos records a DTO. Ver §6.
 - `infra` (config/security) **sí** puede cablear servicios: es el composition root (por eso ArchUnit no restringe `infra → service`).
 - Los controllers son **delgados**: sin lógica; orquestan y delegan.
 - Un `<dominio>` (capacidad) tiene su paquete `service.<dominio>` (ver granularidad de capacidades en `docs/vision.md §5`).
@@ -43,12 +43,11 @@ infra (config · security · storage · mail) = adaptadores técnicos (transvers
 | Elemento | Sufijo | Ejemplo |
 |---|---|---|
 | Controller | `Controller` | `AppointmentController` |
-| Service (interfaz) | `Service` | `AppointmentService` |
-| Service (impl) | `ServiceImpl` | `AppointmentServiceImpl` |
+| Service | `Service` — **clase concreta por defecto**; interfaz + `ServiceImpl` **solo** cuando exista una segunda implementación real | `AppointmentService` |
 | Repositorio | `Repository` | `AppointmentRepository` |
 | Entidad | — (sustantivo) | `Appointment` |
-| DTO | `Request`/`Response`/`Dto` | `CreateAppointmentRequest`, `AppointmentResponse` |
-| Mapper | `Mapper` | `AppointmentMapper` |
+| DTO | `Request`/`Response` | `PatientRequest`, `PatientResponse` |
+| Record del servicio (view/command) | `View`/`Command`/sustantivo | `PatientView`, `RegisterCommand`, `Branding` |
 | Specification | `Specification`/`Specs` | `AppointmentSpecifications` |
 | Excepción | `Exception` | `AppointmentNotFoundException` |
 
@@ -57,9 +56,9 @@ infra (config · security · storage · mail) = adaptadores técnicos (transvers
 ## 3. SOLID y DRY (aplicado a Spring)
 
 - **SRP**: una clase, una razón de cambio. El controller enruta, el service decide, el repository persiste.
-- **OCP/DIP**: depende de **abstracciones**. Los services que lo ameriten se definen como interfaz + impl; inyecta la interfaz.
+- **OCP/DIP**: depende de **abstracciones** donde aporten. Regla del proyecto (§2): service como **clase concreta por defecto**; extrae la interfaz **cuando aparezca la segunda implementación**, no de forma especulativa.
 - **ISP**: interfaces pequeñas y enfocadas.
-- **DRY**: centraliza validación/reglas repetidas en el service o en validadores; no dupliques mapeos (usa el mapper).
+- **DRY**: centraliza validación/reglas repetidas en el service o en validadores; no dupliques mapeos (una sola factoría `from(...)` por DTO, §6).
 
 ---
 
@@ -70,9 +69,8 @@ infra (config · security · storage · mail) = adaptadores técnicos (transvers
 ```java
 @Service
 @RequiredArgsConstructor
-public class AppointmentServiceImpl implements AppointmentService {
+public class AppointmentService {
     private final AppointmentRepository repository;
-    private final AppointmentMapper mapper;
 }
 ```
 
@@ -101,19 +99,38 @@ public class AppointmentController {
 }
 ```
 
+### 5.1 Paginación
+
+Patrón real (`PatientController`/`PatientService`): el controller recibe `Pageable` como parámetro
+(`@ParameterObject @PageableDefault(size = 20) Pageable pageable`, `springdoc` lo documenta solo) y
+el service lo pasa tal cual al repositorio (`JpaSpecificationExecutor.findAll(spec, pageable)`).
+
+- Query params estándar (los da Spring Data): `page` (base 0), `size`, `sort`.
+- `size` por defecto **20** vía `@PageableDefault`. Documenta el que uses en cada endpoint si difiere.
+- **Nunca** devuelvas `Page<T>` de Spring Data directamente (su serialización JSON es inestable y no
+  debe filtrarse a un contrato del que el frontend genera cliente) — envuelve en `PageResponse<T>`
+  (`presentation.dto.PageResponse`, ya existe: `content`/`page`/`size`/`totalElements`/`totalPages`/`last`).
+- **Pendiente de decidir**: hoy no hay tope máximo de `size` (un cliente podría pedir `size=100000`).
+  Cuando aparezca el segundo endpoint paginado, cablear un `PageableHandlerMethodArgumentResolverCustomizer`
+  con un máximo (p. ej. 100) — no se resuelve especulativamente para uno solo.
+
 ---
 
 ## 6. DTOs, validación y mapeo
 
 - **DTOs** preferentemente `record` (inmutables). Separa entrada (`*Request`) de salida (`*Response`).
 - **Bean Validation** en los `*Request`: `@NotNull`, `@NotBlank`, `@Email`, `@Size`, `@Positive`, etc. La validación de **formato** vive en el DTO; la de **reglas de negocio** en el service.
-- **Mapeo DTO↔entidad** en `infra.mappers` (MapStruct recomendado, o mappers manuales). El mapeo no vive en controllers ni entidades.
+- **Mapeo en dos saltos, sin clases `Mapper`** (patrón del proyecto; MapStruct **no** está en el pom):
+  1. El **service** mapea entidad → **record propio del servicio** (view: `PatientView`, `Branding`; entrada compleja: `RegisterCommand`). Las entidades JPA no salen de ahí.
+  2. **`presentation`** traduce ese record a DTO con una **factoría estática** `Response.from(view)` en el propio DTO (así lo hacen `PatientResponse`, `BrandingResponse`, `AuthResponse`...).
+
+  Ni el controller conoce entidades, ni el service conoce DTOs — es lo que vigila ArchUnit.
 - **Paridad con el frontend**: las restricciones de **formato** de cada `*Request` (longitud, patrón, rango, requerido) deben reflejarse en el schema Zod del formulario correspondiente. El backend es la barrera definitiva; el frontend evita `400` de formato innecesarios. Política y tabla de correlación en `docs/coding-style.md §7`.
 
 ```java
 public record CreateAppointmentRequest(
     @NotNull Long patientId,
-    @NotNull @Future LocalDateTime scheduledAt,
+    @NotNull @Future Instant scheduledAt,   // instante → Instant, nunca LocalDateTime (§8.2)
     @Size(max = 500) String notes
 ) {}
 ```
@@ -183,6 +200,97 @@ public class PatientService {
 **Si una consulta te falla con "unrecognized configuration parameter app.organization_id"**, el impulso natural será fijar el contexto a mano. **No lo hagas** — ese fallo significa que estás fuera de una petición autenticada (una tarea de sistema, un test mal montado) o fuera de transacción. **Es el mecanismo funcionando**, no un estorbo: RLS **falla cerrado** en vez de devolverte una lista vacía que confundirías con *"esta clínica no tiene pacientes"*.
 
 La única excepción es `service.auth`: en el registro la organización **se crea en esa misma transacción**, así que no hay token del que leer el contexto. Ahí `bindIdentity(...)` se llama explícitamente — no es una grieta, es que en el bootstrap **no hay nada que propagar**.
+
+---
+
+## 8.2 Fechas y zonas horarias — todo en UTC
+
+La app se ve desde cualquier país: **ningún instante se representa con la zona horaria del
+servidor**. Regla, ya vigente de facto en el código (`createdAt`/`updatedAt`/`expiresAt` en
+`User`, `Organization`, `Membership`, `RefreshToken`, `Patient`):
+
+- **Instante** (un momento concreto en el tiempo — cuándo se creó un registro, cuándo vence un
+  token, cuándo empieza una cita) → Java `Instant` + columna Postgres `TIMESTAMPTZ`.
+  `TIMESTAMPTZ` normaliza y guarda en UTC sin importar la zona de la sesión; `Instant` es UTC por
+  definición. Genera el valor con `Instant.now()`.
+- **Prohibido `LocalDateTime`** para representar un instante: no lleva zona, es ambiguo apenas hay
+  más de un huso horario en juego (justo el caso de este SaaS). El ejemplo de `CreateAppointmentRequest`
+  en §6 usa `Instant` por esto.
+- **Fecha de calendario sin hora** (cumpleaños, `Patient.birthDate`) → Java `LocalDate` + columna
+  `DATE`. No es un instante — es una fecha civil, no lleva ni necesita zona horaria.
+- **Presentación**: Jackson serializa `Instant` a ISO-8601 con sufijo `Z` (UTC) automáticamente, sin
+  anotar nada. La conversión a la hora local del usuario es responsabilidad del **frontend**, nunca
+  del backend.
+
+---
+
+## 8.3 Concurrencia — bloqueo optimista (`@Version`)
+
+Hoy **ninguna entidad lo usa** (no hace falta: los flujos actuales no tienen edición concurrente
+real). Regla para cuando aparezca una que sí — candidatas previsibles: `appointments` (agenda
+compartida por recepción/dentista) o cualquier entidad de facturación:
+
+- Añade `@Version private Long version;` en la entidad + columna `version BIGINT NOT NULL DEFAULT 0`
+  en su migración. Hibernate la gestiona sola: incrementa en cada `UPDATE` y lanza
+  `ObjectOptimisticLockingFailureException` si la fila cambió entre lectura y escritura.
+- Esa excepción se mapea a **`409`** en `GlobalExceptionHandler` (§10) el día que se introduzca el
+  primer `@Version` — no antes (no hay nada que mapear todavía).
+- No lo añadas de forma especulativa a entidades sin edición concurrente real: es ruido y una
+  fuente de `409` que nadie espera.
+
+---
+
+## 8.4 Modelado de dominio — conjuntos cerrados y formatos
+
+Lecciones de la auditoría de dominio de `patients` (`openspec/changes/archive/2026-07-16-add-patients/design.md`),
+ya vigentes como estándar para toda capacidad nueva:
+
+- **Conjunto cerrado de valores → enum, nunca `String` libre.** Se refleja en **tres** sitios para
+  que el frontend lo herede: enum Java en la entidad, `CHECK` en la migración, y el enum aparece en
+  el contrato OpenAPI (springdoc lo infiere del tipo Java). Ejemplos reales: `DocumentType`, `Sex`,
+  `GuardianRelationship` en `Patient`.
+- **Nunca tipo numérico para identificadores con formato** (documento, teléfono): pierden ceros a la
+  izquierda y los pasaportes son alfanuméricos. `VARCHAR` + validación de formato explícita (Bean
+  Validation o un validador propio — ver `ValidDocument`).
+- **Colección embebida de una entidad bajo RLS → columna `JSONB` en la misma tabla, no tabla hija.**
+  Una tabla hija sin su propio `organization_id` es un agujero de aislamiento: RLS no la protege.
+  Ejemplo real: `allergies`/`conditions`/`currentMedication` en `Patient`.
+
+---
+
+## 8.5 `Optional` y valores ausentes
+
+- **Sí**: `Optional<T>` como **tipo de retorno** de un método de repositorio o service que busca
+  **un único resultado que puede no existir** (`findByEmail`, `findBySlug`, `findByTokenHash`) — es
+  la convención de Spring Data y ya la sigue todo el código.
+- **No**: `Optional` como **parámetro** de método, como **campo** de entidad/DTO/record, ni
+  envolviendo una **colección** (`Optional<List<T>>` — usa lista vacía).
+- Un `Optional` vacío que representa "no encontrado" en un flujo de negocio se traduce a la
+  excepción de dominio correspondiente (`PatientNotFoundException`, §10) **en el service** — no
+  propagues el `Optional` hasta `presentation`.
+
+---
+
+## 8.6 Auditoría de autoría (`createdBy`/`updatedBy`)
+
+`docs/backend.md §8.1` ya trata la historia clínica como *"el dato más sensible del producto"* y el
+spec de `patients` exige retención legal. RLS garantiza **qué organización** tocó un registro, pero
+hoy **ningún** registro de negocio dice **qué usuario** dentro de esa organización lo hizo. Regla
+para toda entidad de negocio nueva, con el mismo criterio de §8.1 ("no negociable"):
+
+- Columnas `created_by BIGINT REFERENCES users(id)` y `updated_by BIGINT REFERENCES users(id)` junto
+  a `created_at`/`updated_at` en la migración.
+- Campos `@CreatedBy`/`@LastModifiedBy` (Spring Data JPA Auditing) en la entidad, con
+  `@EntityListeners(AuditingEntityListener.class)` — **no confundir con** `@CreationTimestamp`/
+  `@UpdateTimestamp` (Hibernate nativo), que es lo que ya rellena `created_at`/`updated_at` hoy: son
+  **dos mecanismos distintos**. `@CreationTimestamp` no sabe quién hizo el cambio, solo cuándo.
+- Habilitar `@EnableJpaAuditing` (`infra.config`) con un `AuditorAware<Long>` que lee
+  `common.IdentityContext.get()` — el `userId` **ya está disponible por transacción** gracias a
+  `TenantAwareTransactionManager` (§8.1.1); el `AuditorAware` es un adaptador fino sobre algo que ya
+  existe, no una plomería nueva.
+- Mismo caso límite que el contexto de tenant (§8.1.1): en `service.auth` durante el registro no hay
+  `IdentityContext` (la identidad se crea en esa misma transacción) — el `AuditorAware` debe devolver
+  `Optional.empty()` ahí, no lanzar.
 
 ---
 
@@ -270,6 +378,40 @@ Tras tocar la API: regenera `contracts/openapi.json` **y** el cliente del fronte
 - **Sin secretos en el código ni en git**: viven en `application-dev-secrets.yml` / variables de entorno (ignorados), con `*.example` versionado.
 - Validar y sanear toda entrada; los DTOs + Bean Validation son la primera barrera.
 
+### 11.1 Actuator — superficie expuesta
+
+`spring-boot-starter-actuator` está en el `pom.xml`. Configuración real (`application.yml`):
+`management.endpoints.web.exposure.include: health,info` — **explícito**, no el default del
+framework (que además solo trae `health`; aquí se sumó `info` a propósito). No amplíes esa lista sin
+decidir a la vez si el endpoint nuevo queda público o autenticado (siguiente punto).
+
+- **Solo `/actuator/health/**` y `/actuator/info` son públicos** (`PublicPaths` — fuente única
+  compartida con el customizer de OpenAPI). Cualquier otro endpoint de actuator cae bajo
+  `anyRequest().authenticated()`: no hay excepción salvo esas dos rutas.
+- ⚠️ **`management.endpoint.health.show-details: always`** combinado con que `/actuator/health/**`
+  es **público** significa que el detalle de salud (estado de cada *health indicator*: BD, disco...)
+  lo ve cualquiera sin autenticar. Es una decisión consciente, no un descuido — pero si algún día un
+  *health indicator* propio expone algo sensible (nombre de host interno, versión de dependencia),
+  hay que revisar si sigue mereciendo `always` en una ruta pública o si baja a `when-authorized`.
+- Antes de exponer un endpoint nuevo de actuator (`/env`, `/beans`, `/httptrace`...): añádelo a
+  `exposure.include` **y** decide explícitamente si entra en `PublicPaths` — nunca por omisión. Si
+  se expone `/env`, revisa que no filtre `app.security.jwt.secret` ni credenciales de BD.
+
+### 11.2 CORS
+
+Configurado en `SecurityConfig.corsConfigurationSource`; orígenes desde
+`app.security.cors.allowed-origins` (externalizado, §12 — `http://localhost:5173` en local, por env
+en despliegue).
+
+- `allowCredentials(true)` porque el refresh token viaja en cookie `HttpOnly` (`RefreshCookieFactory`).
+  **Regla dura**: con credenciales habilitadas, `allowedOrigins` **nunca** puede ser `*` — lista
+  explícita de orígenes conocidos, siempre.
+- ⚠️ **Gotcha de la spec CORS**: `allowedHeaders(List.of("*"))` **no actúa como comodín** en
+  peticiones con credenciales — el navegador lo trata como el header literal `"*"`, no como "cualquier
+  header". Si el frontend algún día añade un header custom (`X-Something`), el preflight fallará en
+  silencio pese a que el código "dice" `*`. El día que haga falta, lista los headers explícitos en
+  vez de depurar a ciegas.
+
 ---
 
 ## 12. Configuración
@@ -315,7 +457,9 @@ No se duplica aquí: la estrategia (niveles, slices, **Testcontainers**, puente 
 
 ## 17. Checklist de pre-entrega (backend)
 
-- [ ] ¿Respeta el flujo de capas (presentación no toca persistencia; entidades no salen de persistence)?
+- [ ] ¿Toda entidad de negocio nueva cumple §8.1: `@TenantId` + índice sobre `organization_id` + `ENABLE`/`FORCE ROW LEVEL SECURITY` + política `organization_isolation` en su migración?
+- [ ] ¿Lleva `created_by`/`updated_by` (§8.6), además de `created_at`/`updated_at`?
+- [ ] ¿Respeta el flujo de capas (presentación no toca persistencia; entidades no salen de persistence ni de service — views §6)?
 - [ ] ¿Controllers delgados y con DTOs (`*Request`/`*Response`), sin exponer entidades?
 - [ ] ¿Validación de formato en DTO (Bean Validation) y de negocio en el service?
 - [ ] ¿Inyección por constructor (`@RequiredArgsConstructor`), sin inyección por campo?
@@ -323,4 +467,6 @@ No se duplica aquí: la estrategia (niveles, slices, **Testcontainers**, puente 
 - [ ] ¿Sin N+1 (fetch join/`@EntityGraph`), consultas dinámicas vía `Specification`?
 - [ ] ¿Cambios de esquema como nueva migración Flyway (no editar aplicadas)?
 - [ ] ¿Errores centralizados con formato consistente; sin secretos en logs?
+- [ ] ¿Instantes en `Instant`/`TIMESTAMPTZ` (nunca `LocalDateTime`, §8.2)? ¿`LocalDate` solo para fechas de calendario sin hora?
+- [ ] ¿Conjunto cerrado de valores como enum (app + `CHECK` + contrato, §8.4)? ¿Documento/teléfono como `VARCHAR`, nunca numérico?
 - [ ] ¿Pruebas por scenario según `docs/testing.md`; `./mvnw verify` verde?
