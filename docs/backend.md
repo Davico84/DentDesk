@@ -19,7 +19,7 @@ infra (config · security · storage · mail) = adaptadores técnicos (transvers
 | Capa | Paquete | Responsabilidad | NO debe |
 |---|---|---|---|
 | Presentación | `presentation.controller`, `presentation.dto` | Recibir HTTP, validar request (DTO + Bean Validation), delegar en services, construir respuesta | Contener lógica de negocio ni acceder a `persistence`/entidades |
-| Servicio | `service.<dominio>` (+ `mapper` co-ubicado) | **Lógica de negocio**, transacciones, orquestación, mapeo DTO↔entidad | Depender de `presentation` |
+| Servicio | `service.<dominio>` | **Lógica de negocio**, transacciones, orquestación, mapeo entidad→record del servicio (view) | Depender de `presentation` |
 | Persistencia | `persistence.entity`, `persistence.repository`, `persistence.specification` | Entidades JPA, repositorios Spring Data, queries dinámicas (Specifications) | Contener reglas de negocio; depender de `presentation`/`service` |
 | Infraestructura | `infra.config`, `infra.security`, `infra.storage`, `infra.mail` | Adaptadores técnicos: configuración del framework, seguridad, S3, mail | Contener lógica de negocio |
 | Común | `common` | Utilidades transversales y tipos compartidos | Depender de un dominio |
@@ -27,7 +27,7 @@ infra (config · security · storage · mail) = adaptadores técnicos (transvers
 **Reglas de oro:**
 - La **lógica de negocio vive en `service.<dominio>`**, no en `infra` (infra = solo técnico).
 - `presentation` **nunca** importa de `persistence` (ni entidades ni repositorios). Habla con `service`.
-- Las **entidades JPA no salen de `persistence`**: se convierten a DTO en el `mapper` del servicio antes de llegar a `presentation`.
+- Las **entidades JPA no salen de `persistence`... ni de `service`**: el service las convierte a **records propios** (views: `PatientView`, `Branding`, `AuthResult`) y `presentation` traduce esos records a DTO. Ver §6.
 - `infra` (config/security) **sí** puede cablear servicios: es el composition root (por eso ArchUnit no restringe `infra → service`).
 - Los controllers son **delgados**: sin lógica; orquestan y delegan.
 - Un `<dominio>` (capacidad) tiene su paquete `service.<dominio>` (ver granularidad de capacidades en `docs/vision.md §5`).
@@ -43,12 +43,11 @@ infra (config · security · storage · mail) = adaptadores técnicos (transvers
 | Elemento | Sufijo | Ejemplo |
 |---|---|---|
 | Controller | `Controller` | `AppointmentController` |
-| Service (interfaz) | `Service` | `AppointmentService` |
-| Service (impl) | `ServiceImpl` | `AppointmentServiceImpl` |
+| Service | `Service` — **clase concreta por defecto**; interfaz + `ServiceImpl` **solo** cuando exista una segunda implementación real | `AppointmentService` |
 | Repositorio | `Repository` | `AppointmentRepository` |
 | Entidad | — (sustantivo) | `Appointment` |
-| DTO | `Request`/`Response`/`Dto` | `CreateAppointmentRequest`, `AppointmentResponse` |
-| Mapper | `Mapper` | `AppointmentMapper` |
+| DTO | `Request`/`Response` | `PatientRequest`, `PatientResponse` |
+| Record del servicio (view/command) | `View`/`Command`/sustantivo | `PatientView`, `RegisterCommand`, `Branding` |
 | Specification | `Specification`/`Specs` | `AppointmentSpecifications` |
 | Excepción | `Exception` | `AppointmentNotFoundException` |
 
@@ -57,9 +56,9 @@ infra (config · security · storage · mail) = adaptadores técnicos (transvers
 ## 3. SOLID y DRY (aplicado a Spring)
 
 - **SRP**: una clase, una razón de cambio. El controller enruta, el service decide, el repository persiste.
-- **OCP/DIP**: depende de **abstracciones**. Los services que lo ameriten se definen como interfaz + impl; inyecta la interfaz.
+- **OCP/DIP**: depende de **abstracciones** donde aporten. Regla del proyecto (§2): service como **clase concreta por defecto**; extrae la interfaz **cuando aparezca la segunda implementación**, no de forma especulativa.
 - **ISP**: interfaces pequeñas y enfocadas.
-- **DRY**: centraliza validación/reglas repetidas en el service o en validadores; no dupliques mapeos (usa el mapper).
+- **DRY**: centraliza validación/reglas repetidas en el service o en validadores; no dupliques mapeos (una sola factoría `from(...)` por DTO, §6).
 
 ---
 
@@ -70,9 +69,8 @@ infra (config · security · storage · mail) = adaptadores técnicos (transvers
 ```java
 @Service
 @RequiredArgsConstructor
-public class AppointmentServiceImpl implements AppointmentService {
+public class AppointmentService {
     private final AppointmentRepository repository;
-    private final AppointmentMapper mapper;
 }
 ```
 
@@ -107,7 +105,11 @@ public class AppointmentController {
 
 - **DTOs** preferentemente `record` (inmutables). Separa entrada (`*Request`) de salida (`*Response`).
 - **Bean Validation** en los `*Request`: `@NotNull`, `@NotBlank`, `@Email`, `@Size`, `@Positive`, etc. La validación de **formato** vive en el DTO; la de **reglas de negocio** en el service.
-- **Mapeo DTO↔entidad** en `infra.mappers` (MapStruct recomendado, o mappers manuales). El mapeo no vive en controllers ni entidades.
+- **Mapeo en dos saltos, sin clases `Mapper`** (patrón del proyecto; MapStruct **no** está en el pom):
+  1. El **service** mapea entidad → **record propio del servicio** (view: `PatientView`, `Branding`; entrada compleja: `RegisterCommand`). Las entidades JPA no salen de ahí.
+  2. **`presentation`** traduce ese record a DTO con una **factoría estática** `Response.from(view)` en el propio DTO (así lo hacen `PatientResponse`, `BrandingResponse`, `AuthResponse`...).
+
+  Ni el controller conoce entidades, ni el service conoce DTOs — es lo que vigila ArchUnit.
 - **Paridad con el frontend**: las restricciones de **formato** de cada `*Request` (longitud, patrón, rango, requerido) deben reflejarse en el schema Zod del formulario correspondiente. El backend es la barrera definitiva; el frontend evita `400` de formato innecesarios. Política y tabla de correlación en `docs/coding-style.md §7`.
 
 ```java
@@ -315,7 +317,8 @@ No se duplica aquí: la estrategia (niveles, slices, **Testcontainers**, puente 
 
 ## 17. Checklist de pre-entrega (backend)
 
-- [ ] ¿Respeta el flujo de capas (presentación no toca persistencia; entidades no salen de persistence)?
+- [ ] ¿Toda entidad de negocio nueva cumple §8.1: `@TenantId` + índice sobre `organization_id` + `ENABLE`/`FORCE ROW LEVEL SECURITY` + política `organization_isolation` en su migración?
+- [ ] ¿Respeta el flujo de capas (presentación no toca persistencia; entidades no salen de persistence ni de service — views §6)?
 - [ ] ¿Controllers delgados y con DTOs (`*Request`/`*Response`), sin exponer entidades?
 - [ ] ¿Validación de formato en DTO (Bean Validation) y de negocio en el service?
 - [ ] ¿Inyección por constructor (`@RequiredArgsConstructor`), sin inyección por campo?
