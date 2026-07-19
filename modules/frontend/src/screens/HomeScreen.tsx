@@ -8,7 +8,7 @@ import { PATHS } from "@/routes/paths";
 
 /** Panel raíz (provisional): muestra la marca de la organización, saluda y cierra sesión. */
 export function HomeScreen() {
-  const user = useSessionStore((s) => s.user);
+  const user = useSessionStore.use.user();
   const logout = useLogout();
 
   return (

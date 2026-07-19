@@ -7,8 +7,8 @@ import { roleHome } from "./roleHome";
  * panel (a la ruta `next` original si venía de un guard, o al inicio por rol).
  */
 export function RequireGuest() {
-  const status = useSessionStore((s) => s.status);
-  const user = useSessionStore((s) => s.user);
+  const status = useSessionStore.use.status();
+  const user = useSessionStore.use.user();
   const location = useLocation();
 
   if (status === "authenticated" && user) {

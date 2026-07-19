@@ -19,7 +19,7 @@ export function useBrandingQuery() {
 /** Guarda la marca y la aplica de inmediato (tema + logo + cache). */
 export function useUpdateBranding() {
   const organizationId = useSessionStore((s) => s.user?.organizationId ?? null);
-  const setBranding = useBrandingStore((s) => s.setBranding);
+  const setBranding = useBrandingStore.use.setBranding();
 
   return useMutation({
     mutationFn: (data: UpdateBrandingRequest) => updateBranding(data),
