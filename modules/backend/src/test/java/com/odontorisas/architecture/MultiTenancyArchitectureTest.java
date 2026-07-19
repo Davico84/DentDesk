@@ -1,12 +1,21 @@
 package com.odontorisas.architecture;
 
+import com.tngtech.archunit.base.DescribedPredicate;
 import com.tngtech.archunit.core.domain.JavaClass;
 import com.tngtech.archunit.core.domain.JavaClasses;
 import com.tngtech.archunit.core.importer.ClassFileImporter;
 import com.tngtech.archunit.core.importer.ImportOption;
+import com.tngtech.archunit.lang.ArchCondition;
 import com.tngtech.archunit.lang.ArchRule;
+import com.tngtech.archunit.lang.ConditionEvents;
+import com.tngtech.archunit.lang.SimpleConditionEvent;
+import jakarta.persistence.EntityListeners;
+import org.hibernate.annotations.TenantId;
 import org.junit.jupiter.api.Test;
+import org.springframework.data.annotation.CreatedBy;
+import org.springframework.data.annotation.LastModifiedBy;
 
+import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.classes;
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses;
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noMethods;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -81,6 +90,42 @@ class MultiTenancyArchitectureTest {
                 .because("el contexto de tenant se fija SOLO, en TenantAwareTransactionManager. "
                         + "Una capacidad de negocio queda aislada sin escribir código de "
                         + "aislamiento: por defecto, no por disciplina (docs/backend.md §8.1)")
+                .allowEmptyShould(true);
+        rule.check(classes);
+    }
+
+    private static final DescribedPredicate<JavaClass> DECLARES_TENANT_ID = DescribedPredicate.describe(
+            "declara un campo @TenantId",
+            javaClass -> javaClass.getFields().stream()
+                    .anyMatch(field -> field.isAnnotatedWith(TenantId.class)));
+
+    /**
+     * <b>Autoría automática (docs/backend.md §8.6, design.md D5 de {@code update-multi-tenancy}
+     * / D4 de {@code update-patients}).</b> Toda entidad de negocio bajo RLS registra quién la
+     * creó y quién la modificó por última vez — mismo criterio que el aislamiento: <em>por
+     * defecto, no por disciplina</em>. Sin este candado, declarar {@code @TenantId} sin la
+     * autoría correspondiente no falla: dos columnas se quedan en {@code NULL} en silencio.
+     */
+    @Test
+    void business_entities_with_tenant_id_must_declare_authorship() {
+        ArchRule rule = classes()
+                .that(DECLARES_TENANT_ID)
+                .should(new ArchCondition<JavaClass>("declarar @EntityListeners(AuditingEntityListener.class) "
+                        + "y los campos @CreatedBy/@LastModifiedBy") {
+                    @Override
+                    public void check(JavaClass item, ConditionEvents events) {
+                        boolean hasListener = item.isAnnotatedWith(EntityListeners.class);
+                        boolean hasCreatedBy = item.getFields().stream()
+                                .anyMatch(f -> f.isAnnotatedWith(CreatedBy.class));
+                        boolean hasLastModifiedBy = item.getFields().stream()
+                                .anyMatch(f -> f.isAnnotatedWith(LastModifiedBy.class));
+                        if (!hasListener || !hasCreatedBy || !hasLastModifiedBy) {
+                            events.add(SimpleConditionEvent.violated(item, item.getFullName()
+                                    + " tiene @TenantId pero no declara autoría completa "
+                                    + "(@EntityListeners + @CreatedBy + @LastModifiedBy, docs/backend.md §8.6)"));
+                        }
+                    }
+                })
                 .allowEmptyShould(true);
         rule.check(classes);
     }
