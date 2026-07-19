@@ -271,6 +271,29 @@ ya vigentes como estándar para toda capacidad nueva:
 
 ---
 
+## 8.6 Auditoría de autoría (`createdBy`/`updatedBy`)
+
+`docs/backend.md §8.1` ya trata la historia clínica como *"el dato más sensible del producto"* y el
+spec de `patients` exige retención legal. RLS garantiza **qué organización** tocó un registro, pero
+hoy **ningún** registro de negocio dice **qué usuario** dentro de esa organización lo hizo. Regla
+para toda entidad de negocio nueva, con el mismo criterio de §8.1 ("no negociable"):
+
+- Columnas `created_by BIGINT REFERENCES users(id)` y `updated_by BIGINT REFERENCES users(id)` junto
+  a `created_at`/`updated_at` en la migración.
+- Campos `@CreatedBy`/`@LastModifiedBy` (Spring Data JPA Auditing) en la entidad, con
+  `@EntityListeners(AuditingEntityListener.class)` — **no confundir con** `@CreationTimestamp`/
+  `@UpdateTimestamp` (Hibernate nativo), que es lo que ya rellena `created_at`/`updated_at` hoy: son
+  **dos mecanismos distintos**. `@CreationTimestamp` no sabe quién hizo el cambio, solo cuándo.
+- Habilitar `@EnableJpaAuditing` (`infra.config`) con un `AuditorAware<Long>` que lee
+  `common.IdentityContext.get()` — el `userId` **ya está disponible por transacción** gracias a
+  `TenantAwareTransactionManager` (§8.1.1); el `AuditorAware` es un adaptador fino sobre algo que ya
+  existe, no una plomería nueva.
+- Mismo caso límite que el contexto de tenant (§8.1.1): en `service.auth` durante el registro no hay
+  `IdentityContext` (la identidad se crea en esa misma transacción) — el `AuditorAware` debe devolver
+  `Optional.empty()` ahí, no lanzar.
+
+---
+
 ## 9. Migraciones (Flyway)
 
 - Única fuente del esquema: `spring.jpa.hibernate.ddl-auto=none`. Hibernate **no** crea ni altera tablas.
@@ -435,6 +458,7 @@ No se duplica aquí: la estrategia (niveles, slices, **Testcontainers**, puente 
 ## 17. Checklist de pre-entrega (backend)
 
 - [ ] ¿Toda entidad de negocio nueva cumple §8.1: `@TenantId` + índice sobre `organization_id` + `ENABLE`/`FORCE ROW LEVEL SECURITY` + política `organization_isolation` en su migración?
+- [ ] ¿Lleva `created_by`/`updated_by` (§8.6), además de `created_at`/`updated_at`?
 - [ ] ¿Respeta el flujo de capas (presentación no toca persistencia; entidades no salen de persistence ni de service — views §6)?
 - [ ] ¿Controllers delgados y con DTOs (`*Request`/`*Response`), sin exponer entidades?
 - [ ] ¿Validación de formato en DTO (Bean Validation) y de negocio en el service?
