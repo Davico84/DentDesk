@@ -15,6 +15,11 @@ igual que `patients` fue la primera prueba real del binding automático de tenan
 - Nueva migración Flyway: columnas `created_by BIGINT REFERENCES users(id)` y
   `updated_by BIGINT REFERENCES users(id)`, nulas (los pacientes existentes no tienen autoría
   conocida — no hay backfill posible).
+- **BREAKING (para el build, no para la API)**: este change **activa** la regla ArchUnit de
+  `update-multi-tenancy` (design.md D5) que exige `@CreatedBy`/`@LastModifiedBy` en toda `@Entity`
+  con `@TenantId`. Se activa aquí y no en el companion porque `Patient` —la única entidad
+  existente con `@TenantId`— recién queda conforme con este change; activarla antes habría roto el
+  `verify` de `update-multi-tenancy`.
 - **Alcance quirúrgico, decidido explícitamente**: solo persistencia. `PatientResponse` **no**
   expone estos campos, y no hay cambio de UI. La garantía queda lista para cuando haga falta
   consultarla (soporte, auditoría), sin comprometerse hoy a un contrato ni a una pantalla.
@@ -45,5 +50,6 @@ igual que `patients` fue la primera prueba real del binding automático de tenan
   (`V<n>__patients_authorship.sql` o el nombre que corresponda al siguiente número libre).
 - **Contrato**: sin cambios — `PatientResponse` no se toca (alcance decidido).
 - **Frontend**: sin cambios.
-- **Dependencia dura**: requiere `update-multi-tenancy` (companion) aplicado y archivado primero —
-  sin `AuditorAware`/`@EnableJpaAuditing`, `@CreatedBy`/`@LastModifiedBy` no hace nada.
+- **Dependencia dura**: requiere `update-multi-tenancy` (companion) **aplicado** primero (no hace
+  falta archivado) — sin `AuditorAware`/`@EnableJpaAuditing`, `@CreatedBy`/`@LastModifiedBy` no hace
+  nada.

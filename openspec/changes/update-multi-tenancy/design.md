@@ -71,7 +71,7 @@ paquete de test (`tenancy`), guardada vía un repositorio Spring Data normal. El
 (b) al actualizar, `updatedBy` cambia y `createdBy` no, (c) sin contexto (`IdentityContext` vacío,
 como en el registro), el guardado **no lanza** y deja las columnas en `NULL`.
 
-### D5 — Enforcement: ArchUnit, mismo patrón que el candado de `TenantSession`
+### D5 — Enforcement: ArchUnit, mismo patrón que el candado de `TenantSession` — **activado por el companion**
 
 Regla nueva de arquitectura: **toda `@Entity` con `@TenantId`** (es decir, toda entidad de negocio
 bajo RLS) **debe** declarar `@EntityListeners(AuditingEntityListener.class)` y los campos
@@ -79,6 +79,12 @@ bajo RLS) **debe** declarar `@EntityListeners(AuditingEntityListener.class)` y l
 por archivo", ArchUnit para el candado de `TenantSession`): una regla del estándar sin candado
 mecánico se olvida tarde o temprano — y aquí el olvido no es ruidoso, dos columnas se quedan en
 `NULL` en silencio. Vive junto a `MultiTenancyArchitectureTest` (mismo test class o uno hermano).
+
+**La regla NO se activa en este change, sino en `update-patients`** (el companion). Motivo de
+secuencia, no de pertenencia: `Patient` es hoy la única entidad con `@TenantId` y no cumplirá hasta
+que el companion le añada los campos — activarla aquí rompería el `verify` de este mismo change. Es
+el patrón "arregla las violaciones existentes antes de encender el lint": el mecanismo nace aquí, el
+candado se enciende en cuanto la única entidad existente queda conforme.
 
 ## Risks / Trade-offs
 

@@ -47,6 +47,20 @@ usuario se elimina (hoy no hay ninguna capacidad que lo haga), un `CASCADE` aqu�
 pacientes** — exactamente lo que el propio spec de `patients` prohíbe (*"dar de baja NO borra, es un
 archivado"*). `SET NULL` preserva el paciente y solo pierde el dato de quién lo creó.
 
+### D4 — Este change activa la regla ArchUnit del companion (no al revés)
+
+`update-multi-tenancy` diseña la regla (su design.md D5: toda `@Entity` con `@TenantId` debe llevar
+`@CreatedBy`/`@LastModifiedBy`) pero **no la activa** — `Patient` es hoy la única entidad con
+`@TenantId` y no la cumpliría todavía, así que activarla allí rompería ese mismo `verify`. Aquí,
+tras el paso 2 (`Patient` ya declara los campos), se activa la regla y se prueba que **falla de
+verdad** ante una violación:
+
+- Método concreto (evita el error de probarla contra código en test-sources, que el importer con
+  `DO_NOT_INCLUDE_TESTS` no ve): una clase fixture **en un paquete de producción de prueba**
+  (mismo patrón que se usó para probar el candado de `TenantSession`) con `@TenantId` pero sin
+  `@CreatedBy`/`@LastModifiedBy`; el test confirma que ArchUnit la marca en violación; se retira
+  después de confirmarlo — **no queda commiteada**, solo demuestra el corte una vez.
+
 ## Risks / Trade-offs
 
 - **[Riesgo] Sin `update-multi-tenancy` aplicado y archivado primero, `@CreatedBy`/`@LastModifiedBy`
