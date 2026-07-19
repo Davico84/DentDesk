@@ -6,7 +6,7 @@ Dimensión **tecnológica** (reutilizable). Guía única del cliente: stack, arq
 
 ## 1. Stack y arquitectura de pantallas/módulos
 
-**Stack** (detalle y versiones en `docs/architecture.md §3`): React 19 · TypeScript · Vite. UI: Tailwind + shadcn/Radix + `@base-ui/react`, `lucide-react`, `framer-motion`, `sonner`, `recharts`. Datos de servidor: `@tanstack/react-query` + `axios`. Estado de cliente: Zustand. Formularios: `react-hook-form` + `zod`. Routing: `react-router-dom` v7 con `RouteGuard` central (roles `ADMIN`/`USER`/`ALL`). Realtime: `@stomp/stompjs` + `sockjs-client`. Gestor: pnpm.
+**Stack** (detalle y versiones en `docs/architecture.md §3`): React 19 · TypeScript · Vite. UI: Tailwind + shadcn/Radix + `@base-ui/react`, `lucide-react`, `framer-motion`, `sonner`, `recharts`. Datos de servidor: `@tanstack/react-query` + `axios`. Estado de cliente: Zustand. Formularios: `react-hook-form` + `zod`. Routing: `react-router-dom` v7 con guards centrales `RequireAuth`/`RequireGuest` (roles `ADMIN`/`USER`; sin `roles` = cualquier autenticado). Realtime: `@stomp/stompjs` + `sockjs-client`. Gestor: pnpm.
 
 **Estructura** (`modules/frontend/src/`):
 
@@ -19,7 +19,7 @@ src/
       #   ui/ (shadcn) · components/ · config/ (httpClient axios) · services/generated/ (orval) · utils/ · enum/
     <cap>/     # un módulo por capacidad (hooks de dominio, components, types, schemas Zod)
   store/       # stores Zustand (estado de cliente)
-  routes/      # definición de rutas + RouteGuard
+  routes/      # definición de rutas + guards (RequireAuth/RequireGuest)
   styles/      # globals.css y variables de tema
 ```
 

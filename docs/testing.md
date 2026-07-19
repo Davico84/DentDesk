@@ -84,10 +84,24 @@ Usa `renderHook` con un `wrapper` que provea un `QueryClient` nuevo por test (co
 
 ## 4. Frontend — E2E (Playwright)
 
-- Specs en `modules/frontend/e2e/`, **excluidos de Vitest**.
+- Specs en `modules/frontend/e2e/`, **excluidos de Vitest** (`vitest.config.ts` los excluye explícitamente).
 - Comandos: `pnpm test:e2e` (Chromium) · `pnpm test:e2e:ui` (interactivo). Primera vez: `pnpm exec playwright install chromium`.
 - `playwright.config.ts` levanta el dev server y lo reutiliza si ya corre. Para entorno desplegado: `E2E_BASE_URL=... pnpm test:e2e`.
-- **Pendiente** para tratar E2E como red de seguridad real: estrategia de datos/entorno (usuario de prueba o seed reproducible) + wiring en CI (navegadores, `forbidOnly`, artefactos). Hasta entonces, los flujos *E2E* de la matriz se cubren **además** con Integración (MSW).
+- **CI**: job `e2e-smoke` en `.github/workflows/frontend.yml`, instala Chromium y corre contra el dev server — **sin backend**.
+
+> [!IMPORTANT]
+> **Hoy los specs son "smoke", no CRUD real.** Cubren solo flujos que degradan con
+> gracia **sin API** (`useSessionBootstrap` intenta un refresh, falla por red y cae a
+> "no autenticado" → login), como `e2e/auth.smoke.spec.ts`: guard de rutas privadas,
+> validación de formulario, navegación entre pantallas. **Pendiente** para un flujo
+> E2E de CRUD real (login → crear paciente → verlo listado): estrategia de datos/entorno
+> (usuario de prueba o seed reproducible) — necesitaría el backend + Postgres corriendo
+> en CI. Hasta entonces, esos flujos de la matriz §3 se cubren **además** con
+> Integración (MSW).
+>
+> **Gotcha ya resuelto**: `getByLabel("Contraseña")` es ambiguo en el login — el botón
+> de mostrar/ocultar también matchea por su `aria-label` ("Mostrar contraseña" contiene
+> "contraseña"). Usa `getByRole("textbox", { name: "Contraseña" })` para desambiguar.
 
 ---
 

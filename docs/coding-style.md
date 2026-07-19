@@ -13,8 +13,9 @@ Este documento define las convenciones de escritura de código, tipado y calidad
   * *Ejemplo*: `modules/frontend/src/modules/core/components/Sidebar.tsx`, `modules/frontend/src/layouts/UserLayout.tsx`.
 * **Hooks Personalizados**: Usan `camelCase` con el prefijo `use`.
   * *Ejemplo*: `modules/frontend/src/modules/users/hooks/useUserProfile.ts`.
-* **Servicios e Integraciones API**: Usan `camelCase` y el archivo representa la entidad en singular.
-  * *Ejemplo*: `modules/frontend/src/modules/users/services/user.ts`.
+* **Integraciones API**: **no se escriben clientes a mano.** Los fetchers tipados salen de orval
+  (`core/services/generated/<cap>.ts`, código generado, no se edita) y los hooks de dominio sobre
+  ellos van en `hooks/` con la convención de arriba (`use<Cap>Api.ts`). Ver `docs/frontend.md §2.3`.
 * **Utilidades e Interfaces Auxiliares**: Usan `camelCase`.
   * *Ejemplo*: `modules/frontend/src/modules/core/utils/cn.ts`.
 
@@ -22,8 +23,11 @@ Este documento define las convenciones de escritura de código, tipado y calidad
 * Las funciones de ayuda, métodos de clases y variables usan `camelCase` (ej. `getUserProfile()`, `handleLogout()`).
 
 ### Constantes y Enums
-* Las constantes globales, configuraciones estáticas u objetos que simulan Enums se prefijan con un signo de dólar `$` y se escriben en `PascalCase` o `UPPERCASE` dependiendo de su naturaleza:
-  * *Ejemplo*: `$UserRole`, `$OrderBy`, `$CookieKey`.
+* Las constantes globales y configuraciones estáticas se escriben en `UPPER_SNAKE_CASE` sin prefijo.
+  * *Ejemplo*: `PATHS`, `PAGE_SIZE`, `ADULT_AGE`.
+* Los "enums simulados" (uniones de literales) no llevan objeto aparte: son un `type` en `PascalCase`
+  (`type Role = "ADMIN" | "USER"`, ver §2). Los enums reales del dominio salen del contrato (orval),
+  nunca se declaran a mano — ver `docs/frontend.md §2.3`.
 
 ### Types e Interfaces
 * Usan `PascalCase`.
@@ -136,9 +140,11 @@ inteligente" y la disciplina de estado). Aplícalas con criterio, no como dogma.
    vecino aunque no sea tu estilo favorito. La uniformidad es lo que más ayuda a
    que el equipo lea el código rápido.
 6. **Cubre los estados async: loading / error / empty / con datos.** Toda vista que
-   consume datos asíncronos contempla los cuatro. Reutiliza el componente de estado
-   de datos del proyecto (`DataState`, bajo `modules/frontend/src/modules/core/components/`)
-   en vez de improvisar cada caso.
+   consume datos asíncronos contempla los cuatro. Para **error / vacío / no-encontrado**
+   reutiliza el shell genérico `DataState` (`modules/frontend/src/modules/core/components/`)
+   componiendo ícono + título + descripción + acción por caso, en vez de improvisar cada uno
+   desde cero (ver `PatientListEmpty`/`PatientListError`/`PatientNotFound`). **Loading** no pasa
+   por `DataState`: usa un skeleton propio del módulo (`PatientListSkeleton`).
 7. **Props mínimas y tipadas; evita el prop-drilling.** Pasa solo lo que el
    componente necesita. Si una prop baja 3+ niveles, prefiere composición
    (children/slots, patrón de composición de UI) o un contexto.
