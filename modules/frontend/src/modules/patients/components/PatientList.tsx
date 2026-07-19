@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
+import { AnimatePresence } from "framer-motion";
 import { Search, UserPlus } from "lucide-react";
 import { buttonVariants } from "@/modules/core/ui/button-variants";
 import { Input } from "@/modules/core/ui/input";
@@ -105,9 +106,13 @@ export function PatientList() {
           <PatientListEmpty hasQuery={searching} />
         ) : (
           <ul className="divide-y">
-            {patients.map((p) => (
-              <PatientRow key={p.id} patient={p} />
-            ))}
+            {/* initial={false}: no animar la carga inicial de la página, solo altas/bajas
+                posteriores (filtro, paginación) — evita un parpadeo de entrada en cada visita. */}
+            <AnimatePresence initial={false}>
+              {patients.map((p) => (
+                <PatientRow key={p.id} patient={p} />
+              ))}
+            </AnimatePresence>
           </ul>
         )}
       </div>
