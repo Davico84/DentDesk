@@ -355,6 +355,40 @@ Tras tocar la API: regenera `contracts/openapi.json` **y** el cliente del fronte
 - **Sin secretos en el código ni en git**: viven en `application-dev-secrets.yml` / variables de entorno (ignorados), con `*.example` versionado.
 - Validar y sanear toda entrada; los DTOs + Bean Validation son la primera barrera.
 
+### 11.1 Actuator — superficie expuesta
+
+`spring-boot-starter-actuator` está en el `pom.xml`. Configuración real (`application.yml`):
+`management.endpoints.web.exposure.include: health,info` — **explícito**, no el default del
+framework (que además solo trae `health`; aquí se sumó `info` a propósito). No amplíes esa lista sin
+decidir a la vez si el endpoint nuevo queda público o autenticado (siguiente punto).
+
+- **Solo `/actuator/health/**` y `/actuator/info` son públicos** (`PublicPaths` — fuente única
+  compartida con el customizer de OpenAPI). Cualquier otro endpoint de actuator cae bajo
+  `anyRequest().authenticated()`: no hay excepción salvo esas dos rutas.
+- ⚠️ **`management.endpoint.health.show-details: always`** combinado con que `/actuator/health/**`
+  es **público** significa que el detalle de salud (estado de cada *health indicator*: BD, disco...)
+  lo ve cualquiera sin autenticar. Es una decisión consciente, no un descuido — pero si algún día un
+  *health indicator* propio expone algo sensible (nombre de host interno, versión de dependencia),
+  hay que revisar si sigue mereciendo `always` en una ruta pública o si baja a `when-authorized`.
+- Antes de exponer un endpoint nuevo de actuator (`/env`, `/beans`, `/httptrace`...): añádelo a
+  `exposure.include` **y** decide explícitamente si entra en `PublicPaths` — nunca por omisión. Si
+  se expone `/env`, revisa que no filtre `app.security.jwt.secret` ni credenciales de BD.
+
+### 11.2 CORS
+
+Configurado en `SecurityConfig.corsConfigurationSource`; orígenes desde
+`app.security.cors.allowed-origins` (externalizado, §12 — `http://localhost:5173` en local, por env
+en despliegue).
+
+- `allowCredentials(true)` porque el refresh token viaja en cookie `HttpOnly` (`RefreshCookieFactory`).
+  **Regla dura**: con credenciales habilitadas, `allowedOrigins` **nunca** puede ser `*` — lista
+  explícita de orígenes conocidos, siempre.
+- ⚠️ **Gotcha de la spec CORS**: `allowedHeaders(List.of("*"))` **no actúa como comodín** en
+  peticiones con credenciales — el navegador lo trata como el header literal `"*"`, no como "cualquier
+  header". Si el frontend algún día añade un header custom (`X-Something`), el preflight fallará en
+  silencio pese a que el código "dice" `*`. El día que haga falta, lista los headers explícitos en
+  vez de depurar a ciegas.
+
 ---
 
 ## 12. Configuración
