@@ -6,7 +6,13 @@ Dimensión **tecnológica** (reutilizable). Guía única del cliente: stack, arq
 
 ## 1. Stack y arquitectura de pantallas/módulos
 
-**Stack** (detalle y versiones en `docs/architecture.md §3`): React 19 · TypeScript · Vite. UI: Tailwind + shadcn/Radix + `@base-ui/react`, `lucide-react`, `framer-motion`, `sonner`, `recharts`. Datos de servidor: `@tanstack/react-query` + `axios`. Estado de cliente: Zustand. Formularios: `react-hook-form` + `zod`. Routing: `react-router-dom` v7 con guards centrales `RequireAuth`/`RequireGuest` (roles `ADMIN`/`USER`; sin `roles` = cualquier autenticado). Realtime: `@stomp/stompjs` + `sockjs-client`. Gestor: pnpm.
+**Stack** (detalle y versiones en `docs/architecture.md §3`): React 19 · TypeScript · Vite. UI: Tailwind + shadcn/Radix, `lucide-react`, `framer-motion`, `sonner`. Datos de servidor: `@tanstack/react-query` + `axios`. Estado de cliente: Zustand. Formularios: `react-hook-form` + `zod`. Routing: `react-router-dom` v7 con guards centrales `RequireAuth`/`RequireGuest` (roles `ADMIN`/`USER`; sin `roles` = cualquier autenticado). Gestor: pnpm.
+
+> **Estado actual (objetivo, aún no adoptado):** `@base-ui/react` (§4.1), `recharts` (gráficas) y el
+> par realtime `@stomp/stompjs`/`sockjs-client` (`docs/vision.md §7`) figuran en el stack **cerrado**
+> (`docs/architecture.md §3`) pero **no están instalados todavía**: se agregan la primera vez que una
+> capacidad los necesite de verdad, no antes — mismo criterio que ya se aplicó con `framer-motion`
+> (§4.2, instalado cuando `patients` lo necesitó de verdad para animar el listado).
 
 **Estructura** (`modules/frontend/src/`):
 
@@ -231,6 +237,10 @@ export const useSortingStore = createSelectors(useSortingStoreBase);
 
 **Por incorporar** (aún NO existen; añádelos con `pnpm dlx shadcn@latest add <componente>` desde el registro oficial, la **primera vez que una pantalla los necesite**): `sheet`, `popover`, `dropdown-menu`, `select`, `tooltip`, `table`, `badge`.
 
+> **`@base-ui/react` (headless, del stack §1) tampoco está instalado.** El único primitivo headless
+> hoy es `@radix-ui/react-dialog` (vía shadcn). Instala `@base-ui/react` recién cuando un componente
+> lo necesite y shadcn/Radix no lo cubra — no antes.
+
 > [!WARNING]
 > **`components.json` ya existe (escrito a mano) — no dejes que el CLI haga `init`.** Un `init` reescribiría `src/styles/globals.css` y `tailwind.config.cjs` con sus defaults, y ahí vive la **tematización por organización** (§4.5.1): la romperías.
 > Los `paths` del alias están **duplicados en el `tsconfig.json` raíz solo para el tooling**: es un tsconfig *solution* (`files: []`) y sin ellos el CLI no resuelve `@/` y escribe los componentes en una carpeta **literal `@/`**.
@@ -239,13 +249,28 @@ export const useSortingStore = createSelectors(useSortingStoreBase);
 > Regla: un componente **genérico y reutilizable** (un `Badge` base, una `Table`) vive en `core/ui`, no en `modules/<cap>/`. Lo específico de un dominio (p. ej. `PatientStatusBadge`, que conoce el enum de estado del paciente) sí vive en `modules/<cap>/components/`, y puede componerse sobre el primitivo de `core/ui`.
 
 ### 4.2 Animación (Framer Motion)
-> **Estado actual:** `framer-motion` figura en el stack pero **NO está instalado** todavía. Hasta entonces, usa **transiciones CSS de Tailwind** (`transition-colors`, `animate-pulse` para skeletons, `hover:`/`focus:`). Instálalo (`pnpm --filter odontorisas-frontend add framer-motion`) la **primera vez** que una pantalla necesite entradas/salidas del árbol o transiciones de layout, no antes.
+> **Instalado.** Para transiciones simples que no involucran entrar/salir del árbol (hover, color,
+> spinners) sigue prefiriéndose **CSS de Tailwind** (`transition-colors`, `animate-pulse`,
+> `hover:`/`focus:`) — más barato, sin JS. `framer-motion` entra cuando hace falta animar
+> entrada/salida del árbol o layout, no antes (mismo criterio de "instálalo cuando haga falta" con
+> el que se adoptó: ver `PatientRow`/`PatientList`, primer uso real).
 
-Cuando esté instalado:
-- **`<AnimatePresence>`** para componentes que entran/salen del árbol (diálogos, menús colapsables).
-- **`layout`/`layoutId`** para transiciones fluidas de posición/tamaño (ej. píldora de pestaña activa).
+> [!IMPORTANT]
+> **`<MotionConfig reducedMotion="user">` envuelve toda la app** (`layouts/RootLayout.tsx`): respeta
+> `prefers-reduced-motion` del SO para **cualquier** `motion.*`/`AnimatePresence` sin que cada
+> componente tenga que pensar en ello. No dupliques ese chequeo por componente.
+
+- **`<AnimatePresence>`** para componentes que entran/salen del árbol (diálogos, menús colapsables,
+  filas de una lista que se filtra — ver `PatientList`: `initial={false}` para no animar la carga
+  inicial, solo altas/bajas posteriores).
+- **`layout`/`layoutId`** para transiciones fluidas de posición/tamaño (ej. píldora de pestaña activa,
+  o el reflow de una lista cuando una fila entra/sale — `layout="position"` en `PatientRow`).
+- **Solo `transform`/`opacity`** (nunca `width`/`height`/`top`/`left`: repintan caro). En framer-motion,
+  anima `x`/`y`/`scale`/`opacity`, no propiedades de layout CSS crudas.
 - **Micro-interacciones rápidas** (0.2s–0.3s); prefiere `spring` (con `stiffness`/`damping`) sobre curvas lineales.
 - **Respeta el estado colapsado**: oculta ancho/opacidad para evitar desbordes de texto.
+- **Con moderación**: 1-2 elementos animados por vista como regla general; una lista que anima sus
+  propias entradas/salidas al cambiar es un único movimiento coherente, no "animar todo".
 
 ### 4.3 Responsividad (Mobile-First)
 - Breakpoints: **móvil** < `480px`, **tablet** `481–1024px`, **escritorio** > `1024px`.

@@ -33,7 +33,7 @@ OdontoRisas/
 | Lenguaje / build | Java 25 · Maven |
 | Framework | Spring Boot 4.0.6 |
 | API REST | Spring Web MVC + springdoc-openapi (Swagger, por perfil) |
-| Realtime | Spring WebSocket (STOMP) — encaja con `@stomp/stompjs` + `sockjs` del front |
+| Realtime | Spring WebSocket (STOMP) — **planeado, aún no implementado** (sin `spring-boot-starter-websocket` en el `pom.xml`); encajará con `@stomp/stompjs` + `sockjs` del front cuando se construya (`docs/vision.md §7`) |
 | Persistencia | Spring Data JPA (Hibernate) + PostgreSQL |
 | Migraciones | Flyway (`db/migration`) · `ddl-auto=none` (schema lo maneja Flyway) |
 | Seguridad | Spring Security + JWT (`com.auth0:java-jwt`) |
@@ -71,14 +71,17 @@ Base: template FixRiver `modules/frontend/proyecto-base`.
 | Área | Tecnología |
 |---|---|
 | Core | React 19 · TypeScript · Vite |
-| UI | Tailwind CSS 3 + shadcn/Radix + `@base-ui/react` · `lucide-react` · `framer-motion` · `sonner` · `recharts` |
+| UI | Tailwind CSS 3 + shadcn/Radix · `lucide-react` · `sonner` · `framer-motion` · `@base-ui/react`¹ · `recharts`¹ |
 | Datos servidor | `@tanstack/react-query` + `axios` |
 | Estado cliente | Zustand |
 | Formularios | `react-hook-form` + `zod` (`@hookform/resolvers`) |
 | Routing | `react-router-dom` v7 + guards centrales `RequireAuth`/`RequireGuest` (roles ADMIN/USER; sin `roles` = cualquier autenticado) |
-| Realtime | `@stomp/stompjs` + `sockjs-client` |
+| Realtime | `@stomp/stompjs` + `sockjs-client`¹ |
 | Testing | Vitest + React Testing Library + MSW · e2e con Playwright |
 | Calidad | ESLint + typescript-eslint · pre-commit con `lint-staged` |
+
+¹ **Stack cerrado, no instalado todavía.** Se agrega la primera vez que una capacidad lo necesite de
+verdad, no antes (detalle por librería en `docs/frontend.md §1`, `§4.1` y `§4.2`).
 | Gestor | pnpm |
 
 ### Arquitectura orientada a pantallas (Screens)
@@ -117,8 +120,8 @@ Capa de plataforma **reutilizable** que aísla los datos de cada organización (
 ## 4. Contrato back ↔ front
 
 - **Auth**: JWT emitido por Spring Security; el front lo guarda y lo envía vía `axios` (interceptor). Refresh de token ante 401.
-- **Roles**: ADMIN / USER (alineados con `$UserRole` del front y la seguridad por rol del back).
-- **Realtime**: STOMP sobre WebSocket (back Spring WebSocket ↔ front `@stomp/stompjs` + `sockjs-client`).
+- **Roles**: ADMIN / USER (alineados con el tipo `Role` del front — `store/useSessionStore.ts` — y la seguridad por rol del back).
+- **Realtime**: STOMP sobre WebSocket — **planeado, aún no implementado** en ningún lado del contrato (`docs/vision.md §7`).
 - **API docs**: springdoc-openapi (Swagger) por perfil como contrato de referencia.
 
 ---
