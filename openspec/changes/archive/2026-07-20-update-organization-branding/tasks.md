@@ -33,6 +33,6 @@
 
 ## 6. Cierre
 
-- [ ] 6.1 Commit(s) por scope (backend / contrato / frontend) según `docs/commits.md`.
-- [ ] 6.2 `openspec validate update-organization-branding --strict` en verde antes de abrir PR.
-- [ ] 6.3 Al archivar: sincronizar `openspec/specs/organization-branding/spec.md` y marcar la capacidad en `docs/vision.md`.
+- [x] 6.1 Commit(s) por scope (backend / contrato / frontend) según `docs/commits.md`.
+- [x] 6.2 `openspec validate update-organization-branding --strict` en verde antes de abrir PR.
+- [x] 6.3 Al archivar: sincronizar `openspec/specs/organization-branding/spec.md` y marcar la capacidad en `docs/vision.md`.
