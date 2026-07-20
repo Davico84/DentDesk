@@ -1,5 +1,6 @@
 package com.odontorisas.service.organization;
 
+import com.odontorisas.common.BrandPreset;
 import com.odontorisas.persistence.entity.OrganizationBranding;
 
 /**
@@ -14,19 +15,19 @@ import com.odontorisas.persistence.entity.OrganizationBranding;
  * <p>Campos {@code null} = sin personalización (el frontend aplica los valores por defecto del
  * producto). "Sin personalización" es <b>ausencia de fila</b>, no una fila con nulos.
  */
-public record Branding(String brandPrimary, String brandSecondary, String logoUrl) {
+public record Branding(BrandPreset brandPreset, String logoUrl) {
 
     static Branding from(OrganizationBranding entity) {
-        return new Branding(entity.getBrandPrimary(), entity.getBrandSecondary(), entity.getLogoUrl());
+        return new Branding(entity.getBrandPreset(), entity.getLogoUrl());
     }
 
     /** Sin personalización: equivalente a los valores por defecto del producto. */
     public static Branding empty() {
-        return new Branding(null, null, null);
+        return new Branding(null, null);
     }
 
     /** {@code true} si no hay nada que personalizar (la fila debe eliminarse). */
     boolean isEmpty() {
-        return brandPrimary == null && brandSecondary == null && logoUrl == null;
+        return brandPreset == null && logoUrl == null;
     }
 }

@@ -20,11 +20,6 @@ public abstract class AbstractRlsIntegrationTest extends AbstractIntegrationTest
 
     private static volatile boolean prepared = false;
 
-    /** Conexión como superusuario/owner (para sembrar datos y DDL de fixtures; salta RLS). */
-    protected Connection ownerConnection() throws SQLException {
-        return DriverManager.getConnection(POSTGRES.getJdbcUrl(), POSTGRES.getUsername(), POSTGRES.getPassword());
-    }
-
     /** Conexión como rol de aplicación (no-owner, no-superuser) — sujeto a RLS. */
     protected Connection appConnection() throws SQLException {
         ensureAppRole();

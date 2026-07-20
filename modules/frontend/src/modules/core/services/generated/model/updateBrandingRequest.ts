@@ -5,12 +5,11 @@
  * API de la clínica dental OdontoRisas
  * OpenAPI spec version: v1
  */
+import type { UpdateBrandingRequestBrandPreset } from './updateBrandingRequestBrandPreset';
 
 export interface UpdateBrandingRequest {
-  /** @pattern ^#[0-9a-fA-F]{6}$ */
-  brandPrimary?: string;
-  /** @pattern ^#[0-9a-fA-F]{6}$ */
-  brandSecondary?: string;
+  /** Preset de marca del catálogo curado, o null para restaurar el default */
+  brandPreset?: UpdateBrandingRequestBrandPreset;
   /** @pattern ^https://[^\s]+$ */
   logoUrl?: string;
 }

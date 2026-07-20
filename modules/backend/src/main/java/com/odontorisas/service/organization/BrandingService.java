@@ -47,8 +47,7 @@ public class BrandingService {
             .orElseGet(() -> OrganizationBranding.builder()
                 .organization(organizationRepository.getReferenceById(organizationId))
                 .build());
-        branding.setBrandPrimary(requested.brandPrimary());
-        branding.setBrandSecondary(requested.brandSecondary());
+        branding.setBrandPreset(requested.brandPreset());
         branding.setLogoUrl(requested.logoUrl());
         return Branding.from(brandingRepository.save(branding));
     }

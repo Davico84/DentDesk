@@ -57,14 +57,14 @@ class BrandingControllerIT extends AbstractIntegrationTest {
         mockMvc.perform(put("/organizations/me/branding")
                 .header("Authorization", bearer(token))
                 .contentType(MediaType.APPLICATION_JSON)
-                .content("{\"brandPrimary\":\"#123abc\",\"logoUrl\":\"https://cdn.test/logo.png\"}"))
+                .content("{\"brandPreset\":\"TEAL\",\"logoUrl\":\"https://cdn.test/logo.png\"}"))
             .andExpect(status().isOk())
-            .andExpect(jsonPath("$.brandPrimary").value("#123abc"))
+            .andExpect(jsonPath("$.brandPreset").value("TEAL"))
             .andExpect(jsonPath("$.logoUrl").value("https://cdn.test/logo.png"));
 
         mockMvc.perform(get("/organizations/me/branding").header("Authorization", bearer(token)))
             .andExpect(status().isOk())
-            .andExpect(jsonPath("$.brandPrimary").value("#123abc"));
+            .andExpect(jsonPath("$.brandPreset").value("TEAL"));
     }
 
     @Test
@@ -72,17 +72,17 @@ class BrandingControllerIT extends AbstractIntegrationTest {
         String token = registerAdmin("brand-clear@clinica.test");
 
         mockMvc.perform(put("/organizations/me/branding").header("Authorization", bearer(token))
-                .contentType(MediaType.APPLICATION_JSON).content("{\"brandPrimary\":\"#123abc\"}"))
+                .contentType(MediaType.APPLICATION_JSON).content("{\"brandPreset\":\"TEAL\"}"))
             .andExpect(status().isOk());
 
         mockMvc.perform(put("/organizations/me/branding").header("Authorization", bearer(token))
                 .contentType(MediaType.APPLICATION_JSON).content("{}"))
             .andExpect(status().isOk())
-            .andExpect(jsonPath("$.brandPrimary").doesNotExist());
+            .andExpect(jsonPath("$.brandPreset").doesNotExist());
 
         mockMvc.perform(get("/organizations/me/branding").header("Authorization", bearer(token)))
             .andExpect(status().isOk())
-            .andExpect(jsonPath("$.brandPrimary").doesNotExist());
+            .andExpect(jsonPath("$.brandPreset").doesNotExist());
     }
 
     /**
@@ -96,7 +96,7 @@ class BrandingControllerIT extends AbstractIntegrationTest {
         String userToken = tokenService.issueAccessToken(999L, "user@clinica.test", 999L, Role.USER);
 
         mockMvc.perform(put("/organizations/me/branding").header("Authorization", bearer(userToken))
-                .contentType(MediaType.APPLICATION_JSON).content("{\"brandPrimary\":\"#123abc\"}"))
+                .contentType(MediaType.APPLICATION_JSON).content("{\"brandPreset\":\"TEAL\"}"))
             .andExpect(status().isForbidden())
             .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
             .andExpect(jsonPath("$.type").value("/errors/access-denied"))
@@ -105,11 +105,11 @@ class BrandingControllerIT extends AbstractIntegrationTest {
     }
 
     @Test
-    void invalid_color_is_rejected() throws Exception {
-        String token = registerAdmin("brand-badcolor@clinica.test");
+    void invalid_preset_key_is_rejected() throws Exception {
+        String token = registerAdmin("brand-badpreset@clinica.test");
 
         mockMvc.perform(put("/organizations/me/branding").header("Authorization", bearer(token))
-                .contentType(MediaType.APPLICATION_JSON).content("{\"brandPrimary\":\"rojo\"}"))
+                .contentType(MediaType.APPLICATION_JSON).content("{\"brandPreset\":\"ROJO\"}"))
             .andExpect(status().isBadRequest());
     }
 
