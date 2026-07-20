@@ -9,6 +9,7 @@
 export * from './apiProblem';
 export * from './authResponse';
 export * from './brandingResponse';
+export * from './brandingResponseBrandPreset';
 export * from './fieldError';
 export * from './loginRequest';
 export * from './pageResponsePatientSummaryResponse';
@@ -26,6 +27,7 @@ export * from './patientSummaryResponseStatus';
 export * from './registerRequest';
 export * from './searchParams';
 export * from './updateBrandingRequest';
+export * from './updateBrandingRequestBrandPreset';
 export * from './userResponse';
 export * from './userResponseRole';
 export * from './validationProblem';

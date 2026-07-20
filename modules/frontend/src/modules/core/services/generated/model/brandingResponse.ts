@@ -5,12 +5,11 @@
  * API de la clínica dental OdontoRisas
  * OpenAPI spec version: v1
  */
+import type { BrandingResponseBrandPreset } from './brandingResponseBrandPreset';
 
 export interface BrandingResponse {
-  /** Color primario de marca (hex), o null = default */
-  brandPrimary?: string;
-  /** Color secundario (hex), o null = derivado del primario */
-  brandSecondary?: string;
+  /** Preset de marca elegido del catálogo curado, o null = default del producto */
+  brandPreset?: BrandingResponseBrandPreset;
   /** URL https del logo, o null = logo del producto */
   logoUrl?: string;
 }
