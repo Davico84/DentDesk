@@ -441,7 +441,7 @@ en despliegue).
 
 No se duplica aquí: la estrategia (niveles, slices, **Testcontainers**, puente Scenario→test) está en **`docs/testing.md`**. Recordatorio operativo:
 - Controller → `@WebMvcTest` (service mockeado). Seguridad → `+ spring-security-test`.
-- Persistencia/Specifications/Flyway → `@DataJpaTest`/`@SpringBootTest` + **Testcontainers (PostgreSQL)**.
+- Persistencia/Specifications/Flyway → `@SpringBootTest` acotado a Repository (no `@DataJpaTest`, ver `docs/testing.md §5.1`) + **Testcontainers (PostgreSQL)**.
 - Nombre de test referenciando el scenario del spec; patrón AAA.
 - `./mvnw -B verify` en verde (requiere Docker).
 

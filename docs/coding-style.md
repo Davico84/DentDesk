@@ -199,7 +199,7 @@ sobre los DTOs `*Request`. Son **dos capas del mismo contrato**, no validaciones
 | campo requerido (sin `.optional()`) | `@NotNull` | presencia |
 | `.min(1)` / `.trim().min(1)` en string | `@NotBlank` | requerido no vacío |
 | `.min(n)` / `.max(n)` (longitud de string) | `@Size(min = n, max = n)` | longitud |
-| `.email()` | `@Email` | formato email |
+| `z.email()` (Zod v4; `.email()` como método está deprecado) | `@Email` | formato email |
 | `.regex(re)` | `@Pattern(regexp = re)` | **misma** expresión regular |
 | `.positive()` / `.int().positive()` | `@Positive` | número > 0 |
 | `.min(n)` / `.max(n)` (número) | `@Min(n)` / `@Max(n)` (o `@DecimalMin/@DecimalMax`) | rango numérico |
@@ -242,7 +242,7 @@ mutation.mutate(values, {
 });
 ```
 
-Los tipos (`ValidationProblem`, `FieldError`) **se derivan del contrato**, no se escriben a mano (ver `docs/frontend.md §2.1`).
+Los tipos (`ValidationProblem`, `FieldError`) **se derivan del contrato**, no se escriben a mano (ver `docs/frontend.md §2.6`).
 
 ---
 

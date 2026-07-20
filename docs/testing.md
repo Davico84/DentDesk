@@ -43,7 +43,7 @@ Unit → Componente/Slice → Integración → E2E
 | Frontend | Unit / Componente / Integración | Vitest + React Testing Library + MSW |
 | Frontend | E2E | Playwright |
 | Backend | Unit | JUnit 5 + Mockito |
-| Backend | Slices | `@WebMvcTest`, `@DataJpaTest`, `@WebMvcTest`+security, `@SpringBootTest` (websocket) |
+| Backend | Slices | `@WebMvcTest` (controller, + `@EnableMethodSecurity` para seguridad) · `@SpringBootTest` acotado a Repository (no `@DataJpaTest` — ver §5.1) · `@SpringBootTest` (websocket, planeado — ver `docs/architecture.md §2`) |
 | Backend | Integración / persistencia | **Testcontainers (PostgreSQL)** + Flyway |
 
 Decisión del proyecto: **Testcontainers desde el inicio** (PostgreSQL real efímero), no H2 — garantiza paridad con producción. Requiere **Docker** local y en CI.
@@ -67,7 +67,12 @@ Decisión del proyecto: **Testcontainers desde el inicio** (PostgreSQL real efí
 | Workflows CRUD completos | E2E |
 
 ### Utilidades del proyecto (frontend)
-- **`renderWithProviders`** (`src/test/utils.tsx`): envuelve con `MemoryRouter` + `QueryClientProvider` (con `retry: false`) + sesión + i18n. Úsalo en vez del `render` básico cuando el componente dependa de router, caché o sesión.
+- **`renderWithProviders`** (`src/test/utils.tsx`): envuelve con `MemoryRouter` + `QueryClientProvider` (con `retry: false`). Úsalo en vez del `render` básico cuando el componente dependa de router o caché.
+  > **Sesión: no es un provider.** Al ser Zustand no hay árbol que envolver — siembra el estado
+  > directo con `useSessionStore.setState({ accessToken, user, status: "authenticated" })` antes de
+  > renderizar (ver `LoginForm.test.tsx`, `guards.test.tsx`). **i18n**: pendiente, no adoptado
+  > todavía (`docs/coding-style.md §4`, hook `useT` planeado) — se añade a `renderWithProviders`
+  > cuando exista.
 - **MSW** (`src/test/setup.ts`, `src/test/mocks/{handlers,server}.ts`): intercepta la red a nivel de servicio. Config `onUnhandledRequest: "error"` → toda petición no mockeada falla la prueba. Sobrescribe por test con `server.use(...)`.
 - **Zustand**: limpia estado antes de cada test (`localStorage.clear()` + `useXStore.setState(estadoInicial)`), para evitar contaminación entre tests.
 
@@ -179,7 +184,7 @@ Dos lecciones que costaron caro y que ahora son estándar:
 
 ---
 
-## 5.1 El contrato también se testea (y CI vigila las dos direcciones)
+## 6. El contrato también se testea (y CI vigila las dos direcciones)
 
 El contrato OpenAPI es la fuente única de verdad, así que **mentir en él es un bug**, y como tal se cubre con tests. Lo que aprendimos construyéndolo: **cada vez que se escribe el test que compara lo documentado contra lo real, aparece una mentira.** No basta con revisar el código: hay que **mirar el documento que el backend publica de verdad**.
 
@@ -201,7 +206,7 @@ Durante mucho tiempo **solo existía la segunda**. Por eso el contrato decía `2
 
 ---
 
-## 6. Cobertura
+## 7. Cobertura
 
 - La cobertura **no** es la meta; la confianza y la mantenibilidad sí. No infles números con tests triviales.
 - Enfoca el esfuerzo en: lógica de negocio crítica (cálculos, permisos, validaciones), interacciones críticas y edge cases propensos a romperse.
@@ -211,7 +216,7 @@ Durante mucho tiempo **solo existía la segunda**. Por eso el contrato decía `2
 
 ---
 
-## 7. Requisitos en Pull Requests
+## 8. Requisitos en Pull Requests
 
 Antes de abrir/fusionar un PR, garantizar:
 1. `openspec validate <change> --strict` en verde (specs/change consistentes).
@@ -224,11 +229,11 @@ Antes de abrir/fusionar un PR, garantizar:
 
 ---
 
-## 8. Checklist para una nueva capacidad (al aplicar un change)
+## 9. Checklist para una nueva capacidad (al aplicar un change)
 
 - [ ] ¿Cada `#### Scenario:` del `spec.md` tiene al menos una prueba que lo referencia?
 - [ ] ¿Se eligió el nivel mínimo suficiente por cada scenario (matrices §3/§5)?
 - [ ] Front: unit para funciones puras/stores; integración con MSW para hooks de React Query; componentes por roles accesibles; estados loading/error/empty.
-- [ ] Back: slice adecuado (`@WebMvcTest`/`@DataJpaTest`/`@SpringBootTest`); persistencia/Flyway sobre Testcontainers; seguridad por rol con `spring-security-test`.
+- [ ] Back: slice adecuado (`@WebMvcTest` para controller; `@SpringBootTest` acotado a Repository, no `@DataJpaTest` — ver §5.1); persistencia/Flyway sobre Testcontainers; seguridad por rol con `spring-security-test`.
 - [ ] ¿Se cubrieron errores y edge cases descritos en los scenarios (no solo el happy path)?
 - [ ] ¿Suite local en verde (front y back) antes del commit/PR?

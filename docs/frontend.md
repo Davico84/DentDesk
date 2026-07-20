@@ -159,7 +159,7 @@ queryFn: async () => {
 
 ---
 
-### 2.1 Errores de la API — tipados desde el contrato
+### 2.6 Errores de la API — tipados desde el contrato
 
 **Nunca escribas a mano la forma de un error.** El backend responde RFC 9457 y el contrato lo documenta, así que orval genera los tipos (`ApiProblem`, `ValidationProblem`, `FieldError`). Si el backend cambia la forma del error, lo detecta el **typecheck** en vez de romperse en producción.
 
