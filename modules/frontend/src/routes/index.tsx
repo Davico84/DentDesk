@@ -1,12 +1,12 @@
 import { createBrowserRouter } from "react-router-dom";
 import { RootLayout } from "@/layouts/RootLayout";
-import { HomeScreen } from "@/screens/HomeScreen";
+import { HomeScreen } from "@/screens/home/HomeScreen";
 import { BrandingSettingsScreen } from "@/screens/settings/BrandingSettingsScreen";
 import { PatientListScreen } from "@/screens/patients/PatientListScreen";
 import { PatientFormScreen } from "@/screens/patients/PatientFormScreen";
 import { PatientDetailScreen } from "@/screens/patients/PatientDetailScreen";
-import { LoginView } from "@/screens/auth/LoginView";
-import { RegisterView } from "@/screens/auth/RegisterView";
+import { LoginScreen } from "@/screens/auth/LoginScreen";
+import { RegisterScreen } from "@/screens/auth/RegisterScreen";
 import { RequireAuth } from "@/modules/core/auth/RequireAuth";
 import { RequireGuest } from "@/modules/core/auth/RequireGuest";
 import { RouteError } from "@/modules/core/components/RouteError";
@@ -24,8 +24,8 @@ export const router = createBrowserRouter([
       {
         element: <RequireGuest />,
         children: [
-          { path: PATHS.LOGIN, element: <LoginView /> },
-          { path: PATHS.REGISTER, element: <RegisterView /> },
+          { path: PATHS.LOGIN, element: <LoginScreen /> },
+          { path: PATHS.REGISTER, element: <RegisterScreen /> },
         ],
       },
       {

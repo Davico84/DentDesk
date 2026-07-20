@@ -1,4 +1,5 @@
 import { Link } from "react-router-dom";
+import { motion } from "framer-motion";
 import { ChevronRight } from "lucide-react";
 import type { PatientSummaryResponse } from "@/modules/core/services/generated/model";
 import { patientDetailPath } from "@/routes/paths";
@@ -11,7 +12,13 @@ import { ageLabel } from "./patientDisplay";
 export function PatientRow({ patient }: { patient: PatientSummaryResponse }) {
   const inactive = patient.status === "INACTIVE";
   return (
-    <li>
+    <motion.li
+      layout="position"
+      initial={{ opacity: 0, y: -8 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0 }}
+      transition={{ type: "spring", stiffness: 500, damping: 32, mass: 0.5 }}
+    >
       <Link
         to={patientDetailPath(patient.id!)}
         className="group flex items-center gap-4 px-4 py-3 transition-colors hover:bg-muted/40"
@@ -31,6 +38,6 @@ export function PatientRow({ patient }: { patient: PatientSummaryResponse }) {
         <PatientStatusBadge status={patient.status} />
         <ChevronRight className="size-4 shrink-0 text-muted-foreground/50 transition-transform group-hover:translate-x-0.5" />
       </Link>
-    </li>
+    </motion.li>
   );
 }

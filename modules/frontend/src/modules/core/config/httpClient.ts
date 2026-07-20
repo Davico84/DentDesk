@@ -3,7 +3,8 @@ import axios, {
   type AxiosRequestConfig,
   type InternalAxiosRequestConfig,
 } from "axios";
-import { useSessionStore, type SessionUser } from "@/store/useSessionStore";
+import type { AuthResponse } from "@/modules/core/services/generated/model";
+import { useSessionStore } from "@/store/useSessionStore";
 
 const BASE_URL = import.meta.env.VITE_API_URL ?? "http://localhost:8080";
 
@@ -24,7 +25,6 @@ axiosInstance.interceptors.request.use((config: InternalAxiosRequestConfig) => {
 
 // --- Refresco transparente ante 401 (single-flight) ---
 
-type AuthPayload = { accessToken: string; user: SessionUser };
 type RetriableConfig = InternalAxiosRequestConfig & { _retry?: boolean };
 
 let refreshPromise: Promise<string> | null = null;
@@ -34,7 +34,7 @@ function isAuthPath(url?: string): boolean {
 }
 
 async function doRefresh(): Promise<string> {
-  const { data } = await axiosInstance.post<AuthPayload>("/auth/refresh");
+  const { data } = await axiosInstance.post<AuthResponse>("/auth/refresh");
   useSessionStore.getState().setSession(data.accessToken, data.user);
   return data.accessToken;
 }
