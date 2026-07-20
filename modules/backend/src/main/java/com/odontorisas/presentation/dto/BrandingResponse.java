@@ -1,5 +1,6 @@
 package com.odontorisas.presentation.dto;
 
+import com.odontorisas.common.BrandPreset;
 import com.odontorisas.service.organization.Branding;
 import io.swagger.v3.oas.annotations.media.Schema;
 
@@ -12,16 +13,13 @@ import io.swagger.v3.oas.annotations.media.Schema;
  * renombrado de columna se convierte en un cambio de contrato.
  */
 public record BrandingResponse(
-    @Schema(example = "#7f1aa6", description = "Color primario de marca (hex), o null = default")
-    String brandPrimary,
-
-    @Schema(example = "#16C3B2", description = "Color secundario (hex), o null = derivado del primario")
-    String brandSecondary,
+    @Schema(description = "Preset de marca elegido del catálogo curado, o null = default del producto")
+    BrandPreset brandPreset,
 
     @Schema(example = "https://cdn.example.com/clinica/logo.png", description = "URL https del logo, o null = logo del producto")
     String logoUrl) {
 
     public static BrandingResponse from(Branding branding) {
-        return new BrandingResponse(branding.brandPrimary(), branding.brandSecondary(), branding.logoUrl());
+        return new BrandingResponse(branding.brandPreset(), branding.logoUrl());
     }
 }

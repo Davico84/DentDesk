@@ -55,7 +55,7 @@ public class BrandingController {
         @ApiResponse(responseCode = "200", description = "Marca actualizada (o eliminada, si se envía vacía).",
             content = @Content(mediaType = "application/json",
                 schema = @Schema(implementation = BrandingResponse.class))),
-        @ApiResponse(responseCode = "400", description = "Color con formato inválido, o URL de logo que no es https.",
+        @ApiResponse(responseCode = "400", description = "Preset de marca inexistente en el catálogo, o URL de logo que no es https.",
             content = @Content(mediaType = "application/problem+json",
                 schema = @Schema(implementation = ValidationProblem.class)))
     })
@@ -64,7 +64,7 @@ public class BrandingController {
     public BrandingResponse updateBranding(@Valid @RequestBody UpdateBrandingRequest request) {
         // La traducción entre el DTO de la API y el tipo del servicio vive AQUÍ: el controller es
         // quien conoce el contrato HTTP. El servicio no debe saber que existe una API REST.
-        Branding requested = new Branding(request.brandPrimary(), request.brandSecondary(), request.logoUrl());
+        Branding requested = new Branding(request.brandPreset(), request.logoUrl());
         return BrandingResponse.from(brandingService.update(requested));
     }
 }

@@ -56,7 +56,7 @@ class BrandingControllerTest {
     @MockitoBean
     private BrandingService brandingService;
 
-    private static final String VALID_BODY = "{\"brandPrimary\":\"#7f1aa6\"}";
+    private static final String VALID_BODY = "{\"brandPreset\":\"TEAL\"}";
 
     @Test
     @WithMockUser(roles = "ADMIN")
@@ -87,13 +87,18 @@ class BrandingControllerTest {
             .andExpect(status().isOk());
     }
 
+    /**
+     * Una clave de preset fuera del catálogo no deserializa (Jackson) — es el "otro 400 posible"
+     * (JSON malformado) que {@code GlobalExceptionHandler} maneja sin {@code errors[]}, no un
+     * fallo de {@code @Valid}. Ver {@code docs/frontend.md §2.6}.
+     */
     @Test
     @WithMockUser(roles = "ADMIN")
-    void an_invalid_color_returns_400_validation_problem() throws Exception {
+    void an_unknown_preset_key_returns_400_without_field_errors() throws Exception {
         mockMvc.perform(put("/organizations/me/branding")
                 .contentType(MediaType.APPLICATION_JSON)
-                .content("{\"brandPrimary\":\"not-a-color\"}"))
+                .content("{\"brandPreset\":\"NOT_A_PRESET\"}"))
             .andExpect(status().isBadRequest())
-            .andExpect(jsonPath("$.errors[*].field").value(org.hamcrest.Matchers.hasItem("brandPrimary")));
+            .andExpect(jsonPath("$.errors").doesNotExist());
     }
 }

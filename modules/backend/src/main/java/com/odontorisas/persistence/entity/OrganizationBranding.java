@@ -1,7 +1,10 @@
 package com.odontorisas.persistence.entity;
 
+import com.odontorisas.common.BrandPreset;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
@@ -15,7 +18,7 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 /**
- * Marca visual 1:1 de una organización (colores de marca y logo). Comparte la clave
+ * Marca visual 1:1 de una organización (preset de marca y logo). Comparte la clave
  * primaria con {@link Organization} vía {@code @MapsId}. Todos los campos son nullable:
  * ausencia de fila (o de campo) = valores por defecto del producto. Es metadato del
  * tenant (sin Row-Level Security, como {@link OrganizationSettings}).
@@ -38,13 +41,10 @@ public class OrganizationBranding {
     @JoinColumn(name = "organization_id")
     private Organization organization;
 
-    /** Color primario de marca, hex {@code #RRGGBB} (o {@code null} = default del producto). */
-    @Column(name = "brand_primary", length = 9)
-    private String brandPrimary;
-
-    /** Color secundario, hex {@code #RRGGBB} (o {@code null} = derivado del primario). */
-    @Column(name = "brand_secondary", length = 9)
-    private String brandSecondary;
+    /** Preset de marca elegido del catálogo curado (o {@code null} = default del producto). */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "brand_preset", length = 16)
+    private BrandPreset brandPreset;
 
     /** URL {@code https} del logo (o {@code null} = logo del producto). */
     @Column(name = "logo_url", length = 2048)

@@ -5,6 +5,10 @@ import org.springframework.test.context.DynamicPropertySource;
 import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.SQLException;
+
 /**
  * Base para tests de integración: levanta un PostgreSQL real (Testcontainers)
  * y provee los datos de conexión, garantizando paridad con producción.
@@ -23,6 +27,11 @@ public abstract class AbstractIntegrationTest {
 
     static {
         POSTGRES.start();
+    }
+
+    /** Conexión como superusuario/owner del contenedor (sembrar fixtures, DDL, o probar un CHECK). */
+    protected Connection ownerConnection() throws SQLException {
+        return DriverManager.getConnection(POSTGRES.getJdbcUrl(), POSTGRES.getUsername(), POSTGRES.getPassword());
     }
 
     @DynamicPropertySource
