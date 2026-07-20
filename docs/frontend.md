@@ -22,7 +22,9 @@ src/
   screens/     # pantallas: orquestan una feature dentro de un layout (hojas de composición)
   modules/     # lógica encapsulada por dominio
     core/      # transversal (SIN deps a otros módulos):
-      #   ui/ (shadcn) · components/ · config/ (httpClient axios) · services/generated/ (orval) · utils/ · enum/
+      #   auth/ (guards RequireAuth/RequireGuest, roleHome) · components/ (DataState, InfoCard…)
+      #   config/ (httpClient axios) · hooks/ (useDebouncedValue…) · services/generated/ (orval)
+      #   theme/ (deriveTheme, ThemeManager — branding) · ui/ (shadcn) · utils/
     <cap>/     # un módulo por capacidad (hooks de dominio, components, types, schemas Zod)
   store/       # stores Zustand (estado de cliente)
   routes/      # definición de rutas + guards (RequireAuth/RequireGuest)
@@ -30,6 +32,18 @@ src/
 ```
 
 **Reglas de arquitectura:**
+- **Un solo `AppLayout` autenticado, no un layout por rol.** ADMIN y USER son roles dentro de la
+  **misma** clínica (mismo staff, mismo shell), no personas con experiencias distintas — ADMIN es
+  un superset de USER (hoy, solo suma `Personalizar marca`). El shell (sidebar + header) es único;
+  la navegación se filtra por rol dentro de él, igual que ya filtran por rol las rutas
+  (`RequireAuth roles={...}`). Separar en `AdminLayout`/`UserLayout` solo se justifica si el admin
+  se vuelve una experiencia realmente distinta (p. ej. un backoffice de plataforma que gestiona
+  *otras* organizaciones) — no es el caso hoy, y adelantarlo sería la abstracción prematura que
+  `docs/coding-style.md §3` prohíbe.
+  > **Estado actual (objetivo, aún no adoptado):** hoy solo existe `RootLayout` (bootstrap de
+  > sesión + marca, sin nav — cada pantalla arma su propio `<main>` suelto). El `AppLayout` con
+  > sidebar/header se construye la primera vez que una segunda pantalla necesite nav persistente
+  > compartida, no antes.
 - **`screens` orquestan; `modules` encapsulan lógica.** Las pantallas montan features dentro de un layout; no contienen lógica de negocio.
   > [!IMPORTANT]
   > **Una pantalla es una línea.** `screens/<área>/XScreen.tsx` → `return <XFeature />;`. **NO declares sub-componentes dentro de la screen** —ni skeletons, ni estados vacíos/error, ni campos de formulario, ni filas—: van a `modules/<cap>/components/`, agrupados por tipo (la feature, filas, loaders/skeletons, estados, modales). Señal de mal uso: una screen con `function SkeletonRows()` o `function Field()` debajo.
@@ -226,6 +240,13 @@ export const useSortingStore = createSelectors(useSortingStoreBase);
 
 ## 4. Patrones de UI, animación, responsividad y accesibilidad
 
+> **Superficie nueva sin patrón previo** (ej. la futura landing pública de `public-booking`,
+> `docs/vision.md §7`, o un rediseño deliberado de marca): antes de picar código, dirección creativa
+> con el skill `frontend-design` — anclada en la identidad ya existente (gradiente + logo), no una
+> reinvención desde cero. **Pantalla dentro del producto ya autenticado**: no se usa; se sigue el
+> sistema de diseño de esta sección (§4.1–§4.6) y `coding-style.md §5.5` ("consistencia > preferencia
+> personal").
+
 ### 4.1 shadcn/ui e integración
 > [!IMPORTANT]
 > **Antes de crear un componente visual o añadir una librería**, revisa si ya existe en `modules/core/ui/`. Reutilizar garantiza temas (claro/oscuro), overrides de marca, estilos consistentes (bordes, sombras, transiciones, accesibilidad) y evita duplicación y bundle innecesario.
@@ -274,7 +295,11 @@ export const useSortingStore = createSelectors(useSortingStoreBase);
 
 ### 4.3 Responsividad (Mobile-First)
 - Breakpoints: **móvil** < `480px`, **tablet** `481–1024px`, **escritorio** > `1024px`.
-- Prueba cambios de navegación/Sidebar/estilos en móvil, tablet y ancho. La Sidebar: cajón flotante en móvil, barra de iconos en mediano, expandida en escritorio.
+- Prueba cambios de navegación/estilos en móvil, tablet y escritorio.
+
+> **Estado actual (objetivo, aún no adoptado):** la Sidebar del `AppLayout` (§1) no existe todavía.
+> Objetivo cuando se construya: cajón flotante en móvil, barra de iconos en mediano, expandida en
+> escritorio.
 
 ### 4.4 Accesibilidad (WCAG)
 - **HTML semántico** (`<aside>`, `<nav>`, `<main>`, `<header>`, `<article>`).

@@ -87,7 +87,7 @@ verdad, no antes (detalle por librería en `docs/frontend.md §1`, `§4.1` y `§
 ### Arquitectura orientada a pantallas (Screens)
 ```
 src/
-├─ layouts/     # UserLayout, AdminLayout (Sidebar + Header + <Outlet/>)
+├─ layouts/     # RootLayout (bootstrap sesión+marca, hoy); AppLayout planeado (Sidebar+Header, nav por rol)
 ├─ screens/     # vistas por dominio (admin/, auth/, home) — orquestan, no conectan servicios
 ├─ modules/     # lógica de negocio encapsulada y portable
 │  ├─ core/     # components, ui (shadcn), services, utils, enum — sin deps a otros módulos
