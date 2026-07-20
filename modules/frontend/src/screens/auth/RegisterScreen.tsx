@@ -4,7 +4,7 @@ import { RegisterForm } from "@/modules/auth/components/RegisterForm";
 import { PATHS } from "@/routes/paths";
 
 /** Pantalla de registro. */
-export function RegisterView() {
+export function RegisterScreen() {
   return (
     <AuthLayout
       title="Crear cuenta"

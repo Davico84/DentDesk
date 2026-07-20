@@ -4,7 +4,7 @@ import { ArrowLeft, Pencil } from "lucide-react";
 import { Button } from "@/modules/core/ui/button";
 import { buttonVariants } from "@/modules/core/ui/button-variants";
 import { ConfirmDialog } from "@/modules/core/ui/confirm-dialog";
-import { InfoCard, InfoRow } from "@/modules/core/components/info-card";
+import { InfoCard, InfoRow } from "@/modules/core/components/InfoCard";
 import { PATHS, patientEditPath } from "@/routes/paths";
 import {
   useDeactivatePatient,

@@ -4,7 +4,7 @@ import { LoginForm } from "@/modules/auth/components/LoginForm";
 import { PATHS } from "@/routes/paths";
 
 /** Pantalla de inicio de sesión. */
-export function LoginView() {
+export function LoginScreen() {
   return (
     <AuthLayout
       title="Iniciar sesión"
