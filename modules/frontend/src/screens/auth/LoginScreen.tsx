@@ -8,7 +8,7 @@ export function LoginScreen() {
   return (
     <AuthLayout
       title="Iniciar sesión"
-      description="Accede a tu panel de OdontoRisas"
+      description="Accede a tu panel de Dentdesk"
       footer={
         <p className="text-sm text-muted-foreground">
           ¿No tienes cuenta?{" "}

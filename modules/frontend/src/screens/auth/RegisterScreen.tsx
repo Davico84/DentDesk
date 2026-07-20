@@ -8,7 +8,7 @@ export function RegisterScreen() {
   return (
     <AuthLayout
       title="Crear cuenta"
-      description="Regístrate para empezar a usar OdontoRisas"
+      description="Regístrate para empezar a usar Dentdesk"
       footer={
         <p className="text-sm text-muted-foreground">
           ¿Ya tienes cuenta?{" "}

@@ -8,7 +8,7 @@ describe("HomeScreen", () => {
   it("renderiza el título de la aplicación", () => {
     renderWithProviders(<HomeScreen />);
     expect(
-      screen.getByRole("heading", { name: "OdontoRisas" }),
+      screen.getByRole("heading", { name: "Dentdesk" }),
     ).toBeInTheDocument();
   });
 });

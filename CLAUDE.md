@@ -3,6 +3,14 @@
 Proyecto **greenfield** con desarrollo dirigido por especificaciones (spec-driven) usando **OpenSpec**.
 Monorepo modular: `modules/backend/` (Java/Spring) + `modules/frontend/` (React/Vite), con `openspec/` y `docs/` en la raíz.
 
+> **El producto se llama Dentdesk** (decisión 2026-07-20, ver `docs/vision.md`). "OdontoRisas" queda
+> como el nombre **interno** del repo/código — carpeta del repo, package Java (`com.odontorisas`),
+> roles de base de datos (`odontorisas_admin`/`odontorisas_app`), `groupId` Maven — por estabilidad:
+> renombrarlos toca migraciones Flyway ya aplicadas y una restructuración de paquete de bajo valor.
+> Lo que **renderiza** al usuario (UI, copy, título de pestaña) ya dice Dentdesk. Al escribir código o
+> rutas nuevas, seguí usando `odontorisas`/`com.odontorisas`; al escribir copy visible o docs de
+> negocio/producto, usá Dentdesk.
+
 ## Fuentes de verdad
 - **Flujo OpenSpec** (setup, comandos, ciclo): `SETUP-OPENSPEC.md`.
 - **Qué hace el sistema** (capacidades + cambios): `openspec/` (y `openspec/config.yaml` = contexto para la IA).
