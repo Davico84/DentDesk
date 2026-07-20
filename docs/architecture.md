@@ -43,7 +43,7 @@ OdontoRisas/
 | IA | Spring AI (chat memory JDBC) — para el bot |
 | Utilidades | Lombok · mail vía webhook |
 | Configuración | Única (sin perfiles); todos los valores externalizados como secretos (env vars + `secrets.properties` local ignorado) |
-| Testing | Test slices: H2, JPA-test, security-test, webmvc-test, websocket-test, flyway-test |
+| Testing | `@WebMvcTest` (controller/seguridad) · `@SpringBootTest` + Testcontainers (repositorio/integración/RLS/Flyway) · JUnit+Mockito (unit) — sin H2, detalle en `docs/testing.md §5` |
 
 ### Arquitectura por capas (paquetes reales)
 ```
