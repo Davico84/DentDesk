@@ -1,12 +1,16 @@
-# Visión de producto — OdontoRisas
+# Visión de producto — Dentdesk
 
 Dimensión de **negocio** (sustituible por proyecto). Define **qué** construimos y **en qué orden**. El **cómo** (stack, estándares) vive en `docs/architecture.md`, `docs/backend.md`, `docs/frontend.md`, `docs/coding-style.md` y `docs/testing.md`. El **modelo de dominio** vive en `docs/domain.md`.
+
+> **Nombre del producto: Dentdesk** (decisión 2026-07-20). El repo, el código (`com.odontorisas`,
+> roles de BD) y la documentación de ingeniería conservan el nombre interno **OdontoRisas** por
+> estabilidad — no cambia lo que renderiza el producto. Ver `CLAUDE.md`.
 
 ---
 
 ## 1. Producto
 
-**OdontoRisas** es un **SaaS multi-clínica** de gestión dental: varias clínicas (organizaciones) independientes comparten la instalación con sus datos **aislados**, y cada una administra sus pacientes (menores y adultos), citas, el **odontograma** (el *estado* dental: notación FDI, por superficie, denticiones permanente y temporal), los **tratamientos** que lo modifican, imágenes clínicas, cobros al paciente e inventario, con acceso controlado por rol dentro de su organización. La capa de plataforma (identidad, organización, membresía, aislamiento) se diseña **genérica y reutilizable** (ver capacidad `multi-tenancy`).
+**Dentdesk** es un **SaaS multi-clínica** de gestión dental: varias clínicas (organizaciones) independientes comparten la instalación con sus datos **aislados**, y cada una administra sus pacientes (menores y adultos), citas, el **odontograma** (el *estado* dental: notación FDI, por superficie, denticiones permanente y temporal), los **tratamientos** que lo modifican, imágenes clínicas, cobros al paciente e inventario, con acceso controlado por rol dentro de su organización. La capa de plataforma (identidad, organización, membresía, aislamiento) se diseña **genérica y reutilizable** (ver capacidad `multi-tenancy`).
 
 **Objetivos:**
 - Centralizar la **ficha dental** del paciente (datos clínicos/anamnesis, odontograma, tratamientos, notas, pagos, imágenes e historial de citas) en una vista única.
