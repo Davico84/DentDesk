@@ -46,7 +46,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  * con el superusuario RLS ni se aplicaría y el test no probaría nada.
  */
 @SpringBootTest
-class PatientSpecificationsTest extends AbstractTenantAwareIntegrationTest {
+class PatientSpecificationsIT extends AbstractTenantAwareIntegrationTest {
 
     private static final long ORG_A = 1L;
     private static final long ORG_B = 2L;

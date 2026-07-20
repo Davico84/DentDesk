@@ -152,7 +152,9 @@ Además, `@DataJpaTest` con H2 contradice §2 (*"Testcontainers desde el inicio,
 maquinaria de tenencia de este proyecto es demasiado profunda para que el slice la reconstruya de
 forma confiable — mejor un test correcto con `@SpringBootTest` (mismo patrón que el resto de la
 suite) **acotado al repositorio** (sin pasar por el service) que un slice rápido con falsa
-confianza. Referencia: `PatientSpecificationsTest`.
+confianza. Necesita Docker (RLS real vía `AbstractTenantAwareIntegrationTest`), así que corre como
+`IT`, no `*Test` — el nombre sigue la convención de arriba, no la excepción. Referencia:
+`PatientSpecificationsIT`.
 
 ### Testcontainers (base de integración)
 - Un único contenedor PostgreSQL reutilizable (patrón *singleton container*, `AbstractIntegrationTest`) para los tests de integración/persistencia.
