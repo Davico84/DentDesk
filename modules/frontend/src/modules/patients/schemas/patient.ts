@@ -101,7 +101,7 @@ export const patientSchema = z
       .refine((v) => new Date(v) <= new Date(), "La fecha no puede estar en el futuro"),
     sex: optionalEnum(PatientRequestSex),
     phone: optionalPhone,
-    email: z.union([z.string().email("Correo inválido"), z.literal("")]),
+    email: z.union([z.email("Correo inválido"), z.literal("")]),
     address: z.string().trim().max(500),
     guardianName: z.string().trim().max(200),
     guardianRelationship: optionalEnum(PatientRequestGuardianRelationship),
@@ -119,13 +119,13 @@ export const patientSchema = z
     // --- Responsable obligatorio si es menor (design.md D2) ---
     if (isMinor(values.birthDate)) {
       if (!values.guardianName.trim()) {
-        ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["guardianName"], message: MINOR_REQUIRED });
+        ctx.addIssue({ code: "custom", path: ["guardianName"], message: MINOR_REQUIRED });
       }
       if (!values.guardianRelationship) {
-        ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["guardianRelationship"], message: MINOR_REQUIRED });
+        ctx.addIssue({ code: "custom", path: ["guardianRelationship"], message: MINOR_REQUIRED });
       }
       if (!values.guardianPhone.trim()) {
-        ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["guardianPhone"], message: MINOR_REQUIRED });
+        ctx.addIssue({ code: "custom", path: ["guardianPhone"], message: MINOR_REQUIRED });
       }
     }
 
@@ -135,17 +135,17 @@ export const patientSchema = z
     if (!hasType && !hasNumber) return; // el documento es opcional
 
     if (!hasType) {
-      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["documentType"], message: "Indica el tipo de documento." });
+      ctx.addIssue({ code: "custom", path: ["documentType"], message: "Indica el tipo de documento." });
       return;
     }
     if (!hasNumber) {
-      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["document"], message: "Indica el número de documento." });
+      ctx.addIssue({ code: "custom", path: ["document"], message: "Indica el número de documento." });
       return;
     }
     const pattern = DOCUMENT_PATTERNS[values.documentType];
     if (pattern && !pattern.test(values.document.trim())) {
       ctx.addIssue({
-        code: z.ZodIssueCode.custom,
+        code: "custom",
         path: ["document"],
         message: `Formato inválido. ${documentHint(values.documentType) ?? ""}`.trim(),
       });
