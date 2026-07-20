@@ -28,10 +28,10 @@ export function AuthLayout({ title, description, children, footer }: AuthLayoutP
             Sonrisas sanas, gestión simple.
           </h2>
           <p className="mt-3 text-white/80">
-            La plataforma del Centro Odontológico OdontoRisas: pacientes, citas y tratamientos en un solo lugar.
+            La plataforma para clínicas dentales: pacientes, citas y tratamientos en un solo lugar.
           </p>
         </div>
-        <p className="text-sm text-white/70">© OdontoRisas · Centro Odontológico</p>
+        <p className="text-sm text-white/70">© Dentdesk</p>
       </aside>
 
       {/* Panel del formulario */}

@@ -1,8 +1,10 @@
-import { useState, type ImgHTMLAttributes } from "react";
+import { useState } from "react";
 import { Logo } from "@/modules/core/ui/logo";
 import { useBrandingStore } from "@/store/useBrandingStore";
 
-type OrgLogoProps = Omit<ImgHTMLAttributes<HTMLImageElement>, "src" | "alt">;
+interface OrgLogoProps {
+  className?: string;
+}
 
 /**
  * Logo de la organización activa. Muestra su {@code logoUrl} si existe; si la imagen no
@@ -10,7 +12,7 @@ type OrgLogoProps = Omit<ImgHTMLAttributes<HTMLImageElement>, "src" | "alt">;
  * Sin logo definido → logo del producto. Rastrea la URL que falló (no un booleano) para
  * reintentar automáticamente cuando cambia el logo, sin efectos.
  */
-export function OrgLogo({ className, ...props }: OrgLogoProps) {
+export function OrgLogo({ className }: OrgLogoProps) {
   const logoUrl = useBrandingStore.use.logoUrl();
   const [failedUrl, setFailedUrl] = useState<string | null>(null);
 
@@ -21,9 +23,8 @@ export function OrgLogo({ className, ...props }: OrgLogoProps) {
         alt="Logo de la organización"
         className={className}
         onError={() => setFailedUrl(logoUrl)}
-        {...props}
       />
     );
   }
-  return <Logo className={className} {...props} />;
+  return <Logo className={className} />;
 }

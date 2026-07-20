@@ -14,7 +14,7 @@ export function HomeScreen() {
   return (
     <main className="flex min-h-screen flex-col items-center justify-center gap-4">
       <OrgLogo className="h-12 w-auto" />
-      <h1 className="text-2xl font-bold text-primary">{user?.organizationName ?? "OdontoRisas"}</h1>
+      <h1 className="text-2xl font-bold text-primary">{user?.organizationName ?? "Dentdesk"}</h1>
       {user ? (
         <p className="text-muted-foreground">
           Sesión iniciada como{" "}
