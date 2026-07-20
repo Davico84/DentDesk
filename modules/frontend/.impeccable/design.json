@@ -1,0 +1,127 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-07-20T23:00:00Z",
+  "title": "Design System: Dentdesk",
+  "extensions": {
+    "colorMeta": {
+      "primary": {
+        "role": "primary",
+        "displayName": "Amatista Clínica",
+        "canonical": "hsl(292 72% 36%)",
+        "tonalRamp": ["#2b0e39", "#481864", "#671a86", "#7f1aa6", "#9b3ec2", "#c98ddf", "#eeddf4", "#faf5fc"]
+      },
+      "secondary-bg": {
+        "role": "secondary",
+        "displayName": "Menta Clínica (fondo)",
+        "canonical": "hsl(174 44% 93%)",
+        "tonalRamp": ["#085e57", "#0d7d73", "#129c8f", "#1abcaa", "#4dd0bf", "#80e0d3", "#b3ede2", "#e5f7f5"]
+      },
+      "neutral-fg": {
+        "role": "neutral",
+        "displayName": "Tinta Amatista",
+        "canonical": "hsl(289 26% 12%)",
+        "tonalRamp": ["#0f0a11", "#241727", "#3d2b42", "#5b4560", "#736175", "#a191a3", "#cabfcc", "#f7f3f8"]
+      },
+      "destructive": {
+        "role": "semantic",
+        "displayName": "Rojo Destructivo",
+        "canonical": "hsl(0 72% 48%)",
+        "tonalRamp": ["#3d0d0d", "#6e1414", "#a01a1a", "#d32222", "#dd5252", "#e78181", "#f1b0b0", "#fbe0e0"]
+      },
+      "success": {
+        "role": "semantic",
+        "displayName": "Verde Éxito",
+        "canonical": "hsl(152 55% 38%)",
+        "tonalRamp": ["#0d2b1c", "#154630", "#1e6244", "#2c965c", "#4fb47b", "#7fc99e", "#b0dec1", "#e0f2e6"]
+      }
+    },
+    "typographyMeta": {
+      "heading": { "displayName": "Heading", "purpose": "Título de pantalla (h1 de cada screen)." },
+      "body": { "displayName": "Body", "purpose": "Tamaño por defecto de casi toda la UI (labels, inputs, tablas) — 14px, no 16px: es una herramienta densa de uso diario." }
+    },
+    "shadows": [
+      { "name": "ambient", "value": "0 1px 2px rgba(0,0,0,0.05)", "purpose": "Único nivel usado en reposo — cards, contenedores de lista." },
+      { "name": "modal", "value": "0 10px 40px rgba(0,0,0,0.15)", "purpose": "Diálogos flotantes sobre un scrim bg-black/80 — la única capa que se \"levanta\" de verdad." }
+    ],
+    "motion": [
+      { "name": "ease-standard", "value": "cubic-bezier(0.16, 1, 0.3, 1)", "purpose": "Entrada/salida de diálogos (fade + zoom 95%→100%)." }
+    ],
+    "breakpoints": [
+      { "name": "mobile", "value": "480px" },
+      { "name": "tablet", "value": "1024px" }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "Acción principal de una pantalla o formulario.",
+      "html": "<button class=\"ds-btn-primary\">Guardar marca</button>",
+      "css": ".ds-btn-primary { display: inline-flex; align-items: center; justify-content: center; gap: 8px; height: 40px; padding: 8px 16px; border: none; border-radius: 6px; background: #7f1aa6; color: #ffffff; font-size: 14px; font-weight: 500; font-family: ui-sans-serif, system-ui, sans-serif; white-space: nowrap; cursor: pointer; transition: background-color 0.15s, opacity 0.15s; } .ds-btn-primary:hover { background: #711794; } .ds-btn-primary:focus-visible { outline: none; box-shadow: 0 0 0 2px #ffffff, 0 0 0 4px #9f21cf; } .ds-btn-primary:disabled { pointer-events: none; opacity: 0.5; }"
+    },
+    {
+      "name": "Outline Button",
+      "kind": "button",
+      "refersTo": "button-outline",
+      "description": "Acción secundaria junto a un botón primario.",
+      "html": "<button class=\"ds-btn-outline\">Cancelar</button>",
+      "css": ".ds-btn-outline { display: inline-flex; align-items: center; justify-content: center; gap: 8px; height: 40px; padding: 8px 16px; border: 1px solid #e5dbe7; border-radius: 6px; background: #ffffff; color: #241727; font-size: 14px; font-weight: 500; font-family: ui-sans-serif, system-ui, sans-serif; cursor: pointer; transition: background-color 0.15s; } .ds-btn-outline:hover { background: #dbf6f3; color: #085e57; } .ds-btn-outline:focus-visible { outline: none; box-shadow: 0 0 0 2px #ffffff, 0 0 0 4px #9f21cf; }"
+    },
+    {
+      "name": "Card",
+      "kind": "card",
+      "refersTo": "card",
+      "description": "Contenedor plano de contenido agrupado (vista previa, secciones de ficha).",
+      "html": "<div class=\"ds-card\"><div class=\"ds-card-header\"><div class=\"ds-card-title\">Vista previa</div><div class=\"ds-card-desc\">Así se verían los elementos con esta marca.</div></div></div>",
+      "css": ".ds-card { border-radius: 10px; border: 1px solid #e5dbe7; background: #ffffff; color: #241727; box-shadow: 0 1px 2px rgba(0,0,0,0.05); } .ds-card-header { display: flex; flex-direction: column; gap: 6px; padding: 24px; } .ds-card-title { font-size: 24px; font-weight: 600; letter-spacing: -0.01em; } .ds-card-desc { font-size: 14px; color: #736175; }"
+    },
+    {
+      "name": "Text Input",
+      "kind": "input",
+      "refersTo": "input",
+      "description": "Campo de texto estándar de formulario.",
+      "html": "<input class=\"ds-input\" type=\"email\" placeholder=\"tu@correo.com\" />",
+      "css": ".ds-input { display: flex; height: 40px; width: 100%; border-radius: 6px; border: 1px solid #e5dbe7; background: #ffffff; padding: 8px 12px; font-size: 14px; color: #241727; box-sizing: border-box; } .ds-input::placeholder { color: #736175; } .ds-input:focus-visible { outline: none; box-shadow: 0 0 0 1px #ffffff, 0 0 0 3px #9f21cf; } .ds-input[aria-invalid='true'] { border-color: #d32222; }"
+    },
+    {
+      "name": "Status Badge",
+      "kind": "chip",
+      "refersTo": "badge-success",
+      "description": "Píldora de estado (ej. paciente activo) — fondo tenue del semántico, texto del mismo tono más oscuro.",
+      "html": "<span class=\"ds-badge-success\"><span class=\"ds-badge-dot\"></span>Activo</span>",
+      "css": ".ds-badge-success { display: inline-flex; align-items: center; gap: 6px; border-radius: 9999px; padding: 2px 10px; font-size: 12px; font-weight: 500; background: rgba(44,150,92,0.1); color: #2c965c; } .ds-badge-dot { width: 6px; height: 6px; border-radius: 9999px; background: #2c965c; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "La Confianza Clínica",
+    "overview": "Dentdesk es el software de gestión para clínicas dentales — no un producto de consumo, ni un panel de ingeniería. Cada pantalla la usa el staff de la clínica mientras atiende a una persona real, así que el sistema sostiene a la vez la seriedad de manejar historia clínica y la calidez de una recepción diaria. El púrpura amatista es la firma; el teal menta es el respiro que lo enfría cuando hace falta.",
+    "keyCharacteristics": [
+      "Superficies planas por defecto; la sombra aparece solo como respuesta a un estado.",
+      "Esquinas suavemente redondeadas (6-10px).",
+      "Un solo acento de marca hace el trabajo pesado; el teal es de apoyo.",
+      "Sin webfont custom: stack de fuente del sistema.",
+      "El color de marca es personalizable por organización, solo desde un catálogo curado."
+    ],
+    "rules": [
+      { "name": "La Regla del Catálogo Curado", "body": "El color de marca de una organización se elige de un catálogo fijo de presets pre-aprobados, nunca un input de color libre.", "section": "colors" },
+      { "name": "La Regla del Semántico Intocable", "body": "Éxito/aviso/error nunca adoptan el color de marca de ninguna organización.", "section": "colors" },
+      { "name": "La Regla del Plano-Por-Defecto", "body": "Las superficies son planas en reposo; la sombra existe para señalar una capa flotante real, no para decorar.", "section": "elevation" }
+    ],
+    "dos": [
+      "Do usar el amatista con moderación — botones de acción, foco, enlaces.",
+      "Do mantener las tarjetas planas en reposo.",
+      "Do ofrecer el color de marca solo desde el catálogo curado de presets.",
+      "Do mantener el foco visible en todo elemento interactivo, sin excepción.",
+      "Do usar 14px como tamaño de texto por defecto en la UI de trabajo."
+    ],
+    "donts": [
+      "Don't usar gradientes decorativos tipo cian→magenta como fondo de marca.",
+      "Don't dejar que el color semántico cambie con la marca de ninguna organización.",
+      "Don't usar border-left/border-right de más de 1px como acento decorativo.",
+      "Don't anidar cards dentro de cards.",
+      "Don't usar un tamaño de tap/click menor a 44px en flujos críticos.",
+      "Don't suprimir el anillo de foco por estética."
+    ]
+  }
+}
