@@ -1,4 +1,19 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
-  <rect width="32" height="32" rx="6" fill="#0ea5e9"/>
-  <text x="16" y="22" font-size="18" text-anchor="middle" fill="#fff" font-family="Arial, sans-serif">O</text>
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+    <path
+        d="M20 8 C12 8 8 14 8 22 C8 33 13 41 17 48 C19 52 21 56 25 56 C28 56 29 52 30 48 C31 45 33 45 34 48 C35 52 36 56 39 56 C43 56 45 52 47 48 C51 41 56 33 56 22 C56 14 52 8 44 8 C39 8 36 11 32 11 C28 11 25 8 20 8Z"
+        fill="none"
+        stroke="#00D7C8"
+        stroke-width="3.2"
+        stroke-linecap="round"
+        stroke-linejoin="round"/>
+    <path
+        d="M21 30 Q32 40 43 30"
+        fill="none"
+        stroke="#00D7C8"
+        stroke-width="3"
+        stroke-linecap="round"/>
+    <path
+        d="M51.8 12 L53.8 17 L58.8 19 L53.8 21 L51.8 26 L49.8 21 L44.8 19 L49.8 17 Z"
+        fill="#00D7C8"/>
 </svg>

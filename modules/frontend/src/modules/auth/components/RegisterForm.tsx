@@ -1,12 +1,13 @@
 import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Loader2, User, Mail, ShieldCheck, Building2 } from "lucide-react";
+import { User, Mail, ShieldCheck, Building2 } from "lucide-react";
 import { Label } from "@/modules/core/ui/label";
 import { PasswordInput } from "@/modules/core/ui/password-input";
 import { IconInput } from "@/modules/core/ui/icon-input";
 import { registerSchema, type RegisterValues } from "../schemas/auth";
 import { useRegister } from "../hooks/useAuth";
 import { PasswordStrengthBar } from "./PasswordStrengthBar";
+import { AuthSubmitButton } from "./AuthSubmitButton";
 import { cn } from "@/modules/core/utils/cn";
 import { applyServerFieldErrors } from "@/modules/core/utils/apiError";
 
@@ -153,32 +154,9 @@ export function RegisterForm() {
         Al crear tu cuenta aceptas el tratamiento de tus datos conforme a nuestra política de privacidad.
       </p>
 
-      {/* Botón submit con gradiente de marca */}
-      <button
-        type="submit"
-        disabled={registerMutation.isPending}
-        className={cn(
-          "relative flex h-11 w-full items-center justify-center gap-2 overflow-hidden rounded-lg",
-          "bg-gradient-to-r from-[hsl(174_70%_40%)] to-[hsl(292_72%_42%)]",
-          "text-sm font-semibold text-white",
-          "transition-all duration-300",
-          "hover:brightness-110 hover:shadow-lg hover:shadow-primary/30",
-          "active:scale-[0.98]",
-          "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
-          "disabled:pointer-events-none disabled:opacity-60",
-          "after:absolute after:inset-0 after:translate-x-[-100%] after:bg-gradient-to-r after:from-transparent after:via-white/15 after:to-transparent",
-          "hover:after:translate-x-[100%] after:transition-transform after:duration-700",
-        )}
-      >
-        {registerMutation.isPending ? (
-          <>
-            <Loader2 className="size-4 animate-spin" />
-            <span>Creando cuenta…</span>
-          </>
-        ) : (
-          <span>Crear cuenta</span>
-        )}
-      </button>
+      <AuthSubmitButton pending={registerMutation.isPending} pendingLabel="Creando cuenta…">
+        Crear cuenta
+      </AuthSubmitButton>
     </form>
   );
 }
