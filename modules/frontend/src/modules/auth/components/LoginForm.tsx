@@ -1,11 +1,12 @@
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Loader2, Mail } from "lucide-react";
+import { Mail } from "lucide-react";
 import { Label } from "@/modules/core/ui/label";
 import { PasswordInput } from "@/modules/core/ui/password-input";
 import { IconInput } from "@/modules/core/ui/icon-input";
 import { loginSchema, type LoginValues } from "../schemas/auth";
 import { useLogin } from "../hooks/useAuth";
+import { AuthSubmitButton } from "./AuthSubmitButton";
 import { cn } from "@/modules/core/utils/cn";
 import { applyServerFieldErrors } from "@/modules/core/utils/apiError";
 
@@ -85,32 +86,9 @@ export function LoginForm() {
         ) : null}
       </div>
 
-      {/* Botón submit con gradiente de marca */}
-      <button
-        type="submit"
-        disabled={login.isPending}
-        className={cn(
-          "relative mt-1 flex h-11 w-full items-center justify-center gap-2 overflow-hidden rounded-lg",
-          "bg-gradient-to-r from-[hsl(174_70%_40%)] to-[hsl(292_72%_42%)]",
-          "text-sm font-semibold text-white",
-          "transition-all duration-300",
-          "hover:brightness-110 hover:shadow-lg hover:shadow-primary/30",
-          "active:scale-[0.98]",
-          "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
-          "disabled:pointer-events-none disabled:opacity-60",
-          "after:absolute after:inset-0 after:translate-x-[-100%] after:bg-gradient-to-r after:from-transparent after:via-white/15 after:to-transparent",
-          "hover:after:translate-x-[100%] after:transition-transform after:duration-700",
-        )}
-      >
-        {login.isPending ? (
-          <>
-            <Loader2 className="size-4 animate-spin" />
-            <span>Iniciando sesión…</span>
-          </>
-        ) : (
-          <span>Iniciar sesión</span>
-        )}
-      </button>
+      <AuthSubmitButton pending={login.isPending} pendingLabel="Iniciando sesión…" className="mt-1">
+        Iniciar sesión
+      </AuthSubmitButton>
 
       {/* Separador decorativo */}
       <div className="flex items-center gap-3 text-xs text-muted-foreground">
