@@ -19,6 +19,7 @@ import {
 import { useCreatePatient, usePatient, useUpdatePatient } from "@/modules/patients/hooks/usePatientsApi";
 import { FormSection, FormField, SelectField, FormErrorSummary } from "@/modules/core/ui/form-field";
 import { documentTypeOptions, sexOptions, guardianRelationshipOptions } from "./patientOptions";
+import { PhoneNumberField } from "./PhoneNumberField";
 
 /**
  * Etiqueta de cada campo, en **un solo sitio**: la usan los campos y el resumen de errores. Si
@@ -60,6 +61,8 @@ export function PatientForm() {
     register,
     handleSubmit,
     control,
+    setValue,
+    trigger,
     setError,
     formState: { errors },
   } = useForm<PatientValues>({
@@ -147,7 +150,16 @@ export function PatientForm() {
           collapsible
           hasError={Boolean(errors.phone || errors.email || errors.address)}
         >
-          <FormField label={LABELS.phone} name="phone" type="tel" register={register} error={errors.phone} hint={PHONE_HINT} />
+          <PhoneNumberField
+            label={LABELS.phone}
+            name="phone"
+            register={register}
+            control={control}
+            setValue={setValue}
+            trigger={trigger}
+            error={errors.phone}
+            hint={PHONE_HINT}
+          />
           <FormField label={LABELS.email} name="email" type="email" register={register} error={errors.email} />
           <FormField label={LABELS.address} name="address" register={register} error={errors.address} wide />
         </FormSection>
@@ -166,7 +178,17 @@ export function PatientForm() {
               options={guardianRelationshipOptions}
               required
             />
-            <FormField label={LABELS.guardianPhone} name="guardianPhone" type="tel" register={register} error={errors.guardianPhone} hint={PHONE_HINT} required />
+            <PhoneNumberField
+              label={LABELS.guardianPhone}
+              name="guardianPhone"
+              register={register}
+              control={control}
+              setValue={setValue}
+              trigger={trigger}
+              error={errors.guardianPhone}
+              hint={PHONE_HINT}
+              required
+            />
             <FormField label={LABELS.guardianDocument} name="guardianDocument" register={register} error={errors.guardianDocument} />
           </FormSection>
         ) : null}
@@ -181,7 +203,16 @@ export function PatientForm() {
           hasError={Boolean(errors.emergencyContactName || errors.emergencyContactPhone || errors.emergencyContactRelationship)}
         >
           <FormField label={LABELS.emergencyContactName} name="emergencyContactName" register={register} error={errors.emergencyContactName} />
-          <FormField label={LABELS.emergencyContactPhone} name="emergencyContactPhone" type="tel" register={register} error={errors.emergencyContactPhone} hint={PHONE_HINT} />
+          <PhoneNumberField
+            label={LABELS.emergencyContactPhone}
+            name="emergencyContactPhone"
+            register={register}
+            control={control}
+            setValue={setValue}
+            trigger={trigger}
+            error={errors.emergencyContactPhone}
+            hint={PHONE_HINT}
+          />
           <FormField label={LABELS.emergencyContactRelationship} name="emergencyContactRelationship" register={register} error={errors.emergencyContactRelationship} wide />
         </FormSection>
 
