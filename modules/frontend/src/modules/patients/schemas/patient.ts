@@ -62,22 +62,26 @@ export function documentMaxLength(documentType: string): number | undefined {
   }
 }
 
-/** Teléfono: dígitos, «+» y espacios (paridad con el `@Pattern` del backend). */
-const PHONE = /^\+?[0-9 ]{7,20}$/;
-const PHONE_MESSAGE = "Solo dígitos, «+» y espacios";
+/** Código de país usado por defecto en la operación de la clínica. */
+export const PHONE_COUNTRY_CODE = "+51";
+
+/** Formato internacional E.164, sin separadores: + seguido de 7 a 15 dígitos. */
+const PHONE = /^\+[1-9]\d{6,14}$/;
+const PHONE_MESSAGE = "Ingresa un número internacional válido, sin espacios.";
 
 /**
  * Ayuda **persistente** del teléfono. Va bajo el campo, no en un placeholder: el placeholder
  * desaparece justo al escribir, que es cuando hace falta. Sin esto, la regla solo se descubre
  * fallando.
  */
-export const PHONE_HINT = "Dígitos, «+» y espacios.";
+export const PHONE_HINT = "Elige el país y escribe el número sin espacios.";
 
 /** Campo opcional de conjunto cerrado: el valor del enum, o "" cuando no se ha elegido. */
 const optionalEnum = <T extends Record<string, string>>(values: T) =>
   z.union([z.enum(values), z.literal("")]);
 
-const optionalPhone = z.union([z.string().regex(PHONE, PHONE_MESSAGE), z.literal("")]);
+// `+51` es el valor inicial visible; por sí solo no cuenta como un teléfono registrado.
+const optionalPhone = z.union([z.string().regex(PHONE, PHONE_MESSAGE), z.literal(""), z.literal(PHONE_COUNTRY_CODE)]);
 
 /**
  * Formulario de la ficha del paciente. Solo `fullName` y `birthDate` son obligatorios (design.md
@@ -124,7 +128,7 @@ export const patientSchema = z
       if (!values.guardianRelationship) {
         ctx.addIssue({ code: "custom", path: ["guardianRelationship"], message: MINOR_REQUIRED });
       }
-      if (!values.guardianPhone.trim()) {
+      if (!values.guardianPhone.trim() || values.guardianPhone === PHONE_COUNTRY_CODE) {
         ctx.addIssue({ code: "custom", path: ["guardianPhone"], message: MINOR_REQUIRED });
       }
     }
@@ -171,6 +175,10 @@ function joinList(values: string[] | undefined): string {
 /** Convierte el formulario al request del contrato. Los vacíos se omiten (`undefined`). */
 export function toRequest(values: PatientValues): PatientRequest {
   const clean = (v: string) => (v.trim() === "" ? undefined : v.trim());
+  const phone = (v: string) => {
+    const number = v.replace(/\s/g, "");
+    return number && number !== PHONE_COUNTRY_CODE ? number : undefined;
+  };
   const pick = <T extends string>(v: T | "") => (v === "" ? undefined : v);
   return {
     fullName: values.fullName.trim(),
@@ -178,15 +186,15 @@ export function toRequest(values: PatientValues): PatientRequest {
     document: clean(values.document),
     birthDate: values.birthDate,
     sex: pick(values.sex),
-    phone: clean(values.phone),
+    phone: phone(values.phone),
     email: clean(values.email),
     address: clean(values.address),
     guardianName: clean(values.guardianName),
     guardianRelationship: pick(values.guardianRelationship),
     guardianDocument: clean(values.guardianDocument),
-    guardianPhone: clean(values.guardianPhone),
+    guardianPhone: phone(values.guardianPhone),
     emergencyContactName: clean(values.emergencyContactName),
-    emergencyContactPhone: clean(values.emergencyContactPhone),
+    emergencyContactPhone: phone(values.emergencyContactPhone),
     emergencyContactRelationship: clean(values.emergencyContactRelationship),
     allergies: toList(values.allergies),
     conditions: toList(values.conditions),
@@ -196,21 +204,26 @@ export function toRequest(values: PatientValues): PatientRequest {
 
 /** Valores por defecto del formulario a partir de una ficha existente (edición). */
 export function toDefaults(patient?: PatientResponse): PatientValues {
+  // Los registros existentes pueden contener separadores; se muestran normalizados en E.164.
+  const phoneDefault = (phone: string | undefined) => {
+    const digits = (phone ?? "").replace(/\D/g, "");
+    return digits ? `+${digits}` : PHONE_COUNTRY_CODE;
+  };
   return {
     fullName: patient?.fullName ?? "",
     documentType: patient?.documentType ?? "",
     document: patient?.document ?? "",
     birthDate: patient?.birthDate ?? "",
     sex: patient?.sex ?? "",
-    phone: patient?.phone ?? "",
+    phone: phoneDefault(patient?.phone),
     email: patient?.email ?? "",
     address: patient?.address ?? "",
     guardianName: patient?.guardianName ?? "",
     guardianRelationship: patient?.guardianRelationship ?? "",
     guardianDocument: patient?.guardianDocument ?? "",
-    guardianPhone: patient?.guardianPhone ?? "",
+    guardianPhone: phoneDefault(patient?.guardianPhone),
     emergencyContactName: patient?.emergencyContactName ?? "",
-    emergencyContactPhone: patient?.emergencyContactPhone ?? "",
+    emergencyContactPhone: phoneDefault(patient?.emergencyContactPhone),
     emergencyContactRelationship: patient?.emergencyContactRelationship ?? "",
     allergies: joinList(patient?.allergies),
     conditions: joinList(patient?.conditions),

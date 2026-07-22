@@ -47,7 +47,7 @@ describe("patientSchema", () => {
 
   it("acepta un menor con responsable", () => {
     const result = patientSchema.safeParse(
-      values({ birthDate: isoYearsAgo(10), guardianName: "María", guardianRelationship: "MOTHER", guardianPhone: "+51999888" }),
+      values({ birthDate: isoYearsAgo(10), guardianName: "María", guardianRelationship: "MOTHER", guardianPhone: "+51987654321" }),
     );
     expect(result.success).toBe(true);
   });
@@ -72,7 +72,7 @@ describe("patientSchema — fecha de nacimiento", () => {
         birthDate: new Date().toISOString().slice(0, 10),
         guardianName: "María",
         guardianRelationship: "MOTHER",
-        guardianPhone: "+51999888",
+        guardianPhone: "+51987654321",
       }),
     );
     expect(result.success).toBe(true);
@@ -132,8 +132,15 @@ describe("patientSchema — teléfono", () => {
     expect(patientSchema.safeParse(values({ phone: "no-es-un-numero" })).success).toBe(false);
   });
 
-  it("acepta dígitos, «+» y espacios", () => {
-    expect(patientSchema.safeParse(values({ phone: "+51 987 654 321" })).success).toBe(true);
+  it("acepta teléfonos internacionales en formato E.164", () => {
+    expect(patientSchema.safeParse(values({ phone: "+51987654321" })).success).toBe(true);
+    expect(patientSchema.safeParse(values({ phone: "+34612345678" })).success).toBe(true);
+  });
+
+  it("rechaza números sin +, demasiado cortos o con espacios", () => {
+    expect(patientSchema.safeParse(values({ phone: "987654321" })).success).toBe(false);
+    expect(patientSchema.safeParse(values({ phone: "+519876" })).success).toBe(false);
+    expect(patientSchema.safeParse(values({ phone: "+51 987654321" })).success).toBe(false);
   });
 });
 
@@ -152,6 +159,13 @@ describe("toRequest", () => {
     expect(request.conditions).toEqual([]);
     expect(request.document).toBeUndefined();
   });
+
+  it("conserva los teléfonos internacionales y omite el prefijo inicial sin número", () => {
+    const request = toRequest(values({ phone: "+51987654321", emergencyContactPhone: "+34612345678", guardianPhone: "+51" }));
+    expect(request.phone).toBe("+51987654321");
+    expect(request.emergencyContactPhone).toBe("+34612345678");
+    expect(request.guardianPhone).toBeUndefined();
+  });
 });
 
 describe("toDefaults", () => {
@@ -164,5 +178,17 @@ describe("toDefaults", () => {
     });
     expect(defaults.allergies).toBe("penicilina, látex");
     expect(defaults.fullName).toBe("Ada");
+  });
+
+  it("normaliza el teléfono internacional al editar", () => {
+    const defaults = toDefaults({ id: 1, fullName: "Ada", birthDate: "2000-01-01", phone: "+51 987 654 321" });
+    expect(defaults.phone).toBe("+51987654321");
+  });
+
+  it("usa +51 como valor inicial para los teléfonos vacíos", () => {
+    const defaults = toDefaults();
+    expect(defaults.phone).toBe("+51");
+    expect(defaults.guardianPhone).toBe("+51");
+    expect(defaults.emergencyContactPhone).toBe("+51");
   });
 });
