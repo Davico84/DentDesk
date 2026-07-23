@@ -350,6 +350,13 @@ Dos fugas que hubo que tapar (no las reintroduzcas):
 | `instance` | **sí se emite** — Spring lo rellena con la URI **al renderizar**, aunque el handler nunca llame a `setInstance` ⚠️ |
 | `errors` | **opcional** — el `400` tiene dos formas: validación (con detalle por campo) y JSON malformado (sin él) |
 
+**El `detail` de CUALQUIER error tiene que ser apto para el usuario final** (`update-api-type-contracts`, 2026-07-23) — no solo la forma, también el contenido. Se verificó en vivo que un `400` de JSON malformado respondía `"Failed to read request"`: el mensaje **interno** de Spring, en inglés, que el frontend (`getUserFriendlyError`) pinta tal cual en un toast. Esto aplica a **todo origen** de error, no solo a los que `GlobalExceptionHandler` declara: también a la **capa de Spring Security** (401/403 que nacen fuera del controller).
+
+- **Los errores que resuelve el manejador por defecto de Spring MVC** (JSON malformado, 404, 405, 415, 406, 413, 503…) reemplazan su `detail` en `handleExceptionInternal` con un mapa `HttpStatus → mensaje en español`. Es un **fallback por status, no una traducción por tipo de excepción**: dos excepciones distintas con el mismo status comparten mensaje a propósito. Un status fuera del mapa cae en un genérico neutro — nunca en el texto interno del framework.
+- **Los errores de Spring Security fuera del controller** (401 sin sesión, 403 por regla de rol a nivel de **ruta**) delegan en el mismo `HandlerExceptionResolver` que el resto: el `authenticationEntryPoint` y el `accessDeniedHandler` de `SecurityConfig` llaman a `handlerExceptionResolver.resolveException(...)`, así que terminan en los `@ExceptionHandler` de siempre (`handleAuthentication`/`handleAccessDenied`), con su `detail` ya curado.
+
+⚠️ **Regla para cualquier `@ExceptionHandler` nuevo, método del framework sobreescrito, o punto de extensión de seguridad que añadas**: **queda fuera** del mapa automático de `handleExceptionInternal` (que solo procesa lo que la clase padre resuelve). Por tanto **debe proveer su propio `detail` en español** vía `ProblemDetails.of(...)` — igual que ya hacen `handleBusiness`, `handleAuthentication`, `handleAccessDenied`, `handleDataIntegrity` y `handleMethodArgumentNotValid`. Si no lo haces, ese path filtra el mensaje interno del framework al usuario.
+
 ### 10.2 Documentar una operación en el contrato
 
 El contrato OpenAPI es la **fuente única de verdad** (capacidad `api-type-contracts`): el frontend deriva de él sus tipos, y `ContractDriftIT` **rompe la build** si el contrato no refleja el backend.

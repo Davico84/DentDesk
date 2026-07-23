@@ -27,6 +27,6 @@
 
 ## 5. Cierre (al archivar)
 
-- [ ] 5.1 `docs/vision.md`: enlazar el change archivado bajo `api-type-contracts` en "Estado de capacidades".
-- [ ] 5.2 `docs/backend.md §10`: dejar constancia de que el `detail` apto para el usuario es una garantía de **todos** los errores, incluidos los del manejador por defecto y los de la capa de seguridad.
-- [ ] 5.3 `docs/backend.md §10`: **regla para el futuro** — todo `@ExceptionHandler` nuevo, todo método del framework sobreescrito (p. ej. `handleMethodArgumentNotValid`) y todo punto de extensión de seguridad **queda fuera** del mapa automático de `handleExceptionInternal`; por tanto DEBE proveer su propio `detail` en español vía `ProblemDetails.of(...)`. El mapa solo cubre lo que el padre resuelve y pasa por `handleExceptionInternal`. (D2)
+- [x] 5.1 `docs/vision.md`: enlazar el change archivado bajo `api-type-contracts` en "Estado de capacidades".
+- [x] 5.2 `docs/backend.md §10`: dejar constancia de que el `detail` apto para el usuario es una garantía de **todos** los errores, incluidos los del manejador por defecto y los de la capa de seguridad.
+- [x] 5.3 `docs/backend.md §10`: **regla para el futuro** — todo `@ExceptionHandler` nuevo, todo método del framework sobreescrito (p. ej. `handleMethodArgumentNotValid`) y todo punto de extensión de seguridad **queda fuera** del mapa automático de `handleExceptionInternal`; por tanto DEBE proveer su propio `detail` en español vía `ProblemDetails.of(...)`. El mapa solo cubre lo que el padre resuelve y pasa por `handleExceptionInternal`. (D2)
