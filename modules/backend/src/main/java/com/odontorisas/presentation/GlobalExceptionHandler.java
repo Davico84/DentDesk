@@ -96,17 +96,59 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
     }
 
     /**
+     * Mensaje en español, apto para el usuario final, por <b>status</b> — no por tipo de
+     * excepción. Cubre lo que resuelve la clase padre de {@link ResponseEntityExceptionHandler}
+     * (404, 405, JSON malformado, 415, 406, 413, 503…), que de otro modo emitiría su mensaje
+     * interno en inglés (p. ej. {@code "Failed to read request"}, verificado en vivo).
+     *
+     * <p><b>Es un fallback por status, no una traducción por excepción</b>: dos tipos de excepción
+     * distintos con el mismo status comparten mensaje a propósito (p. ej. {@code
+     * HttpMessageNotReadableException} y {@code MissingServletRequestParameterException} son
+     * ambas {@code 400}). Un caso que de verdad necesite su propio texto se resuelve con un
+     * {@code @ExceptionHandler} puntual para ese tipo (que ya no pasa por este mapa, ver
+     * {@link #handleExceptionInternal}) — no ampliando este switch con matices por excepción.
+     *
+     * <p>Un status se mapea aquí solo cuando el genérico sería <b>engañoso</b> (p. ej. un
+     * {@code 503} no es "tu petición estaba mal", es "reintentá luego"), no simplemente cuando
+     * sería menos preciso: el genérico ya cumple la garantía de no filtrar texto interno.
+     */
+    private static final String DETAIL_GENERICO = "No se pudo procesar la petición.";
+
+    static String detailParaStatus(HttpStatus status) {
+        return switch (status) {
+            case BAD_REQUEST -> "La petición no es válida.";
+            case NOT_FOUND -> "El recurso solicitado no existe.";
+            case METHOD_NOT_ALLOWED -> "Operación no permitida para este recurso.";
+            case UNSUPPORTED_MEDIA_TYPE -> "El tipo de contenido enviado no es compatible.";
+            case NOT_ACCEPTABLE -> "El formato solicitado no es compatible.";
+            case PAYLOAD_TOO_LARGE -> "El archivo o los datos enviados son demasiado grandes.";
+            case SERVICE_UNAVAILABLE ->
+                "El servicio no está disponible temporalmente. Inténtalo de nuevo en unos minutos.";
+            default -> DETAIL_GENERICO;
+        };
+    }
+
+    /**
      * Las excepciones que resuelve la clase padre (404, 405, JSON malformado…) construyen su
      * {@link ProblemDetail} por su cuenta, <b>sin pasar por {@link ProblemDetails}</b>: saldrían
      * sin {@code timestamp} ni {@code traceId} y el contrato dejaría de ser fiel (documenta
      * {@code timestamp} como siempre presente). Aquí se les añaden las extensiones comunes, de
      * modo que <b>todos</b> los errores de la API —sin excepción— compartan forma.
+     *
+     * <p>Además reemplazan su {@code detail} (el mensaje interno de Spring) por uno en español
+     * apto para el usuario ({@link #detailParaStatus}), porque el cliente muestra {@code detail}
+     * tal cual en un toast: un mensaje interno filtrado llegaría íntegro al usuario final.
+     * {@code handleExceptionInternal} recibe un {@link HttpStatusCode}, no el enum {@link
+     * HttpStatus}; se resuelve con {@link HttpStatus#resolve(int)}, que devuelve {@code null}
+     * para un status no estándar — en ese caso también cae en el mensaje genérico.
      */
     @Override
     protected ResponseEntity<Object> handleExceptionInternal(
             Exception ex, Object body, HttpHeaders headers, HttpStatusCode statusCode, WebRequest request) {
         ResponseEntity<Object> response = super.handleExceptionInternal(ex, body, headers, statusCode, request);
         if (response != null && response.getBody() instanceof ProblemDetail problem) {
+            HttpStatus status = HttpStatus.resolve(statusCode.value());
+            problem.setDetail(status != null ? detailParaStatus(status) : DETAIL_GENERICO);
             ProblemDetails.addExtensions(problem);
         }
         return response;

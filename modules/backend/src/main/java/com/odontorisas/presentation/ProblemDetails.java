@@ -19,7 +19,9 @@ import java.time.Instant;
  *
  * <p>Extensiones sobre RFC 9457: {@code timestamp} (siempre) y {@code traceId} (solo si el MDC lo
  * tiene, ver {@link TraceIdFilter}) — de ahí que en el contrato {@code traceId} sea <b>opcional</b>.
- * {@code instance} NO se emite: documentarlo sería describir un campo que la API nunca envía.
+ * {@code instance} SÍ se emite: Spring lo rellena solo con la URI de la petición al renderizar el
+ * {@link ProblemDetail}, aunque ningún código de este proyecto llame a {@code setInstance(...)}.
+ * Verificado contra la respuesta real, no solo leyendo el código — ver {@code ErrorContractIT}.
  */
 public final class ProblemDetails {
 
