@@ -15,6 +15,8 @@ Sobre lo que se revela: la respuesta de un login rechazado por bloqueo SHALL ser
 
 Sobre el alcance del bloqueo: bloquear una identidad SHALL impedir **nuevos** inicios de sesión, y NO SHALL invalidar las sesiones ya emitidas ni afectar a la renovación de token de una sesión vigente.
 
+Sobre su relación con el estado de la identidad: el bloqueo temporal por intentos fallidos SHALL ser un mecanismo **independiente** del estado administrativo de la identidad. Expirar la ventana de bloqueo NO SHALL reactivar una identidad que esté deshabilitada o bloqueada administrativamente, ni alterar su estado de ninguna forma. Ambos controles SHALL evaluarse por separado y el acceso SHALL concederse solo si los dos lo permiten.
+
 #### Scenario: Credenciales válidas
 - **WHEN** un usuario registrado envía su correo y contraseña correctos y su identidad no está bloqueada
 - **THEN** el sistema establece la sesión (token de acceso y de refresco)
@@ -84,6 +86,11 @@ Sobre el alcance del bloqueo: bloquear una identidad SHALL impedir **nuevos** in
 - **THEN** el sistema responde siempre con el mensaje "Correo electrónico o contraseña incorrectos"
 - **AND** no crea ni altera ningún contador de intentos ni estado de bloqueo
 - **AND** su respuesta (código de estado, cuerpo y cabeceras) es idéntica a la de un correo registrado que falla
+
+#### Scenario: Expirar el bloqueo no reactiva una identidad deshabilitada
+- **WHEN** una identidad deshabilitada o bloqueada administrativamente acumula intentos fallidos hasta quedar además bloqueada por tiempo, y esa ventana transcurre
+- **THEN** el sistema sigue rechazando el acceso con el mensaje genérico, incluso con credenciales correctas
+- **AND** su estado administrativo permanece intacto (expirar la ventana no la reactiva)
 
 #### Scenario: Bloquear no cierra las sesiones ya abiertas
 - **WHEN** una identidad queda bloqueada por intentos fallidos mientras tiene una sesión vigente en otro dispositivo

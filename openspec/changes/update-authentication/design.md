@@ -31,8 +31,8 @@ debe respetar eso a nivel de **respuesta** (ver D9 para el matiz de timing).
 - CAPTCHA, MFA, verificación de correo.
 - **Invalidar sesiones ya emitidas** al bloquear (ver D10): el bloqueo frena logins nuevos, no revoca
   tokens vivos.
-- **Constant-time login completo** (blindaje de timing por hash señuelo, ver D9): documentado como
-  endurecimiento posible, no incluido.
+- **Constant-time login completo** (blindaje de timing por hash señuelo, ver D9): **descartado por
+  diseño**, no diferido.
 
 ## Decisions
 
@@ -133,12 +133,17 @@ La garantía es que un correo inexistente, uno con contraseña incorrecta y uno 
 **misma respuesta HTTP** (status/cuerpo/cabeceras). **No** se garantiza indistinguibilidad por
 **latencia**: el correo inexistente y el bloqueado saltan BCrypt, así que responden más rápido que una
 cuenta activa con contraseña incorrecta.
-- *Decisión:* aceptar el residuo de timing en este alcance. El spec limita explícitamente su claim a la
-  respuesta (se corrige el scenario que insinuaba timing).
-- *Endurecimiento posible, deferido:* verificar contra un **hash BCrypt señuelo** en los paths que hoy
-  saltan la verificación (correo inexistente y bloqueado) para igualar la latencia. Barato y estándar,
-  pero es una decisión de producto (constant-time login) que se deja fuera salvo que se pida. **Flag
-  para revisión humana.**
+- *Decisión:* Confirmada. Se acepta el residuo de timing en este alcance. El spec limita explícitamente
+  su claim a la respuesta. Se descarta la implementación de un hash señuelo (decoy hash) al considerarse
+  que la garantía a nivel de respuesta es suficiente y no justifica la complejidad ni el consumo de
+  CPU adicional por intento fallido/inexistente.
+- *Y hay una razón más fuerte para descartarlo:* el señuelo **desharía la defensa que da D2**. Hoy una
+  cuenta bloqueada (o un correo inexistente) se rechaza **antes** de BCrypt, o sea barato. Con señuelo,
+  cada uno de esos intentos quemaría el coste completo de BCrypt (~100 ms), convirtiendo el login en un
+  **amplificador de CPU** — y precisamente aquí no hay nada que lo frene, porque el rate limiting por IP
+  es Non-goal. O sea: el señuelo cambiaría una fuga de enumeración por latencia (menor, y ya mitigada a
+  nivel de respuesta) por un vector de DoS (mayor, y sin mitigación disponible en este alcance). No es
+  un endurecimiento pendiente: sería un empeoramiento.
 
 ### D10 — El bloqueo frena logins nuevos, no revoca sesiones vivas
 Bloquear una cuenta impide **nuevos** logins; **no** invalida access/refresh tokens ya emitidos, y el
@@ -146,13 +151,37 @@ endpoint de **refresh no consulta** el estado de bloqueo.
 - *Por qué:* el lockout es una defensa del path de verificación de credenciales contra fuerza bruta, no
   un mecanismo de revocación de sesión. La revocación ya tiene sus propias vías (logout; gate por
   estado de identidad/membresía en login/refresh). Mezclarlas ampliaría el alcance sin necesidad.
-- *Recomendación adoptada.* Si a futuro se quiere que bloquear expulse sesiones vivas, es un change
-  aparte (tocaría refresh).
+- *Recomendación adoptada y confirmada:* El alcance se limita estrictamente a evitar nuevos inicios de
+  sesión. No se expelen sesiones vivas (refresh sigue funcionando con normalidad).
 
 ### D11 — Tiempo inyectable (`Clock`)
 El cálculo de `locked_until` y la comparación de expiración usan un `java.time.Clock` inyectado (no
 `Instant.now()` directo), para que los tests de expiración sean deterministas (avanzar el reloj en vez
 de dormir). `locked_until` en UTC (`Instant`/`TIMESTAMPTZ`), coherente con `RefreshToken.expiresAt`.
+
+### D12 — `UserStatus.LOCKED` y `locked_until` son mecanismos **separados**
+`UserStatus` ya contempla `LOCKED` (enum existente, hoy **sin uso** en código ni migraciones, ver
+`docs/domain.md`). El bloqueo por intentos fallidos **no** lo reutiliza:
+
+| | Mecanismo | Naturaleza | Quién lo levanta |
+|---|---|---|---|
+| `UserStatus.LOCKED` / `DISABLED` | estado **administrativo** de la identidad | permanente | una acción humana/administrativa |
+| `locked_until` | bloqueo **automático** por fuerza bruta | temporal, se expira solo | el paso del tiempo |
+
+- *Por qué no reutilizar el enum:* el lockout automático tiene que **revertirse solo** al expirar la
+  ventana. Si lo expresara con `UserStatus`, al expirar habría que devolver el estado a `ACTIVE` — y eso
+  **resucitaría una cuenta que un administrador bloqueó a mano**, convirtiendo una defensa en un agujero
+  de seguridad. Son ciclos de vida distintos y no deben compartir columna.
+- *Interacción:* el gate por estado (`activeMembership`, D14 del change original) y el gate por
+  `locked_until` son **independientes y ambos deben pasar**. Una identidad `LOCKED`/`DISABLED` se rechaza
+  con el genérico aunque `locked_until` sea null; una identidad `ACTIVE` dentro de la ventana se rechaza
+  con el genérico aunque su estado sea correcto.
+- *Conteo sobre identidades no activas:* `login` verifica la contraseña **antes** que el estado, así que
+  una contraseña **incorrecta** contra una identidad `LOCKED`/`DISABLED` **sí** incrementa el contador
+  (es un intento de adivinar credenciales como cualquier otro). Coherente con D8: lo que no cuenta es el
+  rechazo por estado con contraseña **correcta**. Es comportamiento explícito, no accidental.
+- *Terminología:* en el spec, "bloqueada" se refiere **siempre** al bloqueo temporal (`locked_until`);
+  el estado administrativo se nombra como "identidad no activa".
 
 ## Risks / Trade-offs
 
@@ -162,7 +191,7 @@ de dormir). `locked_until` en UTC (`Instant`/`TIMESTAMPTZ`), coherente con `Refr
   → Mitigación: ventana corta y auto-expirable acota el daño; el rate limiting por IP (futuro) es la
   defensa real contra abuso sostenido. Riesgo aceptado en este alcance.
 - **Residuo de timing** (D9): la latencia distingue correo inexistente/bloqueado de cuenta activa con
-  contraseña mala → Mitigación disponible (hash señuelo), deferida; flag a revisión.
+  contraseña mala → Mitigación disponible (hash señuelo), descartada por diseño.
 - **Cambio de config vs. contadores acumulados** (D6): bajar el umbral puede bloquear antes a quien ya
   acumulaba fallos → comportamiento documentado, aceptado.
 
@@ -179,7 +208,5 @@ de dormir). `locked_until` en UTC (`Instant`/`TIMESTAMPTZ`), coherente con `Refr
 
 ## Open Questions
 
-- **Timing (D9):** ¿se quiere blindaje constant-time (hash señuelo) o basta con la garantía a nivel de
-  respuesta? Propuesta: basta respuesta; revisar en aprobación humana.
-- Defaults 5 / `PT15M` — confirmar en revisión humana (quedan como valores por defecto documentados y
-  validados, no bloqueantes).
+Ninguna. Todas las decisiones de diseño (D9, D10 y defaults) han sido confirmadas.
+

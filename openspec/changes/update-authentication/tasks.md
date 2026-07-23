@@ -24,6 +24,7 @@
 - [ ] 4.5 En login exitoso: ejecutar el reset (3.2). (D3)
 - [ ] 4.6 Confirmar que un correo inexistente no crea ni altera estado. (D5)
 - [ ] 4.7 Confirmar que `refresh` **no** consulta el estado de bloqueo (el bloqueo no revoca sesiones vivas). (D10)
+- [ ] 4.8 **No tocar `UserStatus`**: el lockout automático no escribe `LOCKED` ni ningún otro estado en la identidad. El gate por estado (`activeMembership`) y el gate por `locked_until` quedan independientes y ambos deben pasar. (D12)
 
 ## 5. Tests backend (uno por Scenario del delta + las garantías frágiles)
 
@@ -38,8 +39,9 @@
 - [ ] 5.9 Correo inexistente: intentos repetidos no crean estado.
 - [ ] 5.10 `AuthControllerIT`: el status/cuerpo/cabeceras de un rechazo por bloqueo son idénticos a los de credenciales inválidas (anti-enumeración a nivel de respuesta).
 - [ ] 5.11 Bloquear no invalida una sesión vigente: el `refresh` de esa sesión sigue funcionando. (D10)
-- [ ] 5.12 Configuración inválida (`max-attempts = 0`, `window` no positiva) impide el arranque.
-- [ ] 5.13 Migración + mapeo: la columna existe con su default y la entidad la lee/escribe correctamente.
+- [ ] 5.12 Expirar la ventana no reactiva una identidad `LOCKED`/`DISABLED`: sigue rechazando con el genérico y su `status` queda intacto. (D12)
+- [ ] 5.13 Configuración inválida (`max-attempts = 0`, `window` no positiva) impide el arranque.
+- [ ] 5.14 Migración + mapeo: la columna existe con su default y la entidad la lee/escribe correctamente.
 
 ## 6. Cierre (al archivar)
 

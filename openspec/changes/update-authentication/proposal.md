@@ -55,7 +55,7 @@ en `docs/vision.md`. Este change lo cierra sin infraestructura nueva.
   defiende el path de credenciales, no es un mecanismo de revocación de sesión.
 - **Login de tiempo constante**: la garantía anti-enumeración cubre la **respuesta** (status, cuerpo,
   cabeceras), no la latencia. Igualar tiempos exigiría verificar contra un hash señuelo en los paths
-  que hoy saltan BCrypt; queda documentado como endurecimiento posible, no incluido.
+  que hoy saltan BCrypt; queda descartado por diseño (la garantía a nivel de respuesta se considera suficiente).
 
 ## Impact
 
