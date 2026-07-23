@@ -29,8 +29,8 @@ Se llena **una sola vez**, al inicio del tratamiento del paciente:
 
 - ✅ El diagnóstico (CIE10) y el criterio clínico que autoriza a tratar quedan modelados — hueco real que no existía en ningún lado.
 - ✅ Reordena el roadmap con una dependencia explícita: `dental-chart`, `treatments` y `treatment-plans` pasan a depender también de `clinical-history`, no solo de `patients`.
-- ⚠️ **Rompe un requirement ya construido y testeado de `patients`**: la anamnesis (`allergies`/`conditions`/`currentMedication`) deja de capturarse ahí. Es un `update-patients` que **remueve** ese requirement (o lo redefine como espejo de solo lectura), no solo una capacidad nueva que lo ignora.
-- ⚠️ Choca directamente con la rama de trabajo `docs/refine-update-patients` (change `update-patients`, aún sin PR abierto): esa propuesta asume que la anamnesis sigue en `patients`. Hay que revisarla a la luz de esta decisión antes de implementarla.
+- ⚠️ **Modifica un requirement ya construido y testeado de `patients`**: la anamnesis (`allergies`/`conditions`/`currentMedication`) deja de capturarse ahí. Requiere un `update-patients` **futuro y separado** que remueva o redefina ese requirement — es trabajo pendiente que hay que trackear, no algo que resolver ahora.
+- ✅ **Verificado, no hay conflicto real con la rama en curso**: `docs/refine-update-patients` (teléfono compartido, contacto de emergencia, documento duplicado) **no menciona ni depende de** `allergies`/`conditions`/`currentMedication` (confirmado con grep sobre sus 4 artefactos). Ambos cambios tocan `patients` en aspectos distintos y pueden implementarse/mergearse en **cualquier orden**. La afirmación original de que "chocaban" era una sobreestimación — se corrigió con una nota en `update-patients/proposal.md`.
 - ⚠️ **Sequencing:** como ninguna de `dental-chart`/`treatments`/`treatment-plans` está construida todavía, es el momento correcto para insertar `clinical-history` en el roadmap — evita el patrón de "bloqueo de secuencia" que ya se vio con `multi-tenancy`.
 
 ## Alternativas descartadas
