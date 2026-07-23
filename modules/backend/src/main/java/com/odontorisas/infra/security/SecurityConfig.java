@@ -28,7 +28,7 @@ import java.util.List;
  * {@code SameSite=Lax} + método POST.
  */
 @Configuration
-@EnableConfigurationProperties(SecurityProperties.class)
+@EnableConfigurationProperties({SecurityProperties.class, LoginLockoutProperties.class})
 @EnableMethodSecurity
 public class SecurityConfig {
 

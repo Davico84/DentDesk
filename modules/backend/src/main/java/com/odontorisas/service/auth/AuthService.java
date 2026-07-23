@@ -22,6 +22,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Clock;
 import java.time.Instant;
 import java.util.function.Supplier;
 
@@ -48,6 +49,8 @@ public class AuthService {
     private final TenantSession tenantSession;
     private final PasswordEncoder passwordEncoder;
     private final TokenService tokenService;
+    private final LoginAttemptService loginAttemptService;
+    private final Clock clock;
 
     public AuthService(UserRepository users,
                        OrganizationRepository organizations,
@@ -57,7 +60,9 @@ public class AuthService {
                        OrganizationSlugService slugService,
                        TenantSession tenantSession,
                        PasswordEncoder passwordEncoder,
-                       TokenService tokenService) {
+                       TokenService tokenService,
+                       LoginAttemptService loginAttemptService,
+                       Clock clock) {
         this.users = users;
         this.organizations = organizations;
         this.organizationSettings = organizationSettings;
@@ -67,6 +72,8 @@ public class AuthService {
         this.tenantSession = tenantSession;
         this.passwordEncoder = passwordEncoder;
         this.tokenService = tokenService;
+        this.loginAttemptService = loginAttemptService;
+        this.clock = clock;
     }
 
     /** Alta autoservicio: organización + configuración + identidad + membresía ADMIN, atómico. */
@@ -101,12 +108,35 @@ public class AuthService {
         return issueTokens(user, membership);
     }
 
+    /**
+     * Bloqueo por intentos fallidos (design.md, update-authentication): se comprueba ANTES de
+     * verificar la contraseña (D2) para no gastar BCrypt en una cuenta ya bloqueada; una
+     * identidad bloqueada se rechaza sin tocar el contador (D8, "insistir no prolonga la
+     * ventana"). Solo un fallo de CONTRASEÑA cuenta (D8): se persiste en transacción propia
+     * ({@link LoginAttemptService}) para sobrevivir al 401 que este método lanza a continuación
+     * (D7). Un rechazo por estado ({@link #activeMembership}) NO incrementa ni resetea el
+     * contador; el reset por éxito vive en ESTA transacción (no en la del colaborador) para que
+     * un fallo posterior en {@code activeMembership}/{@code issueTokens} lo revierta con el resto
+     * (D7, asimetría deliberada con el incremento). El reset es además CONDICIONAL (D13): entre
+     * la lectura de {@code lockedUntil} de arriba y este punto, otra request concurrente puede
+     * haber bloqueado la cuenta (BCrypt tarda ~100ms, ventana real); si el UPDATE condicional no
+     * afecta ninguna fila, la cuenta se bloqueó en el medio y el login se rechaza sin emitir
+     * tokens, en vez de ignorar ese bloqueo recién creado.
+     */
     public AuthResult login(String email, String rawPassword) {
         User user = users.findByEmail(email).orElseThrow(InvalidCredentialsException::new);
+        Instant now = clock.instant();
+        if (user.getLockedUntil() != null && user.getLockedUntil().isAfter(now)) {
+            throw new InvalidCredentialsException();
+        }
         if (!passwordEncoder.matches(rawPassword, user.getPasswordHash())) {
+            loginAttemptService.recordFailure(user.getId());
             throw new InvalidCredentialsException();
         }
         Membership membership = activeMembership(user, InvalidCredentialsException::new);
+        if (users.resetLoginAttemptsIfNotLocked(user.getId(), now) == 0) {
+            throw new InvalidCredentialsException();
+        }
         return issueTokens(user, membership);
     }
 
