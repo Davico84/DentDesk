@@ -50,6 +50,18 @@ public class User {
     @Column(nullable = false, length = 20)
     private UserStatus status;
 
+    /**
+     * Bloqueo automático y temporal por intentos fallidos (design.md D12, update-authentication):
+     * mecanismo independiente de {@link #status}. Expirar {@code lockedUntil} nunca reactiva una
+     * identidad {@code LOCKED}/{@code DISABLED}.
+     */
+    @Column(name = "failed_login_attempts", nullable = false)
+    @Builder.Default
+    private int failedLoginAttempts = 0;
+
+    @Column(name = "locked_until")
+    private Instant lockedUntil;
+
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;

@@ -55,6 +55,10 @@ app:
       secure: ${COOKIE_SECURE:true}            # true en despliegue; false para http local si hace falta
     cors:
       allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:5173}
+  auth:
+    lockout:
+      max-attempts: ${AUTH_LOCKOUT_MAX_ATTEMPTS:5}
+      window: ${AUTH_LOCKOUT_WINDOW:PT15M}     # ISO-8601 Duration (15 min)
 
 management:
   endpoints:
