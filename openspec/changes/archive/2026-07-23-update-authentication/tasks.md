@@ -49,8 +49,8 @@
 
 ## 6. Cierre (al archivar)
 
-- [ ] 6.1 `docs/vision.md`: marcar el hueco "Sin bloqueo por intentos fallidos de login" como cerrado y enlazar el `spec.md` de `authentication`.
-- [ ] 6.2 `docs/domain.md`: actualizar la identidad si los campos de bloqueo son relevantes para el modelo de dominio (si no, dejar nota de por qué no).
+- [x] 6.1 `docs/vision.md`: marcar el hueco "Sin bloqueo por intentos fallidos de login" como cerrado y enlazar el `spec.md` de `authentication`.
+- [x] 6.2 `docs/domain.md`: actualizar la identidad si los campos de bloqueo son relevantes para el modelo de dominio (si no, dejar nota de por qué no).
 
 ## 7. Frontend
 

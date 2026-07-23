@@ -104,6 +104,7 @@ Este documento describe **el negocio**, no cómo se implementa. Ante la duda sob
 ### `authentication` → **User** *(identidad global; construida)*
 **Identidad** de una persona en la plataforma: existe **una sola vez** (correo único global) y **no tiene rol ni organización propios** (el rol vive en `Membership`). Los `User` son el **staff de la clínica** (administrador, recepción, odontólogos): son quienes inician sesión. Los **pacientes NO son usuarios** (ver `Patient`).
 - **Construido**: `email` (único global), la contraseña (**se guarda cifrada, nunca en claro**), `fullName`, `status` (`ACTIVE` | `LOCKED` | `DISABLED`), `createdAt`/`updatedAt`.
+- **Construido** (change `update-authentication`, bloqueo por intentos fallidos): `failedLoginAttempts` (contador) + `lockedUntil` (ventana de bloqueo temporal). **Independiente** de `status` — `LOCKED`/`DISABLED` es un bloqueo **administrativo y permanente** (lo levanta una persona); `lockedUntil` es **automático y temporal** (se expira solo). Reutilizar `status` para esto habría obligado a devolverlo a `ACTIVE` al expirar la ventana, resucitando una cuenta que un admin bloqueó a mano.
 - **Movido a `Membership`** (en `multi-tenancy`): `role`. **Diferido al change `update-authentication`** (el *perfil*, no el alta): `username` (único), `phone`, `country`.
 
 ### `multi-tenancy` → **Organization** *(el tenant; construida)*
