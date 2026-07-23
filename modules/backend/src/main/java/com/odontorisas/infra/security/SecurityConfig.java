@@ -51,14 +51,20 @@ public class SecurityConfig {
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers(PublicPaths.PATTERNS).permitAll()
                 .anyRequest().authenticated())
-            // El 401 de "sesión ausente" se delega al HandlerExceptionResolver de MVC en vez de
-            // usar sendError(401) (que devolvía el cuerpo por defecto del contenedor). Así lo
-            // renderiza el mismo GlobalExceptionHandler que el resto de errores y la API falla
-            // SIEMPRE con la misma forma (RFC 9457) — requisito para que el contrato pueda
-            // describir los errores con un único schema.
-            .exceptionHandling(ex -> ex.authenticationEntryPoint(
-                (request, response, authException) ->
-                    handlerExceptionResolver.resolveException(request, response, null, authException)))
+            // El 401 de "sesión ausente" y el 403 de acceso denegado se delegan al
+            // HandlerExceptionResolver de MVC en vez de usar sendError() (que devolvía el cuerpo
+            // por defecto del contenedor). Así los renderiza el mismo GlobalExceptionHandler que
+            // el resto de errores y la API falla SIEMPRE con la misma forma (RFC 9457) — requisito
+            // para que el contrato pueda describir los errores con un único schema. El
+            // accessDeniedHandler cubre el 403 a nivel de RUTA (authorizeHttpRequests); el 403 de
+            // @PreAuthorize (method-security) ya llegaba al mismo resultado por otra vía
+            // (AccessDeniedException → @ExceptionHandler propio), pero hoy no hay ninguna regla de
+            // rol por URL que dispare este camino — se cierra antes de que `staff` la traiga.
+            .exceptionHandling(ex -> ex
+                .authenticationEntryPoint((request, response, authException) ->
+                    handlerExceptionResolver.resolveException(request, response, null, authException))
+                .accessDeniedHandler((request, response, accessDeniedException) ->
+                    handlerExceptionResolver.resolveException(request, response, null, accessDeniedException)))
             .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
         return http.build();
     }
