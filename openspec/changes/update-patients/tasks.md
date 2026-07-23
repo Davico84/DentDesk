@@ -13,12 +13,14 @@
 - [ ] 3.1 Regla condicional en `patientSchema` (Zod `superRefine`): contacto de emergencia obligatorio si `phone` vacío; mensaje claro del porqué. Paridad con el backend.
 - [ ] 3.2 Aviso **no bloqueante** de teléfono compartido en el formulario, visualmente distinto de un error de campo (deja guardar).
 
-## 4. Ficha existente ante documento duplicado — ADR-0009, D3/D4
+## 4. Ficha existente ante documento duplicado — ADR-0009, D3/D4/D5
 
 - [ ] 4.1 `DocumentAlreadyExistsException`: añadir el campo `existingPatientId` (constructor). `PatientService.requireDocumentFree`: cambiar `existsBy...` por `findBy...` para obtener el id del paciente colisionado y pasarlo al construir la excepción.
 - [ ] 4.2 `GlobalExceptionHandler`: `@ExceptionHandler(DocumentAlreadyExistsException.class)` **dedicado** (no pasa por `handleBusiness`) que arma el `ProblemDetail` vía `ProblemDetails.of(...)` y le agrega `problem.setProperty("existingPatientId", ex.getExistingPatientId())` — mismo patrón que `handleMethodArgumentNotValid` con `errors`. (D4)
 - [ ] 4.3 Contrato: `patient-document-taken` documenta la extensión `existingPatientId` (opcional, solo en este `errorType`). Regenerar `contracts/openapi.json` + cliente.
-- [ ] 4.4 Frontend: ante ese `409`, ofrecer "Abrir registro existente" (navega con `patientDetailPath(existingPatientId)`) además de "Cancelar".
+- [ ] 4.4 `apiError.ts`: nuevo util `getExistingPatientId(error)` → `getApiProblem(error)?.existingPatientId`, mismo patrón que `getFieldErrors`. (D5)
+- [ ] 4.5 `usePatientsApi.ts`: en `useCreatePatient`/`useUpdatePatient`, el `onError` del hook **se abstiene** de su `toast.error` genérico cuando `getApiProblem(error)?.type === "/errors/patient-document-taken"` — ese caso lo maneja el componente, para no duplicar el aviso. (D5)
+- [ ] 4.6 `PatientForm.onSubmit`: en su `onError`, si el error es `patient-document-taken`, mostrar el **único** toast con acción "Abrir registro existente" (`navigate(patientDetailPath(existingPatientId))`) además de la opción implícita de cerrar/cancelar. Para el resto de errores, sigue solo `applyServerFieldErrors` (el hook cubre el genérico). (D5)
 
 ## 5. Tests (uno por Scenario del delta)
 
@@ -32,6 +34,7 @@
 - [ ] 5.8 Documento en otra clínica no genera conflicto ni revela nada de la otra.
 - [ ] 5.9 **Edición**: editar un paciente que ya comparte teléfono con otro (sin cambiar el teléfono) no muestra un falso aviso por contarse a sí mismo — `countByPhoneAndIdNot` excluye al propio id.
 - [ ] 5.10 **Edición**: quitar el teléfono propio de un paciente sin contacto de emergencia existente exige agregarlo, igual que en el alta.
+- [ ] 5.11 El conflicto de documento muestra **un solo** toast (con la acción), no el genérico del hook además del accionable del componente. (D5)
 
 ## 6. Cierre (al archivar)
 

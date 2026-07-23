@@ -46,6 +46,15 @@ El `409` de documento duplicado (`patient-document-taken`) SHALL incluir lo nece
 - **Contrato:** `patient-document-taken` gana una extensión `existingPatientId` en su schema de error — documentar como opcional siguiendo el patrón de `traceId` (solo aparece en este `errorType` concreto).
 - `PatientService.requireDocumentFree` necesita el `id` del paciente colisionado para pasarlo al constructor de la excepción — hoy solo hace `existsBy...` (boolean); pasa a `findBy...` (devuelve la entidad o su id) para poder incluirlo.
 
+### D5 — Quién muestra el toast accionable, sin duplicar el aviso (verificado contra el código)
+`useCreatePatient`/`useUpdatePatient` (fix `fix/patients-error-toast`) tienen `onError: (e) => toast.error(getUserFriendlyError(e))` **a nivel de hook** — corre **siempre**, sin acceso a `navigate` (los hooks de `usePatientsApi` no dependen del router). `PatientForm.onSubmit` tiene su propio `onError: (e) => applyServerFieldErrors(e, setError)` **a nivel de componente**, que sí tiene `navigate` en scope. Ambos `onError` corren **juntos** (mismo mecanismo que `useLogin`, confirmado esta sesión) — así que, sin más, el `409` de documento duplicado dispararía **dos** toasts: uno de solo texto (hook) y uno con botón "Abrir registro existente" (si se agregara en el componente).
+
+- **Decisión:** el hook se **abstiene** de su toast genérico específicamente cuando el `errorType` es `patient-document-taken` — comprueba `getApiProblem(error)?.type === "/errors/patient-document-taken"` antes de llamar a `toast.error`. El toast accionable (con el botón que navega) lo muestra **el componente**, en su propio `onError`, leyendo `existingPatientId` del mismo error.
+- **Nuevo util en `apiError.ts`**: `getExistingPatientId(error): number | undefined` → `getApiProblem(error)?.existingPatientId`, mismo patrón que `getFieldErrors`. Usa el tipo generado (una vez regenerado el contrato, D4) — nunca una forma escrita a mano (`docs/frontend.md §2.6`).
+- *Alternativa descartada — el hook recibe `navigate` como parámetro:* rompe la simetría de `useDeactivatePatient`/`useReactivatePatient`, que no dependen del llamador para nada más que los datos de la mutación.
+- *Alternativa descartada — mostrar ambos toasts:* dos avisos para el mismo error es peor UX que uno solo, y no hay ninguna razón de negocio para duplicarlo (a diferencia de field-errors + toast genérico, que sí son informaciones distintas — aquí ambos toasts dirían básicamente lo mismo).
+- *Consecuencia:* el hook dejar de ser 100% agnóstico al tipo de error para ESTE `errorType` puntual — es una excepción documentada, no el patrón general. Cualquier otro error de `patients` (500, otros 409) sigue cayendo en el toast genérico del hook, sin cambios.
+
 ## Risks / Trade-offs
 
 - **El aviso de teléfono compartido añade una consulta** en el alta/edición → aceptable (indexado por `(organizationId, phone)` si hiciera falta); es un `count`, no una carga.
@@ -53,8 +62,9 @@ El `409` de documento duplicado (`patient-document-taken`) SHALL incluir lo nece
 - **Exponer el `id` de la ficha en conflicto**: se limita a `id` (y quizá nombre para confirmar), nunca la ficha entera en el error. Ver D4 sobre cómo se transporta.
 - **Cambio de contrato en dos DTOs** (`PatientResponse` gana el aviso de teléfono, D1; el error `patient-document-taken` gana `existingPatientId`, D4) → ambos exigen regenerar `contracts/openapi.json` + cliente del frontend; `ContractDriftIT` falla si se olvida. Riesgo bajo (mecánico), solo hay que acordarse de correrlo.
 - **Contar sin excluir al propio paciente en edición** (D1) → mitigado: la consulta de teléfono usa `countByPhoneAndIdNot` en `update`, mismo patrón que `existsByDocumentAndIdNot` ya usa para el documento.
+- **Doble toast para el documento duplicado** (D5) → mitigado: el hook se abstiene de su toast genérico para ese `errorType` específico; el componente muestra el único toast, con acción.
 
 ## Open Questions
 
-- Las de ADR-0005 (campos obligatorios del alta, excepción del bebé, `fullName` vs nombres+apellidos) — ver proposal. Se resuelven antes de añadir su delta; no bloquean D1–D4.
+- Las de ADR-0005 (campos obligatorios del alta, excepción del bebé, `fullName` vs nombres+apellidos) — ver proposal. Se resuelven antes de añadir su delta; no bloquean D1–D5.
 - ¿El aviso de teléfono compartido lista **cuántos**/**quiénes** lo comparten, o solo "ya está en uso por otros pacientes"? Propuesta: solo el hecho + conteo, sin nombres, para no volcar datos innecesarios en un aviso. Determina si `PatientResponse` gana un `boolean` o un `int` (ver D1).
