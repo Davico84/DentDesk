@@ -125,6 +125,38 @@ WHERE id = :id
   - Resumen de la asimetría: el **incremento** debe **sobrevivir** al rollback (por eso `REQUIRES_NEW`);
     el **reset** debe **ser revertido** por él (por eso transacción principal). No es una preferencia de
     estilo: invertir cualquiera de las dos rompe el mecanismo.
+
+### D13 — El reset es CONDICIONAL: cierra la ventana de carrera entre leer el bloqueo y emitir tokens
+`login` lee `lockedUntil` **una sola vez**, al inicio, antes de verificar la contraseña (D2). Entre esa
+lectura y el momento de emitir tokens hay una ventana real (BCrypt tarda ~100ms): otra request
+concurrente puede bloquear la cuenta en el medio (p. ej. un flood de intentos fallidos de un atacante
+corriendo al mismo instante que un login legítimo). Sin más, esta request seguiría de largo y emitiría
+sesión para una cuenta que, en el momento de responder, ya está bloqueada.
+- *Alcance real del riesgo:* esto **no** deja pasar a un atacante sin la contraseña correcta — BCrypt ya
+  se verificó, por request, contra el hash real; una contraseña incorrecta sigue fallando siempre,
+  gane o pierda esta carrera. Lo único que la carrera puede permitir es que una request que **ya trae
+  la contraseña correcta** complete su login pese a que el umbral se cruzó por *otras* requests
+  concurrentes. Es una brecha de instantaneidad del lockout bajo ráfagas extremas, no una vía para que
+  alguien sin credenciales entre.
+- *Decisión:* el reset se hace con el mismo patrón atómico de D7, pero **condicional**:
+  ```sql
+  UPDATE users SET failed_login_attempts = 0, locked_until = NULL
+  WHERE id = :id AND (locked_until IS NULL OR locked_until <= :now)
+  ```
+  Si afecta **0 filas**, la cuenta se bloqueó en el medio → se rechaza el login (mismo
+  `InvalidCredentialsException` genérico, D4) sin llegar a `issueTokens`. Reduce la ventana de la carrera
+  a lo que dura `issueTokens()` (generar token + hash + `INSERT`), no todo el bloque
+  contraseña+membresía.
+- *Alternativas descartadas:*
+  - **Re-chequear `lockedUntil` leyendo la misma entidad JPA**: no sirve — el contexto de persistencia
+    devuelve el objeto cacheado de primer nivel, no ve el commit concurrente del colaborador
+    `REQUIRES_NEW`. Solo una lectura fresca (o, mejor, un `UPDATE` atómico como el elegido) lo detecta.
+  - **`SELECT ... FOR UPDATE`** (row lock) sobre el usuario durante todo `login`: cierra la ventana del
+    todo, pero serializa contra el propio `LoginAttemptService` (transacción separada) — arriesga que
+    `recordFailure` quede bloqueado esperando el lock de una request de `login` en curso, justo la
+    transacción que necesita ser rápida y no bloqueante para que el lockout siga funcionando bajo carga.
+    Más pesado y con riesgo de contención que no está gratis, para cerrar una ventana que ya de por sí
+    no beneficia a un atacante sin la contraseña.
 - *Alternativa descartada — `noRollbackFor`:* haría persistir el incremento sin transacción aparte, pero
   **no** resuelve el lost update; seguiría necesitando el `UPDATE` atómico. `REQUIRES_NEW` + sentencia
   atómica cubre ambos con una sola pieza.

@@ -15,6 +15,8 @@ Sobre lo que se revela: la respuesta de un login rechazado por bloqueo SHALL ser
 
 Sobre el alcance del bloqueo: bloquear una identidad SHALL impedir **nuevos** inicios de sesión, y NO SHALL invalidar las sesiones ya emitidas ni afectar a la renovación de token de una sesión vigente.
 
+Sobre bloqueos que ocurren durante un login en curso: si una identidad queda bloqueada **mientras** una petición de login concurrente ya validó sus credenciales pero aún no estableció la sesión, el sistema NO SHALL establecer esa sesión — SHALL rechazarla con el mismo mensaje genérico, como si el bloqueo hubiera existido desde el inicio de la petición.
+
 Sobre su relación con el estado de la identidad: el bloqueo temporal por intentos fallidos SHALL ser un mecanismo **independiente** del estado administrativo de la identidad. Expirar la ventana de bloqueo NO SHALL reactivar una identidad que esté deshabilitada o bloqueada administrativamente, ni alterar su estado de ninguna forma. Ambos controles SHALL evaluarse por separado y el acceso SHALL concederse solo si los dos lo permiten.
 
 #### Scenario: Credenciales válidas
@@ -96,6 +98,11 @@ Sobre su relación con el estado de la identidad: el bloqueo temporal por intent
 - **WHEN** una identidad deshabilitada o bloqueada administrativamente acumula intentos fallidos hasta quedar además bloqueada por tiempo, y esa ventana transcurre
 - **THEN** el sistema sigue rechazando el acceso con el mensaje genérico, incluso con credenciales correctas
 - **AND** su estado administrativo permanece intacto (expirar la ventana no la reactiva)
+
+#### Scenario: Un bloqueo concurrente corta un login que ya validó la contraseña
+- **WHEN** una identidad queda bloqueada por alcanzar el umbral de intentos fallidos justo mientras otra petición de login con credenciales correctas para esa misma identidad ya pasó la verificación de contraseña pero todavía no estableció la sesión
+- **THEN** el sistema rechaza esa petición sin establecer sesión
+- **AND** responde con el mismo mensaje genérico "Correo electrónico o contraseña incorrectos"
 
 #### Scenario: Bloquear no cierra las sesiones ya abiertas
 - **WHEN** una identidad queda bloqueada por intentos fallidos mientras tiene una sesión vigente en otro dispositivo
