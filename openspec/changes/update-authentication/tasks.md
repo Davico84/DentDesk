@@ -14,6 +14,7 @@
 - [ ] 3.1 Añadir al `UserRepository` la sentencia atómica `@Modifying` de fallo (incrementa, reinicia a 1 si la ventana ya expiró, y fija `locked_until` al alcanzar el umbral — todo en un solo `UPDATE`). (D7, D3)
 - [ ] 3.2 Añadir la sentencia atómica de reset por éxito (`failed_login_attempts = 0`, `locked_until = NULL`).
 - [ ] 3.3 Colaborador `LoginAttemptService` con `@Transactional(propagation = REQUIRES_NEW)` que ejecuta 3.1, de modo que el incremento **commitea aunque `login` lance después el 401**. (D7, resuelve el rollback de `@Transactional` + `RuntimeException`)
+- [ ] 3.4 El reset de 3.2 se invoca **desde la transacción de `login`**, NO desde el colaborador `REQUIRES_NEW`: acertar la contraseña no cierra el login (`activeMembership` e `issueTokens` aún pueden fallar) y el reset debe revertirse con ellos. (D7 — asimetría deliberada con 3.3)
 
 ## 4. Lógica de login (backend)
 
@@ -34,14 +35,15 @@
 - [ ] 5.4 Cuenta bloqueada con credenciales correctas → rechazo genérico, sin sesión.
 - [ ] 5.5 Insistir durante el bloqueo no incrementa el contador ni retrasa la expiración.
 - [ ] 5.6 Un rechazo por estado (con contraseña correcta) no incrementa el contador.
-- [ ] 5.7 Expiración + credenciales correctas → sesión establecida y contador reiniciado (avanzando el `Clock`, sin dormir).
-- [ ] 5.8 Expiración + contraseña incorrecta → no re-bloquea de inmediato (el conteo parte de cero).
-- [ ] 5.9 Correo inexistente: intentos repetidos no crean estado.
-- [ ] 5.10 `AuthControllerIT`: el status/cuerpo/cabeceras de un rechazo por bloqueo son idénticos a los de credenciales inválidas (anti-enumeración a nivel de respuesta).
-- [ ] 5.11 Bloquear no invalida una sesión vigente: el `refresh` de esa sesión sigue funcionando. (D10)
-- [ ] 5.12 Expirar la ventana no reactiva una identidad `LOCKED`/`DISABLED`: sigue rechazando con el genérico y su `status` queda intacto. (D12)
-- [ ] 5.13 Configuración inválida (`max-attempts = 0`, `window` no positiva) impide el arranque.
-- [ ] 5.14 Migración + mapeo: la columna existe con su default y la entidad la lee/escribe correctamente.
+- [ ] 5.7 **El reset no sobrevive a un login fallido**: una identidad `DISABLED`/`LOCKED` con contador acumulado que envía la contraseña **correcta** es rechazada por estado y su contador **sigue intacto** (el reset se revirtió con la transacción). (D7 3.4)
+- [ ] 5.8 Expiración + credenciales correctas → sesión establecida y contador reiniciado (avanzando el `Clock`, sin dormir).
+- [ ] 5.9 Expiración + contraseña incorrecta → no re-bloquea de inmediato (el conteo parte de cero).
+- [ ] 5.10 Correo inexistente: intentos repetidos no crean estado.
+- [ ] 5.11 `AuthControllerIT`: el status/cuerpo/cabeceras de un rechazo por bloqueo son idénticos a los de credenciales inválidas (anti-enumeración a nivel de respuesta).
+- [ ] 5.12 Bloquear no invalida una sesión vigente: el `refresh` de esa sesión sigue funcionando. (D10)
+- [ ] 5.13 Expirar la ventana no reactiva una identidad `LOCKED`/`DISABLED`: sigue rechazando con el genérico y su `status` queda intacto. (D12)
+- [ ] 5.14 Configuración inválida (`max-attempts = 0`, `window` no positiva) impide el arranque.
+- [ ] 5.15 Migración + mapeo: la columna existe con su default y la entidad la lee/escribe correctamente.
 
 ## 6. Cierre (al archivar)
 

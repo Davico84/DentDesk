@@ -5,7 +5,7 @@ El sistema SHALL autenticar a un usuario por su identidad global (correo y contr
 
 El sistema SHALL proteger el login contra fuerza bruta bloqueando temporalmente la identidad tras un número configurable de intentos fallidos **consecutivos** contra un correo registrado. Mientras la identidad esté bloqueada, el sistema SHALL rechazar el acceso aunque las credenciales sean correctas, sin emitir sesión.
 
-Sobre qué se contabiliza: SHALL incrementar el contador **únicamente** cuando la contraseña no coincide para un correo registrado. Un rechazo por **estado** (identidad, membresía u organización no activa) con contraseña correcta NO SHALL incrementar el contador. Un intento realizado mientras la identidad ya está bloqueada NO SHALL incrementar el contador ni prolongar la ventana de bloqueo. Un intento contra un correo no registrado NO SHALL crear ni alterar estado alguno.
+Sobre qué se contabiliza: SHALL incrementar el contador **únicamente** cuando la contraseña no coincide para un correo registrado. Un rechazo por **estado** (identidad, membresía u organización no activa) con contraseña correcta NO SHALL incrementar **ni reiniciar** el contador: un intento que no llega a establecer sesión SHALL dejar el estado de bloqueo como estaba. Un intento realizado mientras la identidad ya está bloqueada NO SHALL incrementar el contador ni prolongar la ventana de bloqueo. Un intento contra un correo no registrado NO SHALL crear ni alterar estado alguno.
 
 Sobre la persistencia del conteo: el incremento SHALL persistir aunque el intento se rechace con error, y SHALL ser correcto cuando varios intentos concurren sobre la misma identidad (N intentos fallidos simultáneos cuentan N).
 
@@ -70,6 +70,11 @@ Sobre su relación con el estado de la identidad: el bloqueo temporal por intent
 - **WHEN** un usuario con contraseña correcta es rechazado porque su identidad, membresía u organización no está activa
 - **THEN** el sistema no incrementa su contador de intentos fallidos
 - **AND** repetir el intento no llega a bloquear la identidad
+
+#### Scenario: Un rechazo por estado tampoco borra los intentos ya acumulados
+- **WHEN** un usuario con intentos fallidos ya acumulados envía la contraseña correcta pero es rechazado porque su identidad, membresía u organización no está activa
+- **THEN** su contador de intentos fallidos permanece intacto
+- **AND** los intentos acumulados siguen contando para un bloqueo posterior
 
 #### Scenario: La ventana de bloqueo expira y el usuario acierta
 - **WHEN** un usuario cuya identidad estuvo bloqueada envía credenciales correctas después de que la ventana de bloqueo haya transcurrido

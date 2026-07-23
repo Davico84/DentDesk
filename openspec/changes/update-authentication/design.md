@@ -114,9 +114,17 @@ WHERE id = :id
   no read-modify-write en la app; PostgreSQL serializa los `UPDATE` concurrentes sobre la misma fila, así
   que N fallos concurrentes cuentan N.
 - *Resuelve #3 (expiración):* la misma sentencia detecta `locked_until <= now` y reinicia a 1.
-- El **reset por éxito** (`failed_login_attempts = 0, locked_until = NULL WHERE id = :id`) puede ir en la
-  transacción de `login` (commitea normalmente en el path feliz) o compartir el colaborador; da igual
-  porque no hay rollback en el path exitoso.
+- El **reset por éxito** (`failed_login_attempts = 0, locked_until = NULL WHERE id = :id`) va
+  **obligatoriamente en la transacción de `login`**, NUNCA en `REQUIRES_NEW`. Es la regla **opuesta** a la
+  del incremento, y por la razón exacta que la hace correcta: acertar la contraseña **no** significa que
+  el login haya terminado — `activeMembership` todavía puede rechazar por estado, e `issueTokens` todavía
+  puede fallar. Al vivir en la transacción principal, un fallo posterior **revierte el reset solo**, sin
+  código de compensación. Si el reset se committeara aparte, un usuario `DISABLED` o `LOCKED` que conoce
+  su contraseña limpiaría su contador en **cada** intento rechazado, contradiciendo D8 y dejando su
+  identidad fuera del alcance del bloqueo.
+  - Resumen de la asimetría: el **incremento** debe **sobrevivir** al rollback (por eso `REQUIRES_NEW`);
+    el **reset** debe **ser revertido** por él (por eso transacción principal). No es una preferencia de
+    estilo: invertir cualquiera de las dos rompe el mecanismo.
 - *Alternativa descartada — `noRollbackFor`:* haría persistir el incremento sin transacción aparte, pero
   **no** resuelve el lost update; seguiría necesitando el `UPDATE` atómico. `REQUIRES_NEW` + sentencia
   atómica cubre ambos con una sola pieza.
