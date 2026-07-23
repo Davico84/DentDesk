@@ -23,6 +23,8 @@ Los ADRs `0009`/`0010` piden cambiar estas tres cosas. (El endurecimiento de dat
 
 ### D1 — El aviso de teléfono compartido es no bloqueante y del lado servidor
 Compartir número es **legítimo** (familias), así que **no** es un error de validación: es un **aviso**. Para poder avisar, el backend expone si el teléfono ya está en otros pacientes **de la clínica activa** (dato propio, respeta el aislamiento — no cruza clínicas). El front lo muestra como advertencia que **deja continuar**, visualmente distinta de un error de campo.
+- **Dónde vive el aviso (plomería):** `PatientView`/`PatientResponse` gana un campo nuevo, `phoneSharedWithOtherPatients: boolean` (o `phoneSharedCount: int` si conviene mostrar cuántos — ver Open Question). Es un **cambio de contrato real**: requiere regenerar `contracts/openapi.json` y el cliente del frontend; `ContractDriftIT` lo exige.
+- **La consulta excluye al propio paciente en edición** (mismo patrón que `existsByDocumentAndIdNot`): `PatientRepository` gana `countByPhoneAndIdNot(String phone, Long id)` para `update`, y `countByPhone(String phone)` para `create`. Sin la exclusión, editar la ficha de alguien que YA comparte teléfono con un hermano podría contarse mal (contar la propia fila como "otro").
 - *Alternativa descartada — bloquear el duplicado:* convierte una situación normal en un error; contradice el ADR.
 - *Alternativa descartada — chequeo solo en cliente:* el cliente no conoce los demás pacientes; el dato es del servidor.
 
@@ -36,13 +38,23 @@ El `409` de documento duplicado (`patient-document-taken`) SHALL incluir lo nece
 - *Anti-enumeración:* no aplica como en auth; aquí el usuario ya está autenticado y autorizado sobre su propia clínica.
 - *Alternativa descartada — solo el mensaje de texto:* obliga a la recepcionista a buscar la ficha a mano; el atajo es justo lo que el ADR pide.
 
+### D4 — Cómo el `id` de la ficha llega al 409 (plomería, verificada contra el código)
+`BusinessException` (la base de `DocumentAlreadyExistsException`) solo lleva `(message, status, errorType)` — **sin espacio para datos extra**, y `GlobalExceptionHandler.handleBusiness` la traduce con `ProblemDetails.of(ex.getStatus(), ex.getErrorType(), ex.getMessage())`, sin más. El único precedente de una extensión adicional en el proyecto (`errors[]` de validación) **no** pasa por `handleBusiness`: tiene su propio `@ExceptionHandler(MethodArgumentNotValidException)` que arma el `ProblemDetail` a mano y le hace `setProperty("errors", ...)`. D3 necesita el mismo patrón, no reinventar uno.
+
+- **Decisión:** `DocumentAlreadyExistsException` gana un campo `existingPatientId` (constructor lo recibe); se agrega un `@ExceptionHandler(DocumentAlreadyExistsException.class)` **dedicado** en `GlobalExceptionHandler` (no pasa por `handleBusiness`) que construye el `ProblemDetail` vía `ProblemDetails.of(...)` y le añade `problem.setProperty("existingPatientId", ex.getExistingPatientId())`.
+- *Por qué no generalizar `BusinessException`* con un mapa de extensiones genérico: mucho mayor radio de impacto (toca la base que usan `EmailAlreadyExistsException`, `InvalidCredentialsException`, etc., sin que ninguna otra lo necesite hoy). Un handler dedicado para este caso concreto es exactamente el patrón que el propio `handleMethodArgumentNotValid` ya demuestra que el proyecto usa cuando un error necesita algo más que `detail`.
+- **Contrato:** `patient-document-taken` gana una extensión `existingPatientId` en su schema de error — documentar como opcional siguiendo el patrón de `traceId` (solo aparece en este `errorType` concreto).
+- `PatientService.requireDocumentFree` necesita el `id` del paciente colisionado para pasarlo al constructor de la excepción — hoy solo hace `existsBy...` (boolean); pasa a `findBy...` (devuelve la entidad o su id) para poder incluirlo.
+
 ## Risks / Trade-offs
 
 - **El aviso de teléfono compartido añade una consulta** en el alta/edición → aceptable (indexado por `(organizationId, phone)` si hiciera falta); es un `count`, no una carga.
 - **Regla condicional de emergencia** puede confundir si la UI no explica *por qué* el campo se volvió obligatorio → mitigación: mensaje claro ("Obligatorio si el paciente no tiene teléfono propio"), como el de menores.
-- **Exponer el `id` de la ficha en conflicto**: se limita a `id` (y quizá nombre para confirmar), nunca la ficha entera en el error.
+- **Exponer el `id` de la ficha en conflicto**: se limita a `id` (y quizá nombre para confirmar), nunca la ficha entera en el error. Ver D4 sobre cómo se transporta.
+- **Cambio de contrato en dos DTOs** (`PatientResponse` gana el aviso de teléfono, D1; el error `patient-document-taken` gana `existingPatientId`, D4) → ambos exigen regenerar `contracts/openapi.json` + cliente del frontend; `ContractDriftIT` falla si se olvida. Riesgo bajo (mecánico), solo hay que acordarse de correrlo.
+- **Contar sin excluir al propio paciente en edición** (D1) → mitigado: la consulta de teléfono usa `countByPhoneAndIdNot` en `update`, mismo patrón que `existsByDocumentAndIdNot` ya usa para el documento.
 
 ## Open Questions
 
-- Las de ADR-0005 (campos obligatorios del alta, excepción del bebé, `fullName` vs nombres+apellidos) — ver proposal. Se resuelven antes de añadir su delta; no bloquean D1–D3.
-- ¿El aviso de teléfono compartido lista **cuántos**/**quiénes** lo comparten, o solo "ya está en uso por otros pacientes"? Propuesta: solo el hecho + conteo, sin nombres, para no volcar datos innecesarios en un aviso.
+- Las de ADR-0005 (campos obligatorios del alta, excepción del bebé, `fullName` vs nombres+apellidos) — ver proposal. Se resuelven antes de añadir su delta; no bloquean D1–D4.
+- ¿El aviso de teléfono compartido lista **cuántos**/**quiénes** lo comparten, o solo "ya está en uso por otros pacientes"? Propuesta: solo el hecho + conteo, sin nombres, para no volcar datos innecesarios en un aviso. Determina si `PatientResponse` gana un `boolean` o un `int` (ver D1).

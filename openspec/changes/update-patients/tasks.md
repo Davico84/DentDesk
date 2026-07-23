@@ -4,19 +4,21 @@
 
 ## 2. Contacto telefónico (backend) — ADR-0010, D1/D2
 
-- [ ] 2.1 Consulta "¿este teléfono ya está en otros pacientes de la clínica activa?" en el repositorio de pacientes, acotada por `organizationId` (respeta el aislamiento). Devuelve al menos un conteo.
+- [ ] 2.1 `PatientRepository`: `countByPhone(String phone)` (alta) y `countByPhoneAndIdNot(String phone, Long id)` (edición, excluye al propio paciente — mismo patrón que `existsByDocumentAndIdNot`). Acotado por `organizationId` automáticamente (RLS + `@TenantId`).
 - [ ] 2.2 Validación condicional en el DTO/servicio: si no hay teléfono propio, el contacto de emergencia (nombre + teléfono + relación) es obligatorio; si lo hay, opcional. (D2)
-- [ ] 2.3 Exponer el aviso de número compartido en la respuesta del alta/edición (o endpoint de verificación), sin bloquear.
+- [ ] 2.3 `PatientView`/`PatientResponse`: nuevo campo `phoneSharedWithOtherPatients` (boolean o count, según se resuelva la Open Question de design) con el resultado de 2.1. Regenerar `contracts/openapi.json` + cliente del frontend (`ContractDriftIT` lo exige). (D1)
 
 ## 3. Contacto telefónico (frontend) — ADR-0010, D1/D2
 
 - [ ] 3.1 Regla condicional en `patientSchema` (Zod `superRefine`): contacto de emergencia obligatorio si `phone` vacío; mensaje claro del porqué. Paridad con el backend.
 - [ ] 3.2 Aviso **no bloqueante** de teléfono compartido en el formulario, visualmente distinto de un error de campo (deja guardar).
 
-## 4. Ficha existente ante documento duplicado — ADR-0009, D3
+## 4. Ficha existente ante documento duplicado — ADR-0009, D3/D4
 
-- [ ] 4.1 Backend: el `409` `patient-document-taken` (alta y edición) incluye el identificador de la ficha existente de la clínica activa, sin volcar datos innecesarios.
-- [ ] 4.2 Frontend: ante ese `409`, ofrecer "Abrir registro existente" (navega a la ficha) además de "Cancelar".
+- [ ] 4.1 `DocumentAlreadyExistsException`: añadir el campo `existingPatientId` (constructor). `PatientService.requireDocumentFree`: cambiar `existsBy...` por `findBy...` para obtener el id del paciente colisionado y pasarlo al construir la excepción.
+- [ ] 4.2 `GlobalExceptionHandler`: `@ExceptionHandler(DocumentAlreadyExistsException.class)` **dedicado** (no pasa por `handleBusiness`) que arma el `ProblemDetail` vía `ProblemDetails.of(...)` y le agrega `problem.setProperty("existingPatientId", ex.getExistingPatientId())` — mismo patrón que `handleMethodArgumentNotValid` con `errors`. (D4)
+- [ ] 4.3 Contrato: `patient-document-taken` documenta la extensión `existingPatientId` (opcional, solo en este `errorType`). Regenerar `contracts/openapi.json` + cliente.
+- [ ] 4.4 Frontend: ante ese `409`, ofrecer "Abrir registro existente" (navega con `patientDetailPath(existingPatientId)`) además de "Cancelar".
 
 ## 5. Tests (uno por Scenario del delta)
 
@@ -28,6 +30,8 @@
 - [ ] 5.6 Conflicto de documento identifica la ficha existente en la respuesta.
 - [ ] 5.7 Abrir la ficha existente desde el aviso de conflicto navega a ella.
 - [ ] 5.8 Documento en otra clínica no genera conflicto ni revela nada de la otra.
+- [ ] 5.9 **Edición**: editar un paciente que ya comparte teléfono con otro (sin cambiar el teléfono) no muestra un falso aviso por contarse a sí mismo — `countByPhoneAndIdNot` excluye al propio id.
+- [ ] 5.10 **Edición**: quitar el teléfono propio de un paciente sin contacto de emergencia existente exige agregarlo, igual que en el alta.
 
 ## 6. Cierre (al archivar)
 

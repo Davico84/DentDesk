@@ -27,6 +27,16 @@ El sistema SHALL permitir que **varios pacientes de la misma clínica compartan 
 - **THEN** el alta se completa sin ningún aviso de número compartido
 - **AND** ninguna clínica puede inferir los pacientes de la otra
 
+#### Scenario: Editar un paciente no lo cuenta a sí mismo como número compartido
+- **WHEN** se edita un paciente que ya comparte su teléfono con otro paciente de la clínica, sin cambiar el teléfono
+- **THEN** el sistema no cuenta al propio paciente al evaluar el número compartido
+- **AND** el aviso solo refleja a los **otros** pacientes que de verdad comparten ese número
+
+#### Scenario: Quitar el teléfono propio al editar exige contacto de emergencia
+- **WHEN** se edita un paciente para quitarle su teléfono propio y no tiene un contacto de emergencia registrado
+- **THEN** el sistema rechaza la edición indicando que se requiere un contacto de emergencia
+- **AND** no aplica el cambio
+
 ### Requirement: Ofrecer la ficha existente ante un documento duplicado
 Cuando el alta o la edición de un paciente choca con un documento que **ya existe en la clínica activa**, el sistema SHALL rechazar el duplicado (como ya hace) y además SHALL **identificar la ficha existente** para que el cliente pueda ofrecer abrirla. La información expuesta SHALL limitarse a lo necesario para enlazar a esa ficha, sin volcar datos innecesarios. Esto SHALL respetar el aislamiento: la ficha en conflicto pertenece **siempre** a la clínica activa (la unicidad del documento es por clínica).
 
