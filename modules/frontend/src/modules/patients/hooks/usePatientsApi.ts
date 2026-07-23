@@ -30,7 +30,12 @@ export function usePatient(id: number | undefined) {
   });
 }
 
-/** Alta. El error (400 por campo, 409 de documento) lo maneja el llamador (`onError`). */
+/**
+ * Alta. El error de **campo** (400 de validación) lo pinta el llamador (`onError` del `.mutate()`,
+ * vía `applyServerFieldErrors`); el aviso **genérico** (409 de documento duplicado, 500, etc.) lo
+ * pone este hook — mismo patrón que `useLogin` (`docs/frontend.md §2.6`): ambos corren siempre, no
+ * es uno u otro.
+ */
 export function useCreatePatient() {
   const queryClient = useQueryClient();
   return useMutation({
@@ -39,10 +44,11 @@ export function useCreatePatient() {
       queryClient.invalidateQueries({ queryKey: PATIENTS_KEY });
       toast.success("Paciente registrado");
     },
+    onError: (error) => toast.error(getUserFriendlyError(error)),
   });
 }
 
-/** Edición. */
+/** Edición. Mismo patrón de error que el alta (ver `useCreatePatient`). */
 export function useUpdatePatient(id: number) {
   const queryClient = useQueryClient();
   return useMutation({
@@ -51,6 +57,7 @@ export function useUpdatePatient(id: number) {
       queryClient.invalidateQueries({ queryKey: PATIENTS_KEY });
       toast.success("Ficha actualizada");
     },
+    onError: (error) => toast.error(getUserFriendlyError(error)),
   });
 }
 

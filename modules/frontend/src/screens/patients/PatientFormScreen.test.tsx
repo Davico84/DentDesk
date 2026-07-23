@@ -90,4 +90,34 @@ describe("PatientFormScreen (alta)", () => {
     await waitFor(() => expect(received).not.toBeNull());
     expect((received as { fullName: string }).fullName).toBe("Ada Lovelace");
   });
+
+  /**
+   * El hueco que originó update-api-type-contracts: un 409 sin `errors[]` de campo (documento
+   * duplicado) no tenía ningún aviso — `applyServerFieldErrors` no pinta nada y el hook no tenía
+   * `onError`. Ahora el hook cae en el aviso genérico, mismo patrón que `useLogin`.
+   */
+  it("un documento duplicado (409) muestra un aviso genérico", async () => {
+    server.use(
+      http.post("*/patients", () =>
+        HttpResponse.json(
+          { type: "/errors/patient-document-taken", status: 409, detail: "El documento ya está registrado en esta clínica." },
+          { status: 409 },
+        ),
+      ),
+    );
+    const user = userEvent.setup();
+    renderWithProviders(
+      <>
+        <PatientFormScreen />
+        <Toaster />
+      </>,
+      { initialEntries: ["/patients/new"] },
+    );
+
+    await user.type(screen.getByLabelText(/nombre completo/i), "Ada Lovelace");
+    fireEvent.change(screen.getByLabelText(/fecha de nacimiento/i), { target: { value: isoYearsAgo(30) } });
+    await user.click(screen.getByRole("button", { name: /registrar paciente/i }));
+
+    expect(await screen.findByText("El documento ya está registrado en esta clínica.")).toBeInTheDocument();
+  });
 });
