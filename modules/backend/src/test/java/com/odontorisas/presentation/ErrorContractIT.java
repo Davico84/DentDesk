@@ -32,7 +32,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @AutoConfigureMockMvc
 class ErrorContractIT extends AbstractIntegrationTest {
 
-    /** Campos de `ApiProblem`. `instance` NO está: la API nunca lo emite. */
+    /** Campos de `ApiProblem`. `instance` SÍ se emite: Spring lo rellena solo (ver la nota en `validation_error_body_only_contains_documented_fields`). */
     private static final Set<String> API_PROBLEM_FIELDS =
         Set.of("type", "instance", "title", "status", "detail", "timestamp", "traceId");
 
@@ -87,9 +87,13 @@ class ErrorContractIT extends AbstractIntegrationTest {
         assertThat(problem).doesNotContainKey("errors");   // por eso es opcional en el contrato
         assertThat(problem).containsKey("timestamp");      // uniformidad: también lo recibe
         assertThat(problem).containsKey("instance");
+
+        // update-api-type-contracts: antes este detail era el interno de Spring ("Failed to read
+        // request"), en inglés — verificado en vivo. Ahora sale en español, apto para el usuario.
+        assertThat(problem.get("detail")).isEqualTo("La petición no es válida.");
     }
 
-    /** Un error estándar (sesión ausente): solo campos de `ApiProblem`, sin `errors` ni `instance`. */
+    /** Un error estándar (sesión ausente): solo campos de `ApiProblem`, sin `errors` — pero SÍ con `instance`. */
     @Test
     void standard_error_body_only_contains_documented_fields() throws Exception {
         String body = mockMvc.perform(get("/users/me"))
@@ -102,5 +106,10 @@ class ErrorContractIT extends AbstractIntegrationTest {
         assertThat(problem).containsKeys("type", "title", "status", "detail", "timestamp");
         assertThat(problem).doesNotContainKey("errors");
         assertThat(problem).containsKey("instance");
+
+        // update-api-type-contracts (D4): confirma que el 401 de la capa de seguridad (entry
+        // point delegado al resolver, no handleExceptionInternal) ya salía en español — no era
+        // parte del hueco, pero el alcance del requirement lo cubre explícitamente.
+        assertThat(problem.get("detail")).isEqualTo("Necesitas iniciar sesión para acceder a este recurso.");
     }
 }
