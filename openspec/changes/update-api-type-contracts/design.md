@@ -36,8 +36,10 @@ private static final Map<HttpStatus, String> DETAILS_POR_STATUS = Map.of(
     HttpStatus.METHOD_NOT_ALLOWED, "Operación no permitida para este recurso.",
     HttpStatus.UNSUPPORTED_MEDIA_TYPE, "El tipo de contenido enviado no es compatible.",
     HttpStatus.NOT_ACCEPTABLE, "El formato solicitado no es compatible.",
-    HttpStatus.PAYLOAD_TOO_LARGE, "El archivo o los datos enviados son demasiado grandes."
-    // el resto de statuses que el padre pueda emitir cae en el genérico de abajo
+    HttpStatus.PAYLOAD_TOO_LARGE, "El archivo o los datos enviados son demasiado grandes.",
+    // 503: el padre lo emite p. ej. por AsyncRequestTimeoutException. El genérico ("no se pudo
+    // procesar") es ENGAÑOSO aquí — un 503 es "reintentá luego", no "tu petición estaba mal".
+    HttpStatus.SERVICE_UNAVAILABLE, "El servicio no está disponible temporalmente. Inténtalo de nuevo en unos minutos."
 );
 private static final String DETAIL_GENERICO = "No se pudo procesar la petición.";
 ```
@@ -74,6 +76,6 @@ Estado verificado hoy (en código, no supuesto):
 ## Risks / Trade-offs
 
 - **Mensaje genérico pierde precisión** frente al de Spring (que a veces nombra el campo/parámetro exacto) → aceptado: la audiencia es un usuario final, no un desarrollador; el `traceId` ya existe para diagnóstico interno vía logs.
-- **Nuevo status no anticipado** cae en el fallback genérico, no en un mensaje específico → aceptado; se amplía el mapa cuando aparezca un caso real, no por anticipación especulativa.
+- **Nuevo status no anticipado** cae en el fallback genérico, no en un mensaje específico → aceptado. Criterio para mapear un status (vs. dejarlo al genérico): se mapea cuando el genérico sería **engañoso** para ese status (p. ej. `503` = "reintentá luego", no "tu petición estaba mal"), no solo cuando sería menos preciso. El genérico nunca filtra texto interno, así que un status sin mapear sigue cumpliendo el requirement; el mapa es calidad, no seguridad.
 - **Status no estándar en `handleExceptionInternal`** (`HttpStatus.resolve(...)` devuelve `null`) → mitigado por el `DETAIL_GENERICO`; el handler nunca debe romperse por un `null` (ver D1).
 - **La capa de seguridad es una vía distinta de la de MVC** (D4) → mitigado configurando el `accessDeniedHandler` para delegar en el resolver, igual que el entry point; queda cubierta por un test de seguridad (401 y 403 por seguridad), no solo los de MVC.

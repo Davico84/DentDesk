@@ -1,6 +1,6 @@
 ## 1. Mensaje de error apto para el usuario (backend)
 
-- [ ] 1.1 `GlobalExceptionHandler`: añadir el mapa `HttpStatus → detail en español` (400, 404, 405, 415, 406, 413) más una constante de mensaje genérico para los statuses no mapeados. (D1)
+- [ ] 1.1 `GlobalExceptionHandler`: añadir el mapa `HttpStatus → detail en español` (400, 404, 405, 415, 406, 413, **503**) más una constante de mensaje genérico para los statuses no mapeados. El `503` lleva mensaje propio porque el genérico ("no se pudo procesar") es engañoso para un "servicio no disponible, reintentá luego". (D1)
 - [ ] 1.2 En el override de `handleExceptionInternal`, reemplazar el `detail` del `ProblemDetail` por el del mapa (o el genérico) **antes** de devolverlo, junto a las extensiones que ya añade. Resolver `HttpStatusCode`→`HttpStatus` con `HttpStatus.resolve(statusCode.value())`; si devuelve `null` (status no estándar), usar el genérico — nunca dejar que un `null` rompa el handler. (D1)
 - [ ] 1.3 Verificar que los `@ExceptionHandler` propios (`handleBusiness`, `handleAuthentication`, `handleAccessDenied`, `handleDataIntegrity`, `handleUncaught`) **no** cambian: no pasan por `handleExceptionInternal` y ya construyen su `detail` curado. (D2)
 
@@ -28,4 +28,5 @@
 ## 5. Cierre (al archivar)
 
 - [ ] 5.1 `docs/vision.md`: enlazar el change archivado bajo `api-type-contracts` en "Estado de capacidades".
-- [ ] 5.2 `docs/backend.md §10`: dejar constancia de que el `detail` apto para el usuario es una garantía de **todos** los errores, incluidos los del manejador por defecto.
+- [ ] 5.2 `docs/backend.md §10`: dejar constancia de que el `detail` apto para el usuario es una garantía de **todos** los errores, incluidos los del manejador por defecto y los de la capa de seguridad.
+- [ ] 5.3 `docs/backend.md §10`: **regla para el futuro** — todo `@ExceptionHandler` nuevo, todo método del framework sobreescrito (p. ej. `handleMethodArgumentNotValid`) y todo punto de extensión de seguridad **queda fuera** del mapa automático de `handleExceptionInternal`; por tanto DEBE proveer su propio `detail` en español vía `ProblemDetails.of(...)`. El mapa solo cubre lo que el padre resuelve y pasa por `handleExceptionInternal`. (D2)
