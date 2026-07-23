@@ -29,15 +29,18 @@ Dimensión de **negocio** (sustituible por proyecto). Define **qué** construimo
 | 1 | `authentication` | negocio | usuario | registro, login, sesión, refresh, logout, protección por rol | 0 |
 | 2 | `staff` | negocio | admin | el administrador gestiona **quién pertenece a su clínica y con qué rol**: invitar, activar/desactivar, cambiar rol. **Trae el modelo de roles real** (`ADMIN`/`DENTIST`/`RECEPTIONIST`) → lleva delta sobre `multi-tenancy`, que posee `Membership.role` | 1, `multi-tenancy` |
 | 3 | `patients` | negocio | staff | ficha de pacientes (datos personales, contacto) | 1 |
-| 4 | `appointments` | negocio | **staff** | agendamiento **interno**: la recepción agenda, reprograma y cambia el estado de las citas | 3, (2) |
-| 5 | `dental-chart` | negocio | odontólogo | **odontograma**: el *estado* dental pieza a pieza y por superficie (FDI, denticiones permanente/temporal), hallazgos e histórico del estado | 3 |
-| 6 | `treatments` | negocio | odontólogo | las *acciones* sobre ese estado: procedimientos (planificados/realizados), coste, notas clínicas y consentimiento | 3, 5 |
-| 7 | `treatment-plans` | negocio | odontólogo | planes de tratamiento del paciente: crear el plan, agregar tratamientos, generar presupuesto y finalizarlo | 3, 6 |
-| 8 | `images` | negocio | odontólogo | subida de imágenes (radiografías/fotos) vía S3 | 3, 6 |
-| 9 | `patient-billing` | negocio | staff / admin | **la clínica cobra al paciente**: cobros y facturación de tratamientos y citas | 4, 6 |
-| 10 | `inventory` | negocio | staff / admin | insumos y stock de la clínica | 1 |
-| 11 | `dashboard` | negocio | admin | panel con métricas (citas, ingresos, ocupación) | 2–10 |
-| 12 | `organization-branding` | negocio | admin | marca visual por organización (color de marca y logo) en el app shell | `multi-tenancy` |
+| 4 | `clinical-history` | negocio | odontólogo | **historia clínica**: documento único e inicial por paciente (filiación, motivo de consulta, antecedentes, examen, diagnóstico CIE10, pronóstico) — se llena **antes** de cualquier tratamiento. Evolución y el vínculo al plan de tratamiento se agregan después, como los tratamientos (`ADR-0011`) | 3 |
+| 5 | `appointments` | negocio | **staff** | agendamiento **interno**: la recepción agenda, reprograma y cambia el estado de las citas. Solo necesita un paciente registrado — **no** depende de `clinical-history` (son ramas paralelas sobre `patients`) | 3, (2) |
+| 6 | `dental-chart` | negocio | odontólogo | **odontograma**: el *estado* dental pieza a pieza y por superficie (FDI, denticiones permanente/temporal), hallazgos e histórico del estado | 3, 4 |
+| 7 | `treatments` | negocio | odontólogo | las *acciones* sobre ese estado: procedimientos (planificados/realizados), coste, notas clínicas y consentimiento | 3, 4, 6 |
+| 8 | `treatment-plans` | negocio | odontólogo | planes de tratamiento del paciente: crear el plan, agregar tratamientos, generar presupuesto y finalizarlo | 3, 4, 7 |
+| 9 | `images` | negocio | odontólogo | subida de imágenes (radiografías/fotos) vía S3 | 3, 7 |
+| 10 | `patient-billing` | negocio | staff / admin | **la clínica cobra al paciente**: cobros y facturación de tratamientos y citas | 5, 7 |
+| 11 | `inventory` | negocio | staff / admin | insumos y stock de la clínica | 1 |
+| 12 | `dashboard` | negocio | admin | panel con métricas (citas, ingresos, ocupación) | 2–11 |
+| 13 | `organization-branding` | negocio | admin | marca visual por organización (color de marca y logo) en el app shell | `multi-tenancy` |
+
+> **Por qué `clinical-history` (fila 4) no bloquea `appointments` (fila 5).** Para agendar una cita alcanza con tener un paciente registrado — la Historia Clínica se completa **después**, con la información del paciente ya en mano, y **antes** de cualquier tratamiento, no antes de la cita. Son dos ramas **paralelas** que solo comparten `patients` como prerequisito; por eso `appointments` no gana una dependencia nueva. El gate real está más adelante: `dental-chart`/`treatments`/`treatment-plans` (filas 6-8) sí dependen de `clinical-history`, porque ahí es donde "antes de tratar" se vuelve una regla dura (`ADR-0011`).
 
 > **Por qué `dental-chart` y `treatments` van separadas** (aplicando §5). Juntas, su alcance necesitaba una "y" —*"tratamientos **y** odontograma"*—, que es la señal de mala granularidad que marca esta misma guía; y cargaban con cinco entidades (`Tooth`, `ToothCondition`, `Treatment`, `DentalNote`, `Consent`), muy por encima del límite de ~7–8 requirements. El corte no es por actor (ambas son del odontólogo) sino **por sustantivo**: el odontograma es el **estado** de la boca; el tratamiento es la **acción** que lo cambia.
 >
@@ -59,16 +62,16 @@ Dimensión de **negocio** (sustituible por proyecto). Define **qué** construimo
 >
 > Si ese actor hubiera sobrevivido, al proponer la capacidad alguien habría escrito *"#### Scenario: el paciente reserva una cita"*, y para hacerlo pasar habría que **darle cuenta al paciente**, deshaciendo una decisión de dominio y arrastrando un portal del paciente entero.
 >
-> 💡 Pero esa celda **escondía un deseo real**: la **reserva online**. No se pierde — se nombra como `public-booking` en §7. Y **no requiere dar cuenta al paciente**: se resuelve con un formulario **público sin login** (el visitante pide hueco, la clínica confirma), que es como funciona la mayoría. Sería una capacidad propia, con **otro actor** (visitante anónimo) y sus propios problemas (spam, verificación por correo). Nada que ver con el agendamiento **interno** de la fila 4.
+> 💡 Pero esa celda **escondía un deseo real**: la **reserva online**. No se pierde — se nombra como `public-booking` en §7. Y **no requiere dar cuenta al paciente**: se resuelve con un formulario **público sin login** (el visitante pide hueco, la clínica confirma), que es como funciona la mayoría. Sería una capacidad propia, con **otro actor** (visitante anónimo) y sus propios problemas (spam, verificación por correo). Nada que ver con el agendamiento **interno** de la fila 5.
 
 > ⚠️ **`patient-billing` no es "el billing del SaaS".** En un SaaS multi-clínica conviven **dos negocios de cobro completamente distintos**, y confundirlos es un error caro:
 >
 > | | Quién cobra | A quién | Capacidad |
 > |---|---|---|---|
-> | **Cobro clínico** | la **clínica** | al **paciente** (tratamientos, citas) | **`patient-billing`** (fila 8) |
+> | **Cobro clínico** | la **clínica** | al **paciente** (tratamientos, citas) | **`patient-billing`** (fila 10) |
 > | **Suscripción del SaaS** | **nosotros** | a la **clínica** (plan, límites, impago) | **`subscriptions`** — ⏳ **no priorizada**, ver §7 |
 >
-> Por eso la fila 8 lleva el prefijo: `billing` a secas era ambiguo y ya nos hizo dudar una vez. Dos negocios, dos capacidades, dos nombres que no se pisan.
+> Por eso la fila 10 lleva el prefijo: `billing` a secas era ambiguo y ya nos hizo dudar una vez. Dos negocios, dos capacidades, dos nombres que no se pisan.
 >
 > 💡 La plataforma **ya dejó el gancho puesto**: `Organization.status` contempla `SUSPENDED`, y el login/refresh hacen *gate* por ese estado (`multi-tenancy`). Es exactamente lo que `subscriptions` necesitaría para cortar el acceso por impago — **sin tocar `authentication`**.
 
@@ -104,6 +107,7 @@ Dimensión de **negocio** (sustituible por proyecto). Define **qué** construimo
 - 📌 **`update-authentication`** — el **perfil del usuario**: `username` (único), `phone`, `country` y cambio de contraseña. Es dato de la **identidad**, así que amplía `authentication` en vez de inventar una capacidad. *(Estos campos ya estuvieron y se retiraron del registro en `add-multi-tenancy`; aquí vuelven, pero al perfil, no al alta.)*
 - 📌 **Modelo de roles** — hoy solo hay `ADMIN` | `USER`, así que **la recepcionista y el odontólogo compartirían rol** y la recepcionista podría tocar el odontograma (un **acto clínico**). Se desdobla en `ADMIN` | `DENTIST` | `RECEPTIONIST`. **No es un change aparte**: lo lleva `add-staff` como delta sobre `multi-tenancy`, porque `staff` *es* asignar roles y no se puede especificar sin decidirlos. Ver la tabla de actores en `docs/domain.md`.
 - 📌 **Selector de organización activa** — un usuario con varias membresías cambia de clínica, lo que **re-emite el token con otro `oid`**. Es una operación de **sesión**, no de gestión de usuarios. Será **otro** delta futuro sobre `multi-tenancy` (distinto del `update-multi-tenancy` ya archivado, que cerró el enganche del contexto).
+- 📌 **Remover la anamnesis de `patients`** (`ADR-0011`) — cuando se construya `clinical-history`, la anamnesis (`allergies`/`conditions`/`currentMedication`) deja de capturarse en `patients` y pasa a vivir solo ahí. Es un `update-patients` **futuro**, independiente del `update-patients` en progreso arriba (teléfono/documento no lo tocan, verificado). Se propone junto con `add-clinical-history` o justo después, no antes de que esa capacidad exista.
 
 > ⛔ **Bloqueo de secuencia:** ninguna capacidad de negocio (`staff`, `patients`, …) debe proponerse antes de archivar `multi-tenancy` (✅ ya archivada). Si una entidad de negocio nace sin organización, el error se arrastra a `appointments`, `treatments`, `images` y `patient-billing`.
 
@@ -154,9 +158,9 @@ Regla equivalente para agentes en `CLAUDE.md → Flujo de trabajo → Gobernanza
 
 ## 7. Fuera de alcance por ahora (candidatas futuras)
 
-- **`subscriptions`** — **el negocio del SaaS: cobrarle a la clínica.** Plan contratado, límites del plan, ciclo de facturación, impago y suspensión. **No confundir con `patient-billing`** (fila 8), que es la clínica cobrando *al paciente*: son dos negocios distintos (ver el aviso en §2).
+- **`subscriptions`** — **el negocio del SaaS: cobrarle a la clínica.** Plan contratado, límites del plan, ciclo de facturación, impago y suspensión. **No confundir con `patient-billing`** (fila 10), que es la clínica cobrando *al paciente*: son dos negocios distintos (ver el aviso en §2).
   > Se nombra aquí **aunque no esté priorizada** porque un SaaS sin forma de cobrar su suscripción es un hueco que conviene **ver desde el principio**, no descubrir tarde. La plataforma ya dejó el gancho: `Organization.status` contempla `SUSPENDED` y el login/refresh hacen *gate* por él — cortar el acceso por impago **no requeriría tocar `authentication`**.
-- **`public-booking`** — **la reserva online**: un visitante (sin cuenta) solicita hueco desde la web y la clínica confirma. Actor: **visitante anónimo**, distinto del staff de `appointments` (fila 4, agendamiento *interno*).
+- **`public-booking`** — **la reserva online**: un visitante (sin cuenta) solicita hueco desde la web y la clínica confirma. Actor: **visitante anónimo**, distinto del staff de `appointments` (fila 5, agendamiento *interno*).
   > **No requiere dar cuenta al paciente** —que sigue sin ser usuario del sistema—: se resuelve con un formulario **público sin login**. Trae problemas propios (endpoint público → spam y abuso, verificación por correo, huecos disponibles sin filtrar datos de otros pacientes), por eso es capacidad aparte y no un Scenario más de `appointments`.
 - `chatbot` (Spring AI ya está en el stack "para el bot") — no priorizada aún.
 - `notifications` (correo/realtime STOMP) — se evaluará cuando `appointments` lo requiera.

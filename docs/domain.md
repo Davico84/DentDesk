@@ -178,6 +178,8 @@ El estado dental pieza a pieza y **por superficie**. Notación **FDI/ISO 3950**,
 - `status` (`EXISTING` hallazgo · `PLANNED` planificado · `DONE` realizado)
 - `treatment` (FK opcional → Treatment que lo generó), `notedAt`
 
+> 🎨 **Código de color del odontograma (decidido, aún no construido):** visualmente solo se usan **dos** colores — **rojo** = tratamiento **por hacer** (`PLANNED`) y **azul** = tratamiento **realizado** (`DONE`). ⚠️ El modelo ya tiene un **tercer** estado, `EXISTING` (hallazgo sin planificar), que no entra en esta regla de 2 colores — falta decidir si comparte color con `PLANNED` (ambos "pendientes de atender") o si necesita uno propio. Aterrizar esto en `dental-chart` cuando se especifique.
+
 ### `treatments` → **Treatment + DentalNote + Consent** (las ACCIONES)
 
 Lo que el odontólogo *hace*, con su coste y su consentimiento. Al completarse, **actualiza el estado** que gestiona `dental-chart`.
