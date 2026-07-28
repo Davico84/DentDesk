@@ -38,6 +38,18 @@ export function getFieldErrors(error: unknown): FieldError[] {
   return getApiProblem(error)?.errors ?? [];
 }
 
+/** El `type` del conflicto de documento duplicado: el cliente ramifica por él (update-patients D5). */
+export const PATIENT_DOCUMENT_TAKEN = "/errors/patient-document-taken";
+
+/**
+ * Id de la ficha existente que provoca el `409` de documento duplicado, para ofrecer abrirla
+ * (update-patients D5). Vive en `ApiProblem` (el `409` no es un `ValidationProblem`); se lee del
+ * tipo generado, nunca de una forma escrita a mano (`docs/frontend.md §2.6`).
+ */
+export function getExistingPatientId(error: unknown): number | undefined {
+  return (getApiProblem(error) as ApiProblem | undefined)?.existingPatientId;
+}
+
 /**
  * Vuelca los errores de validación del servidor **sobre los campos del formulario**, para que se
  * pinten junto a cada input igual que los de Zod (paridad cliente/servidor, `docs/coding-style.md §7`).

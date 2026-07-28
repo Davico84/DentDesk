@@ -2,10 +2,16 @@ import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { ArrowLeft, HeartPulse, Loader2, Phone, Siren, User, UserCheck } from "lucide-react";
+import { toast } from "sonner";
 import { Button } from "@/modules/core/ui/button";
 import { buttonVariants } from "@/modules/core/ui/button-variants";
 import { PATHS, patientDetailPath } from "@/routes/paths";
-import { applyServerFieldErrors } from "@/modules/core/utils/apiError";
+import {
+  applyServerFieldErrors,
+  getApiProblem,
+  getExistingPatientId,
+  PATIENT_DOCUMENT_TAKEN,
+} from "@/modules/core/utils/apiError";
 import {
   patientSchema,
   toRequest,
@@ -14,6 +20,7 @@ import {
   documentHint,
   documentMaxLength,
   PHONE_HINT,
+  PHONE_COUNTRY_CODE,
   type PatientValues,
 } from "@/modules/patients/schemas/patient";
 import { useCreatePatient, usePatient, useUpdatePatient } from "@/modules/patients/hooks/usePatientsApi";
@@ -77,7 +84,11 @@ export function PatientForm() {
 
   const birthDate = useWatch({ control, name: "birthDate" });
   const documentType = useWatch({ control, name: "documentType" });
+  const phone = useWatch({ control, name: "phone" });
   const minor = isMinor(birthDate ?? "");
+  // Espejo de la regla del schema (update-patients D2): sin esto, "opcional"/"obligatorio" en la
+  // descripción de la sección no coincidiría con lo que el propio schema exige al validar.
+  const hasOwnPhone = Boolean(phone?.trim()) && phone !== PHONE_COUNTRY_CODE;
   const pending = createPatient.isPending || updatePatient.isPending;
   const backTo = isEdit ? patientDetailPath(id!) : PATHS.PATIENTS;
 
@@ -93,7 +104,20 @@ export function PatientForm() {
     const request = toRequest(values);
     const options = {
       onSuccess: (saved: { id?: number }) => navigate(patientDetailPath(saved.id ?? id!)),
-      onError: (error: unknown) => applyServerFieldErrors(error, setError),
+      onError: (error: unknown) => {
+        // Documento duplicado (D5): toast ÚNICO y accionable, en vez del genérico del hook (que se
+        // abstiene para este errorType). El resto de errores sigue por applyServerFieldErrors.
+        if (getApiProblem(error)?.type === PATIENT_DOCUMENT_TAKEN) {
+          const existingId = getExistingPatientId(error);
+          toast.error("El documento ya está registrado en esta clínica.", {
+            action: existingId
+              ? { label: "Abrir ficha existente", onClick: () => navigate(patientDetailPath(existingId)) }
+              : undefined,
+          });
+          return;
+        }
+        applyServerFieldErrors(error, setError);
+      },
     };
     if (isEdit) updatePatient.mutate(request, options);
     else createPatient.mutate(request, options);
@@ -193,13 +217,22 @@ export function PatientForm() {
           </FormSection>
         ) : null}
 
-        {/* Divulgación progresiva: lo opcional empieza plegado — el alta rápida son 2 campos. */}
+        {/*
+          Divulgación progresiva: empieza plegado — el alta rápida son 2 campos. Se vuelve
+          OBLIGATORIO cuando el paciente no tiene teléfono propio (update-patients D2); el texto lo
+          explica para que el campo no se sienta arbitrario, y la sección se abre sola para que el
+          error no quede oculto tras el "collapsible".
+        */}
         <FormSection
           title="Contacto de emergencia"
-          description="Opcional."
+          description={
+            hasOwnPhone
+              ? "Opcional."
+              : "Obligatorio: este paciente no tiene teléfono propio registrado."
+          }
           icon={<Siren className="size-4" />}
           collapsible
-          defaultOpen={false}
+          defaultOpen={!hasOwnPhone}
           hasError={Boolean(errors.emergencyContactName || errors.emergencyContactPhone || errors.emergencyContactRelationship)}
         >
           <FormField label={LABELS.emergencyContactName} name="emergencyContactName" register={register} error={errors.emergencyContactName} />
