@@ -35,9 +35,13 @@ class ValidDocumentValidatorTest {
         factory.close();
     }
 
+    /**
+     * Con teléfono propio: así {@code EmergencyContactRequiredWithoutPhone} (update-patients D2,
+     * regla independiente de esta) no interfiere en tests que no la están probando.
+     */
     private PatientRequest request(DocumentType type, String document) {
         return new PatientRequest("Adulto Válido", type, document, LocalDate.of(1990, 1, 1),
-            null, null, null, null, null, null, null, null, null, null, null, null, null, null);
+            null, "+51988877766", null, null, null, null, null, null, null, null, null, null, null, null);
     }
 
     private Set<String> fieldsInError(PatientRequest request) {

@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { screen, fireEvent, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { Routes, Route } from "react-router-dom";
 import { http, HttpResponse } from "msw";
 import { Toaster } from "sonner";
 import { renderWithProviders } from "@/test/utils";
@@ -41,6 +42,7 @@ describe("PatientFormScreen (alta)", () => {
     // llega al servidor y se comprueba que SU 400 se pinta junto al campo.
     await user.type(screen.getByLabelText(/nombre completo/i), "Ada Lovelace");
     fireEvent.change(screen.getByLabelText(/fecha de nacimiento/i), { target: { value: isoYearsAgo(30) } });
+    await user.type(screen.getByLabelText("Teléfono", { exact: true }), "987654321");
     await user.selectOptions(screen.getByLabelText(/tipo de documento/i), "DNI");
     await user.type(screen.getByLabelText(/^documento$/i), "12345678");
     await user.click(screen.getByRole("button", { name: /registrar paciente/i }));
@@ -85,6 +87,9 @@ describe("PatientFormScreen (alta)", () => {
 
     await user.type(screen.getByLabelText(/nombre completo/i), "Ada Lovelace");
     fireEvent.change(screen.getByLabelText(/fecha de nacimiento/i), { target: { value: isoYearsAgo(30) } });
+    // Teléfono propio: sin él, update-patients D2 exigiría el contacto de emergencia y el submit
+    // no llegaría al servidor — no es lo que este test quiere ejercitar.
+    await user.type(screen.getByLabelText("Teléfono", { exact: true }), "987654321");
     await user.click(screen.getByRole("button", { name: /registrar paciente/i }));
 
     await waitFor(() => expect(received).not.toBeNull());
@@ -96,12 +101,61 @@ describe("PatientFormScreen (alta)", () => {
    * duplicado) no tenía ningún aviso — `applyServerFieldErrors` no pinta nada y el hook no tenía
    * `onError`. Ahora el hook cae en el aviso genérico, mismo patrón que `useLogin`.
    */
-  it("un documento duplicado (409) muestra un aviso genérico", async () => {
+  it("un documento duplicado (409) muestra un único toast accionable (update-patients D5)", async () => {
     server.use(
       http.post("*/patients", () =>
         HttpResponse.json(
-          { type: "/errors/patient-document-taken", status: 409, detail: "El documento ya está registrado en esta clínica." },
+          {
+            type: "/errors/patient-document-taken",
+            status: 409,
+            detail: "El documento ya está registrado en esta clínica.",
+            existingPatientId: 42,
+          },
           { status: 409 },
+        ),
+      ),
+    );
+    const user = userEvent.setup();
+    renderWithProviders(
+      <>
+        <Routes>
+          <Route path="/patients/new" element={<PatientFormScreen />} />
+          <Route path="/patients/:id" element={<div>Ficha del paciente existente</div>} />
+        </Routes>
+        <Toaster />
+      </>,
+      { initialEntries: ["/patients/new"] },
+    );
+
+    await user.type(screen.getByLabelText(/nombre completo/i), "Ada Lovelace");
+    fireEvent.change(screen.getByLabelText(/fecha de nacimiento/i), { target: { value: isoYearsAgo(30) } });
+    await user.type(screen.getByLabelText("Teléfono", { exact: true }), "987654321");
+    await user.click(screen.getByRole("button", { name: /registrar paciente/i }));
+
+    // Un solo toast: el hook se abstiene de su genérico para este errorType (D5), el componente
+    // muestra el suyo con la acción de abrir la ficha existente.
+    expect(await screen.findByText("El documento ya está registrado en esta clínica.")).toBeInTheDocument();
+    const openExisting = await screen.findByRole("button", { name: /abrir ficha existente/i });
+
+    // Y al elegirla, navega de verdad a la ficha existente (Scenario: abrir desde el aviso).
+    await user.click(openExisting);
+    expect(await screen.findByText("Ficha del paciente existente")).toBeInTheDocument();
+  });
+
+  /** update-patients D1: aviso no bloqueante — el alta se completa igual, solo informa. */
+  it("un teléfono compartido no bloquea el alta y avisa (aviso no bloqueante)", async () => {
+    server.use(
+      http.post("*/patients", () =>
+        HttpResponse.json(
+          {
+            id: 9,
+            fullName: "Hijo",
+            birthDate: isoYearsAgo(10),
+            minor: true,
+            status: "ACTIVE",
+            phoneSharedWithOtherPatients: true,
+          },
+          { status: 201 },
         ),
       ),
     );
@@ -114,10 +168,20 @@ describe("PatientFormScreen (alta)", () => {
       { initialEntries: ["/patients/new"] },
     );
 
-    await user.type(screen.getByLabelText(/nombre completo/i), "Ada Lovelace");
-    fireEvent.change(screen.getByLabelText(/fecha de nacimiento/i), { target: { value: isoYearsAgo(30) } });
+    await user.type(screen.getByLabelText(/nombre completo/i), "Hijo");
+    fireEvent.change(screen.getByLabelText(/fecha de nacimiento/i), { target: { value: isoYearsAgo(10) } });
+    await user.type(screen.getByLabelText("Teléfono", { exact: true }), "987654321");
+    await user.type(screen.getByLabelText(/nombre del responsable/i), "Madre");
+    // Hay dos selects de "Parentesco" (responsable y contacto de emergencia): se distingue por rol
+    // y nombre accesible exacto, evitando que "Parentesco del contacto" haga match también.
+    await user.selectOptions(screen.getByRole("combobox", { name: /^parentesco(?!\s*del)/i }), "MOTHER");
+    await user.type(screen.getByLabelText(/^teléfono del responsable/i), "987654321");
     await user.click(screen.getByRole("button", { name: /registrar paciente/i }));
 
-    expect(await screen.findByText("El documento ya está registrado en esta clínica.")).toBeInTheDocument();
+    // El alta se completa (éxito) Y además avisa — no es uno u otro.
+    expect(await screen.findByText("Paciente registrado")).toBeInTheDocument();
+    expect(
+      await screen.findByText(/este teléfono ya está registrado a nombre de otro paciente/i),
+    ).toBeInTheDocument();
   });
 });

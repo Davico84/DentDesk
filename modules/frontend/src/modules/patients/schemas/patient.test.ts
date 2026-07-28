@@ -14,7 +14,9 @@ function values(overrides: Partial<PatientValues> = {}): PatientValues {
     document: "",
     birthDate: isoYearsAgo(30),
     sex: "",
-    phone: "",
+    // Con teléfono propio por defecto: así el contacto de emergencia (update-patients D2) no
+    // interfiere en los tests que no lo están probando. Los tests de esa regla lo vacían a propósito.
+    phone: "+51987654321",
     email: "",
     address: "",
     guardianName: "",
@@ -141,6 +143,42 @@ describe("patientSchema — teléfono", () => {
     expect(patientSchema.safeParse(values({ phone: "987654321" })).success).toBe(false);
     expect(patientSchema.safeParse(values({ phone: "+519876" })).success).toBe(false);
     expect(patientSchema.safeParse(values({ phone: "+51 987654321" })).success).toBe(false);
+  });
+});
+
+/** update-patients D2: contacto de emergencia obligatorio SOLO si no hay teléfono propio. */
+describe("patientSchema — contacto de emergencia condicional", () => {
+  function pathsInError(v: PatientValues): unknown[] {
+    const result = patientSchema.safeParse(v);
+    return result.success ? [] : result.error.issues.map((i) => i.path[0]);
+  }
+
+  it("sin teléfono propio y sin contacto de emergencia: rechaza por cada campo", () => {
+    const paths = pathsInError(values({ phone: "" }));
+    expect(paths).toEqual(
+      expect.arrayContaining(["emergencyContactName", "emergencyContactPhone", "emergencyContactRelationship"]),
+    );
+  });
+
+  it("el valor inicial del prefijo (+51 sin número) cuenta como 'sin teléfono propio'", () => {
+    expect(pathsInError(values({ phone: "+51" }))).toContain("emergencyContactName");
+  });
+
+  it("sin teléfono propio pero con contacto de emergencia completo: acepta", () => {
+    const result = patientSchema.safeParse(
+      values({
+        phone: "",
+        emergencyContactName: "Hija",
+        emergencyContactPhone: "+51988877766",
+        emergencyContactRelationship: "Hija",
+      }),
+    );
+    expect(result.success).toBe(true);
+  });
+
+  it("con teléfono propio, el contacto de emergencia sigue siendo opcional", () => {
+    const result = patientSchema.safeParse(values({ phone: "+51987654321" }));
+    expect(result.success).toBe(true);
   });
 });
 

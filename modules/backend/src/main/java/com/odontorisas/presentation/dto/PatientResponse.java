@@ -37,7 +37,9 @@ public record PatientResponse(
     List<String> allergies,
     List<String> conditions,
     List<String> currentMedication,
-    PatientStatus status) {
+    PatientStatus status,
+    @Schema(description = "Aviso no bloqueante: el teléfono ya está en otros pacientes de la clínica.")
+    boolean phoneSharedWithOtherPatients) {
 
     public static PatientResponse from(PatientView v) {
         return new PatientResponse(
@@ -45,6 +47,7 @@ public record PatientResponse(
             v.phone(), v.email(), v.address(),
             v.guardianName(), v.guardianRelationship(), v.guardianDocument(), v.guardianPhone(),
             v.emergencyContactName(), v.emergencyContactPhone(), v.emergencyContactRelationship(),
-            v.allergies(), v.conditions(), v.currentMedication(), v.status());
+            v.allergies(), v.conditions(), v.currentMedication(), v.status(),
+            v.phoneSharedWithOtherPatients());
     }
 }

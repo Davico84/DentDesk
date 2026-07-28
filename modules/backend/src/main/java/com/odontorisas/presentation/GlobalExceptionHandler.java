@@ -2,6 +2,7 @@ package com.odontorisas.presentation;
 
 import com.odontorisas.infra.config.TraceIdFilter;
 import com.odontorisas.service.BusinessException;
+import com.odontorisas.service.patient.DocumentAlreadyExistsException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.slf4j.MDC;
@@ -42,6 +43,19 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
     @ExceptionHandler(BusinessException.class)
     public ProblemDetail handleBusiness(BusinessException ex) {
         return ProblemDetails.of(ex.getStatus(), ex.getErrorType(), ex.getMessage());
+    }
+
+    /**
+     * Documento duplicado (409) que además <b>identifica la ficha existente</b> para que el cliente
+     * pueda ofrecer abrirla (update-patients D3/D4). No pasa por {@link #handleBusiness} porque
+     * necesita una extensión ({@code existingPatientId}) que la traducción genérica no lleva —
+     * mismo patrón que {@link #handleMethodArgumentNotValid} con {@code errors}.
+     */
+    @ExceptionHandler(DocumentAlreadyExistsException.class)
+    public ProblemDetail handleDocumentAlreadyExists(DocumentAlreadyExistsException ex) {
+        ProblemDetail problem = ProblemDetails.of(ex.getStatus(), ex.getErrorType(), ex.getMessage());
+        problem.setProperty("existingPatientId", ex.getExistingPatientId());
+        return problem;
     }
 
     /**

@@ -133,6 +133,24 @@ export const patientSchema = z
       }
     }
 
+    // --- Contacto de emergencia obligatorio si no hay teléfono propio (update-patients D2) ---
+    const hasOwnPhone = values.phone.trim() !== "" && values.phone !== PHONE_COUNTRY_CODE;
+    if (!hasOwnPhone) {
+      if (!values.emergencyContactName.trim()) {
+        ctx.addIssue({ code: "custom", path: ["emergencyContactName"], message: EMERGENCY_CONTACT_REQUIRED });
+      }
+      if (!values.emergencyContactPhone.trim() || values.emergencyContactPhone === PHONE_COUNTRY_CODE) {
+        ctx.addIssue({ code: "custom", path: ["emergencyContactPhone"], message: EMERGENCY_CONTACT_REQUIRED });
+      }
+      if (!values.emergencyContactRelationship.trim()) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["emergencyContactRelationship"],
+          message: EMERGENCY_CONTACT_REQUIRED,
+        });
+      }
+    }
+
     // --- Documento: emparejado con su tipo, y con formato según el tipo (design.md D8) ---
     const hasNumber = values.document.trim().length > 0;
     const hasType = values.documentType !== "";
@@ -157,6 +175,7 @@ export const patientSchema = z
   });
 
 const MINOR_REQUIRED = "Obligatorio para un paciente menor de edad.";
+const EMERGENCY_CONTACT_REQUIRED = "Obligatorio si el paciente no tiene teléfono propio.";
 
 export type PatientValues = z.infer<typeof patientSchema>;
 

@@ -46,5 +46,10 @@ public record ApiProblem(
     @Schema(description = "Identificador de traza para correlacionar con los logs. "
         + "Opcional: solo se emite si la petición lo tiene.",
         example = "3f2a1b4c5d6e7f80", nullable = true)
-    String traceId) {
+    String traceId,
+
+    @Schema(description = "Id de la ficha existente que provoca el conflicto. "
+        + "Opcional: solo se emite en el error 'patient-document-taken', para ofrecer abrirla.",
+        example = "42", nullable = true)
+    Long existingPatientId) {
 }

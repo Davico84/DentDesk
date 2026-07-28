@@ -21,6 +21,7 @@ import java.util.Optional;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -44,6 +45,11 @@ class PatientServiceTest {
             null, null, null, null, null, null, null, null, null, null, null, null, null);
     }
 
+    private PatientData dataWithPhone(String fullName, String phone) {
+        return new PatientData(fullName, null, null, LocalDate.of(1990, 1, 1), null,
+            phone, null, null, null, null, null, null, null, null, null, null, null, null);
+    }
+
     private void repoEchoesSave() {
         when(patientRepository.save(any(Patient.class))).thenAnswer(i -> i.getArgument(0));
     }
@@ -58,11 +64,15 @@ class PatientServiceTest {
     }
 
     @Test
-    void create_rejects_a_duplicate_document_in_the_same_clinic() {
-        when(patientRepository.existsByDocument("123")).thenReturn(true);
+    void create_rejects_a_duplicate_document_identifying_the_existing_patient() {
+        Patient existing = Patient.builder().id(5L).status(PatientStatus.ACTIVE).build();
+        when(patientRepository.findByDocument("123")).thenReturn(Optional.of(existing));
 
         assertThatThrownBy(() -> patientService.create(data("Ada", "123")))
-            .isInstanceOf(DocumentAlreadyExistsException.class);
+            .isInstanceOf(DocumentAlreadyExistsException.class)
+            .asInstanceOf(org.assertj.core.api.InstanceOfAssertFactories.type(DocumentAlreadyExistsException.class))
+            .extracting(DocumentAlreadyExistsException::getExistingPatientId)
+            .isEqualTo(5L);
         verify(patientRepository, never()).save(any());
     }
 
@@ -71,7 +81,7 @@ class PatientServiceTest {
         repoEchoesSave();
         patientService.create(data("Bebé Sin DNI", null));
 
-        verify(patientRepository, never()).existsByDocument(any());
+        verify(patientRepository, never()).findByDocument(any());
     }
 
     @Test
@@ -95,8 +105,9 @@ class PatientServiceTest {
     @Test
     void update_rejects_a_document_that_another_patient_of_the_clinic_already_has() {
         Patient existing = Patient.builder().id(1L).status(PatientStatus.ACTIVE).build();
+        Patient other = Patient.builder().id(2L).status(PatientStatus.ACTIVE).build();
         when(patientRepository.findById(1L)).thenReturn(Optional.of(existing));
-        when(patientRepository.existsByDocumentAndIdNot("999", 1L)).thenReturn(true);
+        when(patientRepository.findByDocumentAndIdNot("999", 1L)).thenReturn(Optional.of(other));
 
         assertThatThrownBy(() -> patientService.update(1L, data("Ada", "999")))
             .isInstanceOf(DocumentAlreadyExistsException.class);
@@ -119,5 +130,25 @@ class PatientServiceTest {
 
         assertThatThrownBy(() -> patientService.getById(7L))
             .isInstanceOf(PatientNotFoundException.class);
+    }
+
+    @Test
+    void create_with_a_shared_phone_flags_the_view() {
+        repoEchoesSave();
+        when(patientRepository.countByPhoneAndIdNot(eq("+51999888777"), any())).thenReturn(1L);
+
+        PatientView view = patientService.create(dataWithPhone("Hermano", "+51999888777"));
+
+        assertThat(view.phoneSharedWithOtherPatients()).isTrue();
+    }
+
+    @Test
+    void create_with_a_unique_phone_does_not_flag_the_view() {
+        repoEchoesSave();
+        when(patientRepository.countByPhoneAndIdNot(eq("+51000111222"), any())).thenReturn(0L);
+
+        PatientView view = patientService.create(dataWithPhone("Único", "+51000111222"));
+
+        assertThat(view.phoneSharedWithOtherPatients()).isFalse();
     }
 }

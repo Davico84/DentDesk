@@ -13,8 +13,10 @@ import org.springframework.test.web.servlet.MvcResult;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
 
+import static org.hamcrest.Matchers.hasItem;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -43,7 +45,9 @@ class PatientControllerIT extends AbstractIntegrationTest {
 
     private String adultBody(String fullName, String document) {
         // Si hay documento, va emparejado con su tipo (DNI = 8 dígitos), como exige @ValidDocument.
-        return "{\"fullName\":\"" + fullName + "\",\"birthDate\":\"1990-01-01\""
+        // Con teléfono propio: así el contacto de emergencia (update-patients D2) no interfiere en
+        // tests que no lo están probando.
+        return "{\"fullName\":\"" + fullName + "\",\"birthDate\":\"1990-01-01\",\"phone\":\"+51988877766\""
             + (document == null ? "" : ",\"documentType\":\"DNI\",\"document\":\"" + document + "\"") + "}";
     }
 
@@ -53,6 +57,10 @@ class PatientControllerIT extends AbstractIntegrationTest {
             .andExpect(status().isCreated())
             .andReturn();
         return ((Number) JsonPath.read(r.getResponse().getContentAsString(StandardCharsets.UTF_8), "$.id")).longValue();
+    }
+
+    private String bodyWithPhone(String fullName, String phone) {
+        return "{\"fullName\":\"" + fullName + "\",\"birthDate\":\"1990-01-01\",\"phone\":\"" + phone + "\"}";
     }
 
     @Test
@@ -78,14 +86,97 @@ class PatientControllerIT extends AbstractIntegrationTest {
     }
 
     @Test
-    void a_duplicate_document_in_the_same_clinic_is_a_conflict() throws Exception {
+    void a_duplicate_document_in_the_same_clinic_is_a_conflict_that_identifies_the_existing_patient() throws Exception {
         String token = registerAdmin("Clinica Dup", "patients-dup@clinica.test");
-        createPatient(token, adultBody("Primero", "20000002"));
+        long firstId = createPatient(token, adultBody("Primero", "20000002"));
 
         mockMvc.perform(post("/patients").header("Authorization", "Bearer " + token)
                 .contentType(MediaType.APPLICATION_JSON).content(adultBody("Segundo", "20000002")))
             .andExpect(status().isConflict())
-            .andExpect(jsonPath("$.type").value("/errors/patient-document-taken"));
+            .andExpect(jsonPath("$.type").value("/errors/patient-document-taken"))
+            .andExpect(jsonPath("$.existingPatientId").value((int) firstId));
+    }
+
+    @Test
+    void two_patients_of_the_clinic_can_share_a_phone_and_the_second_is_flagged() throws Exception {
+        String token = registerAdmin("Clinica Fono", "patients-phone@clinica.test");
+        createPatient(token, bodyWithPhone("Madre", "+51999111222"));
+
+        mockMvc.perform(post("/patients").header("Authorization", "Bearer " + token)
+                .contentType(MediaType.APPLICATION_JSON).content(bodyWithPhone("Hijo", "+51999111222")))
+            .andExpect(status().isCreated())
+            .andExpect(jsonPath("$.phoneSharedWithOtherPatients").value(true));
+    }
+
+    @Test
+    void a_patient_without_own_phone_and_without_emergency_contact_is_rejected() throws Exception {
+        String token = registerAdmin("Clinica SinFono", "patients-nophone@clinica.test");
+        String body = "{\"fullName\":\"Adulto Mayor\",\"birthDate\":\"1940-01-01\"}";
+
+        mockMvc.perform(post("/patients").header("Authorization", "Bearer " + token)
+                .contentType(MediaType.APPLICATION_JSON).content(body))
+            .andExpect(status().isBadRequest())
+            .andExpect(jsonPath("$.errors[*].field").value(hasItem("emergencyContactName")));
+    }
+
+    @Test
+    void a_patient_without_own_phone_but_with_emergency_contact_is_created() throws Exception {
+        String token = registerAdmin("Clinica Emerg", "patients-emerg@clinica.test");
+        String body = "{\"fullName\":\"Adulto Mayor\",\"birthDate\":\"1940-01-01\","
+            + "\"emergencyContactName\":\"Hija\",\"emergencyContactPhone\":\"+51988877766\","
+            + "\"emergencyContactRelationship\":\"Hija\"}";
+
+        mockMvc.perform(post("/patients").header("Authorization", "Bearer " + token)
+                .contentType(MediaType.APPLICATION_JSON).content(body))
+            .andExpect(status().isCreated())
+            .andExpect(jsonPath("$.phoneSharedWithOtherPatients").value(false));
+    }
+
+    @Test
+    void a_patient_with_own_phone_does_not_need_an_emergency_contact() throws Exception {
+        String token = registerAdmin("Clinica ConFono", "patients-withphone@clinica.test");
+
+        mockMvc.perform(post("/patients").header("Authorization", "Bearer " + token)
+                .contentType(MediaType.APPLICATION_JSON).content(bodyWithPhone("Adulta", "+51955544433")))
+            .andExpect(status().isCreated());
+    }
+
+    @Test
+    void the_same_phone_in_another_clinic_is_not_flagged_as_shared() throws Exception {
+        String tokenA = registerAdmin("Clinica Fono A", "patients-fono-a@clinica.test");
+        String tokenB = registerAdmin("Clinica Fono B", "patients-fono-b@clinica.test");
+        createPatient(tokenA, bodyWithPhone("En A", "+51900000000"));
+
+        // Mismo teléfono en otra clínica: sin aviso de compartido, sin fuga entre clínicas.
+        mockMvc.perform(post("/patients").header("Authorization", "Bearer " + tokenB)
+                .contentType(MediaType.APPLICATION_JSON).content(bodyWithPhone("En B", "+51900000000")))
+            .andExpect(status().isCreated())
+            .andExpect(jsonPath("$.phoneSharedWithOtherPatients").value(false));
+    }
+
+    @Test
+    void editing_a_patient_does_not_count_itself_as_a_shared_phone() throws Exception {
+        String token = registerAdmin("Clinica Self", "patients-self@clinica.test");
+        // Único paciente con ese teléfono: al editarlo, no debe contarse a sí mismo (usa AndIdNot).
+        long id = createPatient(token, bodyWithPhone("Solitario", "+51911112222"));
+
+        mockMvc.perform(put("/patients/" + id).header("Authorization", "Bearer " + token)
+                .contentType(MediaType.APPLICATION_JSON).content(bodyWithPhone("Solitario", "+51911112222")))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.phoneSharedWithOtherPatients").value(false));
+    }
+
+    @Test
+    void removing_the_own_phone_on_edit_requires_an_emergency_contact() throws Exception {
+        String token = registerAdmin("Clinica Quita", "patients-remove-phone@clinica.test");
+        long id = createPatient(token, bodyWithPhone("Con Fono", "+51922223333"));
+
+        // Editar quitando el teléfono y sin contacto de emergencia → mismo rechazo que en el alta.
+        String noPhone = "{\"fullName\":\"Con Fono\",\"birthDate\":\"1990-01-01\"}";
+        mockMvc.perform(put("/patients/" + id).header("Authorization", "Bearer " + token)
+                .contentType(MediaType.APPLICATION_JSON).content(noPhone))
+            .andExpect(status().isBadRequest())
+            .andExpect(jsonPath("$.errors[*].field").value(hasItem("emergencyContactName")));
     }
 
     @Test

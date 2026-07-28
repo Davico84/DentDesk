@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { ArrowLeft, Pencil } from "lucide-react";
+import { ArrowLeft, Pencil, Users } from "lucide-react";
 import { Button } from "@/modules/core/ui/button";
 import { buttonVariants } from "@/modules/core/ui/button-variants";
 import { ConfirmDialog } from "@/modules/core/ui/confirm-dialog";
@@ -89,6 +89,17 @@ export function PatientDetail() {
         <InfoRow label="Correo" value={patient.email} />
         <InfoRow label="Dirección" value={patient.address} />
       </InfoCard>
+
+      {/*
+        Aviso NO bloqueante (update-patients D1): el teléfono es legítimamente compartido entre
+        pacientes de una misma familia. No es un error — solo información.
+      */}
+      {patient.phoneSharedWithOtherPatients ? (
+        <div className="flex items-center gap-3 rounded-2xl border bg-accent px-4 py-3 text-sm text-accent-foreground">
+          <Users className="size-4 shrink-0" />
+          <span>Este teléfono también está registrado a nombre de otro paciente de la clínica.</span>
+        </div>
+      ) : null}
 
       {patient.guardianName || patient.guardianPhone ? (
         <InfoCard title="Responsable">

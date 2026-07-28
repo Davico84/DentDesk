@@ -8,10 +8,38 @@ import {
   search,
   update,
 } from "@/modules/core/services/generated/patients";
-import type { PatientRequest, SearchParams } from "@/modules/core/services/generated/model";
-import { getUserFriendlyError } from "@/modules/core/utils/apiError";
+import type { PatientRequest, PatientResponse, SearchParams } from "@/modules/core/services/generated/model";
+import {
+  getApiProblem,
+  getUserFriendlyError,
+  PATIENT_DOCUMENT_TAKEN,
+} from "@/modules/core/utils/apiError";
 
 const PATIENTS_KEY = ["patients"] as const;
+
+/**
+ * El conflicto de documento duplicado (`patient-document-taken`) lo maneja **el componente** con un
+ * toast accionable ("abrir ficha existente"); el hook se **abstiene** de su toast genérico para ese
+ * caso, para no mostrar dos avisos del mismo error (update-patients D5). Cualquier otro error sigue
+ * cayendo en el toast genérico.
+ */
+function toastGenericUnlessDocumentTaken(error: unknown): void {
+  if (getApiProblem(error)?.type === PATIENT_DOCUMENT_TAKEN) {
+    return;
+  }
+  toast.error(getUserFriendlyError(error));
+}
+
+/**
+ * Aviso **no bloqueante** de teléfono compartido (update-patients D1): el alta/edición ya se
+ * completó cuando esto se muestra, así que nunca impide guardar. Visualmente distinto del toast de
+ * error (`toast.warning`, no `toast.error`).
+ */
+function warnIfPhoneShared(patient: PatientResponse): void {
+  if (patient.phoneSharedWithOtherPatients) {
+    toast.warning("Este teléfono ya está registrado a nombre de otro paciente de la clínica.");
+  }
+}
 
 /** Listado con búsqueda (nombre o documento) + inactivos + paginación. */
 export function usePatientsSearch(params: SearchParams) {
@@ -32,19 +60,21 @@ export function usePatient(id: number | undefined) {
 
 /**
  * Alta. El error de **campo** (400 de validación) lo pinta el llamador (`onError` del `.mutate()`,
- * vía `applyServerFieldErrors`); el aviso **genérico** (409 de documento duplicado, 500, etc.) lo
- * pone este hook — mismo patrón que `useLogin` (`docs/frontend.md §2.6`): ambos corren siempre, no
- * es uno u otro.
+ * vía `applyServerFieldErrors`); el aviso **genérico** (500, etc.) lo pone este hook — mismo patrón
+ * que `useLogin` (`docs/frontend.md §2.6`): ambos corren siempre, no es uno u otro. **Excepción**
+ * (D5): el `409` de documento duplicado lo maneja el componente con un toast accionable, así que
+ * aquí se omite el genérico para ese caso.
  */
 export function useCreatePatient() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (data: PatientRequest) => create(data),
-    onSuccess: () => {
+    onSuccess: (patient) => {
       queryClient.invalidateQueries({ queryKey: PATIENTS_KEY });
       toast.success("Paciente registrado");
+      warnIfPhoneShared(patient);
     },
-    onError: (error) => toast.error(getUserFriendlyError(error)),
+    onError: toastGenericUnlessDocumentTaken,
   });
 }
 
@@ -53,11 +83,12 @@ export function useUpdatePatient(id: number) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (data: PatientRequest) => update(id, data),
-    onSuccess: () => {
+    onSuccess: (patient) => {
       queryClient.invalidateQueries({ queryKey: PATIENTS_KEY });
       toast.success("Ficha actualizada");
+      warnIfPhoneShared(patient);
     },
-    onError: (error) => toast.error(getUserFriendlyError(error)),
+    onError: toastGenericUnlessDocumentTaken,
   });
 }
 
