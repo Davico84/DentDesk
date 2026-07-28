@@ -38,6 +38,6 @@
 
 ## 6. Cierre (al archivar)
 
-- [ ] 6.1 `docs/vision.md`: enlazar el change bajo `patients` en "Estado de capacidades".
-- [ ] 6.2 `docs/domain.md`: registrar la regla de contacto de emergencia (obligatorio si no hay teléfono propio) y el teléfono compartido.
-- [ ] 6.3 Marcar en los ADR `0009`/`0010` la parte pendiente como implementada (o enlazar el change archivado).
+- [x] 6.1 `docs/vision.md`: enlazar el change bajo `patients` en "Estado de capacidades".
+- [x] 6.2 `docs/domain.md`: registrar la regla de contacto de emergencia (obligatorio si no hay teléfono propio) y el teléfono compartido.
+- [x] 6.3 Marcar en los ADR `0009`/`0010` la parte pendiente como implementada (o enlazar el change archivado).
