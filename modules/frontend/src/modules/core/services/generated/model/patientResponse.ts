@@ -33,4 +33,6 @@ export interface PatientResponse {
   conditions?: string[];
   currentMedication?: string[];
   status?: PatientResponseStatus;
+  /** Aviso no bloqueante: el teléfono ya está en otros pacientes de la clínica. */
+  phoneSharedWithOtherPatients?: boolean;
 }

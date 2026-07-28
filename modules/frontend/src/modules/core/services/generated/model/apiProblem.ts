@@ -24,4 +24,6 @@ export interface ApiProblem {
   timestamp?: string;
   /** Identificador de traza para correlacionar con los logs. Opcional: solo se emite si la petición lo tiene. */
   traceId?: string;
+  /** Id de la ficha existente que provoca el conflicto. Opcional: solo se emite en el error 'patient-document-taken', para ofrecer abrirla. */
+  existingPatientId?: number;
 }
