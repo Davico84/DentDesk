@@ -6,7 +6,7 @@
 
 **Goals:**
 - Modelar `HistoriaClinica` (1 por paciente/clínica) con ciclo `DRAFT→COMPLETED` y sellado server-side de la información inicial.
-- Diagnósticos CIE10 con ubicación `GENERAL`/`REGION`/`PIEZA` (FDI), validando contra el catálogo.
+- Diagnósticos CIE10 con ubicación `GENERAL`/`PIEZA` (FDI del conjunto válido), validando contra el catálogo. `REGION` se difiere hasta tener su clasificación.
 - Búsqueda de CIE10 que respeta la jerarquía de 4 niveles.
 - Exponer el estado de habilitación (`COMPLETED`) por paciente.
 
@@ -28,14 +28,18 @@
 - *Alternativa descartada:* anamnesis en JSONB como hoy en `patients` — justo el patrón del que `ADR-0011` se aleja; los diagnósticos necesitan ser relacionales para validar e indexar.
 
 ### D3 — "Campo vacío ≠ revisado" vía flag afirmativo por sección sensible
-Para alergias, medicación y antecedentes familiares (secciones donde "nada" es un dato clínico, no un olvido): par **`<seccion>_revisado` (boolean) + `<seccion>_detalle` (text nullable)**. `revisado=true, detalle=null` ⇒ "sin alergias conocidas"; `revisado=false` ⇒ no revisado. El checklist de D4 exige `revisado=true`. Así el modelo distingue explícitamente "afirmó que no hay" de "no llenó".
+El patrón aplica **uniformemente** a las tres secciones donde "nada" es un dato clínico, no un olvido: **alergias, medicación y antecedentes familiares**. Cada una: par **`<seccion>_revisado` (boolean) + `<seccion>_detalle` (text nullable)**. `revisado=true, detalle=null` ⇒ "sin alergias conocidas" / "no toma medicación" / "sin antecedentes familiares"; `revisado=false` ⇒ no revisado. El checklist de D4 exige `revisado=true` en las tres. Así el modelo distingue explícitamente "afirmó que no hay" de "no llenó". (`antecedentes_personales` y `examen_clinico` son texto presente/ausente, no llevan flag afirmativo — su ausencia no es un dato clínico como sí lo es "sin alergias".)
 - *Alternativa descartada:* un solo campo texto con convención (`""` vs `"ninguna"`) — frágil, no verificable.
 
 ### D4 — Checklist mínimo validado en el servidor en la transición a COMPLETED
 La transición valida (400 con detalle de faltantes si no se cumple): `motivo_consulta` no vacío; `antecedentes_personales` presente; `alergias_revisado`, `medicacion_revisado`, `antecedentes_familiares_revisado` = true; `examen_clinico` presente; **≥ 1 diagnóstico**; `pronostico` presente. La lista exacta vive aquí (design), no en el spec, para poder ajustarla sin tocar requirements. Paridad Zod↔Bean Validation en el front (`docs/coding-style.md §7`).
 
 ### D5 — Ubicación del diagnóstico y número FDI
-`ubicacion: GENERAL | REGION | PIEZA`. `PIEZA` ⇒ `fdi_number` obligatorio (validación condicional, como la del responsable de menores en `patients`). FDI se guarda como entero de 2 dígitos (11–48 permanentes, 51–85 temporales) validado por rango. **No** hay FK a `dental-chart`/`ToothCondition`: el FDI es identidad intrínseca del diente, no una fila del odontograma — evita el acoplamiento (`ADR-0011`).
+`ubicacion: GENERAL | PIEZA`. **`REGION` se difiere**: no hay todavía una clasificación clínica aprobada (cuadrante / maxilar / sector), y dejar una ubicación aceptada por el contrato sin reglas de validación es un hueco. Se agrega en una versión posterior cuando se defina su catálogo (nota: el "Sector" que menciona la estructura MINSA HIS corresponde a esta `REGION` diferida). `PIEZA` ⇒ `fdi_number` obligatorio (validación condicional, como la del responsable de menores en `patients`); `GENERAL` ⇒ **rechaza** un `fdi_number`. El FDI se valida contra el **conjunto real de piezas** (permanentes 11–18/21–28/31–38/41–48; temporales 51–55/61–65/71–75/81–85), **no** por un rango numérico laxo (un rango 11–48 aceptaría `19`/`20`/`29`, que no existen). Los diagnósticos solo se agregan/modifican/eliminan mientras la Historia esté en `DRAFT` (coherente con el sello de D1). **No** hay FK a `dental-chart`/`ToothCondition`: el FDI es identidad intrínseca del diente, no una fila del odontograma — evita el acoplamiento (`ADR-0011`).
+
+### D11 — Registro de diagnóstico conforme a la norma MINSA HIS
+La norma MINSA HIS exige que un diagnóstico no sea una cadena suelta. Cada fila de `clinical_history_diagnosis` lleva, además del código y la ubicación: **`tipo_diagnostico`** obligatorio — enum `PRESUNTIVO`(P) / `DEFINITIVO`(D) / `REPETIDO`(R), con `CHECK`; **`created_at`** (fecha/hora del servidor, inmutable) y **`created_by`** (usuario que registra) vía el mecanismo de auditoría ya existente (`AuditorAware` de `multi-tenancy`, `docs/backend.md §8.6`) — no se capturan a mano. La **descripción oficial** del código no se copia en la fila: se lee del catálogo `cie10_code` por el `code` (fuente única). El vínculo formal a la **colegiatura COP** del profesional se **difiere a `staff`**: hoy no existe el dato de colegiatura ni el rol `DENTIST`, así que `created_by` guarda el usuario autenticado del tenant; cuando `staff` modele la credencial profesional, ese `created_by` se resuelve a la COP. Es un gap conocido y explícito, coherente con D10.
+- *Alternativa descartada:* copiar la descripción CIE10 en cada fila de diagnóstico — dos fuentes de verdad para el mismo texto; se lee del catálogo.
 
 ### D6 — Catálogo CIE10 en tabla, cargado idempotentemente desde el recurso
 Se crea la tabla `cie10_code` (`code` PK, `descripcion`, `nivel`, `parent_code` nullable) y un **loader idempotente** que, al arrancar, la puebla desde `cie10-minsa.json` **solo si está vacía**. Así hay búsqueda/validación por query (indexable, paginable, jerárquica por `parent_code`) sin una migración Flyway de 70k INSERTs. Validar "el código existe" = lookup en tabla.
@@ -47,9 +51,16 @@ Se crea la tabla `cie10_code` (`code` PK, `descripcion`, `nivel`, `parent_code` 
 ### D8 — Estado de habilitación como endpoint liviano
 `GET` del estado por paciente devuelve `{ status: DRAFT|COMPLETED|NONE, enabledForTreatment: boolean }` (`true` solo si `COMPLETED`). Es la señal que `treatment-plans` consumirá; se expone ya para no rehacer el contrato después.
 
+### D9 — `clinical-history` no toca `patients` (aislamiento durante la duplicación temporal)
+Este change **no lee, no copia y no modifica** los campos clínicos de `patients` (`allergies`/`conditions`/`currentMedication`). La Historia Clínica captura su anamnesis **de cero**; `patients` queda **intacto y funcional** exactamente como hoy. Toda la reconciliación —copiar valores previos, congelar la edición en `patients`, remover los campos— es responsabilidad **exclusiva** del `update-patients` **futuro** (`ADR-0011`), no de este change. Regla clara mientras coexisten: la Historia Clínica es la única fuente clínica activa; los campos de `patients` no se consultan para decisiones clínicas y se retiran después. Esto evita cualquier lógica de sincronización o resolución de divergencias aquí.
+- *Alternativa descartada:* copiar la anamnesis de `patients` al crear la Historia y bloquear su edición en `patients` ya en este change — mete cambios a `patients` (contradice "patients intacto, remoción diferida") y obliga a resolver divergencias entre ambas fuentes ahora, justo lo que se difiere.
+
+### D10 — Acceso en esta fase: miembro autenticado del tenant
+Todas las operaciones clínicas (crear, editar `DRAFT`, agregar diagnósticos, sellar, consultar) requieren un **usuario autenticado perteneciente a la clínica** (tenant activo). **No** hay acceso anónimo ni cross-tenant (garantizado por RLS de `multi-tenancy`). La restricción al rol `DENTIST` y la distinción fina consultar/editar/sellar por rol se **difieren a `staff`** — hoy no existe el modelo de roles clínicos, así que cualquier miembro del tenant puede operar (mismo criterio ya aceptado para `dental-chart`/`treatments`, `docs/domain.md`). Es una decisión **explícita y temporal**, no una omisión.
+
 ## Risks / Trade-offs
 
-- **Duplicación temporal de anamnesis** (`patients` JSONB + `historia_clinica`) hasta el `update-patients` futuro → sin sincronización entre ambas; la Historia Clínica es la fuente clínica desde ya, `patients` queda como dato muerto a remover. Trackeado en `docs/vision.md §3`.
+- **Duplicación temporal de anamnesis** (`patients` JSONB + `historia_clinica`) hasta el `update-patients` futuro → mitigada por **D9**: este change no toca `patients`, así que **no hay sincronización ni divergencia que resolver aquí**. La Historia Clínica es la fuente clínica activa; `patients` queda como dato muerto a remover por el `update-patients` futuro. Trackeado en `docs/vision.md §3`.
 - **Loader CIE10 en el arranque** (70k filas) → idempotente (carga solo si vacía) e indexado; el costo es un arranque más lento la primera vez. Mitigación: índice en `parent_code` y en búsqueda por descripción.
 - **Bypass del sellado** → se valida en el servicio (no solo UI), con test por cada Scenario de "rechazar edición de COMPLETED".
 - **FDI mal validado** (ceros, rangos) → entero con rango explícito + regla condicional `PIEZA ⇒ fdi`.
