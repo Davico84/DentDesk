@@ -41,12 +41,12 @@ public class PatientService {
             .status(PatientStatus.ACTIVE)
             .build();
         apply(data, patient);
-        return PatientView.from(patientRepository.save(patient));
+        return toView(patientRepository.save(patient));
     }
 
     @Transactional(readOnly = true)
     public PatientView getById(Long id) {
-        return PatientView.from(find(id));
+        return toView(find(id));
     }
 
     /** Edición de la ficha. El documento no puede colisionar con el de otro paciente de la clínica. */
@@ -54,21 +54,21 @@ public class PatientService {
         Patient patient = find(id);
         requireDocumentFree(data.document(), id);
         apply(data, patient);
-        return PatientView.from(patientRepository.save(patient));
+        return toView(patientRepository.save(patient));
     }
 
     /** Baja lógica: archiva, no borra (design.md D4). */
     public PatientView deactivate(Long id) {
         Patient patient = find(id);
         patient.setStatus(PatientStatus.INACTIVE);
-        return PatientView.from(patientRepository.save(patient));
+        return toView(patientRepository.save(patient));
     }
 
     /** Reactivación: vuelve a ACTIVE (la salida al 409 del documento ocupado). */
     public PatientView reactivate(Long id) {
         Patient patient = find(id);
         patient.setStatus(PatientStatus.ACTIVE);
-        return PatientView.from(patientRepository.save(patient));
+        return toView(patientRepository.save(patient));
     }
 
     @Transactional(readOnly = true)
@@ -85,17 +85,34 @@ public class PatientService {
         return patientRepository.findById(id).orElseThrow(PatientNotFoundException::new);
     }
 
-    /** El documento es opcional; cuando viene, debe estar libre en la clínica (incondicional, D1). */
+    /**
+     * El documento es opcional; cuando viene, debe estar libre en la clínica (incondicional, D1).
+     * Si colisiona, la excepción lleva el {@code id} de la ficha existente para que el cliente pueda
+     * ofrecer abrirla (update-patients D3/D4) — por eso {@code findBy...}, no {@code existsBy...}.
+     */
     private void requireDocumentFree(String document, Long selfId) {
         if (document == null || document.isBlank()) {
             return;
         }
-        boolean taken = selfId == null
-            ? patientRepository.existsByDocument(document)
-            : patientRepository.existsByDocumentAndIdNot(document, selfId);
-        if (taken) {
-            throw new DocumentAlreadyExistsException();
+        (selfId == null
+            ? patientRepository.findByDocument(document)
+            : patientRepository.findByDocumentAndIdNot(document, selfId))
+            .ifPresent(existing -> {
+                throw new DocumentAlreadyExistsException(existing.getId());
+            });
+    }
+
+    /** Construye la vista con el aviso de teléfono compartido computado (update-patients D1). */
+    private PatientView toView(Patient patient) {
+        return PatientView.from(patient, phoneSharedWithOthers(patient.getPhone(), patient.getId()));
+    }
+
+    /** ¿El teléfono ya está en otros pacientes de la clínica? Excluye al propio paciente (D1). */
+    private boolean phoneSharedWithOthers(String phone, Long selfId) {
+        if (phone == null || phone.isBlank()) {
+            return false;
         }
+        return patientRepository.countByPhoneAndIdNot(phone, selfId) > 0;
     }
 
     private void apply(PatientData d, Patient p) {

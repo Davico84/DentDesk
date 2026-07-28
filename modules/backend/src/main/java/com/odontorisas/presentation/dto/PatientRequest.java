@@ -3,6 +3,7 @@ package com.odontorisas.presentation.dto;
 import com.odontorisas.common.DocumentType;
 import com.odontorisas.common.GuardianRelationship;
 import com.odontorisas.common.Sex;
+import com.odontorisas.presentation.dto.validation.EmergencyContactRequiredWithoutPhone;
 import com.odontorisas.presentation.dto.validation.GuardianRequiredForMinor;
 import com.odontorisas.presentation.dto.validation.ValidDocument;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -25,6 +26,7 @@ import java.util.List;
  * La organización <b>no viaja aquí</b>: la pone el contexto de tenant.
  */
 @GuardianRequiredForMinor
+@EmergencyContactRequiredWithoutPhone
 @ValidDocument
 public record PatientRequest(
     @NotBlank @Size(max = 200)

@@ -36,8 +36,12 @@ class GuardianRequiredForMinorValidatorTest {
         factory.close();
     }
 
+    /**
+     * Con teléfono propio: así {@code EmergencyContactRequiredWithoutPhone} (update-patients D2,
+     * regla independiente de esta) no interfiere en tests que no la están probando.
+     */
     private PatientRequest request(LocalDate birthDate, String guardianName, GuardianRelationship guardianRelationship, String guardianPhone) {
-        return new PatientRequest("Nombre Válido", null, null, birthDate, null, null, null, null,
+        return new PatientRequest("Nombre Válido", null, null, birthDate, null, "+51988877766", null, null,
             guardianName, guardianRelationship, null, guardianPhone,
             null, null, null, null, null, null);
     }

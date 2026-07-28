@@ -60,7 +60,7 @@ class PatientControllerTest {
     private PatientView aView(Long id, String fullName) {
         return new PatientView(id, fullName, DocumentType.DNI, "10000001", LocalDate.of(1990, 1, 1),
             false, null, null, null, null, null, null, null, null, null, null, null,
-            List.of(), List.of(), List.of(), PatientStatus.ACTIVE);
+            List.of(), List.of(), List.of(), PatientStatus.ACTIVE, false);
     }
 
     @Test
@@ -69,7 +69,7 @@ class PatientControllerTest {
 
         mockMvc.perform(post("/patients")
                 .contentType(MediaType.APPLICATION_JSON)
-                .content("{\"fullName\":\"Ada Lovelace\",\"birthDate\":\"1990-01-01\"}"))
+                .content("{\"fullName\":\"Ada Lovelace\",\"birthDate\":\"1990-01-01\",\"phone\":\"+51988877766\"}"))
             .andExpect(status().isCreated())
             .andExpect(jsonPath("$.id").value(1))
             .andExpect(jsonPath("$.fullName").value("Ada Lovelace"))
@@ -97,15 +97,16 @@ class PatientControllerTest {
     }
 
     @Test
-    void create_with_duplicate_document_returns_409_as_problem_detail() throws Exception {
-        given(patientService.create(any())).willThrow(new DocumentAlreadyExistsException());
+    void create_with_duplicate_document_returns_409_identifying_the_existing_patient() throws Exception {
+        given(patientService.create(any())).willThrow(new DocumentAlreadyExistsException(7L));
 
         mockMvc.perform(post("/patients")
                 .contentType(MediaType.APPLICATION_JSON)
-                .content("{\"fullName\":\"Otro\",\"birthDate\":\"1990-01-01\","
+                .content("{\"fullName\":\"Otro\",\"birthDate\":\"1990-01-01\",\"phone\":\"+51988877766\","
                     + "\"documentType\":\"DNI\",\"document\":\"10000001\"}"))
             .andExpect(status().isConflict())
-            .andExpect(jsonPath("$.type").value("/errors/patient-document-taken"));
+            .andExpect(jsonPath("$.type").value("/errors/patient-document-taken"))
+            .andExpect(jsonPath("$.existingPatientId").value(7));
     }
 
     @Test
