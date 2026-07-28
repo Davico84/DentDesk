@@ -7,6 +7,8 @@ Una tanda de ADRs sobre pacientes (`docs/adr/0005`–`0010`) fijó decisiones de
 
 Quedan **fuera** (no son de `patients`): ADR-0006 (gate por etapa → `treatment-plans`), la parte de consentimientos de ADR-0007 (→ `treatments`/consentimientos), y ADR-0008 (ya construido).
 
+> **Nota (2026-07-23, ADR-0011):** una decisión posterior introduce la capacidad `clinical-history` (Historia Clínica), que absorbe la anamnesis (`allergies`/`conditions`/`currentMedication`) hoy construida en `patients`. **Este change no la toca** — no menciona ni depende de esos campos — así que es independiente y puede implementarse/mergearse en cualquier orden respecto a `clinical-history`. La remoción/redefinición de la anamnesis en `patients` es un delta **futuro y separado** (ver ADR-0011), no parte de este change.
+
 ## What Changes
 
 - El sistema SHALL **avisar** (sin bloquear) cuando el teléfono de un paciente ya está asociado a otros pacientes de la misma clínica.
