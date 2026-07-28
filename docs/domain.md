@@ -141,15 +141,17 @@ Personalización visual de una organización aplicada al app shell. Fila **opcio
 ### `patients` → **Patient**
 Ficha clínica-administrativa. Se atienden **menores y adultos**.
 - Datos personales: `fullName`, `birthDate` (permite derivar edad e `isMinor`), `sex` (opcional, **enum** `MALE|FEMALE|OTHER`), y el **documento**: `documentType` (**enum** `DNI|CE|PASSPORT`) + `document` (**string**, nunca numérico — ceros a la izquierda, pasaporte alfanumérico). Van **emparejados** (o ambos o ninguno) y el **formato depende del tipo** (DNI=8 díg, CE=9–12, pasaporte=alfanum). Único por clínica (`ADR-0004`, `add-patients` design.md D8).
-- Contacto: `phone`, `email`, `address` (los teléfonos son **string con formato**, no numéricos).
+- Contacto: `phone`, `email`, `address` (los teléfonos son **string con formato**, no numéricos). **El teléfono se puede compartir** entre pacientes de la misma clínica (familias) — no es un error de validación: al chocar, el sistema **avisa** (no bloquea), calculado sobre la clínica activa (`update-patients`, `ADR-0010`).
 - **Responsable (para menores)** — campos en el propio Patient: `guardianName`, `guardianRelationship` (**enum** `MOTHER|FATHER|GUARDIAN|OTHER`) y `guardianPhone`, **requeridos** cuando el paciente es menor de edad; `guardianDocument` **opcional** (no siempre está a mano y no debe bloquear la atención).
-- **Contacto de emergencia**: `emergencyContactName`, `emergencyContactPhone`, `emergencyContactRelationship`
+- **Contacto de emergencia**: `emergencyContactName`, `emergencyContactPhone`, `emergencyContactRelationship` — **obligatorio solo cuando el paciente no tiene teléfono propio** (regla condicional, mismo mecanismo que el responsable de menores); si hay teléfono propio, sigue siendo opcional (`update-patients`, `ADR-0010`).
 - **Datos clínicos (anamnesis)** — condicionan el tratamiento: `allergies` (lista; anestesia, penicilina, látex…), `medicalHistory`/`conditions` (diabetes, hipertensión, embarazo, anticoagulantes, cardiopatías…), `currentMedication` (lista)
 - **NO es un usuario del sistema.** El paciente es un **cliente de la clínica**: solo un registro. No tiene cuenta, no inicia sesión y no se vincula a ningún `User`. Lo dan de alta el administrador o la recepcionista (que sí son `User`). *Un eventual portal del paciente sería una capacidad futura y añadiría el vínculo en ese momento; hoy queda fuera de alcance.*
 - **El paciente pertenece a UNA clínica**, no a la plataforma. La misma persona atendida en dos clínicas son **dos `Patient` distintos**, sin relación entre sí: **ninguna clínica sabe que la otra la atiende**. Los datos demográficos se **duplican** (es el precio de la privacidad) y la información clínica **nunca se comparte**.
   > ⚠️ **El documento (DNI) es único POR CLÍNICA**: la restricción va sobre `(organizationId, document)`, **nunca** sobre `document` a secas — eso impediría que dos clínicas atendieran al mismo paciente.
   >
   > El *porqué*, las alternativas descartadas y el resto de consecuencias: **`ADR-0004`**.
+  >
+  > Ante un documento duplicado, la respuesta **identifica la ficha existente** (su `id`) para que el cliente pueda ofrecer abrirla directamente, en vez de solo rechazar (`update-patients`, `ADR-0009`).
 
 **Reglas de negocio que impactan el tratamiento** (a cubrir en los `#### Scenario:` de `patients`/`treatments`):
 - Paciente **menor de edad** ⇒ requiere responsable y **consentimiento del tutor** (ver `Consent`).

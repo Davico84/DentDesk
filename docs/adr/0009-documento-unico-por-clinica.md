@@ -1,6 +1,6 @@
 # ADR-0009: Documento de identidad único por clínica
 
-- **Estado:** Aceptado — **unicidad construida**; el flujo "abrir registro existente" pendiente
+- **Estado:** Aceptado — **implementado por completo** (unicidad + "abrir registro existente")
 - **Fecha:** 2026-07-23
 - **Decisores:** David Velarde Alvarado
 
@@ -25,9 +25,7 @@ Cuando la recepcionista intenta registrar un documento que ya existe en su clín
 ## Relación con lo construido
 
 - ✅ **Construido:** la unicidad **(organización, tipo, número)** ya está — y correctamente **por clínica** (`patients` design.md D8, `ADR-0004`). Hay scenarios testeados: no se puede dar de alta ni editar a un documento que ya existe en la clínica, **incluidos los pacientes dados de baja**. El mismo documento **sí** puede existir en otra clínica.
-- 🔮 **Pendiente:** el comportamiento de UX **"ofrecer abrir el registro existente"**. Hoy el sistema **rechaza** el alta con un mensaje de conflicto (`409`), pero **no** ofrece navegar a la ficha que colisiona. Ese atajo es nuevo.
-
-**La parte pendiente (abrir registro existente) se implementa vía el change `update-patients`.**
+- ✅ **Construido:** "ofrecer abrir el registro existente" — el change `update-patients` (archivado: `openspec/changes/archive/2026-07-28-update-patients/`) lo cerró. El `409` de documento duplicado ahora identifica la ficha existente (`existingPatientId`) y el cliente ofrece "Abrir ficha existente" con navegación directa.
 
 ## Alternativas descartadas
 

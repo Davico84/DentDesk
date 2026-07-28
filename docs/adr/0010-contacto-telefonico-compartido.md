@@ -1,6 +1,6 @@
 # ADR-0010: Contacto telefónico compartido y contacto de emergencia
 
-- **Estado:** Aceptado (decisión); **pendiente de implementar** — comportamiento nuevo
+- **Estado:** Aceptado — **implementado**
 - **Fecha:** 2026-07-23
 - **Decisores:** David Velarde Alvarado
 
@@ -23,13 +23,11 @@ Esto define la **excepción al celular obligatorio** que menciona [ADR-0005](000
 
 ## Relación con lo construido
 
-🔮 **Comportamiento nuevo, no construido.** Hoy en `patients`:
+✅ **Implementado por completo**, vía el change `update-patients` (archivado: `openspec/changes/archive/2026-07-28-update-patients/`):
 
-- El **teléfono es opcional** (schema `optionalPhone`); no hay regla que lo exija.
-- **No existe** la advertencia de "número compartido con otros pacientes" — se puede repetir un número sin aviso alguno (que es lo que este ADR quiere, pero **sin** el aviso).
-- Ya existen campos de **contacto de emergencia** (`emergencyContactName/Phone/Relationship`), pero son **opcionales** y **no** hay regla "si no hay teléfono propio, el de emergencia es obligatorio".
-
-**Se implementa vía el change `update-patients`.** Nota de diseño para ese change: la advertencia de número compartido exige que el backend pueda responder *"este número ya está en N pacientes de la clínica"* sin romper el aislamiento (es dato de la propia clínica, así que es correcto) — decidir si es un check en el alta o un aviso asíncrono.
+- El teléfono se puede **compartir** entre pacientes de la clínica; el sistema avisa **sin bloquear** (`PatientResponse.phoneSharedWithOtherPatients`, calculado excluyendo al propio paciente en edición).
+- El **contacto de emergencia** (`emergencyContactName/Phone/Relationship`) pasa a **obligatorio solo si no hay teléfono propio** — regla condicional a nivel de objeto (`EmergencyContactRequiredWithoutPhone`, backend; `superRefine`, frontend), mismo patrón que el responsable de menores.
+- La advertencia de número compartido es un dato **de la propia clínica** (respeta el aislamiento): se calcula server-side en cada alta/edición, no como aviso asíncrono.
 
 ## Alternativas descartadas
 
