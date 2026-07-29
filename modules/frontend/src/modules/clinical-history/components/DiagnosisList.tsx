@@ -1,5 +1,6 @@
 import { Trash2 } from "lucide-react";
 import { Button } from "@/modules/core/ui/button";
+import { dateLabel } from "@/modules/core/utils/dateLabel";
 import type { DiagnosisResponse } from "@/modules/core/services/generated/model";
 import { useRemoveDiagnosis } from "@/modules/clinical-history/hooks/useClinicalHistoryApi";
 import { labelOf, tipoDiagnosticoOptions } from "./diagnosisOptions";
@@ -28,6 +29,7 @@ export function DiagnosisList({
             <span className="font-medium">{d.cie10Code}</span>
             <span className="ml-2 text-muted-foreground">
               {d.ubicacion === "PIEZA" ? `Pieza ${d.fdiNumber}` : "General"} · {labelOf(tipoDiagnosticoOptions, d.tipoDiagnostico)}
+              {d.createdAt ? ` · ${dateLabel(d.createdAt)}` : null}
             </span>
           </div>
           {editable ? (

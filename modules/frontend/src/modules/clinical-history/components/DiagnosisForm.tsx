@@ -89,7 +89,7 @@ export function DiagnosisForm({ patientId }: { patientId: number }) {
         error={errors.tipoDiagnostico}
         options={tipoDiagnosticoOptions}
         required
-        wide={ubicacion !== DiagnosisRequestUbicacion.PIEZA}
+        wide={ubicacion === DiagnosisRequestUbicacion.PIEZA}
       />
 
       <div className="sm:col-span-2">
