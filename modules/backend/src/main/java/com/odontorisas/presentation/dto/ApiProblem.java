@@ -3,6 +3,7 @@ package com.odontorisas.presentation.dto;
 import io.swagger.v3.oas.annotations.media.Schema;
 
 import java.time.Instant;
+import java.util.List;
 
 /**
  * Schema del cuerpo de error estándar de la API (RFC 9457). Documenta lo que produce
@@ -51,5 +52,10 @@ public record ApiProblem(
     @Schema(description = "Id de la ficha existente que provoca el conflicto. "
         + "Opcional: solo se emite en el error 'patient-document-taken', para ofrecer abrirla.",
         example = "42", nullable = true)
-    Long existingPatientId) {
+    Long existingPatientId,
+
+    @Schema(description = "Campos que faltan para completar el checklist. "
+        + "Opcional: solo se emite en el error 'clinical-history-incomplete'.",
+        nullable = true)
+    List<String> missingFields) {
 }

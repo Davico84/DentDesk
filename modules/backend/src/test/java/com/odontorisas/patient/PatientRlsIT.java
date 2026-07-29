@@ -48,7 +48,9 @@ class PatientRlsIT extends AbstractTenantAwareIntegrationTest {
     @BeforeEach
     void seedOrganizations() throws SQLException {
         try (Connection owner = ownerConnection(); Statement s = owner.createStatement()) {
-            s.execute("TRUNCATE patients RESTART IDENTITY");
+            // CASCADE: historia_clinica/clinical_history_diagnosis referencian patients por FK
+            // (add-clinical-history); sin CASCADE, TRUNCATE falla aunque estén vacías.
+            s.execute("TRUNCATE patients RESTART IDENTITY CASCADE");
             s.execute("INSERT INTO organizations (id, name, slug) VALUES "
                 + "(" + ORG_A + ", 'Clinica A', 'clinica-a'), "
                 + "(" + ORG_B + ", 'Clinica B', 'clinica-b') "
