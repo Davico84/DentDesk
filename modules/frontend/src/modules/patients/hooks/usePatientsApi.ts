@@ -1,12 +1,14 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import {
-  create,
+  // orval sufija _1 por colisión de nombre con clinical-history.ts (create/get/update también
+  // existen ahí); mismo patrón ya aceptado para cie10's `search1`.
+  create1 as create,
   deactivate,
-  get,
+  get1 as get,
   reactivate,
   search,
-  update,
+  update1 as update,
 } from "@/modules/core/services/generated/patients";
 import type { PatientRequest, PatientResponse, SearchParams } from "@/modules/core/services/generated/model";
 import {

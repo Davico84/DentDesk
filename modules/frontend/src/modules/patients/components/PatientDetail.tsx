@@ -1,11 +1,11 @@
 import { useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { ArrowLeft, Pencil, Users } from "lucide-react";
+import { ArrowLeft, ClipboardList, Pencil, Users } from "lucide-react";
 import { Button } from "@/modules/core/ui/button";
 import { buttonVariants } from "@/modules/core/ui/button-variants";
 import { ConfirmDialog } from "@/modules/core/ui/confirm-dialog";
 import { InfoCard, InfoRow } from "@/modules/core/components/InfoCard";
-import { PATHS, patientEditPath } from "@/routes/paths";
+import { PATHS, clinicalHistoryPath, patientEditPath } from "@/routes/paths";
 import {
   useDeactivatePatient,
   usePatient,
@@ -62,6 +62,10 @@ export function PatientDetail() {
           </div>
         </div>
         <div className="flex items-center gap-2">
+          <Link to={clinicalHistoryPath(id)} className={buttonVariants({ variant: "default", size: "lg" })}>
+            <ClipboardList className="mr-2 size-4" />
+            Historia Clínica
+          </Link>
           <Link to={patientEditPath(id)} className={buttonVariants({ variant: "outline", size: "lg" })}>
             <Pencil className="mr-2 size-4" />
             Editar

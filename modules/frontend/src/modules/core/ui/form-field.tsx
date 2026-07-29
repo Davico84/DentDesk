@@ -43,12 +43,15 @@ export function FormField<T extends FieldValues>({
   wide,
   maxLength,
   inputMode,
+  valueAsNumber,
 }: BaseProps<T> & {
   type?: string;
   placeholder?: string;
   /** Tope duro de caracteres: impedir que se pase es mejor que avisarle después. */
   maxLength?: number;
   inputMode?: "text" | "numeric" | "tel" | "email";
+  /** El valor del campo se registra como `number` (o `undefined` si está vacío), no `string`. */
+  valueAsNumber?: boolean;
 }) {
   const errorId = `${name}-error`;
   const hintId = `${name}-hint`;
@@ -61,6 +64,38 @@ export function FormField<T extends FieldValues>({
         maxLength={maxLength}
         inputMode={inputMode}
         className="h-11 rounded-xl"
+        aria-invalid={error ? true : undefined}
+        aria-describedby={describedBy(error ? errorId : undefined, hint ? hintId : undefined)}
+        {...register(name, valueAsNumber ? { setValueAs: numberOrEmpty } : undefined)}
+      />
+    </FieldShell>
+  );
+}
+
+/**
+ * Campo de texto largo (varias líneas). Mismo contrato de accesibilidad que {@link FormField};
+ * úsalo para narrativa (motivo de consulta, antecedentes...) donde un `<input>` de una línea se
+ * queda corto. Primitivo de `core/ui`: no conoce ningún dominio.
+ */
+export function TextareaField<T extends FieldValues>({
+  label,
+  name,
+  register,
+  error,
+  placeholder,
+  hint,
+  wide,
+  rows = 3,
+}: BaseProps<T> & { placeholder?: string; rows?: number }) {
+  const errorId = `${name}-error`;
+  const hintId = `${name}-hint`;
+  return (
+    <FieldShell label={label} name={name} required={false} error={error} hint={hint} wide={wide}>
+      <textarea
+        id={name}
+        rows={rows}
+        placeholder={placeholder}
+        className="w-full resize-y rounded-xl border border-input bg-card px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 aria-[invalid=true]:border-destructive aria-[invalid=true]:focus-visible:ring-destructive"
         aria-invalid={error ? true : undefined}
         aria-describedby={describedBy(error ? errorId : undefined, hint ? hintId : undefined)}
         {...register(name)}
@@ -148,6 +183,11 @@ function FieldShell({
       ) : null}
     </div>
   );
+}
+
+/** "" se conserva como "" (no `NaN`): así el schema puede distinguir "vacío" de "número inválido". */
+function numberOrEmpty(value: string): number | "" {
+  return value === "" ? "" : Number(value);
 }
 
 function describedBy(...ids: Array<string | undefined>): string | undefined {
