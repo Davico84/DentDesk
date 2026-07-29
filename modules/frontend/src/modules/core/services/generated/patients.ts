@@ -17,7 +17,7 @@ import { customInstance } from '../../config/httpClient';
 
 
 
-  export const get = (
+  export const get1 = (
     id: number,
  ) => {
       return customInstance<PatientResponse>(
@@ -25,7 +25,7 @@ import { customInstance } from '../../config/httpClient';
     },
       );
     }
-  export const update = (
+  export const update1 = (
     id: number,
     patientRequest: PatientRequest,
  ) => {
@@ -45,7 +45,7 @@ import { customInstance } from '../../config/httpClient';
     },
       );
     }
-  export const create = (
+  export const create1 = (
     patientRequest: PatientRequest,
  ) => {
       return customInstance<PatientResponse>(
@@ -71,9 +71,9 @@ import { customInstance } from '../../config/httpClient';
     },
       );
     }
-  export type GetResult = NonNullable<Awaited<ReturnType<typeof get>>>
-export type UpdateResult = NonNullable<Awaited<ReturnType<typeof update>>>
+  export type Get1Result = NonNullable<Awaited<ReturnType<typeof get1>>>
+export type Update1Result = NonNullable<Awaited<ReturnType<typeof update1>>>
 export type SearchResult = NonNullable<Awaited<ReturnType<typeof search>>>
-export type CreateResult = NonNullable<Awaited<ReturnType<typeof create>>>
+export type Create1Result = NonNullable<Awaited<ReturnType<typeof create1>>>
 export type ReactivateResult = NonNullable<Awaited<ReturnType<typeof reactivate>>>
 export type DeactivateResult = NonNullable<Awaited<ReturnType<typeof deactivate>>>
