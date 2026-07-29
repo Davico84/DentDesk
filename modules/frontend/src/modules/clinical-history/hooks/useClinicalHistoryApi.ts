@@ -79,6 +79,7 @@ export function useAddDiagnosis(patientId: number) {
     mutationFn: (data: DiagnosisRequest) => addDiagnosis(patientId, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [...CLINICAL_HISTORY_KEY, patientId] });
+      toast.success("Diagnóstico agregado");
     },
     onError: (error) => toast.error(getUserFriendlyError(error)),
   });
@@ -91,6 +92,7 @@ export function useUpdateDiagnosis(patientId: number) {
       updateDiagnosis(patientId, diagnosisId, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [...CLINICAL_HISTORY_KEY, patientId] });
+      toast.success("Diagnóstico actualizado");
     },
     onError: (error) => toast.error(getUserFriendlyError(error)),
   });
@@ -102,6 +104,7 @@ export function useRemoveDiagnosis(patientId: number) {
     mutationFn: (diagnosisId: number) => removeDiagnosis(patientId, diagnosisId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [...CLINICAL_HISTORY_KEY, patientId] });
+      toast.success("Diagnóstico eliminado");
     },
     onError: (error) => toast.error(getUserFriendlyError(error)),
   });
