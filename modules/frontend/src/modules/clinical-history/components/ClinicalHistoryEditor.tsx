@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { ClipboardList, HeartPulse, Loader2, Stethoscope } from "lucide-react";
+import { CircleAlert, ClipboardList, HeartPulse, Loader2, Stethoscope } from "lucide-react";
 import { Button } from "@/modules/core/ui/button";
 import { FormSection, TextareaField } from "@/modules/core/ui/form-field";
 import {
@@ -34,7 +34,7 @@ export function ClinicalHistoryEditor({ patientId }: { patientId: number }) {
     register,
     handleSubmit,
     control,
-    formState: { errors },
+    formState: { errors, isDirty },
   } = useForm<ClinicalHistoryValues>({
     resolver: zodResolver(clinicalHistorySchema),
     mode: "onTouched",
@@ -99,7 +99,13 @@ export function ClinicalHistoryEditor({ patientId }: { patientId: number }) {
           </FormSection>
 
           {!completed ? (
-            <div className="flex justify-end">
+            <div className="flex items-center justify-end gap-3">
+              {isDirty ? (
+                <p className="flex items-center gap-1.5 text-xs text-warning">
+                  <CircleAlert className="size-3.5" aria-hidden="true" />
+                  Tienes cambios sin guardar
+                </p>
+              ) : null}
               <Button type="submit" disabled={updateHistory.isPending} variant="outline">
                 {updateHistory.isPending ? <Loader2 className="mr-2 size-4 animate-spin" /> : null}
                 Guardar avance
@@ -120,8 +126,14 @@ export function ClinicalHistoryEditor({ patientId }: { patientId: number }) {
       </fieldset>
 
       {!completed ? (
-        <div className="flex justify-end">
-          <Button onClick={() => setConfirmingComplete(true)} size="lg" className="rounded-xl">
+        <div className="flex flex-col items-end gap-1.5">
+          {isDirty ? (
+            <p className="flex items-center gap-1.5 text-xs text-warning">
+              <CircleAlert className="size-3.5" aria-hidden="true" />
+              Guarda el avance antes de completar — el sello valida lo ya guardado, no lo tipeado
+            </p>
+          ) : null}
+          <Button onClick={() => setConfirmingComplete(true)} size="lg" className="rounded-xl" disabled={isDirty}>
             Completar Historia Clínica
           </Button>
         </div>

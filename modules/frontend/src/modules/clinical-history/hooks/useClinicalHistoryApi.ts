@@ -61,7 +61,7 @@ export function useUpdateClinicalHistory(patientId: number) {
   });
 }
 
-/** Sella a COMPLETED. El checklist incompleto (400) lo maneja el llamador (missingFields). */
+/** Sella a COMPLETED. El checklist incompleto (400) lo pinta el llamador (missingFields); el resto de errores, el toast genérico. */
 export function useCompleteClinicalHistory(patientId: number) {
   const queryClient = useQueryClient();
   return useMutation({
@@ -70,6 +70,7 @@ export function useCompleteClinicalHistory(patientId: number) {
       queryClient.invalidateQueries({ queryKey: [...CLINICAL_HISTORY_KEY, patientId] });
       toast.success("Historia clínica completada");
     },
+    onError: (error) => toast.error(getUserFriendlyError(error)),
   });
 }
 

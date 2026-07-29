@@ -94,6 +94,26 @@ describe("ClinicalHistoryScreen — checklist bloquea el sello", () => {
   });
 });
 
+describe("ClinicalHistoryScreen — cambios sin guardar bloquean el sello", () => {
+  it("con todo el checklist en verde pero sin guardar, Completar queda deshabilitado", async () => {
+    const READY_BUT_UNSAVED_DRAFT = {
+      ...COMPLETED_HISTORY,
+      status: "DRAFT" as const,
+      completedAt: undefined,
+    };
+    const user = userEvent.setup();
+    renderScreen(READY_BUT_UNSAVED_DRAFT);
+
+    // El checklist en vivo ya muestra todo listo (los valores vienen precargados del servidor)...
+    const motivo = await screen.findByLabelText(/motivo de consulta/i);
+    // ...pero tipear sin guardar deja el formulario "dirty": el sello debe seguir bloqueado.
+    await user.type(motivo, " adicional");
+
+    expect(await screen.findByText(/guarda el avance antes de completar/i)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /completar historia clínica/i })).toBeDisabled();
+  });
+});
+
 describe("ClinicalHistoryScreen — historia sellada en modo lectura", () => {
   it("una historia COMPLETED no permite editar ni ofrece guardar o completar de nuevo", async () => {
     renderScreen(COMPLETED_HISTORY);
