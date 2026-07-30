@@ -158,6 +158,26 @@ Ficha clínica-administrativa. Se atienden **menores y adultos**.
 - **Alergias / antecedentes / medicación** ⇒ deben alertarse/mostrarse antes de registrar un tratamiento.
 - La **dentición** del odontograma depende de la edad (ver `treatments`).
 
+### `clinical-history` → **HistoriaClinica + ClinicalHistoryDiagnosis** *(documento inicial; construida)*
+
+El documento médico-legal inicial de la atención: **una por paciente, de por vida, por clínica** (misma cardinalidad que `Patient`, `ADR-0004`), con ciclo `DRAFT→COMPLETED`. Prerrequisito de cualquier tratamiento (`ADR-0011`). **No** guarda columnas de filiación — la lee de `Patient` en el mapper, así refleja siempre el dato vigente aun sellada.
+
+**HistoriaClinica**
+- `patient` (FK, **único**: una por paciente/clínica), `status` (`DRAFT` | `COMPLETED`), `motivoConsulta`, `enfermedadActual`, `antecedentesPersonales`, `examenClinico`, `pronostico`, `signosVitales` (JSONB), `completedAt`.
+- **Patrón revisado/detalle** en alergias, medicación y antecedentes familiares: cada uno lleva un flag `*Revisado` (booleano, afirmativo) + `*Detalle` (texto libre, opcional). Un campo vacío **no** cuenta como revisado — la ausencia se registra afirmando "sin hallazgos", no dejando el campo en blanco. Es dato clínico distinto de `Patient.allergies`/`conditions`/`currentMedication` (esta capacidad **no** los lee, copia ni modifica; retirarlos de `Patient` es un `update-patients` futuro, ver `docs/vision.md §3`).
+- El sellado (`DRAFT→COMPLETED`) es **manual, unidireccional y validado en el servidor** (checklist mínimo: motivo, antecedentes personales, examen clínico, pronóstico, los tres flags de revisión, y ≥1 diagnóstico). Una vez `COMPLETED`, la información inicial queda fija — rechazado en el servidor aunque la petición llegue directa a la API, no solo por bloqueo visual.
+
+**ClinicalHistoryDiagnosis**
+- `historia` (FK), `cie10Code` (FK lógica al catálogo CIE10), `ubicacion` (`GENERAL` | `PIEZA`), `fdiNumber` (obligatorio solo si `PIEZA`, del conjunto FDI real), `tipoDiagnostico` (`PRESUNTIVO` | `DEFINITIVO` | `REPETIDO` — norma MINSA HIS), `createdAt`/`createdBy` **inmutables**.
+- Solo se agrega/edita/elimina **mientras la Historia esté en `DRAFT`**.
+
+**Cie10Code** *(catálogo global, sin aislamiento por clínica — es dato de referencia, no de negocio de una clínica)*
+- `code` (PK, incluye códigos **sintéticos** para capítulo/grupo — el JSON oficial MINSA no los trae), `descripcion`, `nivel` (`CAPITULO`|`GRUPO`|`CATEGORIA`|`SUBCATEGORIA`), `parentCode` (autorreferencia — la jerarquía de 4 niveles que el buscador navega, nunca aplana).
+
+> ⚠️ **Estado consultable de habilitación**: `{ status, enabledForTreatment }` por paciente (`true` solo si `COMPLETED`) — es la señal que `treatment-plans`/`treatments` (aún no construidas) consumirán como gate. Se expone ya para no rehacer el contrato después.
+>
+> **Pendiente, fuera de esta capacidad** (ver `docs/vision.md §3` y §7): evolución post-sello (`ClinicalEvolutionEntry` append-only, estructura SOAP, reutilizar el tipo `REPETIDO`), retención legal de 15 años + archivo pasivo, y diagnóstico sin CIE10 para casos estéticos.
+
 ### `appointments` → **Appointment**
 Cita agendada.
 - `patient` (FK), `dentist` (FK → User con rol clínico), `scheduledAt`, `status` (agendada/atendida/cancelada), `notes`
@@ -252,6 +272,10 @@ erDiagram
     Organization ||--|| OrganizationSettings : "configura"
     Organization ||--o| OrganizationBranding : "personaliza"
     Organization ||--o{ Patient : "atiende a"
+    Patient ||--o| HistoriaClinica : "tiene (única, de por vida)"
+    HistoriaClinica ||--o{ ClinicalHistoryDiagnosis : "registra"
+    Cie10Code ||--o{ ClinicalHistoryDiagnosis : "clasifica"
+    Cie10Code ||--o{ Cie10Code : "jerarquía (parentCode)"
     User ||--o{ Appointment : "atiende (dentista)"
     Patient ||--o{ Appointment : "reserva"
     Patient ||--o{ Treatment : "recibe"
@@ -323,6 +347,35 @@ erDiagram
         JSONB conditions
         JSONB currentMedication
         PatientStatus status
+    }
+    HistoriaClinica {
+        Long id PK
+        Long organizationId FK
+        Long patientId FK "UK"
+        String status
+        String motivoConsulta
+        String antecedentesPersonales
+        Boolean alergiasRevisado
+        Boolean medicacionRevisado
+        Boolean antecedentesFamiliaresRevisado
+        DateTime completedAt
+    }
+    ClinicalHistoryDiagnosis {
+        Long id PK
+        Long organizationId FK
+        Long historiaId FK
+        String cie10Code FK
+        String ubicacion
+        Int fdiNumber
+        String tipoDiagnostico
+        DateTime createdAt
+        Long createdBy
+    }
+    Cie10Code {
+        String code PK
+        String descripcion
+        String nivel
+        String parentCode FK
     }
     Appointment {
         Long id PK
