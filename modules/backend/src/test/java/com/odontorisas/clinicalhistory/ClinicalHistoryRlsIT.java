@@ -37,9 +37,9 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 @SpringBootTest
 class ClinicalHistoryRlsIT extends AbstractTenantAwareIntegrationTest {
 
-    private static final long ORG_A = 1L;
-    private static final long ORG_B = 2L;
-    private static final long SOME_USER = 1L;
+    private long ORG_A;
+    private long ORG_B;
+    private long SOME_USER;
 
     @Autowired
     private PatientRepository patientRepository;
@@ -52,12 +52,23 @@ class ClinicalHistoryRlsIT extends AbstractTenantAwareIntegrationTest {
     void seedOrganizationsAndUsers() throws SQLException {
         try (Connection owner = ownerConnection(); Statement s = owner.createStatement()) {
             s.execute("TRUNCATE clinical_history_diagnosis, historia_clinica, patients RESTART IDENTITY CASCADE");
-            s.execute("INSERT INTO organizations (id, name, slug) VALUES "
-                + "(" + ORG_A + ", 'Clinica A', 'clinica-a-ch'), "
-                + "(" + ORG_B + ", 'Clinica B', 'clinica-b-ch') "
-                + "ON CONFLICT (id) DO NOTHING");
-            s.execute("INSERT INTO users (id, email, password_hash) VALUES "
-                + "(" + SOME_USER + ", 'someone@ch.test', 'x') ON CONFLICT (id) DO NOTHING");
+            // Id autogenerado (RETURNING), no fijo: ver ClinicalHistoryDiagnosisServiceIT.
+            String suffix = java.util.UUID.randomUUID().toString();
+            try (var rs = s.executeQuery("INSERT INTO organizations (name, slug) VALUES "
+                + "('Clinica A', 'clinica-a-ch-" + suffix + "') RETURNING id")) {
+                rs.next();
+                ORG_A = rs.getLong(1);
+            }
+            try (var rs = s.executeQuery("INSERT INTO organizations (name, slug) VALUES "
+                + "('Clinica B', 'clinica-b-ch-" + suffix + "') RETURNING id")) {
+                rs.next();
+                ORG_B = rs.getLong(1);
+            }
+            try (var rs = s.executeQuery("INSERT INTO users (email, password_hash) VALUES "
+                + "('someone-" + suffix + "@ch.test', 'x') RETURNING id")) {
+                rs.next();
+                SOME_USER = rs.getLong(1);
+            }
         }
     }
 

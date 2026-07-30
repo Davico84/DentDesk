@@ -39,8 +39,8 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 @SpringBootTest
 class ClinicalHistoryCompletionServiceIT extends AbstractTenantAwareIntegrationTest {
 
-    private static final long ORG = 1L;
-    private static final long SOME_USER = 1L;
+    private long ORG;
+    private long SOME_USER;
 
     @Autowired
     private ClinicalHistoryService clinicalHistoryService;
@@ -53,10 +53,18 @@ class ClinicalHistoryCompletionServiceIT extends AbstractTenantAwareIntegrationT
     void seed() throws SQLException {
         try (Connection owner = ownerConnection(); Statement s = owner.createStatement()) {
             s.execute("TRUNCATE clinical_history_diagnosis, historia_clinica, patients RESTART IDENTITY CASCADE");
-            s.execute("INSERT INTO organizations (id, name, slug) VALUES "
-                + "(" + ORG + ", 'Clinica Completion', 'clinica-completion') ON CONFLICT (id) DO NOTHING");
-            s.execute("INSERT INTO users (id, email, password_hash) VALUES "
-                + "(" + SOME_USER + ", 'completion@test.com', 'x') ON CONFLICT (id) DO NOTHING");
+            // Id autogenerado (RETURNING), no fijo: ver ClinicalHistoryDiagnosisServiceIT.
+            String suffix = java.util.UUID.randomUUID().toString();
+            try (var rs = s.executeQuery("INSERT INTO organizations (name, slug) VALUES "
+                + "('Clinica Completion', 'clinica-completion-" + suffix + "') RETURNING id")) {
+                rs.next();
+                ORG = rs.getLong(1);
+            }
+            try (var rs = s.executeQuery("INSERT INTO users (email, password_hash) VALUES "
+                + "('completion-" + suffix + "@test.com', 'x') RETURNING id")) {
+                rs.next();
+                SOME_USER = rs.getLong(1);
+            }
         }
         IdentityContext.set(SOME_USER);
         OrganizationContext.set(ORG);
