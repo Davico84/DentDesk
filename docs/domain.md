@@ -188,6 +188,8 @@ Cita agendada.
 
 ### `dental-chart` → **Tooth + ToothCondition** (el odontograma: el ESTADO)
 
+> 🔄 **Stub revisado por [`ADR-0012`](adr/0012-odontograma-libro-de-asientos.md) (2026-07-30) — no seguir el modelo de abajo tal cual.** El modelado en profundidad contra la norma peruana invalidó tres piezas: el `status` (`EXISTING`/`PLANNED`/`DONE`) mete intención y acción en el aggregate de estado, la FK `→ Treatment` invierte la dependencia declarada en `vision.md §2`, y `Tooth` como tabla es redundante (ya existe como código, `FdiTooth`, construido con `add-clinical-history`). El modelo acordado es un **libro de asientos** con el **bloque diario** como Aggregate Root. Esta sección **se consolida al archivar `add-dental-chart`** (gobernanza, `docs/vision.md §4`); hasta entonces, la fuente de verdad del modelo es el ADR.
+
 El estado dental pieza a pieza y **por superficie**. Notación **FDI/ISO 3950**, denticiones **permanente y temporal**.
 
 **Tooth** (referencia; catálogo de piezas, no por paciente)
@@ -200,7 +202,7 @@ El estado dental pieza a pieza y **por superficie**. Notación **FDI/ISO 3950**,
 - `status` (`EXISTING` hallazgo · `PLANNED` planificado · `DONE` realizado)
 - `treatment` (FK opcional → Treatment que lo generó), `notedAt`
 
-> 🎨 **Código de color del odontograma (decidido, aún no construido):** visualmente solo se usan **dos** colores — **rojo** = tratamiento **por hacer** (`PLANNED`) y **azul** = tratamiento **realizado** (`DONE`). ⚠️ El modelo ya tiene un **tercer** estado, `EXISTING` (hallazgo sin planificar), que no entra en esta regla de 2 colores — falta decidir si comparte color con `PLANNED` (ambos "pendientes de atender") o si necesita uno propio. Aterrizar esto en `dental-chart` cuando se especifique.
+> 🎨 **Código de color del odontograma — ✅ resuelto en [`ADR-0012` D2](adr/0012-odontograma-libro-de-asientos.md).** La pregunta que estaba abierta acá (*"¿`EXISTING` comparte color con `PLANNED`?"*) **partía de una premisa falsa**: asumía que el color mapea al `status`. Mapea a la **naturaleza clínica del tipo** de condición — **rojo** = requiere intervención · **azul** = no hay patología activa. Al sacar el `status` del modelo, la pregunta se disuelve. El color variable de supernumerario y giroversión resultó ser **contagio** desde otro hallazgo de la misma pieza: una regla de renderizado, no un dato a guardar.
 
 ### `treatments` → **Treatment + DentalNote + Consent** (las ACCIONES)
 
