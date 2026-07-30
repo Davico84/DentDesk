@@ -171,5 +171,6 @@ Regla equivalente para agentes en `CLAUDE.md → Flujo de trabajo → Gobernanza
 **Tooling de plataforma (transversal, aún NO adoptado):**
 - **Seguridad (Snyk)**: escaneo de vulnerabilidades. Escalonado: primero **Dependabot** + `pnpm audit` (front) + **OWASP Dependency-Check** (Maven, back) en CI —sin cuentas externas—; **Snyk** después para SAST/licencias/contenedores (requiere cuenta + `SNYK_TOKEN`).
 - **Observabilidad (Sentry)**: monitoreo de errores + performance en front (React) y back (Spring Boot). Se apoya en el `traceId` (RFC 9457 + MDC) ya existente. Se monta con el setup de deploy/entornos.
+- **Cobertura medida con umbral (JaCoCo back, threshold Vitest front)**: hoy `docs/testing.md §7` mide "confianza", no cobertura — no hay JaCoCo en `pom.xml` ni umbral que rompa el build en ninguno de los dos lados. Es el único hueco real de la estrategia de pruebas (el resto — matrices, ArchUnit de capas/tenant, contrato en las 2 direcciones, aislamiento obligatorio por capacidad — ya está aplicado). Al adoptarlo: umbral por paquete/capa (dominio > aplicación > infraestructura, no un número plano), y job `coverage` en `backend.yml` (ya marcado `TODO(futuro)` ahí).
 
 > El orden no es rígido: se ajusta según prioridad de negocio. Cambiar el orden no cambia las reglas de granularidad de este documento.
