@@ -1,7 +1,10 @@
 ## 0. Antes de escribir la migración (bloquea al grupo 1)
 
-- [ ] 0.1 **Revisar el catálogo de tipos de condición con el odontólogo** y fijarlo: naturaleza (requiere intervención / sin patología), alcance (superficie / pieza / entre piezas) y cuáles exigen grado. La lista de `ADR-0012` es **tentativa**; agregar un tipo después de la migración cuesta migración de datos (design.md, Open Question 1)
-- [ ] 0.2 Verificar el número real de la última migración en `dev` (hoy `V15__clinical_history_diagnosis.sql`) por si otro change se adelantó
+- [ ] 0.1 **Revisar el catálogo de tipos de condición con el odontólogo** y fijarlo: naturaleza (requiere intervención / sin patología), alcance (superficie / pieza / entre piezas) y cuáles exigen grado. Contrastar contra **NTS 150 y sus anexos gráficos**, el Colegio Odontológico y la práctica clínica peruana. La lista de `ADR-0012` es **tentativa**; agregar un tipo después de la migración cuesta migración de datos (design.md, Open Question 1)
+- [ ] 0.2 **Decidir si el Índice de Higiene Oral (IHO) es obligatorio** en el examen inicial. Si lo es, **no va como tipo de condición**: es un índice numérico calculado, con su propio método de medición — sería un **requirement adicional** de esta capacidad y hay que agregarlo al spec antes de implementar (design.md, Open Question 2)
+- [ ] 0.3 **Decidir dónde vive el registro periodontal** (sondaje, furca): capacidad propia, `update-dental-chart`, o texto en especificaciones. No entra en este change, pero la decisión se toma ahora para que después no se meta a presión en el modelo equivocado (design.md, Open Question 3)
+- [ ] 0.4 Completar la columna **§ (artículo/numeral)** de `docs/compliance/regulatory-matrix.md` con los textos de las normas a la vista — hoy está vacía a propósito, porque inventar números en un documento de cumplimiento induciría a error a un auditor
+- [ ] 0.5 Verificar el número real de la última migración en `dev` (hoy `V15__clinical_history_diagnosis.sql`) por si otro change se adelantó
 
 ## 1. Modelo y persistencia (backend)
 

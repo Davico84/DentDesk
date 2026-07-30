@@ -49,20 +49,23 @@ Los cuatro eslabones de la derecha ya son convención del proyecto. Esta matriz 
 
 ## Odontograma
 
-Todas 🚧: [`ADR-0012`](../adr/0012-odontograma-libro-de-asientos.md) está aceptado, `add-dental-chart` aún no se propone.
+Todas 🚧: [`ADR-0012`](../adr/0012-odontograma-libro-de-asientos.md) está aceptado y `add-dental-chart` está **propuesto** (no implementado). Los requirements que se citan viven en `openspec/changes/add-dental-chart/specs/`; al archivar pasan a `openspec/specs/` y su estado a ✅.
 
 | Requisito normativo | Norma | § | Decisión | Requirement / Scenario | Estado |
 |---|---|---|---|---|---|
-| El odontograma es anexo obligatorio de la historia clínica y se sella junto con la admisión | NTS 139 | *pend.* | `ADR-0012` **D5** | pendiente — `add-dental-chart` | 🚧 |
-| El odontograma inicial es inalterable: evidencia estática de cómo llegó el paciente | NTS 150 | *pend.* | `ADR-0012` **D4** | pendiente — `add-dental-chart` | 🚧 |
-| El plan de tratamiento **no** se registra sobre el odontograma inicial | NTS 150 | *pend.* | `ADR-0012` **D1** | pendiente — `add-dental-chart` | 🚧 |
-| Código de color: rojo = requiere intervención · azul = sin patología activa | NTS 150 | *pend.* | `ADR-0012` **D2** | pendiente — `add-dental-chart` | 🚧 |
-| Sección de Especificaciones / Observaciones obligatoria | NTS 150 | *pend.* | `ADR-0012` *Modelo resultante* | pendiente — `add-dental-chart` | 🚧 |
-| Registro por superficie dental, no por pieza completa (extensión auditable) | NTS 150 / SUSALUD | *pend.* | `ADR-0012` **D8** | pendiente — `add-dental-chart` | 🚧 |
-| Condiciones registrables: supernumerario, diastema, movilidad, erupción, extrusión, intrusión, giroversión | NTS 150 | *pend.* | `ADR-0012` **D8** + catálogo `FindingType` | pendiente — `add-dental-chart` | 🚧 |
+| El odontograma es anexo obligatorio de la historia clínica y se sella junto con la admisión | NTS 139 | *pend.* | `ADR-0012` **D5** | `clinical-history` → *Sellado a COMPLETED…* (MODIFICADO) · scenarios *Rechazar el sellado sin odontograma inicial* y *Un fallo al sellar el odontograma deja la Historia en DRAFT* | 🚧 |
+| El odontograma inicial es inalterable: evidencia estática de cómo llegó el paciente | NTS 150 | *pend.* | `ADR-0012` **D4** | `dental-chart` → *Odontograma sellado e inmutable* · scenario *Rechazar la modificación de un odontograma sellado aun por API directa* | 🚧 |
+| El plan de tratamiento **no** se registra sobre el odontograma inicial | NTS 150 | *pend.* | `ADR-0012` **D1** | `dental-chart` → *Purpose* (el corte estado/acción) · **ausencia deliberada** de estados de planificación en el catálogo | 🚧 |
+| Código de color: rojo = requiere intervención · azul = sin patología activa | NTS 150 | *pend.* | `ADR-0012` **D2** | `dental-chart` → *Catálogo cerrado de condiciones con naturaleza clínica* | 🚧 |
+| Sección de Especificaciones / Observaciones obligatoria | NTS 150 | *pend.* | `ADR-0012` *Modelo resultante* | `dental-chart` → *Especificaciones del odontograma* · scenario *Rechazar el sellado sin especificaciones revisadas* | 🚧 |
+| Registro por superficie dental, no por pieza completa (extensión auditable) | NTS 150 / SUSALUD | *pend.* | `ADR-0012` **D8** | `dental-chart` → *Registro de hallazgos con localización precisa* | 🚧 |
+| Condiciones registrables: supernumerario, diastema, movilidad, erupción, extrusión, intrusión, giroversión | NTS 150 | *pend.* | `ADR-0012` **D8** + catálogo `FindingType` | `dental-chart` → *Registro de hallazgos…* (scenario *entre dos piezas*) + *Catálogo cerrado…* (scenarios de grado) | 🚧 ⚠️ catálogo **tentativo**, ver huecos |
+| Notación FDI / ISO 3950 | NTS 150 | *pend.* | `add-dental-chart` design **D7** | `dental-chart` → *Registro de hallazgos…* · scenario *Rechazar una pieza inexistente* | 🚧 |
 | Odontograma de evolución comparable entre fechas | NTS 150 | *pend.* | `ADR-0012` **D3** | pendiente — `update-dental-chart` (fase 2) | 🚧 |
 | El tramo de evolución se cierra y congela al terminar la atención | NTS 139 | *pend.* | `ADR-0012` **D6** | pendiente — `update-dental-chart` (fase 2) | 🚧 |
 | Secuencia cronológica ininterrumpida del expediente del paciente | NTS 139 | *pend.* | `ADR-0012` **D7** | pendiente — `update-dental-chart` (fase 2) | 🚧 |
+| **Índice de Higiene Oral (IHO) en el examen inicial** | *por verificar* | *pend.* | ⚠️ **sin decisión** | — | ⚠️ ver huecos |
+| **Registro periodontal: sondaje por sitio, compromiso de furca** | *por verificar* | *pend.* | ⚠️ **sin decisión** | — | ⚠️ ver huecos |
 
 ## Aislamiento y datos personales
 
@@ -83,3 +86,6 @@ Requisitos normativos **sin decisión tomada**. Esta sección es el principal va
 | **Consentimiento informado firmado por tratamiento** | 🚧 planificado | `ADR-0007` decidió que el tutor lo firma en menores; la entidad `Consent` está prevista en `treatments` (`docs/domain.md`), capacidad no construida. |
 | **Evolución clínica SOAP (Subjetivo/Objetivo/Análisis/Plan)** | ⚠️ sin ADR | Anotado en `vision.md §3` como `update-clinical-history` fase 2, junto con el odontograma de evolución. Sin decisión formalizada. |
 | **Diagnóstico de casos estéticos sin código CIE10** | ⚠️ sin decisión | CIE10 clasifica enfermedad, no procedimiento. Anotado en `vision.md §3`; tres caminos posibles, ninguno elegido. |
+| **Índice de Higiene Oral (IHO)** | ⚠️ **sin verificar** | No aparece en ninguna parte del proyecto. Si resulta obligatorio en el examen inicial, **no encaja como tipo de condición**: es un índice numérico calculado sobre superficies con placa, con su propio método de medición — sería un requirement adicional de `dental-chart`. **Verificar antes de la migración** (`add-dental-chart` tarea 0.2): si es obligatorio y se omite, el odontograma queda incompleto ante auditoría; si se modela como un hallazgo, corregirlo después cuesta migración. |
+| **Registro periodontal (sondaje por sitio, furca)** | ⚠️ **sin decisión** | El modelo cubre movilidad (hallazgo con grado) y recesión gingival (especificaciones). Sondaje y furca no están en ningún artefacto; en la práctica viven en un **periodontograma**, documento aparte con grilla de seis sitios por pieza. Decidir dónde vive antes de implementar (`add-dental-chart` tarea 0.3). |
+| **Catálogo de tipos de condición sin contrastar contra la norma** | ⚠️ **tentativo** | La lista de `ADR-0012` salió de una sesión de modelado, no de la lectura de NTS 150 ni de sus anexos gráficos. Es el mayor riesgo evitable de `add-dental-chart`: agregar un tipo después de la migración cuesta migración de datos (tarea 0.1, **bloqueante**). |

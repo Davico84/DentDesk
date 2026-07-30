@@ -88,7 +88,25 @@ Conjunto cerrado ⇒ **enum Java + `CHECK` en Postgres + contrato** (regla del p
 
 El frontend recibe el tipo por el contrato y **espeja** los atributos, igual que ya espeja `VALID_FDI_TEETH` desde `FdiTooth`.
 
-### D7 — Validación: constraint de objeto en el boundary, invariantes de estado en el servicio
+### D7 — Notación FDI y solo FDI, en todo el dominio
+
+El dominio trabaja **exclusivamente** en notación **FDI / ISO 3950** (dos dígitos: cuadrante + posición). **Nunca** Universal Numbering System (1-32, EE.UU.) ni Palmer. Esto vale para el modelo, la persistencia, el contrato y el frontend.
+
+No es una obviedad que se pueda dar por supuesta: las librerías de odontograma de origen estadounidense usan Universal por defecto, y cuando lleguen integraciones (aseguradoras, laboratorios, sistemas de terceros) va a haber presión para aceptar otra notación "solo en ese borde". Si eso pasa alguna vez, **la conversión ocurre en el adaptador de la integración y nunca entra al dominio** — una pieza tiene un solo identificador acá dentro.
+
+`FdiTooth` ya es la fuente única del conjunto válido, construida con `add-clinical-history` y compartida con el diagnóstico CIE10. No se duplica ni se reinterpreta.
+
+### D8 — El odontograma y el diagnóstico CIE10 no se referencian entre sí
+
+`clinical-history` registra diagnósticos CIE10 que pueden ubicarse en una pieza por su número FDI; `dental-chart` registra hallazgos en piezas y superficies. Ambos pueden hablar de la pieza 36 al mismo tiempo. **La relación entre los dos es deliberadamente ninguna**: sin FK, sin campo de correlación, sin validación cruzada.
+
+- **`ADR-0011` ya lo decidió para el lado del diagnóstico**: ubica por número FDI, *"no por una fila de `ToothCondition` del odontograma"*, para no acoplar las dos capacidades. Este change mantiene la simetría desde el otro lado.
+- **Describen cosas distintas.** El CIE10 es **nomenclatura de enfermedad** (`K02.1` = caries de la dentina); el hallazgo es **topografía de estado** (caries en 36-O). Se corresponden a menudo, pero no siempre: hay diagnósticos generales sin pieza (`K05.3` periodontitis crónica) y hallazgos sin diagnóstico propio (una obturación en buen estado no es una enfermedad).
+- **Granularidad distinta**: el diagnóstico llega a la pieza; el hallazgo, a la superficie. Forzar una correspondencia obligaría a inventar datos en un lado o a perder precisión en el otro.
+
+**No se valida coherencia entre ambos al sellar** (por ejemplo, exigir que todo diagnóstico ubicado en una pieza tenga un hallazgo en esa pieza). Sería acoplamiento más allá de la coordinación del sellado, y rechazaría casos clínicos legítimos. Si más adelante se quiere ayudar al odontólogo, el camino es un **aviso no bloqueante** —mismo criterio que la incoherencia dentición↔edad—, nunca un rechazo.
+
+### D9 — Validación: constraint de objeto en el boundary, invariantes de estado en el servicio
 
 | Invariante | Dónde |
 |---|---|
@@ -99,7 +117,7 @@ El frontend recibe el tipo por el contrato y **espeja** los atributos, igual que
 
 INV-13 (qué superficies admite cada pieza) necesita saber si la pieza es anterior o posterior: se deriva del número FDI en `FdiTooth`, extendiéndolo — no se crea un catálogo nuevo.
 
-### D8 — Frontend: SVG inline, colores desde tokens
+### D10 — Frontend: SVG inline, colores desde tokens
 
 La representación es **SVG inline**, no canvas ni imágenes: cada pieza y cada superficie deben ser **individualmente enfocables y accionables** (teclado y lector de pantalla), y con canvas eso hay que reconstruirlo a mano. Un odontograma donde solo se puede hacer clic con mouse deja fuera a parte de los usuarios y no pasaría una auditoría de accesibilidad.
 
@@ -132,5 +150,10 @@ Migraciones nuevas a partir de `V16` (la última en `dev` es `V15__clinical_hist
 
 ## Open Questions
 
-1. **El catálogo de `TipoCondicion` es tentativo.** La lista de `ADR-0012` salió de la sesión de modelado, no de una lectura exhaustiva de la norma. **Revisarla con el odontólogo antes de escribir la migración**: agregar un tipo después cuesta migración de datos. Faltan por confirmar al menos: recesión gingival (¿va solo en especificaciones?), giroversión (`ADR-0012` la deja con naturaleza fija y color por contagio), y si `NON_RESTORABLE` es el nombre correcto o debería ser el término de la norma.
-2. **Alcance del SVG en v1** — ver Riesgos. Si el odontograma completo desborda, el corte hay que decidirlo explícitamente, no improvisarlo.
+1. **El catálogo de `TipoCondicion` es tentativo.** La lista de `ADR-0012` salió de la sesión de modelado, no de una lectura exhaustiva de la norma. **Revisarla con el odontólogo antes de escribir la migración** (tarea 0.1, bloqueante): agregar un tipo después cuesta migración de datos. Fuentes a contrastar: **NTS 150 y sus anexos gráficos**, el Colegio Odontológico y la práctica clínica peruana. Faltan por confirmar al menos: recesión gingival (¿va solo en especificaciones?), giroversión (`ADR-0012` la deja con naturaleza fija y color por contagio), y si `NON_RESTORABLE` es el nombre correcto o debería ser el término de la norma.
+
+2. **⚠️ Índice de Higiene Oral (IHO) — sin decidir, y podría no ser un tipo de condición.** No aparece en ninguna parte del proyecto (verificado: cero menciones en `docs/` y `openspec/`); lo trae la revisión de este change. Si resulta ser **obligatorio** en el examen odontológico inicial, **no encaja como `TipoCondicion`**: es un **índice numérico calculado** sobre superficies con placa, con su propio método de medición y su valor agregado — otra forma de dato, no un hallazgo localizado. Eso lo haría un requirement adicional de esta capacidad, no un valor más del catálogo. **Investigar antes de la migración**, junto con 0.1: si es obligatorio y se omite, el odontograma quedaría incompleto ante auditoría; si se modela mal (como un tipo de hallazgo), corregirlo después cuesta migración.
+
+3. **⚠️ Registro periodontal (sondaje, furca) — fuera de alcance, sin decisión formal.** El modelo cubre **movilidad** (tipo con grado) y **recesión gingival** (texto en especificaciones), pero **sondaje periodontal y compromiso de furca no están contemplados en ningún artefacto** (verificado). En la práctica suelen vivir en un **periodontograma**, documento distinto del odontograma, con su propia grilla de seis sitios por pieza. Queda **fuera de este change** — pero hay que decidir explícitamente si es (a) una capacidad futura propia, (b) parte de `update-dental-chart`, o (c) texto en especificaciones. Dejarlo sin decidir es lo peligroso: es la clase de cosa que después se mete a presión en el modelo equivocado.
+
+4. **Alcance del SVG en v1** — ver Riesgos. Si el odontograma completo desborda, el corte hay que decidirlo explícitamente, no improvisarlo.

@@ -30,6 +30,8 @@ Alcance **excluido a propósito** de este change:
 - **Cierre automático a fin de día.** `@Scheduled` está prohibido por la regla ArchUnit `async_must_not_be_used_until_tenant_context_is_propagated` hasta cablear el `TenantContextTaskDecorator` (`ADR-0012` D6).
 - **Integración con `treatments`** (el asiento automático al completar un tratamiento). Esa capacidad no existe todavía; su operación se diseña en la fase 2, cuando haya un consumidor real que la dispare.
 - **Retención legal de 15 años y archivo pasivo.** Requisito normativo real, **sin ADR ni change** — el mayor hueco abierto de `docs/compliance/regulatory-matrix.md`. Un libro append-only garantiza que nada se sobrescriba mientras exista, pero no es una política de conservación.
+- **Registro periodontal** (sondaje por sitio, compromiso de furca). En la práctica vive en un **periodontograma**, documento distinto del odontograma. La **movilidad** sí entra (es un hallazgo de pieza con grado) y la **recesión gingival** va en especificaciones. Dónde vive el resto se decide antes de implementar (design.md, Open Question 3) — pero no acá.
+- **Correlación entre diagnósticos CIE10 y hallazgos del odontograma.** Deliberadamente no existe: son nomenclatura de enfermedad vs. topografía de estado, con granularidad distinta, y `ADR-0011` ya decidió el desacoplamiento desde el lado del diagnóstico (design.md D8). Tampoco se valida coherencia entre ambos al sellar.
 - **Vínculo del profesional con su colegiatura COP.** La autoría se registra por `userId`; el vínculo formal llega con `staff`.
 - **Remover la anamnesis de `patients`.** Pendiente independiente (`ADR-0011`), no se toca acá.
 
