@@ -19,6 +19,8 @@ Al modelar el dominio en profundidad (sesión de exploración, 2026-07-30) contr
 
 > **Alcance de este documento.** Esto es un ADR: registra la **decisión y su porqué**. Las reglas SHALL detalladas (requirements + scenarios) **no** viven aquí — se generan como el change OpenSpec **`add-dental-chart`** y se validan con `openspec validate --strict`.
 
+> ⚠️ **Las afirmaciones normativas de este ADR están pendientes de validación documental.** Provienen de la práctica clínica del decisor, no de la lectura de los textos: no se cita ningún artículo, y **no son verificables desde el repositorio**. Aplica en particular a la semántica del código de color, al cierre diario del tramo de evolución, a la representación de diastema/supernumerario y a la obligatoriedad de la sección de Especificaciones. Las decisiones de diseño **se sostienen igual** por sus argumentos técnicos; lo que no se puede afirmar todavía es que **cumplan** la norma. Completar el artículo (§) en [`docs/compliance/regulatory-matrix.md`](../compliance/regulatory-matrix.md) antes de usar este ADR como evidencia de cumplimiento.
+
 ### D1 — El odontograma registra estado; `PLANNED`/`DONE` salen del aggregate
 
 `docs/vision.md §2` ya decidió: *"el odontograma es el **estado** de la boca; el tratamiento es la **acción** que lo cambia"*, y `treatments` **depende de** `dental-chart`. El `status` del stub rompía ese corte en tres puntos:
@@ -44,11 +46,20 @@ Dos tipos parecían tener color variable —supernumerario *"azul si está sano,
 
 ### D3 — Libro de asientos (append-only), no Event Sourcing
 
-Los tres requisitos —lienzo vivo, comparación entre fechas, nada se sobrescribe— se cumplen con un **libro de asientos**: cada hallazgo es una fila inmutable con `abiertoEn` y `cerradoEn`. Nunca hay `UPDATE` sobre el estado clínico.
+Los tres requisitos —lienzo vivo, comparación entre fechas, nada se sobrescribe— se cumplen con un **libro de asientos**: cerrar un hallazgo **no modifica** el asiento que lo abrió, **agrega uno nuevo** de tipo `CLOSE` que lo referencia. Un hallazgo cerrado son **dos asientos**, no una fila actualizada.
 
-- *Estado hoy* = hallazgos sin cerrar.
-- *Estado en una fecha* = abiertos antes de esa fecha y no cerrados aún en ella.
+- *Estado hoy* = hallazgos con asiento `OPEN` y sin `CLOSE`.
+- *Estado en una fecha* = con `OPEN` hasta esa fecha y sin `CLOSE` hasta esa fecha.
 - *Comparar año 1 vs año 2* = dos proyecciones del mismo libro.
+
+**Dos niveles de mutabilidad, distintos a propósito:**
+
+| | Regla |
+|---|---|
+| **Hechos clínicos** (asientos) | **Estrictamente append-only.** Nunca se editan ni se borran. |
+| **Ciclo de vida del bloque** | **Una única transición permitida**, `OPEN → SEALED` (fija `sealedAt`). Unidireccional e irreversible. |
+
+La distinción es necesaria y tiene precedente construido: `clinical-history` hace exactamente lo mismo (`DRAFT → COMPLETED` fija `completed_at`) sin que eso comprometa la inmutabilidad de su contenido. Decir *"nunca hay UPDATE"* a secas sería falso — lo que nunca se actualiza es **el registro clínico**; el estado del documento que lo contiene transiciona una sola vez, en una sola dirección.
 
 Se **descarta Event Sourcing** (ver alternativas): no aporta ninguna garantía clínica ni legal adicional sobre el libro de asientos, y exige infraestructura que el proyecto no tiene.
 
@@ -70,9 +81,21 @@ El estado consolidado se obtiene plegando los bloques; la comparación entre fec
 
 ### D5 — Coordinación por caso de uso transaccional, no por bus de eventos
 
-El odontograma inicial y la consulta de admisión **sellan juntos**: ninguno de los dos puede modificarse de forma independiente después. Ese invariante cruza dos capacidades.
+El odontograma inicial y la admisión **sellan juntos**: ninguno de los dos puede modificarse de forma independiente después. Ese invariante cruza dos capacidades.
 
-Se descarta el bus de eventos (ver alternativas) y se adopta un **caso de uso coordinador** por encima de ambos módulos, en **una sola transacción**: si falla el sellado del odontograma, hace rollback también del cierre de la consulta. Ninguno de los dos módulos depende del otro; el orquestador depende de los dos.
+**Qué es exactamente "la admisión", en términos del modelo construido.** No existe ninguna entidad `Consulta` en el repo, y `appointments` (agendamiento) no está construida ni participa acá. El artefacto concreto es **la transición `HistoriaClinica: DRAFT → COMPLETED`** de `clinical-history` (`ADR-0011`), que hoy ya existe, está testeada y es el sellado de la admisión. La operación coordinada es:
+
+```
+CerrarAdmision(pacienteId)      ← una transacción
+  ├─ clinical-history : HistoriaClinica  DRAFT → COMPLETED   (valida su checklist)
+  └─ dental-chart     : bloque INITIAL   OPEN  → SEALED      (valida sus invariantes)
+
+  falla cualquiera de los dos ⇒ rollback de ambos
+```
+
+Se descarta el bus de eventos (ver alternativas) y se adopta un **caso de uso coordinador** por encima de ambos módulos. Ninguno de los dos depende del otro; el orquestador depende de los dos.
+
+**Consecuencia sobre `clinical-history`**: hoy su checklist de sellado no exige odontograma, así que el coordinador **modifica el contrato de una capacidad ya construida** — el sellado de la Historia deja de ser una operación autónoma. Eso es trabajo de `update-clinical-history`, no del `add-dental-chart` solo, y hay que planificarlo como tal.
 
 Esto **respeta la objeción de acoplamiento**: la geometría dental (piezas, caras, notación) se queda en `dental-chart` y no contamina `clinical-history`. Solo cambia el mecanismo de coordinación.
 
@@ -248,6 +271,10 @@ Tres atributos por valor, que convierten tres invariantes en estructura en vez d
 | **INV-13** | La superficie debe ser **aplicable a esa pieza** (un incisivo no tiene oclusal) |
 | **INV-14** | Todo `ToothNumber` ∈ conjunto FDI real (reusa `FdiTooth`, no redefine) |
 
+> **INV-01, INV-02 e INV-04 se garantizan en el modelo de datos, no solo en el caso de uso.** Un chequeo previo dentro del servicio pierde ante dos solicitudes concurrentes: ambas leen "no hay bloque abierto" y ambas lo crean. Necesitan una restricción de unicidad real en la base (índice único parcial sobre paciente + estado `OPEN`, y sobre paciente + tipo `INITIAL`), con la violación traducida a un error de negocio. **Precedente pagado**: `add-clinical-history` resolvió lo mismo con `UNIQUE(patient_id)` y un test de concurrencia con hilos reales, precisamente porque el chequeo previo no alcanzaba.
+
+> **Semántica temporal de las proyecciones**: los límites son **inclusivos a la apertura y exclusivos al cierre** (un hallazgo abierto y cerrado el mismo día **no** aparece en la proyección de ese día). Ante dos asientos con idéntico instante, desempata el orden de inserción. Fijarlo en los scenarios del change: sin esto, comparar dos fechas da resultados ambiguos en aperturas y cierres simultáneos.
+
 **Blandos** — avisan, no bloquean:
 
 | | Invariante |
@@ -275,7 +302,9 @@ Una pieza con **cualquier** hallazgo `REQUIRES_INTERVENTION` pinta **todos** sus
 
 - ✅ **Cierra la pregunta abierta del stub** sobre el color, disolviéndola: no había que elegir color para `EXISTING`, había que sacar el `status` del modelo.
 - ✅ **El corte estado/acción de `vision.md §2` deja de estar solo en prosa** y pasa a estar en el modelo: sin `PLANNED`/`DONE` y sin FK a `Treatment`, `dental-chart` no puede depender de `treatments` por accidente.
-- ✅ **Un solo aggregate** (`BloqueOdontograma`) cubre inicial y evolución, acotado por día. Evita el aggregate gigante que habría salido de modelar "el odontograma del paciente" sin límite temporal, relevante con la retención legal de 15 años.
+- ✅ **Un solo aggregate** (`BloqueOdontograma`) cubre inicial y evolución, acotado por día. Evita el aggregate gigante que habría salido de modelar "el odontograma del paciente" sin límite temporal.
+- ⚠️ **Este ADR NO cubre la retención legal.** El libro append-only garantiza que nada se sobrescriba **mientras exista**, pero eso no es una política de conservación: no decide los 15 años desde la última atención, ni el estado de archivo pasivo, ni prohíbe un borrado futuro, ni define cuándo una atención deja de considerarse activa. Es un requisito normativo **sin ADR ni change** — el mayor hueco abierto de [`docs/compliance/regulatory-matrix.md`](../compliance/regulatory-matrix.md). Mencionarlo como si el diseño ya lo resolviera sería exactamente el tipo de cumplimiento aparente que esa matriz existe para evitar.
+- ⚠️ **La autoría queda en `userId`, sin vínculo formal a la colegiatura COP.** Los asientos registran quién y cuándo de forma inmutable, pero un documento clínico sellado firmado por una identidad técnica **puede no bastar ante una auditoría**. El vínculo al COP llega con `staff` (fila 2 del roadmap, no propuesta); el contrato de sellado debe preservar autor, fecha/hora y —cuando exista— colegiatura, sin presentarse hoy como cumplimiento completo.
 - ✅ **Cumple los dos requisitos MINSA que parecían contradictorios** sin sacrificar ninguno: el libro de asientos es lienzo vivo (plegar todo) y serie comparable (plegar hasta una fecha) a la vez.
 - ✅ **Sin infraestructura nueva**: ni event store, ni bus de eventos, ni scheduler. El proyecto sigue sin `@Async`/`@Scheduled`, y la regla ArchUnit que lo vigila permanece intacta.
 - ⚠️ **Invalida parte del stub de `docs/domain.md`**: `ToothCondition.status`, la FK `→ Treatment` y la entidad `Tooth` como tabla dejan de aplicar. `Tooth` en particular **ya existe como código** (`FdiTooth`, construido con `add-clinical-history`): son 52 valores derivables por regla, no un catálogo con filas — a diferencia de CIE10 (14 939 filas, que sí es tabla). El stub se actualiza al archivar `add-dental-chart`.
