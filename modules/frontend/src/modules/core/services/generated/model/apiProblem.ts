@@ -26,4 +26,6 @@ export interface ApiProblem {
   traceId?: string;
   /** Id de la ficha existente que provoca el conflicto. Opcional: solo se emite en el error 'patient-document-taken', para ofrecer abrirla. */
   existingPatientId?: number;
+  /** Campos que faltan para completar el checklist. Opcional: solo se emite en el error 'clinical-history-incomplete'. */
+  missingFields?: string[];
 }

@@ -1,0 +1,153 @@
+package com.odontorisas.service.clinicalhistory;
+
+import com.odontorisas.common.HistoriaClinicaStatus;
+import com.odontorisas.persistence.entity.HistoriaClinica;
+import com.odontorisas.persistence.repository.ClinicalHistoryDiagnosisRepository;
+import com.odontorisas.persistence.repository.HistoriaClinicaRepository;
+import com.odontorisas.persistence.repository.PatientRepository;
+import com.odontorisas.service.patient.PatientNotFoundException;
+import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.time.Clock;
+import java.time.Instant;
+import java.util.List;
+
+/**
+ * Creación, guardado incremental y sellado del documento inicial de la Historia Clínica
+ * (design.md D1/D2/D3/D4, ADR-0011).
+ *
+ * <p><b>Sin código de aislamiento</b> (docs/backend.md §8.1): el contexto de organización lo fija
+ * {@code TenantAwareTransactionManager}; declarar la entidad con {@code @TenantId} basta.
+ */
+@Service
+@Transactional
+public class ClinicalHistoryService {
+
+    private final HistoriaClinicaRepository historiaClinicaRepository;
+    private final PatientRepository patientRepository;
+    private final ClinicalHistoryDiagnosisRepository diagnosisRepository;
+    private final Clock clock;
+
+    public ClinicalHistoryService(HistoriaClinicaRepository historiaClinicaRepository,
+                                   PatientRepository patientRepository,
+                                   ClinicalHistoryDiagnosisRepository diagnosisRepository,
+                                   Clock clock) {
+        this.historiaClinicaRepository = historiaClinicaRepository;
+        this.patientRepository = patientRepository;
+        this.diagnosisRepository = diagnosisRepository;
+        this.clock = clock;
+    }
+
+    /**
+     * Crea la Historia Clínica en {@code DRAFT} para un paciente de la clínica activa. Rechaza si
+     * ya existe una — por pre-chequeo en la vía feliz, y por la violación de
+     * {@code UNIQUE(patient_id)} si dos creaciones concurrentes se cruzan (spec: creación
+     * concurrente): la unicidad la garantiza el dato, no solo este chequeo.
+     */
+    public ClinicalHistoryView create(Long patientId) {
+        requirePatientExists(patientId);
+        requireNoExistingHistoria(patientId);
+
+        HistoriaClinica historia = HistoriaClinica.builder()
+            .patientId(patientId)
+            .status(HistoriaClinicaStatus.DRAFT)
+            .alergiasRevisado(false)
+            .medicacionRevisado(false)
+            .antecedentesFamiliaresRevisado(false)
+            .build();
+        try {
+            return ClinicalHistoryView.from(historiaClinicaRepository.save(historia));
+        } catch (DataIntegrityViolationException raceLostToAnotherCreation) {
+            throw new HistoriaClinicaAlreadyExistsException();
+        }
+    }
+
+    @Transactional(readOnly = true)
+    public ClinicalHistoryView getByPatientId(Long patientId) {
+        return ClinicalHistoryView.from(findByPatientOrThrow(patientId));
+    }
+
+    /**
+     * Guarda incremental en {@code DRAFT}: secciones incompletas se aceptan, no hay diálogo de
+     * confirmación ni bloqueo. No lee, copia ni modifica la anamnesis de {@code patients}
+     * (design.md D9) — esta operación solo toca la fila de {@code historia_clinica}.
+     */
+    public ClinicalHistoryView update(Long patientId, ClinicalHistoryData data) {
+        HistoriaClinica historia = findByPatientOrThrow(patientId);
+        requireDraft(historia);
+        apply(data, historia);
+        return ClinicalHistoryView.from(historiaClinicaRepository.save(historia));
+    }
+
+    /**
+     * Sella la Historia a {@code COMPLETED} (design.md D4): valida el checklist mínimo (rechaza
+     * con {@link ChecklistIncompleteException} listando lo que falta) y la transición
+     * <b>unidireccional</b> (rechaza si ya está {@code COMPLETED} — spec: transición inválida).
+     */
+    public ClinicalHistoryView complete(Long patientId) {
+        HistoriaClinica historia = findByPatientOrThrow(patientId);
+        requireDraft(historia);
+
+        long diagnosisCount = diagnosisRepository.countByHistoriaId(historia.getId());
+        List<String> missing = ClinicalHistoryChecklist.missingFields(historia, diagnosisCount);
+        if (!missing.isEmpty()) {
+            throw new ChecklistIncompleteException(missing);
+        }
+
+        historia.setStatus(HistoriaClinicaStatus.COMPLETED);
+        historia.setCompletedAt(Instant.now(clock));
+        return ClinicalHistoryView.from(historiaClinicaRepository.save(historia));
+    }
+
+    /**
+     * Estado de habilitación por paciente (design.md D8, spec: estado consultable). {@code NONE}
+     * si no hay Historia; solo {@code COMPLETED} habilita para tratamientos.
+     */
+    @Transactional(readOnly = true)
+    public EnablementView getEnablementStatus(Long patientId) {
+        return historiaClinicaRepository.findByPatientId(patientId)
+            .map(h -> new EnablementView(h.getStatus().name(), h.getStatus() == HistoriaClinicaStatus.COMPLETED))
+            .orElseGet(() -> new EnablementView("NONE", false));
+    }
+
+    private void requirePatientExists(Long patientId) {
+        if (!patientRepository.existsById(patientId)) {
+            throw new PatientNotFoundException();
+        }
+    }
+
+    private void requireNoExistingHistoria(Long patientId) {
+        if (historiaClinicaRepository.findByPatientId(patientId).isPresent()) {
+            throw new HistoriaClinicaAlreadyExistsException();
+        }
+    }
+
+    private HistoriaClinica findByPatientOrThrow(Long patientId) {
+        return historiaClinicaRepository.findByPatientId(patientId)
+            .orElseThrow(HistoriaClinicaNotFoundException::new);
+    }
+
+    /** Rechaza cualquier escritura sobre información inicial si ya está sellada (design.md D1). */
+    static void requireDraft(HistoriaClinica historia) {
+        if (historia.getStatus() != HistoriaClinicaStatus.DRAFT) {
+            throw new HistoriaClinicaSealedException();
+        }
+    }
+
+    private void apply(ClinicalHistoryData d, HistoriaClinica h) {
+        h.setMotivoConsulta(d.motivoConsulta());
+        h.setEnfermedadActual(d.enfermedadActual());
+        h.setAntecedentesPersonales(d.antecedentesPersonales());
+        h.setExamenClinico(d.examenClinico());
+        h.setPronostico(d.pronostico());
+        h.setSignosVitales(d.signosVitales());
+        h.setAlergiasRevisado(d.alergiasRevisado());
+        h.setAlergiasDetalle(d.alergiasDetalle());
+        h.setMedicacionRevisado(d.medicacionRevisado());
+        h.setMedicacionDetalle(d.medicacionDetalle());
+        h.setAntecedentesFamiliaresRevisado(d.antecedentesFamiliaresRevisado());
+        h.setAntecedentesFamiliaresDetalle(d.antecedentesFamiliaresDetalle());
+    }
+}

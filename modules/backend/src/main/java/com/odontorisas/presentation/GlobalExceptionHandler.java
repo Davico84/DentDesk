@@ -2,6 +2,7 @@ package com.odontorisas.presentation;
 
 import com.odontorisas.infra.config.TraceIdFilter;
 import com.odontorisas.service.BusinessException;
+import com.odontorisas.service.clinicalhistory.ChecklistIncompleteException;
 import com.odontorisas.service.patient.DocumentAlreadyExistsException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -55,6 +56,18 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
     public ProblemDetail handleDocumentAlreadyExists(DocumentAlreadyExistsException ex) {
         ProblemDetail problem = ProblemDetails.of(ex.getStatus(), ex.getErrorType(), ex.getMessage());
         problem.setProperty("existingPatientId", ex.getExistingPatientId());
+        return problem;
+    }
+
+    /**
+     * Checklist incompleto (400) que además indica <b>qué campos faltan</b> (design.md D4 de
+     * `add-clinical-history`) — mismo patrón que {@link #handleDocumentAlreadyExists}: una
+     * extensión propia no pasa por {@link #handleBusiness}.
+     */
+    @ExceptionHandler(ChecklistIncompleteException.class)
+    public ProblemDetail handleChecklistIncomplete(ChecklistIncompleteException ex) {
+        ProblemDetail problem = ProblemDetails.of(ex.getStatus(), ex.getErrorType(), ex.getMessage());
+        problem.setProperty("missingFields", ex.getMissingFields());
         return problem;
     }
 
