@@ -17,6 +17,8 @@ Monorepo modular: `modules/backend/` (Java/Spring) + `modules/frontend/` (React/
 - **Cómo construimos** (estándares perennes): `docs/`
   - **Negocio (sustituible):** `docs/vision.md` — objetivos de producto + roadmap + gobernanza del ciclo + granularidad de capacidades · `docs/domain.md` — modelo de dominio (vivo): actores, glosario y ER. Fuente de verdad local-first; Jira solo backlog (futuro).
   - **Tecnología (reutilizable):** `docs/architecture.md` — stack cerrado + arquitectura back/front · `docs/backend.md` — estándares Java/Spring · `docs/frontend.md` — estándares frontend (arquitectura, React Query, Zustand, patrones UI) · `docs/coding-style.md` — estilo general de código (TypeScript, nombres) · `docs/testing.md` — estrategia de pruebas + puente Scenario→test.
+  - **Decisiones (el porqué):** `docs/adr/` — un ADR por decisión que sobrevive al change que la implementa. `docs/adr/README.md` — cómo se escriben y se revisan (las **cinco dimensiones**: normativa, dominio clínico, DDD, arquitectura, evolución).
+  - **Cumplimiento normativo:** `docs/compliance/regulatory-matrix.md` — trazabilidad norma → ADR → requirement/scenario. Al escribir un ADR con motivación normativa, actualizar su fila. **No** es un resumen de las normas ni un segundo hogar para las decisiones.
   - `docs/tooling-setup.md` — tooling reproducible (scripts, Vitest/MSW, husky/commitlint, CI).
   - `docs/commits.md` — estándar de commits (Conventional Commits en español) + convención `Refs:` para enlazar tareas.
 
