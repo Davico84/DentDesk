@@ -15,7 +15,9 @@ Construir sobre la norma derogada habría generado un **compliance gap crítico*
 
 El hallazgo llegó **antes de escribir una sola línea de código**, gracias a que `add-dental-chart` puso la validación del catálogo como tarea **bloqueante** previa a la migración (`tasks 0.1`) y a que `ADR-0012` marcó explícitamente sus afirmaciones normativas como *"pendientes de validación documental"*. La disciplina de no afirmar cumplimiento sin evidencia es lo que evitó el daño.
 
-> ⚠️ **Alcance de la evidencia.** Los detalles de NTS 188 que se recogen abajo provienen del **análisis del decisor**, con la cita normativa precisa (RM 559-2022, El Peruano 29/07/2022) — no de la transcripción del texto completo ni de sus anexos gráficos. Sigue pendiente adjuntar el articulado y completar la columna § de `docs/compliance/regulatory-matrix.md`.
+> **Alcance de la evidencia** (actualizado 2026-08-03). Los numerales que sustentan cada decisión están mapeados en [`docs/compliance/regulatory-matrix.md`](../compliance/regulatory-matrix.md) y analizados en [`nts-188-odontogram.md`](../compliance/nts-188-odontogram.md) y [`nts-150-to-188-transition.md`](../compliance/nts-150-to-188-transition.md): **6.1** (estructura FDI), **6.2** (color binario) y **Anexo N°01** (siglas, movilidad arábiga, giroversión condicional).
+>
+> ⚠️ Esos documentos **traducen** la norma, no la reproducen. El **Anexo N°01 completo** —el manual gráfico con todos los símbolos— sigue sin adjuntarse, y es lo que la tarea 0.1 de `add-dental-chart` necesita para cerrar el catálogo.
 
 ## Decisión
 
@@ -107,7 +109,7 @@ Se renderiza **siempre sobre fondo blanco, con los hex exactos**, aunque el rest
 
 ## Open Questions
 
-1. ✅ **La movilidad en azul — CONFIRMADA** (2026-08-03). El análisis normativo de `docs/compliance/nts-188-odontogram-update.md` lo sustenta en el **Anexo N°01**: la escala pasa de romanos rojos (`I`/`II`/`III`, NTS 150) a arábigos azules (`M1`/`M2`/`M3`). Se acata: la movilidad es **descriptiva**, no patológica, a efectos de color. La API debe además **rechazar** la sintaxis romana.
+1. ✅ **La movilidad en azul — CONFIRMADA** (2026-08-03). El análisis normativo de `docs/compliance/nts-150-to-188-transition.md` lo sustenta en el **Anexo N°01**: la escala pasa de romanos rojos (`I`/`II`/`III`, NTS 150) a arábigos azules (`M1`/`M2`/`M3`). Se acata: la movilidad es **descriptiva**, no patológica, a efectos de color. La API debe además **rechazar** la sintaxis romana.
 
 2. ⚠️ **Alcance dual de `DES` (superficie desgastada) — sin resolver.** NTS 188 pide la sigla `DES` en el **recuadro de la pieza** *y* pintar la **cara afectada** en el gráfico. El modelo tiene `scope` de **valor único** (superficie / pieza / entre piezas), así que un tipo que es las dos cosas no encaja. Opciones: (a) que `scope` admita un conjunto, (b) que `DES` se registre como hallazgo de superficie y la sigla del recuadro se **derive** al renderizar. **(b) parece preferible** —no toca el modelo y mantiene la precisión cara por cara que exige la auditoría—, pero hay que confirmarlo contra el Anexo N°01. Resolver en `add-dental-chart` tarea 0.1, antes de la migración.
 

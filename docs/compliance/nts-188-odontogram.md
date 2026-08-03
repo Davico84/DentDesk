@@ -5,7 +5,7 @@
 El presente documento constituye la especificación de ingeniería y el análisis de cumplimiento para el módulo del Odontograma, derivado de la Norma Técnica de Salud para el Uso del Odontograma (NTS N° 188-MINSA/DGIESP-2022), aprobada mediante la Resolución Ministerial N° 559-2022/MINSA y publicada en el Diario Oficial El Peruano.
 
 > [!NOTE]
-> **Nota de control de cambios y vigencia:** Este documento técnico reemplaza toda especificación basada en la antigua e inválida NTS N° 150-MINSA/2019/DGIESP (la cual fue expresamente derogada por la R.M. N° 559-2022/MINSA). Se adopta la denominación del archivo como `nts-150-odontogram.md` por consistencia con los mapas de rutas previos del repositorio del sistema de información, pero su contenido técnico traduce de forma estricta la norma legal vigente al año 2026 (NTS N° 188).
+> **Vigencia.** Este documento traduce la norma **vigente**: NTS N°188-MINSA/DGIESP-2022. Reemplaza toda especificación basada en la NTS N°150-MINSA/2019/DGIESP, **derogada expresamente** por la R.M. N°559-2022/MINSA (art. 2). El análisis de qué cambió entre una y otra vive en [`nts-150-to-188-transition.md`](nts-150-to-188-transition.md).
 
 ---
 
