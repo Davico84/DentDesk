@@ -107,7 +107,14 @@ Se renderiza **siempre sobre fondo blanco, con los hex exactos**, aunque el rest
 
 ## Open Questions
 
-1. **⚠️ La movilidad en azul.** Según el análisis, NTS 188 registra `M1`/`M2`/`M3` en **azul**; `ADR-0012` la clasificaba como patología en **rojo**. Clínicamente sorprende (una movilidad grado III no parece "sin patología activa"). **Verificar contra el texto** antes de fijar el catálogo: si es correcto, se acata; si es una lectura equivocada del resumen, se corrige acá.
-2. **El catálogo completo** sigue pendiente del articulado y los anexos gráficos de NTS 188 (`add-dental-chart` tarea 0.1, bloqueante).
+1. ✅ **La movilidad en azul — CONFIRMADA** (2026-08-03). El análisis normativo de `docs/compliance/nts-188-odontogram-update.md` lo sustenta en el **Anexo N°01**: la escala pasa de romanos rojos (`I`/`II`/`III`, NTS 150) a arábigos azules (`M1`/`M2`/`M3`). Se acata: la movilidad es **descriptiva**, no patológica, a efectos de color. La API debe además **rechazar** la sintaxis romana.
+
+2. ⚠️ **Alcance dual de `DES` (superficie desgastada) — sin resolver.** NTS 188 pide la sigla `DES` en el **recuadro de la pieza** *y* pintar la **cara afectada** en el gráfico. El modelo tiene `scope` de **valor único** (superficie / pieza / entre piezas), así que un tipo que es las dos cosas no encaja. Opciones: (a) que `scope` admita un conjunto, (b) que `DES` se registre como hallazgo de superficie y la sigla del recuadro se **derive** al renderizar. **(b) parece preferible** —no toca el modelo y mantiene la precisión cara por cara que exige la auditoría—, pero hay que confirmarlo contra el Anexo N°01. Resolver en `add-dental-chart` tarea 0.1, antes de la migración.
+
+3. ⚠️ **`IMP` implica pieza ausente — sin formalizar.** NTS 188 vincula el implante a la **pieza reemplazada** e inhabilita sus caras. `ADR-0012` tiene la invariante *"pieza ausente no admite hallazgos de superficie"* (INV-09), pero no dice que `IMP` la dispare. Formalizarlo en el catálogo (tarea 0.1).
+
+4. **El catálogo completo** sigue pendiente del **Anexo N°01** de NTS 188 (`add-dental-chart` tarea 0.1, bloqueante). Los documentos de `docs/compliance/` traducen la norma pero no la reemplazan.
 3. **Datos históricos**: no aplica hoy (no hay odontogramas registrados), pero si alguna vez se importan de un sistema previo, el mapeo a las siglas de NTS 188 debe ser explícito y auditable.
-4. **¿NTS 139 sigue vigente?** Se verificó la del odontograma; la de la historia clínica —que sostiene `ADR-0011` y varias filas de la matriz— **no se ha verificado**. Conviene hacerlo con el mismo rigor antes de dar por buena esa parte del cumplimiento.
+5. ✅ **NTS 139 verificada** (2026-08-03) — sigue vigente (RM N°214-2018/MINSA). Pero al leerla aparecieron **seis gaps sobre capacidades ya construidas** (firma digital, filiación completa con Ubigeo, cifrado en reposo, secreto profesional, autoría COP, log de accesos). Están en `docs/compliance/regulatory-matrix.md` §Huecos abiertos y **exceden el alcance de este ADR**: cada uno necesita su propia decisión.
+
+6. ⚠️ **Datos históricos con movilidad en romanos.** No aplica hoy (no hay odontogramas registrados), pero si alguna vez se importan de un sistema previo, el mapeo `I→M1`, `II→M2`, `III→M3` debe ser explícito y auditable.

@@ -4,9 +4,9 @@ Mapea **cada requisito normativo** que el sistema debe cumplir con **la decisió
 
 ## Qué NO es este documento
 
-**No es un resumen de las normas.** Un resumen local de una regulación externa se desactualiza en silencio: la norma se actualiza en el MINSA, la copia no, y alguien construye contra un texto vencido creyendo que está vigente. Acá solo se cita el **fragmento puntual que justificó una decisión**, con su fecha de consulta.
+**No es un resumen de las normas.** El análisis por norma vive en los documentos hermanos de esta carpeta (`nts-139-history-clinical.md`, `nts-150-odontogram.md` —que contiene NTS 188—, `cop-code-of-ethics.md`, `legal-retention.md`). Acá solo se **enlaza** requisito ↔ decisión ↔ artefacto.
 
-**No es un segundo hogar para las decisiones.** El *por qué* vive en los ADR; el *qué construir*, en los changes de OpenSpec. Esta matriz solo **enlaza** lo que ya existe.
+**No es un segundo hogar para las decisiones.** El *por qué* vive en los ADR; el *qué construir*, en los changes de OpenSpec.
 
 ## La cadena de trazabilidad
 
@@ -21,17 +21,23 @@ Mapea **cada requisito normativo** que el sistema debe cumplir con **la decisió
                                          referenciar el scenario"
 ```
 
-Los cuatro eslabones de la derecha ya son convención del proyecto. Esta matriz aporta el primero.
-
 ## Cómo mantenerla
 
-- **Al escribir un ADR** con una motivación normativa: agregar o actualizar su fila (`docs/adr/README.md`, dimensión 1).
+- **Al escribir un ADR** con motivación normativa: agregar o actualizar su fila (`docs/adr/README.md`, dimensión 1).
 - **Al archivar un change**: reemplazar `pendiente` por el requirement/scenario real y actualizar el estado.
-- **Nunca poner "Sí"** en la columna de artefacto. Un "Sí" es una luz verde que nadie verifica — el mismo modo de falla que dejó reglas ArchUnit en verde durante meses sin comprobar nada (`docs/testing.md §5`). Apuntar siempre al **nombre concreto** del requirement o del scenario, que es comprobable en segundos.
+- **Nunca poner "Sí"** en la columna de artefacto. Un "Sí" es una luz verde que nadie verifica — el mismo modo de falla que dejó reglas ArchUnit en verde durante meses sin comprobar nada (`docs/testing.md §5`). Apuntar siempre al **nombre concreto** del requirement o del scenario.
 
-> ⚠️ **Columna de artículo (§) pendiente.** Las filas de abajo se derivaron de los ADR ya escritos, que citan las normas por su designación general (NTS N°139-MINSA, **NTS N°188-MINSA/DGIESP-2022** para el odontograma, estructura MINSA HIS) pero **no por artículo**. Los números de artículo los debe completar quien tenga los textos a la vista — **inventarlos en un documento de cumplimiento sería inducir a error a un auditor**, así que se dejan vacíos a propósito.
+## Normas de referencia
 
-**Estado:** ✅ construido y testeado · 🚧 decidido, no construido · ⚠️ sin decisión
+| Norma | Instrumento | Ámbito |
+|---|---|---|
+| **NTS N°139-MINSA/2018/DGAIN** | RM N°214-2018/MINSA | Gestión de la Historia Clínica |
+| **NTS N°188-MINSA/DGIESP-2022** | RM N°559-2022/MINSA (El Peruano, 29/07/2022) | Uso del Odontograma — **deroga** NTS N°150 (art. 2 deroga la RM N°595-2019) |
+| **Ley N°29733** + D.S. N°003-2013-JUS | — | Protección de Datos Personales |
+| **Ley N°27269** + D.S. N°052-2008-PCM | — | Firmas y Certificados Digitales |
+| **Código de Ética y Deontología del COP** | Ley N°27878, D.S. N°016-2005-SA | Ejercicio profesional del Cirujano Dentista |
+
+**Estado:** ✅ construido y testeado · 🚧 decidido, no construido · ⚠️ sin decisión · 🔴 **gap sobre capacidad ya construida**
 
 ---
 
@@ -39,53 +45,74 @@ Los cuatro eslabones de la derecha ya son convención del proyecto. Esta matriz 
 
 | Requisito normativo | Norma | § | Decisión | Requirement / Scenario | Estado |
 |---|---|---|---|---|---|
-| La historia clínica es un documento sellado: lo registrado no se reescribe | NTS 139 | *pend.* | [`ADR-0011`](../adr/0011-historia-clinica-documento-inicial.md) | `clinical-history` → *Información inicial sellada tras COMPLETED* | ✅ |
-| El bloqueo del documento sellado no puede depender del cliente | NTS 139 | *pend.* | [`ADR-0011`](../adr/0011-historia-clinica-documento-inicial.md) | Scenario *Rechazar la edición de la información sellada aun por API directa* | ✅ |
+| Registro secuencial y cronológico de la atención | NTS 139 | **5.4.1 f)** | [`ADR-0011`](../adr/0011-historia-clinica-documento-inicial.md) | `clinical-history` → *Información inicial sellada tras COMPLETED* | ✅ |
+| Prohibición de enmiendas, raspaduras o destrucción de folios | NTS 139 | **5.4.1 i)** | [`ADR-0011`](../adr/0011-historia-clinica-documento-inicial.md) | Scenario *Rechazar la edición de la información sellada aun por API directa* | ✅ |
 | El diagnóstico lleva tipo obligatorio: presuntivo / definitivo / repetido | MINSA HIS | *pend.* | [`ADR-0011`](../adr/0011-historia-clinica-documento-inicial.md) | Scenario *Rechazar un diagnóstico sin tipo (P/D/R)* | ✅ |
 | Cada diagnóstico registra fecha/hora y profesional, de forma inmutable | MINSA HIS | *pend.* | [`ADR-0011`](../adr/0011-historia-clinica-documento-inicial.md) | Scenario *Agregar un diagnóstico general* | ✅ |
 | El diagnóstico usa el catálogo CIE10 oficial, respetando su jerarquía | MINSA (CIE10) | *pend.* | [`ADR-0011`](../adr/0011-historia-clinica-documento-inicial.md) | Scenario *Buscar un código navegando la jerarquía* | ✅ |
-| El menor requiere representante legal que autorice procedimientos | Código Civil / COP | *pend.* | [`ADR-0007`](../adr/0007-tutor-menores.md) | `patients` → *responsable obligatorio para menores* | ✅ datos · 🚧 consentimiento (va en `treatments`) |
-| Evolución cronológica de la atención (nota SOAP diaria) | NTS 139 | *pend.* | — anotado en `vision.md §3` | `update-clinical-history` (fase 2) | ⚠️ sin ADR |
+| El menor requiere representante legal que autorice procedimientos | COP / Código Civil | *pend.* | [`ADR-0007`](../adr/0007-tutor-menores.md) | `patients` → *responsable obligatorio para menores* | ✅ datos · 🚧 consentimiento (`treatments`) |
+| **Filiación completa y obligatoria, incluido Ubigeo de nacimiento y procedencia** | NTS 139 | **6.1.1 a)** | ⚠️ **choca con [`ADR-0005`](../adr/0005-registro-minimo-paciente.md)** | — | 🔴 **ver gaps** |
+| Evolución estructurada en SOAP (Subjetivo/Objetivo/Análisis/Plan) | NTS 139 | **6.1.4** | ⚠️ sin ADR | `update-clinical-history` (fase 2) | ⚠️ |
+| Enmienda como asiento nuevo vinculado, sin alterar el original | NTS 139 | **5.4.1 i)** | ⚠️ sin ADR — diferido en `ADR-0011` | `update-clinical-history` (fase 2) | ⚠️ |
 
 ## Odontograma
 
-Todas 🚧: [`ADR-0012`](../adr/0012-odontograma-libro-de-asientos.md) está aceptado y `add-dental-chart` está **propuesto** (no implementado). Los requirements que se citan viven en `openspec/changes/add-dental-chart/specs/`; al archivar pasan a `openspec/specs/` y su estado a ✅.
+[`ADR-0012`](../adr/0012-odontograma-libro-de-asientos.md) + [`ADR-0013`](../adr/0013-odontograma-nts-188.md). `add-dental-chart` está **propuesto**, no implementado: los requirements viven en `openspec/changes/add-dental-chart/specs/`.
 
 | Requisito normativo | Norma | § | Decisión | Requirement / Scenario | Estado |
 |---|---|---|---|---|---|
-| El odontograma es anexo obligatorio de la historia clínica y se sella junto con la admisión | NTS 139 | *pend.* | `ADR-0012` **D5** | `clinical-history` → *Sellado a COMPLETED…* (MODIFICADO) · scenarios *Rechazar el sellado sin odontograma inicial* y *Un fallo al sellar el odontograma deja la Historia en DRAFT* | 🚧 |
-| El odontograma inicial es inalterable: evidencia estática de cómo llegó el paciente | NTS 188 | *pend.* | `ADR-0012` **D4** | `dental-chart` → *Odontograma sellado e inmutable* · scenario *Rechazar la modificación de un odontograma sellado aun por API directa* | 🚧 |
-| El plan de tratamiento **no** se registra sobre el odontograma inicial | NTS 188 | *pend.* | `ADR-0012` **D1** | `dental-chart` → *Purpose* (el corte estado/acción) · **ausencia deliberada** de estados de planificación en el catálogo | 🚧 |
-| Código de color: rojo = requiere intervención · azul = sin patología activa | NTS 188 | *pend.* | `ADR-0012` **D2** | `dental-chart` → *Catálogo cerrado de condiciones con naturaleza clínica* | 🚧 |
-| Sección de Especificaciones / Observaciones obligatoria | NTS 188 | *pend.* | `ADR-0012` *Modelo resultante* | `dental-chart` → *Especificaciones del odontograma* · scenario *Rechazar el sellado sin especificaciones revisadas* | 🚧 |
-| Registro por superficie dental, no por pieza completa (extensión auditable) | NTS 188 / SUSALUD | *pend.* | `ADR-0012` **D8** | `dental-chart` → *Registro de hallazgos con localización precisa* | 🚧 |
-| Condiciones registrables: supernumerario, diastema, movilidad, erupción, extrusión, intrusión, giroversión | NTS 188 | *pend.* | `ADR-0012` **D8** + catálogo `FindingType` | `dental-chart` → *Registro de hallazgos…* (scenario *entre dos piezas*) + *Catálogo cerrado…* (scenarios de grado) | 🚧 ⚠️ catálogo **tentativo**, ver huecos |
-| Notación FDI / ISO 3950 | NTS 188 | *pend.* | `add-dental-chart` design **D7** | `dental-chart` → *Registro de hallazgos…* · scenario *Rechazar una pieza inexistente* | 🚧 |
-| Odontograma de evolución comparable entre fechas | NTS 188 | *pend.* | `ADR-0012` **D3** | pendiente — `update-dental-chart` (fase 2) | 🚧 |
-| El tramo de evolución se cierra y congela al terminar la atención | NTS 139 | *pend.* | `ADR-0012` **D6** | pendiente — `update-dental-chart` (fase 2) | 🚧 |
-| Secuencia cronológica ininterrumpida del expediente del paciente | NTS 139 | *pend.* | `ADR-0012` **D7** | pendiente — `update-dental-chart` (fase 2) | 🚧 |
-| **Índice de Higiene Oral (IHO) en el examen inicial** | *por verificar* | *pend.* | ⚠️ **sin decisión** | — | ⚠️ ver huecos |
-| **Registro periodontal: sondaje por sitio, compromiso de furca** | *por verificar* | *pend.* | ⚠️ **sin decisión** | — | ⚠️ ver huecos |
+| Estructura de dentición permanente y decidua en notación **FDI** | NTS 188 | **6.1** | `add-dental-chart` design **D7** | `dental-chart` → *Registro de hallazgos…* · scenario *Rechazar una pieza inexistente* | 🚧 |
+| **Código binario rojo/azul** obligatorio, separando patología de restauración | NTS 188 | **6.2** | `ADR-0013` **D2** + **D5** | `dental-chart` → *Catálogo cerrado de condiciones, alineado a la norma vigente* | 🚧 |
+| Siglas oficiales de tres letras (`IMP`, `MAC`, `MIC`, `DES`) y letra `E` | NTS 188 | **Anexo N°01** | `ADR-0013` **D3** | `dental-chart` → *Catálogo cerrado…* | 🚧 |
+| Movilidad en arábigos `M1`/`M2`/`M3`, en **azul** (ya no romanos rojos) | NTS 188 | **Anexo N°01** | `ADR-0013` **D3** | `dental-chart` → scenarios de grado | 🚧 |
+| Giroversión: color **condicional** según patología activa de la pieza | NTS 188 | **Anexo N°01** (UP-004) | `ADR-0012` **D2** (regla de contagio) | `dental-chart` → regla de renderizado | 🚧 |
+| Sellante en mal estado **coexiste** con caries adyacente en la misma cara | NTS 188 | **Anexo N°01** | `ADR-0013` **D2** | scenario *Una restauración y una patología coexisten* | 🚧 |
+| El odontograma es anexo de la historia clínica y se sella con la admisión | NTS 139 | **6.1.1** | `ADR-0012` **D5** | `clinical-history` → *Sellado a COMPLETED…* (MODIFICADO) | 🚧 |
+| El odontograma inicial es inalterable | NTS 139 | **5.4.1 i)** | `ADR-0012` **D4** | `dental-chart` → *Odontograma sellado e inmutable* | 🚧 |
+| Sección de Especificaciones / Observaciones obligatoria | NTS 188 | **Anexo N°01** | `ADR-0012` *Modelo resultante* + `ADR-0013` **D4** | `dental-chart` → *Especificaciones del odontograma* | 🚧 |
+| Registro por superficie dental (extensión auditable) | NTS 188 / SUSALUD | **Anexo N°01** | `ADR-0012` **D8** | `dental-chart` → *Registro de hallazgos con localización precisa* | 🚧 |
+| Cierre transaccional atómico de evolución **y** odontograma del día | NTS 139 | **5.4.1 f)** (HC-007) | `ADR-0012` **D5** | pendiente — `update-dental-chart` (fase 2) | 🚧 |
+| Bloqueo del expediente con atención anterior sin cerrar | NTS 139 | **5.4.1 f)** (HC-006) | `ADR-0012` **D7** | pendiente — `update-dental-chart` (fase 2) | 🚧 |
+| Odontograma de evolución comparable entre fechas | NTS 188 | **6.1** | `ADR-0012` **D3** | pendiente — `update-dental-chart` (fase 2) | 🚧 |
 
-## Aislamiento y datos personales
+## Retención y ciclo de vida
 
 | Requisito normativo | Norma | § | Decisión | Requirement / Scenario | Estado |
 |---|---|---|---|---|---|
-| La historia clínica es individual y privada de cada paciente; una clínica no accede a los datos de otra | Ley 29733 (datos personales) / NTS 139 | *pend.* | [`ADR-0004`](../adr/0004-el-paciente-pertenece-a-una-clinica.md) | `multi-tenancy` + test de aislamiento **obligatorio** por capacidad (`docs/testing.md §5`) | ✅ |
+| Conservación íntegra **15 años** desde la última atención | NTS 139 | **6.6.1 a)** | ⚠️ sin ADR | — | 🔴 **ver gaps** |
+| Archivo **activo** (≤5 años) y **pasivo** (>5 años) | NTS 139 | **6.6.1 / 6.6.2** | ⚠️ sin ADR | — | ⚠️ |
+| Destrucción solo tras 15 años y con acta del Comité | NTS 139 | **6.6.1 e)** | ⚠️ sin ADR | — | ⚠️ |
+| Respaldos cifrados y recuperables (datos sensibles) | Ley 29733 | D.S. 003-2013-JUS | ⚠️ sin ADR — infraestructura | — | ⚠️ |
+
+## Seguridad, secreto profesional y no repudio
+
+| Requisito normativo | Norma | § | Decisión | Requirement / Scenario | Estado |
+|---|---|---|---|---|---|
+| Aislamiento entre clínicas; la historia es privada del paciente | Ley 29733 / NTS 139 | — | [`ADR-0004`](../adr/0004-el-paciente-pertenece-a-una-clinica.md) | `multi-tenancy` + test de aislamiento **obligatorio** (`docs/testing.md §5`) | ✅ |
+| **Secreto profesional**: recepción no accede a SOAP, hallazgos ni CIE10 | COP | **Sec. II, Cap. V, Arts. 31–36** | ⚠️ diferido a `staff` | — | 🔴 **ver gaps** |
+| **Autoría por colegiatura COP**, sin cuentas compartidas | COP | **Sec. III, Cap. I, Art. 42** | ⚠️ diferido a `staff` | autoría hoy por `userId` | 🔴 **ver gaps** |
+| **Firma digital** del cierre con certificado acreditado | Ley 27269 / COP | **Sec. III, Cap. II, Arts. 52–53** | ⚠️ sin ADR | — | 🔴 **ver gaps** |
+| Integridad: prohibido alterar, falsear o destruir registros | COP | **Sec. III, Cap. II, Art. 54** | `ADR-0011` + `ADR-0012` **D3** | sellado server-side, libro de asientos | ✅ parcial |
+| **Cifrado en reposo** de datos clínicos | Ley 29733 | D.S. 003-2013-JUS | ⚠️ sin ADR | — | 🔴 **ver gaps** |
+| **Log de accesos** de lectura y exportación de datos sensibles | Ley 29733 | D.S. 003-2013-JUS | ⚠️ sin ADR | — | 🔴 **ver gaps** |
 
 ---
 
 ## Huecos abiertos
 
-Requisitos normativos **sin decisión tomada**. Esta sección es el principal valor de la matriz: hace visible lo que de otro modo queda implícito.
+Ordenados por gravedad. Los 🔴 afectan **capacidades ya construidas y en uso**.
 
-| Requisito | Estado | Nota |
-|---|---|---|
-| **Retención de 15 años desde la última atención + archivo pasivo, sin borrado** | ⚠️ **sin ADR ni change** | Anotado solo como pendiente en `vision.md §3`. Hoy no existe endpoint de borrado de historia clínica (no hay riesgo de purga accidental), pero tampoco hay política de retención, ni estado de archivo, ni nada que impida un borrado futuro. **Es el hueco más grande de la matriz.** |
-| **Vínculo del profesional con su colegiatura COP** | ⚠️ diferido | `ADR-0011` y `ADR-0012` registran autoría por `userId`, y ambos anotan que el vínculo formal al COP llega con `staff` (fila 2 del roadmap, no propuesta). Un documento clínico firmado por un `userId` sin colegiatura puede no bastar ante auditoría. |
-| **Consentimiento informado firmado por tratamiento** | 🚧 planificado | `ADR-0007` decidió que el tutor lo firma en menores; la entidad `Consent` está prevista en `treatments` (`docs/domain.md`), capacidad no construida. |
-| **Evolución clínica SOAP (Subjetivo/Objetivo/Análisis/Plan)** | ⚠️ sin ADR | Anotado en `vision.md §3` como `update-clinical-history` fase 2, junto con el odontograma de evolución. Sin decisión formalizada. |
-| **Diagnóstico de casos estéticos sin código CIE10** | ⚠️ sin decisión | CIE10 clasifica enfermedad, no procedimiento. Anotado en `vision.md §3`; tres caminos posibles, ninguno elegido. |
-| **Índice de Higiene Oral (IHO)** | ⚠️ **sin verificar** | No aparece en ninguna parte del proyecto. Si resulta obligatorio en el examen inicial, **no encaja como tipo de condición**: es un índice numérico calculado sobre superficies con placa, con su propio método de medición — sería un requirement adicional de `dental-chart`. **Verificar antes de la migración** (`add-dental-chart` tarea 0.2): si es obligatorio y se omite, el odontograma queda incompleto ante auditoría; si se modela como un hallazgo, corregirlo después cuesta migración. |
-| **Registro periodontal (sondaje por sitio, furca)** | ⚠️ **sin decisión** | El modelo cubre movilidad (hallazgo con grado) y recesión gingival (especificaciones). Sondaje y furca no están en ningún artefacto; en la práctica viven en un **periodontograma**, documento aparte con grilla de seis sitios por pieza. Decidir dónde vive antes de implementar (`add-dental-chart` tarea 0.3). |
-| **Catálogo de tipos de condición sin contrastar contra la norma** | ⚠️ **tentativo** | La lista de `ADR-0012` salió de una sesión de modelado, no de la lectura de **NTS 188** ni de sus anexos gráficos (y la lista original se apoyaba en la NTS 150 **derogada**, ver `ADR-0013`). Es el mayor riesgo evitable de `add-dental-chart`: agregar un tipo después de la migración cuesta migración de datos (tarea 0.1, **bloqueante**). |
+| # | Requisito | Estado | Nota |
+|---|---|---|---|
+| 1 | **Firma digital del cierre clínico** (Ley 27269, COP 52–53) | 🔴 | Sin firma con certificado acreditado ante INDECOPI/RENIEC, la historia clínica electrónica **no sustituye al papel con pleno valor probatorio**. Afecta el sellado de `clinical-history`, **ya construido**. Es el gap de mayor impacto legal: todo lo demás puede ser correcto y aun así el documento no probar nada en juicio. Amerita ADR propio. |
+| 2 | **Filiación completa obligatoria + Ubigeo** (NTS 139 6.1.1 a) | 🔴 | La norma exige documento, sexo, fecha de nacimiento y **Ubigeo de nacimiento y procedencia** como obligatorios. `patients` está construida con documento **opcional** ([`ADR-0005`](../adr/0005-registro-minimo-paciente.md), el caso del "bebé sin documento") y **no tiene ubigeo en absoluto**. Esta evidencia **resuelve la Open Question** que `vision.md §3` dejaba abierta sobre endurecer los datos mínimos: la norma lo exige. Requiere `update-patients` + migración. |
+| 3 | **Cifrado en reposo de datos clínicos** (Ley 29733) | 🔴 | Texto libre clínico, diagnósticos y antecedentes se guardan en claro. Un respaldo filtrado expone historias completas. Transversal: toca `patients`, `clinical-history` y todo lo que venga. |
+| 4 | **Secreto profesional: RBAC clínico** (COP 31–36) | 🔴 | Hoy **cualquier miembro del tenant** puede leer y escribir todo — decisión explícita y temporal documentada en `add-clinical-history`, diferida a `staff`. Con respaldo normativo deja de ser una comodidad y pasa a ser incumplimiento: la recepción no debe ver SOAP, hallazgos ni CIE10. Sube la prioridad de `staff` en el roadmap. |
+| 5 | **Autoría por colegiatura COP** (COP 42) | 🔴 | La autoría se registra por `userId`, sin vínculo al COP. Un documento sellado firmado por una identidad técnica puede no bastar ante auditoría. Va con `staff`, junto al #4. |
+| 6 | **Log de accesos de lectura** (Ley 29733) | 🔴 | Cada consulta y exportación de datos sensibles debe dejar rastro no borrable (usuario, IP, fecha, pacientes expuestos). No existe. |
+| 7 | **Retención 15 años + archivo activo/pasivo** (NTS 139 6.6.1/6.6.2) | ⚠️ | Sin política, sin estado de archivo, sin bloqueo de purga. El paso automático activo→pasivo a los 5 años requiere un job programado — hoy **bloqueado por la regla ArchUnit** que prohíbe `@Scheduled` hasta cablear el contexto de tenant. |
+| 8 | **Índice de Higiene Oral (IHO)** | ⚠️ | No aparece en NTS 188 según los documentos de esta carpeta. **Verificar si pertenece a NTS 139 o queda fuera** antes de decidir (`add-dental-chart` tarea 0.2). |
+| 9 | **Registro periodontal (sondaje, furca)** | ⚠️ | Sin decisión sobre dónde vive (`add-dental-chart` tarea 0.3). |
+| 10 | **Diagnóstico de casos estéticos sin CIE10** | ⚠️ | CIE10 clasifica enfermedad, no procedimiento. Anotado en `vision.md §3`. |
+| 11 | **Alcance dual de `DES`** | ⚠️ | NTS 188 pide la sigla en el **recuadro de la pieza** *y* pintar la **cara afectada**. El modelo actual tiene alcance de valor único (superficie **o** pieza **o** entre piezas). Resolver antes de la migración (`add-dental-chart` tarea 0.1). |
+| 12 | **`IMP` implica pieza ausente** | ⚠️ | NTS 188 vincula el implante a la pieza reemplazada e inhabilita sus caras. El modelo tiene la invariante para *ausente* pero no dice que `IMP` la implique. Resolver en el catálogo (tarea 0.1). |
