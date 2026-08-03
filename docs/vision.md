@@ -170,6 +170,7 @@ Regla equivalente para agentes en `CLAUDE.md → Flujo de trabajo → Gobernanza
   > Se nombra aquí **aunque no esté priorizada** porque un SaaS sin forma de cobrar su suscripción es un hueco que conviene **ver desde el principio**, no descubrir tarde. La plataforma ya dejó el gancho: `Organization.status` contempla `SUSPENDED` y el login/refresh hacen *gate* por él — cortar el acceso por impago **no requeriría tocar `authentication`**.
 - **`public-booking`** — **la reserva online**: un visitante (sin cuenta) solicita hueco desde la web y la clínica confirma. Actor: **visitante anónimo**, distinto del staff de `appointments` (fila 5, agendamiento *interno*).
   > **No requiere dar cuenta al paciente** —que sigue sin ser usuario del sistema—: se resuelve con un formulario **público sin login**. Trae problemas propios (endpoint público → spam y abuso, verificación por correo, huecos disponibles sin filtrar datos de otros pacientes), por eso es capacidad aparte y no un Scenario más de `appointments`.
+- **`prescriptions`** — **receta odontológica**: el profesional prescribe (antibióticos, analgésicos) con su colegiatura, y la receta queda en el expediente. **No es un hueco de cumplimiento** (el sistema no dice que recete), pero el dominio va a necesitarla y la receta electrónica tiene normativa propia — conviene verla antes de que aparezca como urgencia.
 - `chatbot` (Spring AI ya está en el stack "para el bot") — no priorizada aún.
 - `notifications` (correo/realtime STOMP) — se evaluará cuando `appointments` lo requiera.
 

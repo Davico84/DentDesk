@@ -100,19 +100,59 @@ Mapea **cada requisito normativo** que el sistema debe cumplir con **la decisió
 
 ## Huecos abiertos
 
-Ordenados por gravedad. Los 🔴 afectan **capacidades ya construidas y en uso**.
+Agrupados por **qué documento los resuelve**, no por tema. Un gap sin dueño no se cierra: saber si le toca un ADR, un spec o una política es la mitad del trabajo.
+
+Los 🔴 afectan **capacidades ya construidas y en uso**. Los ⚠️ son decisiones pendientes sin incumplimiento activo.
+
+> **Plan acordado (2026-08-03):** en vez de abrir seis changes paralelos, **tres ADR transversales** cubren la mayoría de estos huecos manteniendo coherencia arquitectónica. Ninguno está escrito todavía.
+
+### A. Decisiones de arquitectura → `ADR-0014` *Clinical Document Lifecycle*
+
+Cómo un documento clínico se cierra, se prueba íntegro y se conserva.
 
 | # | Requisito | Estado | Nota |
 |---|---|---|---|
-| 1 | **Firma digital del cierre clínico** (Ley 27269, COP 52–53) | 🔴 | Sin firma con certificado acreditado ante INDECOPI/RENIEC, la historia clínica electrónica **no sustituye al papel con pleno valor probatorio**. Afecta el sellado de `clinical-history`, **ya construido**. Es el gap de mayor impacto legal: todo lo demás puede ser correcto y aun así el documento no probar nada en juicio. Amerita ADR propio. |
-| 2 | **Filiación completa obligatoria + Ubigeo** (NTS 139 6.1.1 a) | 🔴 | La norma exige documento, sexo, fecha de nacimiento y **Ubigeo de nacimiento y procedencia** como obligatorios. `patients` está construida con documento **opcional** ([`ADR-0005`](../adr/0005-registro-minimo-paciente.md), el caso del "bebé sin documento") y **no tiene ubigeo en absoluto**. Esta evidencia **resuelve la Open Question** que `vision.md §3` dejaba abierta sobre endurecer los datos mínimos: la norma lo exige. Requiere `update-patients` + migración. |
-| 3 | **Cifrado en reposo de datos clínicos** (Ley 29733) | 🔴 | Texto libre clínico, diagnósticos y antecedentes se guardan en claro. Un respaldo filtrado expone historias completas. Transversal: toca `patients`, `clinical-history` y todo lo que venga. |
-| 4 | **Secreto profesional: RBAC clínico** (COP 31–36) | 🔴 | Hoy **cualquier miembro del tenant** puede leer y escribir todo — decisión explícita y temporal documentada en `add-clinical-history`, diferida a `staff`. Con respaldo normativo deja de ser una comodidad y pasa a ser incumplimiento: la recepción no debe ver SOAP, hallazgos ni CIE10. Sube la prioridad de `staff` en el roadmap. |
-| 5 | **Autoría por colegiatura COP** (COP 42) | 🔴 | La autoría se registra por `userId`, sin vínculo al COP. Un documento sellado firmado por una identidad técnica puede no bastar ante auditoría. Va con `staff`, junto al #4. |
-| 6 | **Log de accesos de lectura** (Ley 29733) | 🔴 | Cada consulta y exportación de datos sensibles debe dejar rastro no borrable (usuario, IP, fecha, pacientes expuestos). No existe. |
-| 7 | **Retención 15 años + archivo activo/pasivo** (NTS 139 6.6.1/6.6.2) | ⚠️ | Sin política, sin estado de archivo, sin bloqueo de purga. El paso automático activo→pasivo a los 5 años requiere un job programado — hoy **bloqueado por la regla ArchUnit** que prohíbe `@Scheduled` hasta cablear el contexto de tenant. |
-| 8 | **Índice de Higiene Oral (IHO)** | ⚠️ | No aparece en NTS 188 según los documentos de esta carpeta. **Verificar si pertenece a NTS 139 o queda fuera** antes de decidir (`add-dental-chart` tarea 0.2). |
-| 9 | **Registro periodontal (sondaje, furca)** | ⚠️ | Sin decisión sobre dónde vive (`add-dental-chart` tarea 0.3). |
-| 10 | **Diagnóstico de casos estéticos sin CIE10** | ⚠️ | CIE10 clasifica enfermedad, no procedimiento. Anotado en `vision.md §3`. |
-| 11 | **Alcance dual de `DES`** | ⚠️ | NTS 188 pide la sigla en el **recuadro de la pieza** *y* pintar la **cara afectada**. El modelo actual tiene alcance de valor único (superficie **o** pieza **o** entre piezas). Resolver antes de la migración (`add-dental-chart` tarea 0.1). |
-| 12 | **`IMP` implica pieza ausente** | ⚠️ | NTS 188 vincula el implante a la pieza reemplazada e inhabilita sus caras. El modelo tiene la invariante para *ausente* pero no dice que `IMP` la implique. Resolver en el catálogo (tarea 0.1). |
+| A1 | **Hash de integridad al sellar** | 🔴 | **Va primero, aunque la firma se posponga.** Si se sellan documentos sin hash y la firma digital llega en dos años, los sellados en el medio **nunca podrán probar que no fueron alterados** — no hay contra qué comparar. El hash es barato (SHA-256 al sellar); la firma es cara. Desacoplarlos en el tiempo está bien; omitir el hash hoy no. |
+| A2 | **Firma digital del cierre** (Ley 27269, COP 52–53) | 🔴 | Sin certificado acreditado ante INDECOPI/RENIEC, la historia clínica electrónica **no sustituye al papel con valor probatorio**. Decisión: **posponer la integración, preparar la arquitectura** — generación de documento + hash + punto de extensión para un proveedor futuro. No invertir meses en IOFE antes de tener producto estable. |
+| A3 | **Política de retención (15 años)** (NTS 139 6.6.1 a) | 🔴 | El bloqueo real **no es el job programado, es la política**: primero se define retención → archivo → destrucción, y recién después cómo se ejecuta. Hoy no hay ninguna de las tres. Sin política, ni siquiera se puede decir qué debería hacer el scheduler. |
+| A4 | **Archivo activo (≤5 años) / pasivo (>5)** (NTS 139 6.6.1/6.6.2) | ⚠️ | Consecuencia de A3. Su ejecución automática necesita un job — hoy `@Scheduled` está prohibido por ArchUnit hasta cablear el contexto de tenant, pero eso es **implementación**, no la decisión. |
+| A5 | **Destrucción controlada tras 15 años** (NTS 139 6.6.1 e) | ⚠️ | Exige acta del Comité y doble verificación. Consecuencia de A3. |
+| A6 | **Cifrado en reposo** (Ley 29733) | 🔴 | Dos niveles: **base** (disco, backups, gestionado por infraestructura) y **dominio** (columnas sensibles: diagnósticos, notas clínicas, alergias, SOAP). **No cifrar** identificadores, fechas ni estados — destruye la indexación. ⚠️ Con llaves por tenant aparece gestión de llaves (rotación, recuperación): **perder una llave es perder la historia clínica de esa clínica**, con obligación legal de conservarla 15 años. |
+
+### B. Decisiones del dominio → `ADR-0015` *Patient Identity* · `ADR-0016` *Clinical Accountability*
+
+Qué datos identifican a un paciente, y quién responde por cada registro.
+
+| # | Requisito | Estado | ADR | Nota |
+|---|---|---|---|---|
+| B1 | **Filiación completa + Ubigeo** (NTS 139 6.1.1 a) | 🔴 | 0015 | La norma exige documento, sexo, fecha de nacimiento y **Ubigeo de nacimiento y procedencia**. `patients` está construida con documento **opcional** ([`ADR-0005`](../adr/0005-registro-minimo-paciente.md), el caso del "bebé sin documento") y **sin ubigeo**. **No es un bug: es una decisión arquitectónica pendiente** que contradice un ADR aceptado. Resuelve además la Open Question que `vision.md §3` arrastraba sobre endurecer los datos mínimos. |
+| B2 | **Autoría por colegiatura COP** (COP art. 42) | 🔴 | 0016 | Hoy la autoría es `userId`, sin vínculo al COP, y no hay prohibición de cuentas compartidas. Reglas del ADR: todo registro tiene autor · toda modificación tiene responsable · toda enmienda conserva el autor original · toda impresión identifica al profesional. |
+| B3 | **Secreto profesional** (COP arts. 31–36) | 🔴 | 0016 | Recepción y facturación **no deben ver** SOAP, hallazgos ni CIE10. Hoy cualquier miembro del tenant ve todo — decisión explícita y temporal de `add-clinical-history`, diferida a `staff`. Con respaldo normativo deja de ser comodidad y pasa a ser incumplimiento. |
+| B4 | **Versión y revocación del consentimiento** | ⚠️ | 0016 | [`ADR-0007`](../adr/0007-tutor-menores.md) decidió que el tutor firma en menores y `Consent` está previsto en `treatments`. **Falta**: qué **versión** del texto se firmó y cómo se **revoca**. Sin versión no se puede probar qué aceptó el paciente si el consentimiento cambió después. |
+
+> ⚠️ **B2 y B3 dependen de `staff`**: necesitan el modelo de roles real (`ADMIN`/`DENTIST`/`RECEPTIONIST`), que hoy no existe (solo `ADMIN`/`USER`). El ADR se puede escribir ya; la implementación no arranca sin esa capacidad. **Eso empuja `staff` hacia arriba en el roadmap.**
+
+### C. Cumplimiento y auditoría → `ADR-0016` *Clinical Accountability*
+
+| # | Requisito | Estado | Nota |
+|---|---|---|---|
+| C1 | **Auditoría de acceso clínico** (Ley 29733) | 🔴 | No es un log técnico de Spring: es un **registro clínico de quién leyó qué historia, de qué paciente, cuándo, desde dónde y con qué motivo**. Toda lectura y exportación de datos sensibles deja rastro no borrable. |
+| C2 | Trazabilidad de transiciones de archivo (activo→pasivo) | ⚠️ | Evidencia ante SUSALUD de que la conservación se aplica en los plazos exactos. Depende de A3/A4. |
+
+### D. Pendientes de `add-dental-chart` (antes de la migración)
+
+| # | Requisito | Estado | Nota |
+|---|---|---|---|
+| D1 | **Alcance dual de `DES`** | ⚠️ | NTS 188 pide la sigla en el **recuadro de la pieza** *y* pintar la **cara afectada**. El modelo tiene alcance de valor único. Tarea 0.1. |
+| D2 | **`IMP` implica pieza ausente** | ⚠️ | La invariante existe para *ausente*; falta que `IMP` la dispare. Tarea 0.1. |
+| D3 | **Índice de Higiene Oral (IHO)** | ⚠️ | No aparece en NTS 188. Verificar si pertenece a NTS 139 o queda fuera. Tarea 0.2. |
+| D4 | **Registro periodontal (sondaje, furca)** | ⚠️ | Sin decisión sobre dónde vive. En la práctica es un periodontograma aparte. Tarea 0.3. |
+
+### No son huecos de cumplimiento
+
+Distinción deliberada: un **hueco** es *"lo que hacemos incumple"*; esto es *"esto todavía no lo hacemos"*. Mezclarlos haría ver ocho incumplimientos donde hay seis.
+
+| Tema | Dónde va |
+|---|---|
+| **Prescripción electrónica** | Funcionalidad ausente, no incumplimiento — el sistema no dice que recete. Candidata de roadmap (`vision.md §7`), con sus propias normas cuando se construya. |
+| **Diagnóstico de casos estéticos sin CIE10** | Limitación del catálogo CIE10 (clasifica enfermedad, no procedimiento). Anotado en `vision.md §3`. |
