@@ -50,6 +50,7 @@
 - [ ] 5.4 ⚠️ Colores **normativos, NO del tema**: rojo `#FF0000` y azul `#0000FF` exactos, sobre **fondo blanco siempre**, aunque la app esté en modo oscuro — es un documento legal y lo mostrado debe ser idéntico a lo auditado (`ADR-0013` D5). **Única excepción a la regla de `frontend-guard`**: dejarlo comentado en el código, porque a simple vista parece la violación que esa regla persigue. El color deriva del `behavior` del tipo y —en restauraciones— de su estado; la **regla de contagio** se calcula al renderizar. El color **nunca** es el único portador de significado: la sigla oficial y la forma también lo comunican
 - [ ] 5.5 Dentición según la edad del paciente (temporal / mixta / permanente), derivada, con las piezas de ambas denticiones coexistiendo cuando corresponde
 - [ ] 5.6 Odontograma sellado en **modo lectura**; el aviso de dentición↔edad se muestra sin bloquear
+- [ ] 5.6b La pantalla de **Historia Clínica** refleja el requisito nuevo: muestra que falta el odontograma y enlaza a él. La ruta de `complete` no cambia, pero el flujo sí — sin esto el odontólogo choca con un rechazo sin entender por qué (design.md D4)
 - [ ] 5.7 Tests Vitest/MSW: registrar hallazgo por superficie · rechazar superficie no aplicable · hallazgo entre piezas · odontograma sellado en solo lectura · aviso no bloqueante por edad · navegación por teclado sobre las piezas · **restauración en mal estado se pinta en rojo y en buen estado en azul** · el odontograma conserva fondo blanco con la app en modo oscuro
 
 ## 6. Gobernanza y cierre

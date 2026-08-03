@@ -9,7 +9,8 @@ Además es el **prerrequisito estructural** de las capacidades clínicas que sig
 - **Nueva capacidad `dental-chart`**, acotada al **odontograma inicial** (`ADR-0012` D9). La evolución diaria queda fuera (ver Non-goals).
 - El odontograma se modela como un **bloque fechado** con hallazgos, no como un estado mutable. Cerrar un hallazgo agrega un asiento nuevo; nunca actualiza el anterior (`ADR-0012` D3/D4).
 - **Localización en tres formas**: superficie de una pieza, pieza completa, y **entre dos piezas** — esta última necesaria para diastema y supernumerario, que no tienen número FDI propio (`ADR-0012` D8).
-- **Catálogo cerrado de tipos de condición**, cada uno con su naturaleza clínica (`REQUIERE_INTERVENCIÓN` / `SIN_PATOLOGÍA`, que determina el color rojo/azul) y su alcance (`ADR-0012` D2/D8).
+- **Catálogo cerrado de tipos de condición** alineado a las **siglas oficiales de NTS 188** (`MAC`, `MIC`, `IMP`, `DES`, `E`, `S`, `M1`-`M3`). Cada tipo declara su **comportamiento** —`PATOLOGIA` (siempre rojo), `DESCRIPTIVO` (siempre azul) o `RESTAURACION` (color según el **estado** del propio hallazgo, buen/mal estado)— y su alcance (`ADR-0013` D2/D3, `ADR-0012` D8).
+- Los hallazgos de **restauración** llevan un campo de **estado de conservación**: es el único dato de color que se persiste, porque no es derivable del tipo.
 - **BREAKING** — **el sellado de la Historia Clínica deja de ser una operación autónoma.** Por norma, el odontograma inicial y la admisión no pueden modificarse de forma independiente, así que ambos se sellan en **una sola transacción** coordinada (`ADR-0012` D5). La `HistoriaClinica` ya no pasa a `COMPLETED` por sí sola.
 - **Se invalida el stub** `Tooth` + `ToothCondition` de `docs/domain.md`: el `status` (`EXISTING`/`PLANNED`/`DONE`) sale del modelo por mezclar estado con acción, la FK `→ Treatment` desaparece por invertir la dependencia declarada, y `Tooth` como tabla es redundante (ya existe como código: `FdiTooth`).
 
@@ -46,7 +47,7 @@ Alcance **excluido a propósito** de este change:
 
 **Contrato y frontend**
 - Endpoints nuevos del odontograma; `contracts/openapi.json` regenerado + cliente orval (commit aparte, `ContractDriftIT` vigila el drift).
-- Módulo `modules/frontend/src/modules/dental-chart/` con la representación gráfica y el código de color derivado de la naturaleza del tipo (**nunca colores hardcodeados**: el tema se deriva de la marca de cada clínica).
+- Módulo `modules/frontend/src/modules/dental-chart/` con la representación gráfica en **SVG accesible por teclado**. ⚠️ **Los colores son normativos, no de marca** (`ADR-0013` D5): rojo `#FF0000` y azul `#0000FF` exactos, sobre fondo blanco, **sin modo oscuro** — el odontograma es la **única excepción** a la regla de no hardcodear colores, porque lo mostrado debe ser idéntico a lo auditado.
 
 **Documentación**
 - `docs/domain.md`: el stub de `dental-chart` se reemplaza por el modelo real al archivar.

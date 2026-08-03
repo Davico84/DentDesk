@@ -72,7 +72,7 @@ Ninguno de los dos servicios de dominio conoce al otro. El coordinador depende d
 
 **Transaccionalidad**: el `@Transactional` del coordinador abre la transacción; los métodos de cada servicio se unen a ella (propagación `REQUIRED` por defecto). Si el sellado del odontograma falla, revierte también el de la Historia. Importante para este proyecto: como el contexto de tenant se fija **al comenzar la transacción** (`TenantAwareTransactionManager.doBegin`), abrirla en el coordinador lo enlaza una sola vez para toda la operación.
 
-**Superficie de API sin cambios**: el endpoint existente `POST /patients/{id}/clinical-history/complete` **conserva su ruta** y pasa a delegar en el coordinador. Cambia la semántica, no el contrato HTTP — el frontend no se toca por esto.
+**Ruta sin cambios, comportamiento sí**: el endpoint existente `POST /patients/{id}/clinical-history/complete` **conserva su ruta** y pasa a delegar en el coordinador. El **contrato HTTP** no cambia, pero **el flujo de usuario sí**: hasta ahora el odontólogo podía completar la Historia sin más; ahora necesita haber creado y revisado el odontograma antes. ⚠️ Decir *"el frontend no se toca"* sería falso — lo que no cambia es la **ruta**, no la experiencia. La pantalla de Historia Clínica debe reflejar el nuevo requisito (mostrar qué falta, enlazar al odontograma) o el usuario chocará contra un rechazo sin entender por qué. Está cubierto por el checklist con `missingFields`, que el frontend ya consume.
 
 *Alternativa descartada:* endpoint nuevo `POST /patients/{id}/admission/close`, más honesto con el concepto pero rompe el cliente ya generado sin ganancia funcional.
 

@@ -1,3 +1,8 @@
+> ℹ️ **Este delta toca solo el requirement de *sellado*.** [`ADR-0015`](../../../../docs/adr/0015-identidad-del-paciente.md)
+> exige la filiación completa del paciente en la **apertura** de la Historia Clínica — un requirement **distinto**
+> de esta misma capacidad. Por eso ambos changes pueden implementarse por separado **sin componer deltas**:
+> ninguno reescribe el requirement del otro.
+
 ## MODIFIED Requirements
 
 ### Requirement: Sellado a COMPLETED con checklist mínimo afirmativo
