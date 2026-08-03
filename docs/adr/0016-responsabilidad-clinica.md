@@ -15,7 +15,7 @@ El Código de Ética del COP y la Ley N°29733 imponen obligaciones que el siste
 - **Trazabilidad del acceso** (Ley 29733): toda lectura de datos sensibles debe dejar rastro. No existe.
 - **Confidencialidad en reposo** (Ley 29733): los datos clínicos se guardan en claro.
 
-> ⚠️ **Dependencia dura de `staff`.** D1, D2 y D3 necesitan el modelo de roles real (`ADMIN`/`DENTIST`/`RECEPTIONIST`) y el perfil profesional con su colegiatura. Hoy solo existe `ADMIN`/`USER`. **Este ADR decide el modelo; `staff` lo habilita.** Sin esa capacidad, D1–D3 no se pueden implementar — y eso la empuja hacia arriba en el roadmap.
+> ⚠️ **Dependencia dura de `staff`.** D1, D2 y D3 necesitan el eje administrativo (`ADMIN`/`MEMBER`) y el **perfil profesional con su colegiatura**, que es lo que habilita el acto clínico (**D7**). Hoy solo existe `ADMIN`/`USER` y no hay perfil profesional. **Este ADR decide el modelo; `staff` lo habilita.** Sin esa capacidad, D1–D3 no se pueden implementar — y eso la empuja hacia arriba en el roadmap.
 
 > ⚠️ **Alcance de la evidencia.** Los artículos provienen de los análisis de `docs/compliance/`, que traducen las normas pero no las reproducen. Las decisiones se sostienen por sus argumentos; el **cumplimiento** queda sujeto a validación contra el texto oficial.
 
@@ -101,12 +101,48 @@ No es un log técnico. Es un **registro clínico de quién vio qué**, exigido p
 - **La revocación es un asiento nuevo**, no un borrado ni un cambio de estado sobre la firma original. El consentimiento otorgado **ocurrió**; revocarlo es un hecho posterior. Mismo principio de libro de actas que el resto del expediente.
 - El texto de cada versión **se conserva íntegro**: referenciar una versión que ya no existe no prueba nada.
 
+### D7 — La capacidad clínica **no es un rol: es una credencial**
+
+`ADMIN` mezcla hoy dos cosas que no son lo mismo, y por eso no se puede expresar el gerente administrativo. Se separan en **dos ejes independientes**:
+
+| Eje | Dónde vive | Qué decide |
+|---|---|---|
+| **Administrativo** | rol en la **membresía** | gestionar personal, facturación, ajustes de la clínica |
+| **Clínico** | **colegiatura COP** en el perfil profesional | realizar y firmar actos clínicos |
+
+Los tres tamaños reales de clínica salen de combinarlos, sin modelos distintos ni migración al crecer:
+
+| Situación | Rol administrativo | Colegiatura | Resultado |
+|---|---|---|---|
+| Odontólogo dueño, solo | `ADMIN` | ✅ | gestiona **y** atiende |
+| Gerente administrativo | `ADMIN` | ❌ | gestiona, **no ve lo clínico** |
+| Odontólogo empleado | `MEMBER` | ✅ | atiende, no gestiona |
+| Recepcionista | `MEMBER` | ❌ | agenda y admite, no ve lo clínico |
+
+**Por qué credencial y no rol.** Un rol es una casilla que alguien asigna; la colegiatura es un **hecho verificable con consecuencias legales**. La diferencia importa:
+
+- **Nadie se auto-habilita.** Un `ADMIN` no gana acceso clínico marcando una opción: tendría que declarar un número de colegiado ajeno o inventado, que es fraude con nombre y apellido, no un descuido de permisos.
+- **Cumple el COP art. 42 por construcción.** La norma exige que toda anotación pertenezca a un cirujano dentista colegiado. Si la capacidad de firmar **es** tener colegiatura, el sistema no puede producir un registro clínico sin autor válido — no hay que recordar validarlo.
+- **La suspensión revoca sola.** Si se retira la colegiatura, el acceso clínico desaparece sin que nadie toque un permiso.
+- **No admite estados incoherentes.** No existe un "`DENTIST` sin colegiatura", que con roles sueltos sería un estado válido del sistema y un incumplimiento silencioso.
+
+**Consecuencia sobre el modelo de roles planeado.** `docs/domain.md` y `docs/vision.md` anticipaban `ADMIN` / `DENTIST` / `RECEPTIONIST` para `staff` (decidido, **no construido**). Con dos ejes, **`DENTIST` y `RECEPTIONIST` desaparecen como roles**: la única diferencia administrativa entre ambos era quién atiende, y eso ahora lo dice la colegiatura. El eje administrativo se reduce a **`ADMIN` | `MEMBER`**.
+
+Es una simplificación, no una pérdida: tres roles con significado ambiguo pasan a dos roles claros más una credencial verificable.
+
+**Efectos que conviene tener presentes:**
+
+- Una clínica **sin ninguna colegiatura registrada no puede realizar actos clínicos**. Es correcto —legalmente no puede— y funciona como puerta natural.
+- El registro crea un `ADMIN` sin colegiatura. Un odontólogo que abre su clínica **debe declarar la suya** antes de atender: es un paso de alta, no un obstáculo.
+- La colegiatura es **autodeclarada** en esta etapa. Verificarla contra el registro del COP es una mejora posterior que este modelo admite sin cambios: pasa de dato declarado a dato verificado, mismo lugar.
+
 ## Consecuencias
 
 - ✅ **Un solo criterio de clasificación** (D2) alimenta el control de acceso, la auditoría y el cifrado. Tres obligaciones normativas distintas resueltas con una sola decisión de modelo.
 - ✅ **La autoría fotografiada sobrevive a los cambios de personal**, que es justo cuando un documento firmado se vuelve importante.
 - ✅ **Cifrado e integridad no se estorban**: el hash se calcula sobre valores del dominio, así que rotar llaves no invalida documentos sellados.
 - ✅ **Denegar en vez de filtrar** (D3) elimina una familia entera de bugs: los campos que se olvidó filtrar.
+- ✅ **D7 resuelve la ambigüedad de `ADMIN` sin agregar un rol**, y de paso **simplifica** el modelo planeado de `staff`: de tres roles a dos más una credencial.
 - ⚠️ **D1, D2 y D3 están bloqueados por `staff`.** No hay roles clínicos ni perfil profesional con colegiatura. El ADR define el modelo para que `staff` sea cableado y no rediseño — pero **hasta que exista, el incumplimiento sigue vigente**.
 - ⚠️ **D4 acopla disponibilidad a auditoría**: si la tabla de auditoría no acepta escrituras, la lectura clínica se detiene. Es deliberado y acotado a datos clínicos.
 - ⚠️ **El cifrado de columnas rompe la búsqueda sobre ellas.** Hoy no se busca por texto clínico; si mañana se quisiera, hay que resolverlo con otra técnica (índices cifrados, búsqueda fuera de la base) y no revirtiendo el cifrado.
@@ -119,13 +155,14 @@ No es un log técnico. Es un **registro clínico de quién vio qué**, exigido p
 - **Clasificar por endpoint en vez de por dato** — descartada (D2): `ClinicalHistoryResponse` ya mezcla ambas clases, y un endpoint nuevo quedaría sin clasificar hasta que alguien lo recuerde.
 - **Filtrar el payload para roles no clínicos** (lo que sugiere el análisis del COP) — descartada (D3): produce respuestas parciales indistinguibles de datos ausentes, y exige recordar filtrar cada campo nuevo.
 - **Llaves de cifrado por tenant** — descartada (D5): multiplica el riesgo de pérdida irrecuperable contra una obligación de conservar 15 años, para reforzar un aislamiento que la RLS ya garantiza y contra una amenaza que no es la real.
+- **Multi-rol: una membresía con varios roles** (`ADMIN` + `DENTIST` para el odontólogo dueño) — descartada (D7). Resuelve el caso del dueño y conserva el vocabulario natural, pero deja la capacidad clínica como una **casilla que un `ADMIN` puede asignarse a sí mismo**, y admite el estado incoherente de un `DENTIST` sin colegiatura registrada — que es, exactamente, un incumplimiento del COP art. 42 que el sistema consideraría válido.
 - **Cifrar todas las columnas** — descartada: destruye índices, búsqueda y RLS a cambio de proteger identificadores y fechas que no son el dato sensible.
 - **Auditar toda lectura, no solo la clínica** — descartada (D4): el volumen de los listados administrativos enterraría los accesos que de verdad importan, y encarecería la operación sin ganancia legal.
 - **Que el fallo de auditoría no bloquee la lectura** — descartada (D4): deja accesos sin rastro, que es precisamente el agujero que la Ley 29733 busca cerrar.
 
 ## Open Questions
 
-1. **⚠️ ¿`ADMIN` es un rol clínico?** El dueño de una clínica pequeña suele ser el odontólogo, y `docs/domain.md` ya asume que `ADMIN` accede a lo clínico. Pero un gerente administrativo con rol `ADMIN` tendría acceso al secreto profesional. `domain.md` anota la contrapartida; **con el COP de por medio deja de ser aceptable por omisión** y hay que decidirlo — probablemente desdoblando rol clínico y administración, como ese mismo documento sugiere.
+1. ✅ **¿`ADMIN` es un rol clínico? — RESUELTO** (D7): **ni sí ni no, la pregunta estaba mal planteada**. `ADMIN` es capacidad administrativa; lo clínico lo habilita la colegiatura. Un odontólogo dueño tiene ambas; un gerente administrativo, solo la primera.
 2. **¿Quién es el dueño técnico del cifrado de backups e infraestructura?** Heredada de `ADR-0014`: no cae en integridad ni en confidencialidad de aplicación, y sigue sin asignar.
 3. **¿La auditoría de acceso se conserva 15 años como el expediente?** La Ley 29733 exige el registro pero no fija el plazo. Si se conserva igual que la historia, su volumen supera al del dato clínico.
 4. **¿El paciente puede consultar quién vio su historia?** La Ley 29733 da derechos de acceso al titular. Está fuera de alcance hoy —el paciente no es usuario del sistema—, pero el registro de D4 es lo que haría posible responderlo.

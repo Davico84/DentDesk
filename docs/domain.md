@@ -34,6 +34,8 @@ Dimensión de **negocio** (sustituible por proyecto). Base de conocimiento del d
 >
 > `ADMIN` puede todo —incluido lo clínico— porque **el dueño de una clínica pequeña normalmente es el odontólogo**. La contrapartida asumida: un gerente **no** clínico con rol `ADMIN` tendría acceso clínico. Si algún día hace falta separarlo (clínica grande con gerente administrativo), la evolución natural es desdoblar en *rol clínico* + *flag de administración*.
 
+> 🔄 **Modelo revisado por [`ADR-0016`](adr/0016-responsabilidad-clinica.md) D7 (2026-08-03).** La capacidad clínica **deja de ser un rol** y pasa a ser una **credencial**: tener colegiatura COP registrada. El eje administrativo se reduce a **`ADMIN` | `MEMBER`**; `DENTIST` y `RECEPTIONIST` **desaparecen como roles**, porque la única diferencia entre ellos era quién atiende — y eso ahora lo dice la colegiatura. Un odontólogo dueño es `ADMIN` **con** colegiatura; un gerente administrativo es `ADMIN` **sin** ella, y no accede a lo clínico. La tabla de abajo describe los **actores** (que siguen siendo válidos), no el modelo de roles.
+
 > ⚠️ **Estado: decidido, aún no construido.** Hoy el sistema solo tiene **`ADMIN` | `USER`** (`multi-tenancy`, construida): el dentista y la recepcionista compartirían rol, y la recepcionista **podría** tocar el odontograma. Esta tabla describe el modelo **acordado**, que implementará la capacidad **`staff`** (fila 2 del roadmap) — la que asigna los roles, y que **no se puede especificar sin decidir esto primero**.
 >
 > Como `Membership.role` pertenece a `multi-tenancy`, el change `add-staff` llevará también un **delta sobre esa capacidad** (`docs/vision.md §5` lo contempla: *"si toca varias, crea un `spec.md` delta por cada una"*).
