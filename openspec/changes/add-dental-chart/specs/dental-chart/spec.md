@@ -68,13 +68,39 @@ Cada hallazgo del odontograma SHALL indicar **qué** condición es y **dónde** 
 - **WHEN** un usuario elimina o corrige un hallazgo de un odontograma que aún no fue sellado
 - **THEN** el sistema aplica el cambio
 
-### Requirement: Catálogo cerrado de condiciones con naturaleza clínica
+### Requirement: Catálogo cerrado de condiciones, alineado a la norma vigente
 
-Los tipos de condición registrables SHALL formar un **conjunto cerrado**. Cada tipo SHALL declarar su **naturaleza clínica** —si requiere intervención o no hay patología activa—, que es la que determina su representación visual (rojo / azul) sin almacenarse como dato aparte. Los tipos que lo requieran SHALL llevar además un **grado** (por ejemplo, la movilidad dental), y el sistema SHALL rechazar un grado ausente donde se exige, o presente donde no aplica.
+Los tipos de condición registrables SHALL formar un **conjunto cerrado**, alineado al catálogo y a las **siglas oficiales** de la norma vigente del odontograma (`ADR-0013`). Cada tipo SHALL declarar su **comportamiento clínico**, que determina su representación visual sin almacenarse como color:
+
+- **patológico** — siempre requiere intervención;
+- **descriptivo** — nunca implica patología activa;
+- **restauración** — depende del **estado** del propio hallazgo (en buen estado o en mal estado).
+
+Los hallazgos de tipo restauración SHALL registrar su estado, y el sistema SHALL rechazarlo en los tipos que no lo admiten. Los tipos que lo requieran SHALL llevar además un **grado** (la movilidad dental) y SHALL **obligar a registrar la entrada correspondiente en las especificaciones** (la movilidad, su clasificación; la prótesis, su material).
 
 #### Scenario: Rechazar un tipo de condición fuera del catálogo
 - **WHEN** un usuario intenta registrar un hallazgo con un tipo de condición que no pertenece al catálogo
 - **THEN** el sistema rechaza la operación
+
+#### Scenario: Registrar una restauración en buen estado
+- **WHEN** un usuario registra un sellante indicando que está en buen estado
+- **THEN** el sistema lo registra como restauración sin patología activa
+
+#### Scenario: Registrar la misma restauración en mal estado
+- **WHEN** un usuario registra un sellante indicando que está en mal estado
+- **THEN** el sistema lo registra como una condición que requiere intervención, pese a ser el mismo tipo
+
+#### Scenario: Rechazar una restauración sin indicar su estado
+- **WHEN** un usuario intenta registrar una prótesis sin indicar si está en buen o mal estado
+- **THEN** el sistema rechaza la operación
+
+#### Scenario: Rechazar un estado en una condición que no lo admite
+- **WHEN** un usuario intenta registrar una caries indicando un estado de conservación
+- **THEN** el sistema rechaza la operación
+
+#### Scenario: Una restauración y una patología coexisten en la misma pieza
+- **WHEN** un usuario registra un sellante y, en la misma pieza, una lesión de caries adyacente
+- **THEN** el sistema registra ambos hallazgos, sin que uno reemplace al otro
 
 #### Scenario: Registrar una condición que exige grado
 - **WHEN** un usuario registra una movilidad dental indicando su grado
@@ -87,6 +113,10 @@ Los tipos de condición registrables SHALL formar un **conjunto cerrado**. Cada 
 #### Scenario: Rechazar un grado en una condición que no lo admite
 - **WHEN** un usuario intenta registrar una caries indicando un grado
 - **THEN** el sistema rechaza la operación
+
+#### Scenario: Rechazar el sellado si un tipo que exige especificación no la tiene
+- **WHEN** se intenta sellar un odontograma con una movilidad registrada pero sin la clasificación anotada en especificaciones
+- **THEN** el sistema rechaza el sellado indicando qué falta
 
 #### Scenario: Avisar cuando la pieza no corresponde a la edad del paciente
 - **WHEN** un usuario registra un hallazgo sobre una pieza temporal en un paciente adulto (o permanente en un lactante)

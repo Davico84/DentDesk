@@ -84,7 +84,19 @@ Deliberadamente **no** se exige un número mínimo de hallazgos: una boca sana e
 
 ### D6 — El catálogo de tipos: enum en la app, `CHECK` en la BD, atributos solo en código
 
-Conjunto cerrado ⇒ **enum Java + `CHECK` en Postgres + contrato** (regla del proyecto, `add-patients` D8). Pero los tres atributos del tipo (`nature`, `scope`, `requiresGrade`) viven **solo en el enum Java**, no en columnas: son derivables del tipo, y almacenarlos permitiría que se desincronicen. La BD solo restringe el conjunto de valores válidos.
+Conjunto cerrado ⇒ **enum Java + `CHECK` en Postgres + contrato** (regla del proyecto, `add-patients` D8). Los atributos del tipo viven **solo en el enum Java**, no en columnas: son derivables del tipo, y almacenarlos permitiría que se desincronicen. La BD solo restringe el conjunto de valores válidos.
+
+Atributos del tipo, **alineados a `ADR-0013`** (NTS 188):
+
+| Atributo | Para qué |
+|---|---|
+| `behavior` | `PATOLOGIA` (siempre rojo) · `DESCRIPTIVO` (siempre azul) · `RESTAURACION` (color según el estado del hallazgo) |
+| `scope` | superficie / pieza / entre piezas — determina la variante de `Location` admitida |
+| `sigla` | la **sigla oficial de NTS 188** (`MAC`, `MIC`, `IMP`, `DES`, `E`, `S`…), dato normativo que el render debe pintar exacto |
+| `requiresGrade` | solo movilidad (`M1`/`M2`/`M3`) |
+| `requiresSpecification` | el tipo obliga a llenar una entrada en especificaciones (movilidad ⇒ clasificación usada · prótesis ⇒ material) |
+
+⚠️ **`behavior` reemplaza al `nature` fijo de `ADR-0012`.** NTS 188 tiene tipos —sellante, prótesis— cuyo color depende del **estado del propio hallazgo**, no del tipo ni de otro hallazgo. Por eso los `RESTAURACION` llevan además un campo **`condition`** (`GOOD`/`POOR`) en la fila del hallazgo: es el único dato de color que sí se persiste, porque no es derivable.
 
 El frontend recibe el tipo por el contrato y **espeja** los atributos, igual que ya espeja `VALID_FDI_TEETH` desde `FdiTooth`.
 
@@ -117,11 +129,16 @@ No es una obviedad que se pueda dar por supuesta: las librerías de odontograma 
 
 INV-13 (qué superficies admite cada pieza) necesita saber si la pieza es anterior o posterior: se deriva del número FDI en `FdiTooth`, extendiéndolo — no se crea un catálogo nuevo.
 
-### D10 — Frontend: SVG inline, colores desde tokens
+### D10 — Frontend: SVG inline, con colores **normativos** (no del tema)
 
 La representación es **SVG inline**, no canvas ni imágenes: cada pieza y cada superficie deben ser **individualmente enfocables y accionables** (teclado y lector de pantalla), y con canvas eso hay que reconstruirlo a mano. Un odontograma donde solo se puede hacer clic con mouse deja fuera a parte de los usuarios y no pasaría una auditoría de accesibilidad.
 
-**El color se deriva de `nature` vía tokens semánticos del tema, nunca hexadecimales** — el proyecto tematiza por clínica y un color fijo rompe la marca (regla de `frontend-guard`). La regla de contagio de `ADR-0012` (una pieza con patología pinta todos sus marcadores en rojo) se calcula en el render, no se almacena.
+**⚠️ Los colores del odontograma NO salen de los tokens del tema** (`ADR-0013` D5). NTS 188 fija los valores exactos —rojo `#FF0000`, azul `#0000FF`— y son parte del documento legal, no de la identidad visual de la clínica.
+
+- El odontograma se renderiza **siempre sobre fondo blanco con los hex exactos**, aunque el resto de la aplicación esté en modo oscuro. Se comporta como un documento embebido, no como una superficie de UI: **lo que el odontólogo ve debe ser idénticamente lo que se audita**.
+- Es la **única excepción** a la regla de `frontend-guard` de no hardcodear colores. Hay que dejarlo comentado en el código, porque a simple vista parece la violación que esa regla persigue.
+- Los colores derivan del `behavior` del tipo y —para los `RESTAURACION`— de la `condition` del hallazgo. La regla de **contagio** de `ADR-0012` sigue vigente y se calcula al renderizar, sin almacenarse.
+- **El color nunca es el único portador de significado**: la sigla oficial y la forma también lo comunican, que es justamente lo que la norma exige. Eso mantiene la accesibilidad aunque el contraste no se adapte al tema.
 
 *Riesgo asumido:* es la pieza de frontend más grande construida hasta ahora en el proyecto. Ver Riesgos.
 
@@ -150,7 +167,7 @@ Migraciones nuevas a partir de `V16` (la última en `dev` es `V15__clinical_hist
 
 ## Open Questions
 
-1. **El catálogo de `TipoCondicion` es tentativo.** La lista de `ADR-0012` salió de la sesión de modelado, no de una lectura exhaustiva de la norma. **Revisarla con el odontólogo antes de escribir la migración** (tarea 0.1, bloqueante): agregar un tipo después cuesta migración de datos. Fuentes a contrastar: **NTS 150 y sus anexos gráficos**, el Colegio Odontológico y la práctica clínica peruana. Faltan por confirmar al menos: recesión gingival (¿va solo en especificaciones?), giroversión (`ADR-0012` la deja con naturaleza fija y color por contagio), y si `NON_RESTORABLE` es el nombre correcto o debería ser el término de la norma.
+1. **El catálogo de `TipoCondicion` es tentativo.** La lista de `ADR-0012` salió de la sesión de modelado, no de una lectura exhaustiva de la norma. **Revisarla con el odontólogo antes de escribir la migración** (tarea 0.1, bloqueante): agregar un tipo después cuesta migración de datos. Fuentes a contrastar: **NTS 188 y sus anexos gráficos** (la NTS 150 está **derogada** — ver `ADR-0013`), el Colegio Odontológico y la práctica clínica peruana. Faltan por confirmar al menos: recesión gingival (¿va solo en especificaciones?), giroversión (`ADR-0012` la deja con naturaleza fija y color por contagio), y si `NON_RESTORABLE` es el nombre correcto o debería ser el término de la norma.
 
 2. **⚠️ Índice de Higiene Oral (IHO) — sin decidir, y podría no ser un tipo de condición.** No aparece en ninguna parte del proyecto (verificado: cero menciones en `docs/` y `openspec/`); lo trae la revisión de este change. Si resulta ser **obligatorio** en el examen odontológico inicial, **no encaja como `TipoCondicion`**: es un **índice numérico calculado** sobre superficies con placa, con su propio método de medición y su valor agregado — otra forma de dato, no un hallazgo localizado. Eso lo haría un requirement adicional de esta capacidad, no un valor más del catálogo. **Investigar antes de la migración**, junto con 0.1: si es obligatorio y se omite, el odontograma quedaría incompleto ante auditoría; si se modela mal (como un tipo de hallazgo), corregirlo después cuesta migración.
 

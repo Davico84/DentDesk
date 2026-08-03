@@ -1,8 +1,14 @@
 # ADR-0012: Odontograma como libro de asientos, partido en inicial y evolución
 
-- **Estado:** Aceptado (decisión); **pendiente de implementar** — capacidad nueva, aún no propuesta
+- **Estado:** Aceptado — **parcialmente supersedido por [`ADR-0013`](0013-odontograma-nts-188.md)** (2026-08-03)
 - **Fecha:** 2026-07-30
 - **Decisores:** David Velarde Alvarado
+
+> 🔴 **Este ADR se apoyó en la NTS N°150-MINSA/2019/DGIESP, que está DEROGADA** por la NTS N°188-MINSA/DGIESP-2022 (RM N°559-2022/MINSA, El Peruano 29/07/2022). Lo descubrió [`ADR-0013`](0013-odontograma-nts-188.md) antes de implementar.
+>
+> **Qué cae:** **D2** (la naturaleza del color como propiedad fija del tipo — NTS 188 tiene tipos cuyo color depende del estado del propio hallazgo) y el **catálogo de `FindingType`** del Modelo resultante.
+>
+> **Qué sigue vigente:** todo lo demás — D1, D3, D4, D5, D6, D7, D8, D9, las invariantes, la semántica de proyección y el glosario. Leer este documento **junto con** `ADR-0013`, no en su lugar.
 
 ## Contexto
 
