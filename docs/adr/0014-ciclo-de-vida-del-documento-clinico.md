@@ -26,6 +26,10 @@ Hoy el sellado garantiza que *el sistema* no permita modificar. No garantiza que
 ## Decisión
 
 > **Sobre el cifrado en reposo (A6).** Se mueve a `ADR-0016`. Su driver no es el ciclo de vida del documento sino la **confidencialidad** — Ley 29733 y el secreto profesional del COP (arts. 31–36), que es materia de *Clinical Accountability*. Agruparlo acá por "estar en la base de datos" mezclaría dos problemas distintos.
+>
+> **El corte entre ambos ADR**: acá se decide la **integridad** (que el documento no cambió: hash y firma); en `ADR-0016`, la **confidencialidad** (que solo quien corresponde lo vea: cifrado y control de acceso). Son propiedades independientes — un documento puede estar íntegro y expuesto, o cifrado y adulterado.
+>
+> ⚠️ El **cifrado de backups y de la infraestructura** no cae en ninguno de los dos: es responsabilidad de despliegue y **no tiene dueño técnico asignado**. Está anotado como hueco en la matriz.
 
 ### D1 — Hash de integridad al sellar, sobre una representación canónica
 
@@ -33,9 +37,18 @@ Al sellar un documento se calcula y persiste su **SHA-256**, dentro de la misma 
 
 **Va ahora, aunque la firma se posponga.** Si se sellan documentos sin hash y la firma llega en dos años, **los sellados en el medio nunca podrán probar que no fueron alterados** — no hay contra qué comparar. El hash cuesta una columna y una función; la firma cuesta meses. Se desacoplan en el tiempo, no en el orden.
 
-**Sobre una representación canónica**, no sobre las filas: el mismo documento debe producir el mismo hash siempre. Eso exige serialización determinista — orden de campos estable, colecciones ordenadas por criterio explícito, fechas en formato fijo, sin espacios accidentales. Un hash que cambia al reordenar una lista no prueba nada.
+**El contrato del hash queda fijado acá**, no en la implementación. Decir solo "SHA-256" no alcanza: dos serializaciones distintas del mismo documento producirían hashes distintos y la verificación fallaría sin que nada esté mal.
 
-⚠️ **La canonicalización es la parte frágil de esta decisión.** Si se toca su algoritmo después de sellar documentos, los hashes viejos dejan de reproducirse y la integridad se vuelve inverificable. Por eso se versiona: cada documento guarda **con qué versión de canonicalización** se calculó su hash, y esa versión nunca se modifica — se agrega una nueva.
+| Elemento | Decisión |
+|---|---|
+| **Algoritmo** | SHA-256 |
+| **Serialización** | **JSON canónico según RFC 8785 (JCS)** — estándar publicado, con implementaciones existentes; evita inventar reglas de orden y escape propias |
+| **Contexto mínimo incluido** | `organizationId`, `patientId`, tipo de documento, identificador del documento y su fecha de sellado — **además** del contenido clínico |
+| **Versión del formato** | se persiste junto al hash |
+
+**Por qué el contexto va dentro del hash**: sin él, dos documentos con el mismo contenido clínico (dos historias igual de vacías, por ejemplo) producirían el mismo hash, y un hash podría "reutilizarse" para justificar otro documento. Incluir identidad y contexto ata el hash a **ese** documento de **ese** paciente en **esa** clínica.
+
+⚠️ **La canonicalización es la parte frágil.** Si se cambia su algoritmo después de sellar documentos, los hashes viejos dejan de reproducirse y la integridad se vuelve inverificable. Por eso se **versiona**: cada documento guarda con qué versión se calculó, la versión existente **nunca se edita**, y una regla nueva se agrega como versión nueva. El verificador elige el algoritmo según la versión del documento, no según la última.
 
 ### D2 — La firma digital se pospone, pero se deja el punto de extensión
 
@@ -47,12 +60,31 @@ Lo que sí se decide, para no rehacer nada después:
 - **La firma es un dato aparte**, no una columna del documento sellado: un documento puede existir sin firma (hoy) y ganarla después sin reabrirse — lo que sería imposible si la firma viviera dentro del propio documento inmutable.
 - **Los documentos sellados sin firma no se pueden firmar retroactivamente con validez**: la firma prueba *quién y cuándo*, y eso no se puede reconstruir. Es una limitación asumida, no un descuido — y es la razón de que D1 vaya primero.
 
-### D3 — El documento canónico es lo que se exporta y lo que se firma
+### D3 — Dos artefactos con nombre propio: el **documento canónico** y la **exportación**
 
-La **exportación formal del expediente** (A8) y la representación canónica de D1 son **el mismo artefacto**. No se construyen dos.
+Decir *"el artefacto canónico es el que se exporta"* sería ambiguo y peligroso: se puede leer como *"hashea el PDF"*. Son **dos cosas distintas**, y solo una se hashea.
 
-- El artefacto canónico es **datos estructurados**, no un PDF. El PDF es una **representación para humanos**, generada a demanda a partir de los datos, y no se almacena.
-- **Se hashea y se firma el dato, no el render.** Un PDF depende de fuentes, versiones de librería y hasta del sistema operativo: regenerarlo dos años después puede producir bytes distintos con el mismo contenido, y el hash dejaría de coincidir. Los datos canónicos son reproducibles por construcción.
+| | **Documento canónico** | **Exportación** |
+|---|---|---|
+| Qué es | representación **estructurada y versionada** del documento sellado | lo que recibe un humano o un auditor |
+| Formato | JSON canónico (RFC 8785), determinista | PDF u otro render legible |
+| Se almacena | no — se **reconstruye** de forma reproducible | no — se genera a demanda |
+| Se hashea | ✅ **este** | ❌ nunca |
+| Se firma | ✅ su hash (D2) | ❌ |
+
+```
+documento sellado (BD)
+      │
+      ▼  serialización canónica versionada
+documento canónico  ──SHA-256──▶  hash  ──(futuro)──▶  firma
+      │
+      ▼  render
+  exportación (PDF)  ──lleva adjunto──▶  hash + firma como evidencia
+```
+
+**Nunca se hashea el render.** Un PDF depende de fuentes, versiones de librería y del sistema operativo: regenerarlo en dos años puede producir bytes distintos con el mismo contenido, y el hash dejaría de coincidir sin que nada se haya alterado. El documento canónico es reproducible por construcción.
+
+La exportación **transporta** el hash y (cuando exista) la firma como evidencia adjunta, para que quien la reciba pueda verificar contra el documento canónico.
 
 *Alternativa descartada:* generar el PDF al sellar, almacenarlo y firmarlo (patrón XAdES sobre PDF). Es lo que hacen muchos sistemas y tiene la ventaja de que el objeto firmado es exactamente lo que un humano ve. Se descarta porque obliga a **almacenar un binario por documento** desde el día uno, congela el diseño visual del expediente para siempre, y no aporta garantía adicional: el PDF sigue siendo derivable de los datos firmados.
 
@@ -65,6 +97,16 @@ Hoy la inmutabilidad se aplica en el servicio y está testeada. La norma (NTS 13
 | **`DELETE` revocado** | El rol de aplicación **nunca** borra registros clínicos. `REVOKE DELETE` sobre las tablas clínicas para `odontorisas_app` — el borrado no es legítimo en ningún flujo, así que revocarlo no rompe nada. |
 | **`UPDATE` bloqueado sobre lo sellado** | **No se puede revocar `UPDATE` a nivel de tabla**: el mismo registro es mutable en `DRAFT` e inmutable en `COMPLETED`. Un permiso de tabla no distingue filas. Se resuelve con un **trigger** `BEFORE UPDATE` que rechaza si la fila ya está sellada. |
 
+**Alcance del trigger — no solo el aggregate root.** Un documento sellado incluye sus **tablas hijas**: los diagnósticos de la Historia Clínica, los hallazgos del odontograma. Proteger solo la tabla raíz dejaría el contenido modificable, que es justamente lo que la norma prohíbe. El trigger cubre:
+
+- `UPDATE` sobre la raíz cuando ya está sellada;
+- `UPDATE` sobre una fila hija cuya raíz está sellada;
+- `DELETE` de filas hijas — revocado igual que en la raíz, e **impedido también por diseño del esquema**: ninguna FK de un documento clínico usa `ON DELETE CASCADE`, para que no exista un borrado indirecto que esquive la revocación.
+
+**Traducción del error.** El rechazo llega desde la base como `SQLException` con `SQLSTATE` propio, no como una excepción de dominio. Se traduce a un `errorType` dedicado con el mismo formato RFC 9457 del resto de la API — no puede filtrarse un error crudo de Postgres al cliente.
+
+**Cómo se testea**: SQL directo con el **rol de aplicación** (no el owner, que salta las restricciones), verificando que el `UPDATE` sobre una fila sellada y el `DELETE` fallen. El proyecto ya tiene la infraestructura exacta para esto — `AbstractTenantAwareIntegrationTest` corre como rol no-superusuario, que es como se testean las políticas RLS.
+
 **Es defensa en profundidad, no reemplazo**: el servicio sigue rechazando y sus tests siguen valiendo. Lo que agrega es cobertura ante un bug del servicio, una conexión directa a la base o un desarrollador futuro que evite la capa de dominio.
 
 ⚠️ **El trigger sería el primero del proyecto.** Es un patrón nuevo, con su costo: la excepción sube por JDBC como error de base, hay que traducirla, y no es visible leyendo el código Java. Se acepta porque el objeto protegido es un documento médico-legal, no un dato de negocio cualquiera.
@@ -75,9 +117,17 @@ Hoy la inmutabilidad se aplica en el servicio y está testeada. La norma (NTS 13
 
 El expediente **no se puede purgar** mientras la diferencia entre hoy y la **última atención** sea ≤ 15 años.
 
-**"Última atención" se define como la fecha del documento clínico sellado más reciente del paciente** (Historia Clínica o bloque de odontograma). No se usa la fecha de la última cita: `appointments` no está construida, y una cita agendada y no atendida no es una atención. Cuando exista, podrá afinarse.
+**`ultimaAtencion` es un concepto propio del dominio, no un atajo sobre los documentos sellados.** La primera redacción de este ADR la definía como *"la fecha del documento sellado más reciente"*, y estaba **mal**: una atención puede producir un documento que quedó sin sellar, una evolución, o una cita atendida — y ninguno contaría. Eso arrancaría el plazo de conservación **antes de tiempo**, que es el error peligroso: permitiría purgar un expediente todavía protegido.
 
-La regla es **una precondición del dominio**, no una tarea de limpieza: el sistema **no ofrece purga** (ver D7), así que hoy se cumple por ausencia. Se documenta igual porque cualquier operación futura de borrado —incluida la baja de un tenant— debe consultarla.
+```
+ultimaAtencion(paciente) = máx( fecha de CUALQUIER registro clínico del paciente )
+```
+
+- **Incluye documentos sin sellar.** Si un odontólogo abrió una Historia y no la cerró, el paciente fue atendido igual. Contar solo lo sellado castigaría al expediente por un trámite incompleto.
+- **Cada capacidad clínica aporta su fecha.** Hoy: Historia Clínica y odontograma. Cuando existan `appointments`, `treatments` o la evolución, cada una suma la suya **sin cambiar la definición** — por eso se define como concepto y no como consulta a una tabla concreta.
+- **Ante la duda, la fecha más reciente gana.** Empezar el plazo tarde conserva de más; empezarlo temprano permite destruir de menos. El error asimétrico manda: se conserva de más.
+
+La regla es **una precondición del dominio**, no una tarea de limpieza: el sistema **no ofrece purga** (ver D7). Se documenta igual porque cualquier operación futura de borrado —incluida la baja de un tenant— debe consultarla.
 
 ### D6 — Archivo activo/pasivo es **derivado**, no un estado almacenado
 
@@ -87,11 +137,20 @@ Un expediente es **pasivo** si su última atención tiene más de 5 años; **act
 esArchivoPasivo(paciente) = (hoy − últimaAtención) > 5 años
 ```
 
-Consecuencias de que sea derivado, y por qué es la decisión correcta:
+**Ventajas de derivarlo:**
 
 - **No hace falta un job programado.** El paso automático activo→pasivo desaparece como problema — y con él, el bloqueo de la regla ArchUnit que prohíbe `@Scheduled`. No se agrega infraestructura para mantener sincronizado algo que se calcula en una resta.
 - **No puede desincronizarse.** Un flag almacenado que nadie actualiza es peor que no tenerlo: diría "activo" sobre un expediente que lleva ocho años sin atención.
-- **La evidencia de la transición sigue siendo derivable**: la fecha exacta en que un expediente pasó a pasivo es `últimaAtención + 5 años`, computable para cualquier auditoría, sin haberla registrado.
+
+**Pero derivar el estado no produce evidencia, y la evidencia también es obligación** (hueco **C2**: *trazabilidad de las transiciones de archivo*). Un valor calculado responde *"¿está pasivo hoy?"*; no responde *"¿el sistema aplicó la política?"*. Son dos preguntas distintas y la segunda es la que hace una auditoría. Se separan:
+
+| | Cómo |
+|---|---|
+| **Estado, para consultar** | **derivado** — `(hoy − últimaAtención) > 5 años`. No se almacena. |
+| **Evidencia, para auditar** | **reporte de conservación** generable a demanda: por expediente, su última atención, la fecha calculada de paso a pasivo y su clasificación actual. Es **determinista y reproducible** — la misma consulta sobre los mismos datos da el mismo resultado en cualquier momento. |
+| **Acciones derivadas del estado** | cuando el sistema **actúa** en función de ser pasivo (excluirlo de un listado, restringir escritura, moverlo de almacenamiento), **esa acción sí se registra**: es un hecho ocurrido, no un cálculo. |
+
+La distinción es la que salva la decisión: **no hace falta registrar una transición que nadie ejecutó** —es derivable de una fecha—, pero sí hace falta registrar **lo que el sistema hizo** basándose en ella.
 
 **El traslado físico a almacenamiento frío no se hace.** La norma exige la **separación lógica** y la conservación, no una tecnología de almacenamiento. Particionar o mover datos es una optimización de coste, legítima cuando el volumen lo justifique — hoy no lo justifica, y hacerlo temprano acopla el cumplimiento a una decisión de infraestructura.
 
@@ -99,11 +158,20 @@ Consecuencias de que sea derivado, y por qué es la decisión correcta:
 
 Cumplidos los 15 años, la norma permite destruir con acta del Comité de Historias Clínicas y doble verificación. **No se implementa nada de eso.**
 
-**El sistema simplemente no borra expedientes clínicos.** No hay endpoint de borrado, y D4 revoca el `DELETE` al rol de aplicación. Eso **cumple por construcción**: es imposible destruir un documento antes de tiempo porque es imposible destruirlo.
+**v1 adopta una política de conservación sin destrucción.** No hay endpoint de borrado y D4 revoca el `DELETE` al rol de aplicación. Construir el flujo completo —carga del acta, firma del director, soft delete auditado— sería trabajo para un escenario que **no puede ocurrir hasta dentro de 15 años**, con requisitos que para entonces habrán cambiado.
 
-Construir el flujo de destrucción controlada —carga del acta, firma del director, soft delete auditado— sería trabajo para un escenario que **no puede ocurrir hasta dentro de 15 años**, con requisitos que para entonces habrán cambiado. Se decide explícitamente **no construirlo** y dejar registrado por qué, para que su ausencia se lea como una decisión y no como un olvido.
+⚠️ **Esto NO equivale a cumplimiento automático**, y decirlo así sería sobreafirmar. Lo que la ausencia de destrucción protege, y lo que **no**:
 
-⚠️ Esto tiene una consecuencia real: **el almacenamiento solo crece.** Es el precio correcto para un registro médico-legal.
+| Protegido | **No protegido** |
+|---|---|
+| Borrado desde la aplicación (sin endpoint) | Privilegios del **rol owner** (`odontorisas_admin`, migraciones Flyway) |
+| Borrado accidental por el rol de app (`DELETE` revocado) | Operaciones **administrativas** directas sobre la base |
+| Borrado indirecto por FK (sin `ON DELETE CASCADE`) | **Purgas de infraestructura**: retención de backups, políticas del proveedor cloud |
+| | **Cancelación del tenant** — sin decisión tomada (Open Question 3) |
+
+Es decir: **v1 no puede destruir por sí mismo, pero el dato sigue siendo destruible desde fuera del dominio.** Cerrar eso pertenece a infraestructura y a la política de backups, que necesitan un dueño técnico explícito y no lo tienen.
+
+⚠️ Consecuencia asumida: **el almacenamiento solo crece.** Es el precio correcto para un registro médico-legal.
 
 ## Consecuencias
 
@@ -111,7 +179,8 @@ Construir el flujo de destrucción controlada —carga del acta, firma del direc
 - ✅ **La firma queda a un paso**, no a un rediseño: firmar un hash que ya existe, con la firma como dato aparte.
 - ✅ **Exportación e integridad son el mismo artefacto**, no dos implementaciones que mantener sincronizadas.
 - ✅ **D6 elimina un bloqueo de infraestructura**: al derivar el estado de archivo, no hace falta el job que la regla ArchUnit impide, ni gestión de husos horarios, ni un flag que se desincronice.
-- ✅ **D7 convierte trabajo en una decisión documentada**: no construir la destrucción es más seguro que construirla mal, y cumple por ausencia.
+- ⚠️ **Derivar el estado no produce evidencia por sí solo.** El hueco C2 exige trazabilidad de las transiciones, y un valor calculado no la da: se cubre con el **reporte de conservación** determinista y con el registro de las **acciones** que el estado provoca. Es trabajo adicional que la primera redacción de D6 pasaba por alto.
+- ✅ **D7 convierte trabajo en una decisión documentada**: no construir la destrucción es más seguro que construirla mal. ⚠️ Pero **no equivale a cumplimiento**: el dato sigue siendo destruible desde fuera del dominio (owner, backups, infraestructura).
 - ⚠️ **El trigger de D4 es un patrón nuevo en el proyecto.** Errores desde la base son menos legibles que una excepción de dominio y hay que traducirlos al formato de error de la API.
 - ⚠️ **La canonicalización de D1 es el punto frágil.** Cambiarla invalida los hashes previos. Mitigado versionándola, pero exige disciplina: es código que se agrega, nunca se edita.
 - ⚠️ **Los documentos ya sellados** (si los hubiera al implementar) quedan **sin hash**, y no se les puede calcular retroactivamente con valor probatorio: nada garantiza que no hayan cambiado antes. Hoy no hay ninguno en producción — otra razón para hacerlo ya.
@@ -129,7 +198,8 @@ Construir el flujo de destrucción controlada —carga del acta, firma del direc
 
 ## Open Questions
 
-1. **¿Qué versión de canonicalización se adopta?** Hay estándares (JCS, RFC 8785) y la opción de definir una propia, más simple. Conviene elegir uno **antes** de sellar el primer documento con hash, porque cambiarlo después obliga a mantener dos algoritmos vivos.
+1. ✅ **Canonicalización — RESUELTO** en D1: **RFC 8785 (JCS)**, versionada, con contexto del documento incluido en el hash. Queda como detalle de implementación elegir la librería.
 2. **¿El hash cubre los adjuntos?** Si mañana se suben radiografías (`images`, fila 9 del roadmap), ¿forman parte del documento sellado o son anexos con su propio hash? Afecta qué se firma.
-3. **¿Qué pasa con el expediente al dar de baja un tenant?** El análisis de retención plantea que las historias **no se borran** aunque la clínica cancele la suscripción: quedarían accesibles en modo lectura para cumplir la custodia. Es una decisión de negocio con implicaciones de coste, y no está tomada.
-4. **¿"Última atención" cambia cuando exista `appointments`?** D5 la define por documento sellado. Con citas construidas, una atención sin documento sellado podría contar — habría que revisarlo.
+3. **⚠️ ¿Qué pasa con el expediente al dar de baja un tenant?** — es también el principal hueco de D7. El análisis de retención plantea que las historias **no se borran** aunque la clínica cancele la suscripción: quedarían accesibles en modo lectura para cumplir la custodia. Es una decisión de negocio con implicaciones de coste, y no está tomada.
+4. **¿Quién es el dueño técnico del cifrado de backups e infraestructura?** No cae en `ADR-0014` (integridad) ni en `ADR-0016` (confidencialidad de datos en la aplicación): es responsabilidad de despliegue, y hoy nadie la tiene asignada.
+5. **¿Qué formato tiene la exportación además de PDF?** D3 fija que el documento canónico es JSON determinista y el PDF un render. Falta decidir si la exportación para auditoría entrega **ambos** (el canónico para verificar el hash, el PDF para leer) o solo uno.
