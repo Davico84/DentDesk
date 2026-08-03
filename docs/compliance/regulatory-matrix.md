@@ -82,7 +82,7 @@ Mapea **cada requisito normativo** que el sistema debe cumplir con **la decisió
 
 | Requisito normativo | Norma | § | Decisión | Requirement / Scenario | Estado |
 |---|---|---|---|---|---|
-| Conservación íntegra **15 años** desde la última atención | NTS 139 | **6.6.1 a)** | ⚠️ sin ADR | — | 🔴 **ver gaps** |
+| Conservación íntegra **15 años** desde la última atención | NTS 139 | **6.6.1 a)** | [`ADR-0014`](../adr/0014-ciclo-de-vida-del-documento-clinico.md) **D5** — desde el último registro clínico, sellado o no | pendiente | 🚧 |
 | Archivo **activo** (≤5 años) y **pasivo** (>5 años) | NTS 139 | **6.6.1 / 6.6.2** | ⚠️ sin ADR | — | ⚠️ |
 | Destrucción solo tras 15 años y con acta del Comité | NTS 139 | **6.6.1 e)** | ⚠️ sin ADR | — | ⚠️ |
 | Respaldos cifrados y recuperables (datos sensibles) | Ley 29733 | D.S. 003-2013-JUS | ⚠️ sin ADR — infraestructura | — | ⚠️ |
@@ -92,12 +92,12 @@ Mapea **cada requisito normativo** que el sistema debe cumplir con **la decisió
 | Requisito normativo | Norma | § | Decisión | Requirement / Scenario | Estado |
 |---|---|---|---|---|---|
 | Aislamiento entre clínicas; la historia es privada del paciente | Ley 29733 / NTS 139 | — | [`ADR-0004`](../adr/0004-el-paciente-pertenece-a-una-clinica.md) | `multi-tenancy` + test de aislamiento **obligatorio** · `ClinicalHistoryRlsIT` · `PatientRlsIT` · `MembershipRlsIT` | ✅ |
-| **Secreto profesional**: recepción no accede a SOAP, hallazgos ni CIE10 | COP | **Sec. II, Cap. V, Arts. 31–36** | ⚠️ diferido a `staff` | — | 🔴 **ver gaps** |
-| **Autoría por colegiatura COP**, sin cuentas compartidas | COP | **Sec. III, Cap. I, Art. 42** | ⚠️ diferido a `staff` | autoría hoy por `userId` | 🔴 **ver gaps** |
-| **Firma digital** del cierre con certificado acreditado | Ley 27269 / COP | **Sec. III, Cap. II, Arts. 52–53** | ⚠️ sin ADR | — | 🔴 **ver gaps** |
+| **Secreto profesional**: recepción no accede a SOAP, hallazgos ni CIE10 | COP | **Sec. II, Cap. V, Arts. 31–36** | [`ADR-0016`](../adr/0016-responsabilidad-clinica.md) **D2/D3** — se clasifica el dato, y se **deniega** en vez de filtrar | pendiente — **bloqueado por `staff`** | 🚧 |
+| **Autoría por colegiatura COP**, sin cuentas compartidas | COP | **Sec. III, Cap. I, Art. 42** | [`ADR-0016`](../adr/0016-responsabilidad-clinica.md) **D1** — la colegiatura se **copia** al firmar, no se referencia | pendiente — **bloqueado por `staff`** | 🚧 |
+| **Firma digital** del cierre con certificado acreditado | Ley 27269 / COP | **Sec. III, Cap. II, Arts. 52–53** | [`ADR-0014`](../adr/0014-ciclo-de-vida-del-documento-clinico.md) **D2** — diferida, con el hash (D1) como punto de extensión | pendiente | 🚧 |
 | Integridad: prohibido alterar, falsear o destruir registros | COP | **Sec. III, Cap. II, Art. 54** | `ADR-0011` + `ADR-0012` **D3** | sellado server-side, libro de asientos | ✅ parcial |
-| **Cifrado en reposo** de datos clínicos | Ley 29733 | D.S. 003-2013-JUS | ⚠️ sin ADR | — | 🔴 **ver gaps** |
-| **Log de accesos** de lectura y exportación de datos sensibles | Ley 29733 | D.S. 003-2013-JUS | ⚠️ sin ADR | — | 🔴 **ver gaps** |
+| **Cifrado en reposo** de datos clínicos | Ley 29733 | D.S. 003-2013-JUS | [`ADR-0016`](../adr/0016-responsabilidad-clinica.md) **D5** — columnas de clase clínica, una llave por entorno | pendiente | 🚧 |
+| **Log de accesos** de lectura y exportación de datos sensibles | Ley 29733 | D.S. 003-2013-JUS | [`ADR-0016`](../adr/0016-responsabilidad-clinica.md) **D4** — solo lo clínico, y **bloquea** si el registro falla | pendiente | 🚧 |
 
 ---
 
@@ -120,30 +120,32 @@ Cómo un documento clínico se cierra, se prueba íntegro y se conserva. **ADR e
 | A3 | **Política de retención (15 años)** (NTS 139 6.6.1 a) | 🚧 `ADR-0014` **D5** | El bloqueo real **no es el job programado, es la política**: primero se define retención → archivo → destrucción, y recién después cómo se ejecuta. Hoy no hay ninguna de las tres. Sin política, ni siquiera se puede decir qué debería hacer el scheduler. |
 | A4 | **Archivo activo (≤5 años) / pasivo (>5)** (NTS 139 6.6.1/6.6.2) | 🚧 `ADR-0014` **D6** — **derivado**, sin job | Consecuencia de A3. Su ejecución automática necesita un job — hoy `@Scheduled` está prohibido por ArchUnit hasta cablear el contexto de tenant, pero eso es **implementación**, no la decisión. |
 | A5 | **Destrucción controlada tras 15 años** (NTS 139 6.6.1 e) | ✅ `ADR-0014` **D7** — **no se construye**: cumple por ausencia | Exige acta del Comité y doble verificación. Consecuencia de A3. |
-| A6 | **Cifrado en reposo** (Ley 29733) | 🔴 **movido a `ADR-0016`** | Dos niveles: **base** (disco, backups, gestionado por infraestructura) y **dominio** (columnas sensibles: diagnósticos, notas clínicas, alergias, SOAP). **No cifrar** identificadores, fechas ni estados — destruye la indexación. ⚠️ Con llaves por tenant aparece gestión de llaves (rotación, recuperación): **perder una llave es perder la historia clínica de esa clínica**, con obligación legal de conservarla 15 años. |
+| A6 | **Cifrado en reposo** (Ley 29733) | 🚧 **`ADR-0016` D5** — dos niveles, **una sola llave** por entorno (no por tenant) | Dos niveles: **base** (disco, backups, gestionado por infraestructura) y **dominio** (columnas sensibles: diagnósticos, notas clínicas, alergias, SOAP). **No cifrar** identificadores, fechas ni estados — destruye la indexación. ⚠️ Con llaves por tenant aparece gestión de llaves (rotación, recuperación): **perder una llave es perder la historia clínica de esa clínica**, con obligación legal de conservarla 15 años. |
 | A7 | **Prohibición de `UPDATE`/`DELETE` por permisos de BD** (NTS 139 5.4.1 i) | 🚧 `ADR-0014` **D4** | Hoy la inmutabilidad se garantiza **en el servicio** (rechazo server-side, testeado). El análisis normativo pide además revocar el permiso al **rol de conexión de la aplicación**: el proyecto ya tiene dos roles (`odontorisas_admin`/`odontorisas_app`), así que es viable como defensa en profundidad. Decidir en `ADR-0014`. |
 | A8 | **Exportación formal del expediente** (COP Sec. III, Cap. II) | 🚧 `ADR-0014` **D3** — mismo artefacto que el hash | Paquete con filiación, odontograma, SOAP y firmas, para entregar al paciente o a una auditoría. Ligado a A1/A2: **el documento exportado es lo que se firma**. Requisito presente en el análisis del COP que la matriz no recogía. |
 
-### B. Decisiones del dominio → `ADR-0015` *Patient Identity* · `ADR-0016` *Clinical Accountability*
+### B. Decisiones del dominio → ✅ [`ADR-0015`](../adr/0015-identidad-del-paciente.md) · ✅ [`ADR-0016`](../adr/0016-responsabilidad-clinica.md)
 
 Qué datos identifican a un paciente, y quién responde por cada registro.
 
 | # | Requisito | Estado | ADR | Nota |
 |---|---|---|---|---|
 | B1 | **Filiación completa + Ubigeo** (NTS 139 6.1.1 a) | 🚧 | [`0015`](../adr/0015-identidad-del-paciente.md) | ✅ **Decidido** (2026-08-03): la filiación completa se exige **al abrir la Historia Clínica** (numeral 6.1.1 a: *"antes de permitir la apertura"*), no al admitir ni al sellar — el alta conserva su mínimo y `ADR-0005`/`ADR-0006` sobreviven. Ubigeo como **catálogo INEI en BD**, patrón `Cie10CatalogLoader`. Pendiente de implementar (`update-patients` + `update-clinical-history`). El nombre **se parte** en nombres · apellido paterno · apellido materno (D4). |
-| B2 | **Autoría por colegiatura COP** (COP art. 42) | 🔴 | 0016 | Hoy la autoría es `userId`, sin vínculo al COP, y no hay prohibición de cuentas compartidas. Reglas del ADR: todo registro tiene autor · toda modificación tiene responsable · toda enmienda conserva el autor original · toda impresión identifica al profesional. |
-| B3 | **Secreto profesional** (COP arts. 31–36) | 🔴 | 0016 | Recepción y facturación **no deben ver** SOAP, hallazgos ni CIE10. Hoy cualquier miembro del tenant ve todo — decisión explícita y temporal de `add-clinical-history`, diferida a `staff`. Con respaldo normativo deja de ser comodidad y pasa a ser incumplimiento. |
-| B4 | **Versión y revocación del consentimiento** | ⚠️ | 0016 | [`ADR-0007`](../adr/0007-tutor-menores.md) decidió que el tutor firma en menores y `Consent` está previsto en `treatments`. **Falta**: qué **versión** del texto se firmó y cómo se **revoca**. Sin versión no se puede probar qué aceptó el paciente si el consentimiento cambió después. |
+| B2 | **Autoría por colegiatura COP** (COP art. 42) | 🚧 **D1** | 0016 | Hoy la autoría es `userId`, sin vínculo al COP, y no hay prohibición de cuentas compartidas. Reglas del ADR: todo registro tiene autor · toda modificación tiene responsable · toda enmienda conserva el autor original · toda impresión identifica al profesional. |
+| B3 | **Secreto profesional** (COP arts. 31–36) | 🚧 **D2/D3** | 0016 | Recepción y facturación **no deben ver** SOAP, hallazgos ni CIE10. Hoy cualquier miembro del tenant ve todo — decisión explícita y temporal de `add-clinical-history`, diferida a `staff`. Con respaldo normativo deja de ser comodidad y pasa a ser incumplimiento. |
+| B4 | **Versión y revocación del consentimiento** | 🚧 **D6** | 0016 | [`ADR-0007`](../adr/0007-tutor-menores.md) decidió que el tutor firma en menores y `Consent` está previsto en `treatments`. **Falta**: qué **versión** del texto se firmó y cómo se **revoca**. Sin versión no se puede probar qué aceptó el paciente si el consentimiento cambió después. |
 
 > ⚠️ **B2 y B3 dependen de `staff`**: necesitan el modelo de roles real (`ADMIN`/`DENTIST`/`RECEPTIONIST`), que hoy no existe (solo `ADMIN`/`USER`). El ADR se puede escribir ya; la implementación no arranca sin esa capacidad. **Eso empuja `staff` hacia arriba en el roadmap.**
 
-### C. Cumplimiento y auditoría → `ADR-0016` *Clinical Accountability*
+### C. Cumplimiento y auditoría → ✅ [`ADR-0016`](../adr/0016-responsabilidad-clinica.md) *Responsabilidad clínica*
 
 > El **cifrado en reposo** (A6) se trasladó acá desde el grupo A: su driver es la **confidencialidad** (Ley 29733 y el secreto profesional del COP), no el ciclo de vida del documento.
+>
+> ⚠️ **D1, D2 y D3 están bloqueados por `staff`** (modelo de roles clínicos + perfil profesional con colegiatura). El ADR define el modelo; la capacidad lo habilita. **Hasta entonces el incumplimiento sigue vigente** — es lo que más empuja a `staff` en el roadmap.
 
 | # | Requisito | Estado | Nota |
 |---|---|---|---|
-| C1 | **Auditoría de acceso clínico** (Ley 29733) | 🔴 | No es un log técnico de Spring: es un **registro clínico de quién leyó qué historia, de qué paciente, cuándo, desde dónde y con qué motivo**. Toda lectura y exportación de datos sensibles deja rastro no borrable. |
+| C1 | **Auditoría de acceso clínico** (Ley 29733) | 🚧 **`ADR-0016` D4** — solo lo clínico, y **bloquea** si falla | No es un log técnico de Spring: es un **registro clínico de quién leyó qué historia, de qué paciente, cuándo, desde dónde y con qué motivo**. Toda lectura y exportación de datos sensibles deja rastro no borrable. |
 | C2 | Trazabilidad de transiciones de archivo (activo→pasivo) | ⚠️ | **Decisión primaria en `ADR-0014`** (depende de la política de archivo A3/A4); `ADR-0016` solo la referencia para la responsabilidad y auditoría de la transición. Sin esta aclaración quedaría sin dueño si ambos ADR se leen como excluyentes. |
 
 ### D. Pendientes de `add-dental-chart` (antes de la migración)
