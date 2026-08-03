@@ -109,20 +109,20 @@ Los 🔴 afectan **capacidades ya construidas y en uso**. Los ⚠️ son decisio
 
 > **Plan acordado (2026-08-03):** en vez de abrir seis changes paralelos, **tres ADR transversales** cubren la mayoría de estos huecos manteniendo coherencia arquitectónica. Ninguno está escrito todavía.
 
-### A. Decisiones de arquitectura → `ADR-0014` *Clinical Document Lifecycle*
+### A. Decisiones de arquitectura → ✅ [`ADR-0014`](../adr/0014-ciclo-de-vida-del-documento-clinico.md) *Ciclo de vida del documento clínico*
 
-Cómo un documento clínico se cierra, se prueba íntegro y se conserva.
+Cómo un documento clínico se cierra, se prueba íntegro y se conserva. **ADR escrito el 2026-08-03** — pendiente de implementar.
 
 | # | Requisito | Estado | Nota |
 |---|---|---|---|
-| A1 | **Hash de integridad al sellar** | 🔴 | **Va primero, aunque la firma se posponga.** Si se sellan documentos sin hash y la firma digital llega en dos años, los sellados en el medio **nunca podrán probar que no fueron alterados** — no hay contra qué comparar. El hash es barato (SHA-256 al sellar); la firma es cara. Desacoplarlos en el tiempo está bien; omitir el hash hoy no. |
-| A2 | **Firma digital del cierre** (Ley 27269, COP 52–53) | 🔴 | Sin certificado acreditado ante INDECOPI/RENIEC, la historia clínica electrónica **no sustituye al papel con valor probatorio**. Decisión: **posponer la integración, preparar la arquitectura** — generación de documento + hash + punto de extensión para un proveedor futuro. No invertir meses en IOFE antes de tener producto estable. |
-| A3 | **Política de retención (15 años)** (NTS 139 6.6.1 a) | 🔴 | El bloqueo real **no es el job programado, es la política**: primero se define retención → archivo → destrucción, y recién después cómo se ejecuta. Hoy no hay ninguna de las tres. Sin política, ni siquiera se puede decir qué debería hacer el scheduler. |
-| A4 | **Archivo activo (≤5 años) / pasivo (>5)** (NTS 139 6.6.1/6.6.2) | ⚠️ | Consecuencia de A3. Su ejecución automática necesita un job — hoy `@Scheduled` está prohibido por ArchUnit hasta cablear el contexto de tenant, pero eso es **implementación**, no la decisión. |
-| A5 | **Destrucción controlada tras 15 años** (NTS 139 6.6.1 e) | ⚠️ | Exige acta del Comité y doble verificación. Consecuencia de A3. |
-| A6 | **Cifrado en reposo** (Ley 29733) | 🔴 | Dos niveles: **base** (disco, backups, gestionado por infraestructura) y **dominio** (columnas sensibles: diagnósticos, notas clínicas, alergias, SOAP). **No cifrar** identificadores, fechas ni estados — destruye la indexación. ⚠️ Con llaves por tenant aparece gestión de llaves (rotación, recuperación): **perder una llave es perder la historia clínica de esa clínica**, con obligación legal de conservarla 15 años. |
-| A7 | **Prohibición de `UPDATE`/`DELETE` por permisos de BD** (NTS 139 5.4.1 i) | ⚠️ | Hoy la inmutabilidad se garantiza **en el servicio** (rechazo server-side, testeado). El análisis normativo pide además revocar el permiso al **rol de conexión de la aplicación**: el proyecto ya tiene dos roles (`odontorisas_admin`/`odontorisas_app`), así que es viable como defensa en profundidad. Decidir en `ADR-0014`. |
-| A8 | **Exportación formal del expediente** (COP Sec. III, Cap. II) | ⚠️ | Paquete con filiación, odontograma, SOAP y firmas, para entregar al paciente o a una auditoría. Ligado a A1/A2: **el documento exportado es lo que se firma**. Requisito presente en el análisis del COP que la matriz no recogía. |
+| A1 | **Hash de integridad al sellar** | 🚧 `ADR-0014` **D1** | **Va primero, aunque la firma se posponga.** Si se sellan documentos sin hash y la firma digital llega en dos años, los sellados en el medio **nunca podrán probar que no fueron alterados** — no hay contra qué comparar. El hash es barato (SHA-256 al sellar); la firma es cara. Desacoplarlos en el tiempo está bien; omitir el hash hoy no. |
+| A2 | **Firma digital del cierre** (Ley 27269, COP 52–53) | 🚧 `ADR-0014` **D2** — diferida con punto de extensión | Sin certificado acreditado ante INDECOPI/RENIEC, la historia clínica electrónica **no sustituye al papel con valor probatorio**. Decisión: **posponer la integración, preparar la arquitectura** — generación de documento + hash + punto de extensión para un proveedor futuro. No invertir meses en IOFE antes de tener producto estable. |
+| A3 | **Política de retención (15 años)** (NTS 139 6.6.1 a) | 🚧 `ADR-0014` **D5** | El bloqueo real **no es el job programado, es la política**: primero se define retención → archivo → destrucción, y recién después cómo se ejecuta. Hoy no hay ninguna de las tres. Sin política, ni siquiera se puede decir qué debería hacer el scheduler. |
+| A4 | **Archivo activo (≤5 años) / pasivo (>5)** (NTS 139 6.6.1/6.6.2) | 🚧 `ADR-0014` **D6** — **derivado**, sin job | Consecuencia de A3. Su ejecución automática necesita un job — hoy `@Scheduled` está prohibido por ArchUnit hasta cablear el contexto de tenant, pero eso es **implementación**, no la decisión. |
+| A5 | **Destrucción controlada tras 15 años** (NTS 139 6.6.1 e) | ✅ `ADR-0014` **D7** — **no se construye**: cumple por ausencia | Exige acta del Comité y doble verificación. Consecuencia de A3. |
+| A6 | **Cifrado en reposo** (Ley 29733) | 🔴 **movido a `ADR-0016`** | Dos niveles: **base** (disco, backups, gestionado por infraestructura) y **dominio** (columnas sensibles: diagnósticos, notas clínicas, alergias, SOAP). **No cifrar** identificadores, fechas ni estados — destruye la indexación. ⚠️ Con llaves por tenant aparece gestión de llaves (rotación, recuperación): **perder una llave es perder la historia clínica de esa clínica**, con obligación legal de conservarla 15 años. |
+| A7 | **Prohibición de `UPDATE`/`DELETE` por permisos de BD** (NTS 139 5.4.1 i) | 🚧 `ADR-0014` **D4** | Hoy la inmutabilidad se garantiza **en el servicio** (rechazo server-side, testeado). El análisis normativo pide además revocar el permiso al **rol de conexión de la aplicación**: el proyecto ya tiene dos roles (`odontorisas_admin`/`odontorisas_app`), así que es viable como defensa en profundidad. Decidir en `ADR-0014`. |
+| A8 | **Exportación formal del expediente** (COP Sec. III, Cap. II) | 🚧 `ADR-0014` **D3** — mismo artefacto que el hash | Paquete con filiación, odontograma, SOAP y firmas, para entregar al paciente o a una auditoría. Ligado a A1/A2: **el documento exportado es lo que se firma**. Requisito presente en el análisis del COP que la matriz no recogía. |
 
 ### B. Decisiones del dominio → `ADR-0015` *Patient Identity* · `ADR-0016` *Clinical Accountability*
 
@@ -138,6 +138,8 @@ Qué datos identifican a un paciente, y quién responde por cada registro.
 > ⚠️ **B2 y B3 dependen de `staff`**: necesitan el modelo de roles real (`ADMIN`/`DENTIST`/`RECEPTIONIST`), que hoy no existe (solo `ADMIN`/`USER`). El ADR se puede escribir ya; la implementación no arranca sin esa capacidad. **Eso empuja `staff` hacia arriba en el roadmap.**
 
 ### C. Cumplimiento y auditoría → `ADR-0016` *Clinical Accountability*
+
+> El **cifrado en reposo** (A6) se trasladó acá desde el grupo A: su driver es la **confidencialidad** (Ley 29733 y el secreto profesional del COP), no el ciclo de vida del documento.
 
 | # | Requisito | Estado | Nota |
 |---|---|---|---|
