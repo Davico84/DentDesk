@@ -1,12 +1,27 @@
 ## 0. Antes de escribir la migración (bloquea al grupo 1)
 
-- [ ] 0.1 **Revisar el catálogo de tipos de condición con el odontólogo** y fijarlo: naturaleza (requiere intervención / sin patología), alcance (superficie / pieza / entre piezas) y cuáles exigen grado. Contrastar contra el **Anexo N°01 de NTS 188** (NTS 150 está **derogada**, `ADR-0013`) y el Colegio Odontológico. Resolver además dos hallazgos abiertos: **(a) el alcance dual de `DES`** —sigla en el recuadro de la pieza *y* cara pintada— que no encaja en un `scope` de valor único, y **(b) que `IMP` implique pieza ausente** e inhabilite sus caras (`ADR-0013` Open Questions 2 y 3). La lista de `ADR-0012` es **tentativa**; agregar un tipo después de la migración cuesta migración de datos (design.md, Open Question 1)
-- [ ] 0.2 **Decidir si el Índice de Higiene Oral (IHO) es obligatorio.** No aparece en los documentos de NTS 188 de `docs/compliance/`; verificar si pertenece a **NTS 139** o queda fuera del odontograma. Si lo es, **no va como tipo de condición**: es un índice numérico calculado, con su propio método de medición — sería un **requirement adicional** de esta capacidad y hay que agregarlo al spec antes de implementar (design.md, Open Question 2)
-- [ ] 0.3 **Decidir dónde vive el registro periodontal** (sondaje, furca): capacidad propia, `update-dental-chart`, o texto en especificaciones. No entra en este change, pero la decisión se toma ahora para que después no se meta a presión en el modelo equivocado (design.md, Open Question 3)
+- [x] 0.1 ~~Revisar el catálogo de tipos de condición y fijarlo~~ — **hecho** (2026-08-03) contra el **texto oficial de NTS 188**, no un análisis derivado: [`ADR-0017`](../../../docs/adr/0017-catalogo-odontograma-nts-188.md) cierra los **38 hallazgos** (6.1.1–6.1.38) con sigla, subtipo, alcance y color. Resuelve los dos hallazgos abiertos: **(a)** `DES` se registra como hallazgo **de superficie** y la sigla del recuadro se **deriva** al renderizar (D7); **(b)** `IMP` **no** implica pieza ausente — **coexiste** con ella (un implante sin corona está en una pieza ausente, uno con corona no), así que la invariante propuesta habría rechazado registros válidos (D7)
+- [x] 0.2 ~~Decidir si el IHO es obligatorio~~ — **hecho**: **no está en NTS 188**, no es requisito del odontograma. Fuera de alcance (`ADR-0017` **D8**)
+- [x] 0.3 ~~Decidir dónde vive el registro periodontal~~ — **hecho**: **no está en NTS 188**. Lo periodontal que la norma sí exige (movilidad 6.1.19, recesión 6.1.31, furca) ya entra como hallazgo del catálogo; el **periodontograma** completo es documento aparte, fuera de alcance (`ADR-0017` **D8**)
 - [x] 0.4 ~~Completar la columna **§** de `docs/compliance/regulatory-matrix.md`~~ — **hecho** (2026-08-03) con los numerales de NTS 139 (5.4.1 f/i, 6.1.1 a, 6.1.4, 6.6.1), NTS 188 (6.1, 6.2, Anexo N°01), COP y las leyes 29733 / 27269
 - [ ] 0.5 Verificar el número real de la última migración en `dev` (hoy `V15__clinical_history_diagnosis.sql`) por si otro change se adelantó
 
+### 0.6 Realinear los artefactos con `ADR-0017` (bloquea al grupo 1)
+
+Proposal, design, spec y tasks se escribieron **antes** de tener el texto oficial. Implementar sobre ellos construiría el modelo equivocado.
+
+- [ ] 0.6.1 `design.md` **D6** — el catálogo pasa a `type` + `subtipo` con la **sigla oficial** como atributo normativo, y el color deja de ser un booleano patológico: son **tres comportamientos** (`SIEMPRE_AZUL`, `SIEMPRE_ROJO`, `SEGUN_ESTADO`). "Temporal" **no** es un eje aparte: colapsa en `SIEMPRE_ROJO` (`ADR-0017` D1/D5)
+- [ ] 0.6.2 `design.md` **D2** — `Location` gana `EnRango(piezas[])` y `EnArco(maxilar)`: son **cinco** formas, no tres. Ajustar el discriminador, el `CHECK` y las columnas (`ADR-0017` D4)
+- [ ] 0.6.3 `design.md` **D10** — corregir los colores del render: movilidad, extruida e intruida estaban mal asignadas (`ADR-0017` D7)
+- [ ] 0.6.4 `spec.md` — el requirement *Registro de hallazgos con localización precisa* dice **"una de tres formas"**: pasa a cinco, con sus scenarios de rango y arco. El requirement de catálogo pierde la clasificación *patológico / descriptivo / restauración* y adopta los tres comportamientos de color
+- [ ] 0.6.5 `spec.md` — **Especificaciones (5.14)** y **Observaciones (5.15)** son **dos campos distintos**, no uno: 5.14 es lo que no cabe en el recuadro, 5.15 es lo que la nomenclatura no contempla. Hoy el spec funde ambos (`ADR-0017` D6)
+- [ ] 0.6.6 `spec.md` + `proposal.md` — quitar el modelo de **bloque diario**: NTS 188 (5.10/5.11) genera odontograma **por evento** (inicio y fin del plan, hallazgo nuevo, reingreso, pedido judicial). El agregado sobrevive; cambia el disparador (`ADR-0017` D3, supersede `ADR-0012` D4)
+- [ ] 0.6.7 `spec.md` — eliminar el scenario que apoya la **regla de contagio**: no existe en la norma; cada marcador se pinta por su propio estado (`ADR-0017` D2, supersede `ADR-0012` D2)
+- [ ] 0.6.8 `openspec validate add-dental-chart --strict` en verde tras los cambios
+
 ## 1. Modelo y persistencia (backend)
+
+> ⚠️ Los grupos 1–8 se escribieron **antes** de `ADR-0017` y todavía citan el modelo anterior (tres formas de localización, catálogo sin siglas, un solo campo de especificaciones). **Releerlos después de 0.6**, que es lo que los corrige.
 
 - [ ] 1.1 Migración Flyway `dental_chart_block`: `organization_id` NOT NULL + índice, `patient_id`, `type` CHECK `INITIAL`, `status` CHECK `OPEN|SEALED`, `examined_on`, `sealed_at`, `specifications`, autoría + timestamps · `ENABLE`/`FORCE ROW LEVEL SECURITY` + policy `organization_isolation` (patrón de `V14__historia_clinica.sql`) (design.md D1)
 - [ ] 1.2 Índices **únicos parciales** en la misma migración: uno por `patient_id WHERE status='OPEN'`, otro por `patient_id WHERE type='INITIAL'` — las invariantes de unicidad las garantiza la base, no un chequeo previo (design.md D3)
