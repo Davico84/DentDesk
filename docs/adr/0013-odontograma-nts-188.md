@@ -4,6 +4,7 @@
 - **Fecha:** 2026-08-03
 - **Decisores:** David Velarde Alvarado
 - **Supersede:** `ADR-0012` **D2** (parcialmente) y su catálogo de `FindingType`. El resto de `ADR-0012` sigue vigente.
+- 🔴 **Supersedido a su vez por [`ADR-0017`](0017-catalogo-odontograma-nts-188.md)** en su **D3** (el catálogo y los colores): este ADR se apoyó en un **análisis derivado**; `ADR-0017` usa el **texto oficial** y corrige tres asignaciones de color, entre ellas la movilidad.
 
 ## Contexto
 
@@ -109,7 +110,7 @@ Se renderiza **siempre sobre fondo blanco, con los hex exactos**, aunque el rest
 
 ## Open Questions
 
-1. ✅ **La movilidad en azul — CONFIRMADA** (2026-08-03). El análisis normativo de `docs/compliance/nts-150-to-188-transition.md` lo sustenta en el **Anexo N°01**: la escala pasa de romanos rojos (`I`/`II`/`III`, NTS 150) a arábigos azules (`M1`/`M2`/`M3`). Se acata: la movilidad es **descriptiva**, no patológica, a efectos de color. La API debe además **rechazar** la sintaxis romana.
+1. 🔴 **La movilidad en azul — ERROR, corregido por [`ADR-0017`](0017-catalogo-odontograma-nts-188.md).** Se cerró como *"confirmada"* citando un análisis derivado; el **texto oficial (6.1.19)** dice *"se registra en mayúscula y de **color rojo**"*. También estaban mal extruida e intruida (azules, no rojas). Lo que sigue abajo quedó desactualizado. El análisis normativo de `docs/compliance/nts-150-to-188-transition.md` lo sustenta en el **Anexo N°01**: la escala pasa de romanos rojos (`I`/`II`/`III`, NTS 150) a arábigos azules (`M1`/`M2`/`M3`). Se acata: la movilidad es **descriptiva**, no patológica, a efectos de color. La API debe además **rechazar** la sintaxis romana.
 
 2. ⚠️ **Alcance dual de `DES` (superficie desgastada) — sin resolver.** NTS 188 pide la sigla `DES` en el **recuadro de la pieza** *y* pintar la **cara afectada** en el gráfico. El modelo tiene `scope` de **valor único** (superficie / pieza / entre piezas), así que un tipo que es las dos cosas no encaja. Opciones: (a) que `scope` admita un conjunto, (b) que `DES` se registre como hallazgo de superficie y la sigla del recuadro se **derive** al renderizar. **(b) parece preferible** —no toca el modelo y mantiene la precisión cara por cara que exige la auditoría—, pero hay que confirmarlo contra el Anexo N°01. Resolver en `add-dental-chart` tarea 0.1, antes de la migración.
 

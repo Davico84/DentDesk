@@ -1,6 +1,6 @@
 # ADR-0012: Odontograma como libro de asientos, partido en inicial y evolución
 
-- **Estado:** Aceptado — **parcialmente supersedido por [`ADR-0013`](0013-odontograma-nts-188.md)** (2026-08-03)
+- **Estado:** Aceptado — **parcialmente supersedido por [`ADR-0013`](0013-odontograma-nts-188.md) y [`ADR-0017`](0017-catalogo-odontograma-nts-188.md)** (2026-08-03)
 - **Fecha:** 2026-07-30
 - **Decisores:** David Velarde Alvarado
 
@@ -8,7 +8,11 @@
 >
 > **Qué cae:** **D2** (la naturaleza del color como propiedad fija del tipo — NTS 188 tiene tipos cuyo color depende del estado del propio hallazgo) y el **catálogo de `FindingType`** del Modelo resultante.
 >
-> **Qué sigue vigente:** todo lo demás — D1, D3, D4, D5, D6, D7, D8, D9, las invariantes, la semántica de proyección y el glosario. Leer este documento **junto con** `ADR-0013`, no en su lugar.
+> **Qué sigue vigente:** D1, D3, D5, D6, D7, D9, la semántica de proyección y el glosario.
+>
+> 🔴 **Además, [`ADR-0017`](0017-catalogo-odontograma-nts-188.md) (con el TEXTO oficial de NTS 188 a la vista) supersede:** **D2** —la *regla de contagio* **no existe en la norma**: cada marcador se pinta por su propio estado— y **D4** —el odontograma se genera **por evento** (5.10/5.11), no por día—. También amplía **D8**: la localización tiene **cinco** formas, no tres (faltaban `EnRango` y `EnArco`).
+>
+> Leer este documento **junto con** `ADR-0013` y `ADR-0017`, no en su lugar.
 
 ## Contexto
 

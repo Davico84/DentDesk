@@ -23,6 +23,7 @@ Aplican **al escribir** un ADR, no solo al revisarlo. La mayoría de los huecos 
 MINSA, COP, protección de datos. ¿Qué norma **exige** esto, y qué dice exactamente el fragmento que lo exige?
 
 - Citar el fragmento puntual, no un resumen de la norma completa (un resumen local se desactualiza en silencio).
+- 🔴 **Una fila de la matriz solo pasa a ✅ citando el ARTÍCULO del texto oficial, nunca un documento que lo interpreta.** Un análisis derivado traduce bien el espíritu y se aparta en el detalle: `ADR-0013` cerró una Open Question como *"confirmada"* sobre un resumen, y el texto decía lo contrario en tres puntos (ver `ADR-0017`).
 - Registrar la fila correspondiente en [`docs/compliance/regulatory-matrix.md`](../compliance/regulatory-matrix.md).
 - Si la decisión **no** cumple del todo y se difiere, decirlo explícitamente — un hueco documentado es gestionable; uno implícito, no.
 
