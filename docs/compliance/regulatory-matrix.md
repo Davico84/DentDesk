@@ -60,23 +60,27 @@ Mapea **cada requisito normativo** que el sistema debe cumplir con **la decisió
 
 ## Odontograma
 
-[`ADR-0012`](../adr/0012-odontograma-libro-de-asientos.md) + [`ADR-0013`](../adr/0013-odontograma-nts-188.md). `add-dental-chart` está **propuesto**, no implementado: los requirements viven en `openspec/changes/add-dental-chart/specs/`.
+[`ADR-0012`](../adr/0012-odontograma-libro-de-asientos.md) + [`ADR-0013`](../adr/0013-odontograma-nts-188.md) + [`ADR-0017`](../adr/0017-catalogo-odontograma-nts-188.md). `add-dental-chart` está **propuesto**, no implementado: los requirements viven en `openspec/changes/add-dental-chart/specs/`.
+
+> 🔴 Las filas de abajo se reescribieron contra el **texto oficial** de NTS 188 (`ADR-0017`). Las anteriores citaban un *análisis derivado* de la norma y tenían el § mal (todo colgaba de un supuesto "Anexo N°01"; la nomenclatura vive en **6.1.1–6.1.38**) y tres colores mal. **Una fila no pasa a ✅ sin citar el artículo del texto oficial.**
 
 | Requisito normativo | Norma | § | Decisión | Requirement / Scenario | Estado |
 |---|---|---|---|---|---|
-| Estructura de dentición permanente y decidua en notación **FDI** | NTS 188 | **6.1** | `add-dental-chart` design **D7** | `dental-chart` → *Registro de hallazgos…* · scenario *Rechazar una pieza inexistente* | 🚧 |
-| **Código binario rojo/azul** obligatorio, separando patología de restauración | NTS 188 | **6.2** | `ADR-0013` **D2** + **D5** | `dental-chart` → *Catálogo cerrado de condiciones, alineado a la norma vigente* | 🚧 |
-| Siglas oficiales de tres letras (`IMP`, `MAC`, `MIC`, `DES`) y letra `E` | NTS 188 | **Anexo N°01** | `ADR-0013` **D3** | `dental-chart` → *Catálogo cerrado…* | 🚧 |
-| Movilidad en arábigos `M1`/`M2`/`M3`, en **azul** (ya no romanos rojos) | NTS 188 | **Anexo N°01** | `ADR-0013` **D3** | `dental-chart` → scenarios de grado | 🚧 |
-| Giroversión: color **condicional** según patología activa de la pieza | NTS 188 | **Anexo N°01** (UP-004) | `ADR-0012` **D2** (regla de contagio) | `dental-chart` → regla de renderizado | 🚧 |
-| Sellante en mal estado **coexiste** con caries adyacente en la misma cara | NTS 188 | **Anexo N°01** | `ADR-0013` **D2** | scenario *Una restauración y una patología coexisten* | 🚧 |
+| **Un odontograma nuevo por evento** (inicio y fin del plan, hallazgo nuevo, reingreso, pedido judicial), no por día | NTS 188 | **5.10 / 5.11** | [`ADR-0017`](../adr/0017-catalogo-odontograma-nts-188.md) **D3** ⚠️ corrige el *bloque diario* de `ADR-0012` D4 | pendiente — `add-dental-chart` sin actualizar | 🚧 |
+| Estructura de dentición permanente y decidua en notación **FDI** | NTS 188 | **5.4** | `add-dental-chart` design **D7** | `dental-chart` → *Registro de hallazgos…* · scenario *Rechazar una pieza inexistente* | 🚧 |
+| **Código binario**: azul = hallazgo en buen estado · rojo = mal estado, **temporal** o patológico | NTS 188 | **5.12 / 5.13** | [`ADR-0017`](../adr/0017-catalogo-odontograma-nts-188.md) **D1** (tres comportamientos: `SIEMPRE_AZUL`, `SIEMPRE_ROJO`, `SEGUN_ESTADO`) · `ADR-0013` **D5** (hex normativos) | `dental-chart` → *Catálogo cerrado de condiciones, alineado a la norma vigente* | 🚧 |
+| Sigla oficial y subtipo por hallazgo — **catálogo completo de 38** | NTS 188 | **6.1.1 – 6.1.38** | [`ADR-0017`](../adr/0017-catalogo-odontograma-nts-188.md) **D5** + **D7** | `dental-chart` → *Catálogo cerrado…* | 🚧 |
+| Movilidad en arábigos `M1`/`M2`/`M3`, **en ROJO** | NTS 188 | **6.1.19** | [`ADR-0017`](../adr/0017-catalogo-odontograma-nts-188.md) **D7** ⚠️ corrige a `ADR-0013`, que la daba por azul | `dental-chart` → scenarios de grado | 🚧 |
+| Giroversión: flecha curva **azul**, sin condicional | NTS 188 | **6.1.13** | [`ADR-0017`](../adr/0017-catalogo-odontograma-nts-188.md) **D2** ⚠️ la *regla de contagio* de `ADR-0012` **no existe en la norma** | `dental-chart` → regla de renderizado | 🚧 |
+| Sellante **coexiste** con caries adyacente en la misma superficie | NTS 188 | **6.1.35** | [`ADR-0017`](../adr/0017-catalogo-odontograma-nts-188.md) **D7** | scenario *Una restauración y una patología coexisten* | 🚧 |
 | El odontograma es anexo de la historia clínica y se sella con la admisión | NTS 139 | **6.1.1** | `ADR-0012` **D5** · fundamento actualizado por `ADR-0013` **D1** | `clinical-history` → *Sellado a COMPLETED…* (MODIFICADO por `add-dental-chart`). ⚠️ La **filiación** se exige aparte, en la *apertura* (`ADR-0015`) — requirement distinto | 🚧 |
 | El odontograma inicial es inalterable | NTS 139 | **5.4.1 i)** | `ADR-0012` **D4** | `dental-chart` → *Odontograma sellado e inmutable* | 🚧 |
-| Sección de Especificaciones / Observaciones obligatoria | NTS 188 | **Anexo N°01** | `ADR-0012` *Modelo resultante* + `ADR-0013` **D4** | `dental-chart` → *Especificaciones del odontograma* | 🚧 |
-| Registro por superficie dental (extensión auditable) | NTS 188 / SUSALUD | **Anexo N°01** | `ADR-0012` **D8** | `dental-chart` → *Registro de hallazgos con localización precisa* | 🚧 |
+| **Especificaciones** (lo que no cabe en el recuadro) y **Observaciones** (lo que no está en la nomenclatura): **dos campos distintos** | NTS 188 | **5.14 / 5.15** | [`ADR-0017`](../adr/0017-catalogo-odontograma-nts-188.md) **D6** | `dental-chart` → *Especificaciones del odontograma* ⚠️ hoy tiene un solo campo | 🚧 |
+| Localización del hallazgo: superficie, pieza, entre piezas, **rango** y **arco** | NTS 188 | **6.1.1 – 6.1.38** | [`ADR-0017`](../adr/0017-catalogo-odontograma-nts-188.md) **D4** ⚠️ cinco formas, no tres | `dental-chart` → *Registro de hallazgos con localización precisa* ⚠️ hoy solo tres | 🚧 |
+| El odontograma registra **hallazgos observados**, no los procedimientos del plan | NTS 188 | **5.8** | `docs/vision.md` §2 (estado vs. acción) + [`ADR-0017`](../adr/0017-catalogo-odontograma-nts-188.md) **D3** | `dental-chart` → *Purpose* | 🚧 |
 | Cierre transaccional atómico de evolución **y** odontograma del día | NTS 139 | **5.4.1 f)** (HC-007) | `ADR-0012` **D5** | pendiente — `update-dental-chart` (fase 2) | 🚧 |
 | Bloqueo del expediente con atención anterior sin cerrar | NTS 139 | **5.4.1 f)** (HC-006) | `ADR-0012` **D7** | pendiente — `update-dental-chart` (fase 2) | 🚧 |
-| Odontograma de evolución comparable entre fechas | NTS 188 | **6.1** | `ADR-0012` **D3** | pendiente — `update-dental-chart` (fase 2) | 🚧 |
+| Odontograma de evolución comparable entre fechas | NTS 188 | **5.10** | `ADR-0012` **D3** | pendiente — `update-dental-chart` (fase 2) | 🚧 |
 
 ## Retención y ciclo de vida
 
@@ -150,12 +154,16 @@ Qué datos identifican a un paciente, y quién responde por cada registro.
 
 ### D. Pendientes de `add-dental-chart` (antes de la migración)
 
-| # | Requisito | Estado | Nota |
+> ✅ **Los cuatro cerrados el 2026-08-03** contra el texto oficial de NTS 188 ([`ADR-0017`](../adr/0017-catalogo-odontograma-nts-188.md)). Tareas 0.1, 0.2 y 0.3 hechas.
+
+| # | Requisito | Estado | Resolución |
 |---|---|---|---|
-| D1 | **Alcance dual de `DES`** | ⚠️ | NTS 188 pide la sigla en el **recuadro de la pieza** *y* pintar la **cara afectada**. El modelo tiene alcance de valor único. Tarea 0.1. |
-| D2 | **`IMP` implica pieza ausente** | ⚠️ | La invariante existe para *ausente*; falta que `IMP` la dispare. Tarea 0.1. |
-| D3 | **Índice de Higiene Oral (IHO)** | ⚠️ | No aparece en NTS 188. Verificar si pertenece a NTS 139 o queda fuera. Tarea 0.2. |
-| D4 | **Registro periodontal (sondaje, furca)** | ⚠️ | Sin decisión sobre dónde vive. En la práctica es un periodontograma aparte. Tarea 0.3. |
+| D1 | Alcance dual de `DES` | ✅ | Se registra como hallazgo **de superficie** (la verdad clínica); la sigla del recuadro se **deriva** al renderizar. El modelo no cambia (`ADR-0017` **D7**). |
+| D2 | ~~`IMP` implica pieza ausente~~ | ✅ | **Falso.** 6.1.16 describe el implante como hallazgo propio; puede **coexistir** con la ausencia sin implicarla — un implante sin corona está en una pieza ausente, uno con corona no. La invariante habría rechazado registros válidos (`ADR-0017` **D7**). |
+| D3 | Índice de Higiene Oral (IHO) | ✅ | **No está en NTS 188** — no es requisito del odontograma. Fuera de alcance (`ADR-0017` **D8**). |
+| D4 | Registro periodontal (sondaje, furca) | ✅ | **No está en NTS 188.** Lo periodontal que sí norma (movilidad 6.1.19, recesión 6.1.31, furca) ya está en el catálogo como hallazgo; el periodontograma completo es documento aparte, fuera de alcance (`ADR-0017` **D8**). |
+
+> ⚠️ **Hueco nuevo que abre `ADR-0017`**: los artefactos de `add-dental-chart` (proposal, design, spec, tasks) se escribieron sobre el modelo anterior y **contradicen** las filas de arriba: falta `EnRango`/`EnArco`, el catálogo no tiene siglas ni subtipo, Especificaciones y Observaciones están fundidas en un campo, y sobrevive la invariante de bloque diario. **Actualizarlos antes de implementar.**
 
 ### No son huecos de cumplimiento
 
