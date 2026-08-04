@@ -163,7 +163,7 @@ Qué datos identifican a un paciente, y quién responde por cada registro.
 | D3 | Índice de Higiene Oral (IHO) | ✅ | **No está en NTS 188** — no es requisito del odontograma. Fuera de alcance (`ADR-0017` **D8**). |
 | D4 | Registro periodontal (sondaje, furca) | ✅ | **No está en NTS 188.** Lo periodontal que sí norma (movilidad 6.1.19, recesión 6.1.31, furca) ya está en el catálogo como hallazgo; el periodontograma completo es documento aparte, fuera de alcance (`ADR-0017` **D8**). |
 
-> ⚠️ **Hueco nuevo que abre `ADR-0017`**: los artefactos de `add-dental-chart` (proposal, design, spec, tasks) se escribieron sobre el modelo anterior y **contradicen** las filas de arriba: falta `EnRango`/`EnArco`, el catálogo no tiene siglas ni subtipo, Especificaciones y Observaciones están fundidas en un campo, y sobrevive la invariante de bloque diario. **Actualizarlos antes de implementar.**
+> ✅ **Artefactos realineados** (tarea 0.6, 2026-08-03): proposal, design, spec y tasks describen ya el modelo corregido — cinco localizaciones, catálogo `tipo`+`subtipo` con sigla, dos campos de texto, generación por evento y sin regla de contagio. `add-dental-chart` queda **sin tareas bloqueantes**.
 
 ### No son huecos de cumplimiento
 
