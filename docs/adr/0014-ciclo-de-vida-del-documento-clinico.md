@@ -3,6 +3,7 @@
 - **Estado:** Aceptado (decisión); **pendiente de implementar**
 - **Fecha:** 2026-08-03
 - **Decisores:** David Velarde Alvarado
+- 🔴 **Superado en parte por [`ADR-0018`](0018-cumplimiento-nts-139-y-cop.md) D1: el plazo de conservación son 20 años, no 15.** Afecta a **D5**, **D6** y **D7**. El razonamiento de las tres decisiones sobrevive intacto; el número estaba mal, tomado de un análisis derivado en vez del texto oficial (NTS 139 **5.3.1 (6) e** y COP **art. 33**). `ADR-0018` D4 además le quita una de sus dos patas normativas a **D2**: el COP no menciona la firma digital en ningún artículo.
 - **Cubre:** los huecos **A1–A5, A7, A8** de [`docs/compliance/regulatory-matrix.md`](../compliance/regulatory-matrix.md)
 - **Relacionado:** aplica a los documentos sellables de [`ADR-0011`](0011-historia-clinica-documento-inicial.md) y [`ADR-0012`](0012-odontograma-libro-de-asientos.md) · el **cifrado en reposo** (A6) se mueve a `ADR-0016` (ver Decisión)
 
@@ -12,20 +13,20 @@ El sistema ya sella documentos clínicos: la Historia Clínica (`DRAFT→COMPLET
 
 Pero al mapear la normativa ([`regulatory-matrix.md`](../compliance/regulatory-matrix.md)) aparecieron seis obligaciones que ningún ADR cubría, todas sobre **qué pasa con el documento después de sellarlo**:
 
-- **Probar** que no fue alterado (Ley 27269, COP arts. 52–54).
+- **Probar** que no fue alterado (Ley 27269; los COP arts. 52–54 que citaba esta línea son **otra materia** — [`ADR-0018`](0018-cumplimiento-nts-139-y-cop.md) D4).
 - **Firmarlo** con certificado acreditado, para que sustituya al papel con valor probatorio.
-- **Exportarlo** como expediente formal (COP Sec. III, Cap. II).
-- **Conservarlo** 15 años desde la última atención (NTS 139, 6.6.1 a).
-- **Separarlo** en archivo activo y pasivo (NTS 139, 6.6.1/6.6.2).
-- **Destruirlo** solo con acta del Comité (NTS 139, 6.6.1 e).
+- **Exportarlo** como expediente formal. ⚠️ El plazo lo fija NTS 139 **5.3.3 r**: copia al paciente en **5 días** ([`ADR-0018`](0018-cumplimiento-nts-139-y-cop.md) D7.5).
+- **Conservarlo** 20 años desde la última atención (NTS 139 **5.3.1 (6) e**; la redacción original decía 15 años y 6.6.1 a — ambos corregidos por [`ADR-0018`](0018-cumplimiento-nts-139-y-cop.md) D1 y D3).
+- **Separarlo** en archivo activo (5 años, NTS 139 **5.3.1 (4) k**) y pasivo (15 años más, **5.3.1 (4) l**).
+- **Destruirlo** solo con acta del Comité (NTS 139 **5.3.1 (6) e** · **5.3.2 (1) c**).
 
 Hoy el sellado garantiza que *el sistema* no permita modificar. No garantiza que se pueda **demostrar** que no se modificó, ni dice nada sobre cuánto tiempo vive el documento.
 
-> ⚠️ **Alcance de la evidencia.** Los numerales provienen de los análisis de `docs/compliance/`, que **traducen** las normas pero no las reproducen. Las decisiones técnicas se sostienen por sus argumentos; el **cumplimiento** de cada una queda sujeto a validación contra el texto oficial.
+> 🔴 **Alcance de la evidencia — la advertencia se cumplió.** Los numerales de la redacción original venían de los análisis de `docs/compliance/`, que **traducen** las normas sin reproducirlas, y este ADR los citó como si fueran la norma. Al leer el texto oficial, [`ADR-0018`](0018-cumplimiento-nts-139-y-cop.md) encontró que **ninguno existía** (D3) y que el plazo de conservación era más corto que el legal (D1). Los § de esta sección ya están reemplazados por los reales. Las decisiones técnicas se sostuvieron por sus argumentos, que es lo que salvó el ADR: **cambió la cita, no el diseño.**
 
 ## Decisión
 
-> **Sobre el cifrado en reposo (A6).** Se mueve a `ADR-0016`. Su driver no es el ciclo de vida del documento sino la **confidencialidad** — Ley 29733 y el secreto profesional del COP (arts. 31–36), que es materia de *Clinical Accountability*. Agruparlo acá por "estar en la base de datos" mezclaría dos problemas distintos.
+> **Sobre el cifrado en reposo (A6).** Se mueve a `ADR-0016`. Su driver no es el ciclo de vida del documento sino la **confidencialidad** — Ley 29733 y el secreto profesional del COP (**arts. 74–77**; esta línea decía 31–36, corregido por [`ADR-0018`](0018-cumplimiento-nts-139-y-cop.md) D4), que es materia de *Clinical Accountability*. Agruparlo acá por "estar en la base de datos" mezclaría dos problemas distintos.
 >
 > **El corte entre ambos ADR**: acá se decide la **integridad** (que el documento no cambió: hash y firma); en `ADR-0016`, la **confidencialidad** (que solo quien corresponde lo vea: cifrado y control de acceso). Son propiedades independientes — un documento puede estar íntegro y expuesto, o cifrado y adulterado.
 >
@@ -90,7 +91,7 @@ La exportación **transporta** el hash y (cuando exista) la firma como evidencia
 
 ### D4 — Inmutabilidad también en la base, no solo en el servicio
 
-Hoy la inmutabilidad se aplica en el servicio y está testeada. La norma (NTS 139, 5.4.1 i) pide además que la **capa de persistencia** no admita la operación. Dos medidas, precisas:
+Hoy la inmutabilidad se aplica en el servicio y está testeada. La norma (NTS 139 **5.3.1 (8) b** · **5.3.3 j**; esta línea citaba 5.4.1 i, inexistente — [`ADR-0018`](0018-cumplimiento-nts-139-y-cop.md) D3) pide además que la **capa de persistencia** no admita la operación. Dos medidas, precisas:
 
 | Medida | Cómo |
 |---|---|
@@ -113,9 +114,11 @@ Hoy la inmutabilidad se aplica en el servicio y está testeada. La norma (NTS 13
 
 *Alternativa descartada:* mover los documentos sellados a tablas separadas de solo-inserción, y revocar `UPDATE` ahí. Más limpio conceptualmente, pero duplica el esquema de cada capacidad sellable y complica toda consulta que mezcle estados.
 
-### D5 — Retención: 15 años desde el último documento clínico sellado
+### D5 — Retención: 20 años desde la última atención
 
-El expediente **no se puede purgar** mientras la diferencia entre hoy y la **última atención** sea ≤ 15 años.
+> 🔴 **Corregido por [`ADR-0018`](0018-cumplimiento-nts-139-y-cop.md) D1.** Esta decisión fijaba **15 años**, tomados de un análisis derivado. El texto oficial da tres plazos y 15 es **el tramo pasivo**, no el total: activo 5 años (NTS 139 **5.3.1 (4) k**) + pasivo 15 (**5.3.1 (4) l**) = **20 años de conservación** desde la última atención (**5.3.1 (6) e**), confirmados de forma independiente por **COP art. 33** (*"un mínimo de veinte (20) años"*). **40 años** si hay diagnóstico de cáncer de origen ocupacional. Lo que sigue —la definición de `ultimaAtencion`— es correcto y no cambia.
+
+El expediente **no se puede purgar** mientras la diferencia entre hoy y la **última atención** sea ≤ 20 años (≤ 40 si hay diagnóstico de cáncer de origen ocupacional).
 
 **`ultimaAtencion` es un concepto propio del dominio, no un atajo sobre los documentos sellados.** La primera redacción de este ADR la definía como *"la fecha del documento sellado más reciente"*, y estaba **mal**: una atención puede producir un documento que quedó sin sellar, una evolución, o una cita atendida — y ninguno contaría. Eso arrancaría el plazo de conservación **antes de tiempo**, que es el error peligroso: permitiría purgar un expediente todavía protegido.
 
@@ -156,9 +159,9 @@ La distinción es la que salva la decisión: **no hace falta registrar una trans
 
 ### D7 — La destrucción controlada **no se construye**
 
-Cumplidos los 15 años, la norma permite destruir con acta del Comité de Historias Clínicas y doble verificación. **No se implementa nada de eso.**
+Cumplidos los 20 años, la norma permite destruir con acta del Comité de Historias Clínicas y doble verificación. **No se implementa nada de eso.**
 
-**v1 adopta una política de conservación sin destrucción.** No hay endpoint de borrado y D4 revoca el `DELETE` al rol de aplicación. Construir el flujo completo —carga del acta, firma del director, soft delete auditado— sería trabajo para un escenario que **no puede ocurrir hasta dentro de 15 años**, con requisitos que para entonces habrán cambiado.
+**v1 adopta una política de conservación sin destrucción.** No hay endpoint de borrado y D4 revoca el `DELETE` al rol de aplicación. Construir el flujo completo —carga del acta, firma del director, soft delete auditado— sería trabajo para un escenario que **no puede ocurrir hasta dentro de 20 años**, con requisitos que para entonces habrán cambiado.
 
 ⚠️ **Esto NO equivale a cumplimiento automático**, y decirlo así sería sobreafirmar. Lo que la ausencia de destrucción protege, y lo que **no**:
 

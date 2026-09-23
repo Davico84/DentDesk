@@ -1,5 +1,19 @@
 # Código de Ética y Deontología del COP - Especificaciones de Cumplimiento
 
+> # 🔴 ADVERTENCIA — ESTE DOCUMENTO NO ES FUENTE NORMATIVA
+>
+> **Es un análisis derivado, escrito sin el texto oficial de la norma delante.** No se puede citar en un ADR, en un spec ni en una fila de [`regulatory-matrix.md`](regulatory-matrix.md). Degradado por [`ADR-0018`](../adr/0018-cumplimiento-nts-139-y-cop.md) **D8**.
+>
+> **Qué se comprobó.** Al leer el texto oficial se encontró que **los cuatro artículos que este documento atribuye a cada materia apuntan a otra**: el secreto profesional está en los **arts. 74–77** (no 31–36); el **art. 42** es *interconsulta*; los **52–53** son *competencia desleal* y *atención al colega*; el **54** es *prohibición de comisiones*. El Código **no menciona la firma digital en ningún artículo**. Y el documento **omite** el **art. 33** (conservación mínima de 20 años), el **art. 65** (solo el profesional **habilitado** ejerce) y el **art. 78** (bancos de datos de salud electrónicos) — los tres relevantes para este producto. Ver `ADR-0018` **D4**, **D5** y **D6**.
+>
+> **Por qué sigue en el repo y no se borró.** Su traducción a impacto técnico —qué toca en dominio, base de datos, API, contrato y testing— es trabajo real y reutilizable, y en NTS 188 el espíritu de la norma estaba bien traducido: falló el detalle. Borrarlo perdería eso y, peor, borraría **la evidencia de qué creíamos y por qué**. Un error documentado enseña; un error desaparecido se repite.
+>
+> **Para qué sirve, entonces:** como **inventario de hipótesis a verificar** y como impacto técnico ya razonado. Leelo como *"esto es lo que habría que comprobar"*, nunca como *"esto es lo que dice la norma"*.
+>
+> ⚠️ **Todo § y todo artículo citado en las páginas siguientes debe considerarse NO VERIFICADO** salvo que aparezca en `ADR-0017` (NTS 188) o `ADR-0018` (NTS 139, COP), que sí se escribieron con el texto oficial.
+
+---
+
 ## 1. INTRODUCCIÓN Y CONTEXTO ÉTICO-LEGAL
 
 El presente documento establece las especificaciones de ingeniería y los requisitos de software derivados del Código de Ética y Deontología del Colegio Odontológico del Perú (COP).

@@ -178,7 +178,7 @@ El documento médico-legal inicial de la atención: **una por paciente, de por v
 
 > ⚠️ **Estado consultable de habilitación**: `{ status, enabledForTreatment }` por paciente (`true` solo si `COMPLETED`) — es la señal que `treatment-plans`/`treatments` (aún no construidas) consumirán como gate. Se expone ya para no rehacer el contrato después.
 >
-> **Pendiente, fuera de esta capacidad** (ver `docs/vision.md §3` y §7): evolución post-sello (`ClinicalEvolutionEntry` append-only, estructura SOAP, reutilizar el tipo `REPETIDO`), retención legal de 15 años + archivo pasivo, y diagnóstico sin CIE10 para casos estéticos.
+> **Pendiente, fuera de esta capacidad** (ver `docs/vision.md §3` y §7): evolución post-sello (`ClinicalEvolutionEntry` append-only, estructura SOAP, reutilizar el tipo `REPETIDO`), retención legal de **20 años** + archivo pasivo ([`ADR-0018`](adr/0018-cumplimiento-nts-139-y-cop.md) D1 — la cifra anterior, 15 años, era más corta que la legal), la **Ficha Odonto-Estomatológica** que NTS 139 § 5.2.2 numeral 12 exige y esta capacidad no cubre (IHO simplificado, placa blanda/calcificada, alta básica con fecha, odontograma inicial **y final** — `ADR-0018` D2), y diagnóstico sin CIE10 para casos estéticos.
 
 ### `appointments` → **Appointment**
 Cita agendada.
