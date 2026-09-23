@@ -1,5 +1,19 @@
 # Política de Retención Legal y Ciclo de Vida del Expediente
 
+> # 🔴 ADVERTENCIA — ESTE DOCUMENTO NO ES FUENTE NORMATIVA
+>
+> **Es un análisis derivado, escrito sin el texto oficial de la norma delante.** No se puede citar en un ADR, en un spec ni en una fila de [`regulatory-matrix.md`](regulatory-matrix.md). Degradado por [`ADR-0018`](../adr/0018-cumplimiento-nts-139-y-cop.md) **D8**.
+>
+> **Qué se comprobó.** Al leer el texto oficial se encontró que **el plazo es de 20 años, no de 15** (NTS 139 § 5.3.1 (6) e, confirmado por **COP art. 33**), que 15 es solo el **tramo pasivo** (§ 5.3.1 (4) l) tras 5 años de archivo activo (§ 5.3.1 (4) k), y que existe un caso de **40 años** para cáncer de origen ocupacional que este documento no menciona. Es el error más grave encontrado en toda la carpeta: una política de retención más corta que la legal autoriza destruir expedientes protegidos. Ver `ADR-0018` **D1**.
+>
+> **Por qué sigue en el repo y no se borró.** Su traducción a impacto técnico —qué toca en dominio, base de datos, API, contrato y testing— es trabajo real y reutilizable, y en NTS 188 el espíritu de la norma estaba bien traducido: falló el detalle. Borrarlo perdería eso y, peor, borraría **la evidencia de qué creíamos y por qué**. Un error documentado enseña; un error desaparecido se repite.
+>
+> **Para qué sirve, entonces:** como **inventario de hipótesis a verificar** y como impacto técnico ya razonado. Leelo como *"esto es lo que habría que comprobar"*, nunca como *"esto es lo que dice la norma"*.
+>
+> ⚠️ **Todo § y todo artículo citado en las páginas siguientes debe considerarse NO VERIFICADO** salvo que aparezca en `ADR-0017` (NTS 188) o `ADR-0018` (NTS 139, COP), que sí se escribieron con el texto oficial.
+
+---
+
 ## 1. INTRODUCCIÓN Y CONTEXTO LEGAL PERUANO
 
 El presente documento establece las especificaciones técnicas de infraestructura, persistencia y ciclo de vida de los datos para una plataforma SaaS multi-tenant, derivadas del marco normativo que rige la conservación, digitalización y seguridad de las Historias Clínicas en el Perú.

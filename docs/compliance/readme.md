@@ -1,5 +1,24 @@
 # docs/compliance/README.md
 
+> # 🔴 LEER ANTES QUE CUALQUIER DOCUMENTO DE ESTA CARPETA
+>
+> **Solo dos artefactos de esta carpeta se escribieron con el texto oficial delante**, y ninguno de los dos es un análisis por norma:
+>
+> | Artefacto | Estado |
+> |---|---|
+> | [`regulatory-matrix.md`](regulatory-matrix.md) | ✅ **fuente de trazabilidad** — pero solo sus filas con § verificado; las demás están marcadas ⚠️ |
+> | [`../adr/0017-catalogo-odontograma-nts-188.md`](../adr/0017-catalogo-odontograma-nts-188.md) | ✅ NTS 188, texto oficial leído (2026-08-03) |
+> | [`../adr/0018-cumplimiento-nts-139-y-cop.md`](../adr/0018-cumplimiento-nts-139-y-cop.md) | ✅ NTS 139 y COP, texto oficial leído (2026-09-23) |
+> | **los cinco análisis por norma de esta carpeta** | 🔴 **análisis derivados, NO citables** — cada uno lleva su advertencia en cabecera |
+>
+> Los cinco análisis (`nts-139-history-clinical.md`, `nts-188-odontogram.md`, `nts-150-to-188-transition.md`, `cop-code-of-ethics.md`, `legal-retention.md`) y el manual `coding-rules-derived-from-regulation.md` se escribieron **sin el texto oficial**. Entre todos produjeron: los § inventados de NTS 139, los cuatro artículos del COP mal atribuidos, tres colores del odontograma equivocados y **un plazo de retención más corto que el legal**. Degradados por [`ADR-0018`](../adr/0018-cumplimiento-nts-139-y-cop.md) **D8**.
+>
+> **La regla del proyecto** ([`../adr/README.md`](../adr/README.md), dimensión 1): *una fila de la matriz solo pasa a ✅ citando el artículo del texto oficial, nunca un documento que lo interpreta.*
+>
+> ⚠️ Lo que sigue describe el **propósito** de la carpeta y sigue siendo válido como intención. Sus ejemplos concretos —incluido el *"congelamiento atómico a las 23:59:59"* y el código `REQ-ANA-02`— son **invenciones del análisis derivado**: ni la norma los pide ni el proyecto los implementa.
+
+---
+
 ## 1. PROPÓSITO DE LA CARPETA COMPLIANCE
 
 El propósito de la carpeta `docs/compliance/` es centralizar, estructurar y salvaguardar la documentación técnica y las evidencias de cumplimiento que alinean el código fuente y las reglas de dominio del Software como Servicio (SaaS) con el marco legal sanitario del Perú.
