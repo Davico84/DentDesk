@@ -99,6 +99,33 @@ Reglas:
 - **Nada destructivo** sin permiso explícito (`git push --force`, `reset --hard`). Ante push rechazado: reportar y sugerir pull/rebase.
 - Branches de feature pequeñas y descriptivas: `feat/...`, `fix/...`.
 
+## 5b. Ramas: `dev` es el tronco, `main` es release
+
+Decidido el **2026-09-23**, después de encontrar que la rama por defecto del repo era `feat/inializatingOpenSpec` —una rama de inicialización del 7 de julio, con el nombre mal escrito— mientras todo el trabajo iba a `dev` y `main` llevaba dos meses 242 commits atrás.
+
+| Rama | Qué es | Cuándo se actualiza |
+|---|---|---|
+| **`dev`** | **el tronco**, y la **rama por defecto** del repo | en cada merge de PR. Todo sale de acá y vuelve acá |
+| **`main`** | **release** | **solo al desplegar**. No es espejo de `dev` |
+| `feat/*` `fix/*` `docs/*` `chore/*` `test/*` | trabajo en curso | se borran al mergear |
+
+**Los PR van a `dev`.** La rama por defecto ya lo hace automático; no hace falta `--base`.
+
+### Por qué `main` puede estar atrasada
+
+**Porque no hay despliegue todavía.** Sincronizarla en cada merge sería trabajo repetido que no responde ninguna pregunta: mientras no exista un entorno productivo, *"qué hay en `main`"* no significa nada distinto de *"qué hay en `dev`"*.
+
+⚠️ **Que esté atrasada no es desorden si se sabe por qué.** El desorden era no saber cuál era la rama por defecto. El día que haya despliegue, `main` empieza a responder *"esto es lo que está corriendo"*, y recién entonces mantenerla al día tiene valor.
+
+### Ramas y tags que no se borran
+
+- **`Starter-Template`** — tiene un commit que no está en `dev`. Se conserva como rama.
+- **Los puntos de bifurcación son tags, no ramas** (`bifurcacion/*`). Una rama dice *"hay trabajo en curso acá"*; un tag dice *"este punto es un marcador fijo"*. Bifurcar desde un tag es igual de fácil: `git checkout -b lo-que-sea bifurcacion/saas-template`.
+
+Hoy existen `bifurcacion/saas-template`, `bifurcacion/multi-tenancy` y `bifurcacion/openspec-inicial`.
+
+⚠️ **Borrar una rama ya mergeada no pierde ningún commit** — se pierde solo el nombre, y el merge commit del PR ya lo registra. Por eso las 47 ramas de avance se borraron sin riesgo, y las tres bifurcaciones se convirtieron en tags antes de borrarlas.
+
 ## 6. Automatización (pendiente de andamiaje)
 
 - **commitlint** + config Conventional Commits para validar en `commit-msg` (hook) y en CI.
