@@ -2,6 +2,8 @@
 
 `ADR-0012` decidió el **modelo de dominio** del odontograma (aggregate, invariantes, value objects, semántica de proyección) y las nueve decisiones que lo sostienen. Este documento **no las repite**: resuelve el *cómo* implementarlas sobre el stack real.
 
+> 🔴 **Realineado el 2026-08-03 con [`ADR-0017`](../../../docs/adr/0017-catalogo-odontograma-nts-188.md)**, escrito ya con el **texto oficial** de NTS 188 a la vista. `ADR-0012` y `ADR-0013` se habían apoyado en análisis derivados de la norma. Lo que cambió acá: **D2** (cinco formas de localización, no tres), **D6** (catálogo `tipo` + `subtipo` con sigla, y tres comportamientos de color), **D10** (colores corregidos, sin regla de contagio) y las Open Questions 1–3, ya cerradas.
+
 Estado del que se parte: `clinical-history` está construida, archivada y testeada (sellado `DRAFT→COMPLETED` con checklist server-side); `FdiTooth` ya existe con el conjunto real de 52 piezas; el aislamiento por organización es automático por transacción (`TenantAwareTransactionManager`) pero **cada tabla declara la suya**. `treatments` y `treatment-plans` no existen.
 
 Restricciones duras verificadas en el repo, no de memoria:
@@ -13,16 +15,16 @@ Restricciones duras verificadas en el repo, no de memoria:
 **Goals:**
 - Persistir el bloque inicial y sus hallazgos cumpliendo las invariantes de `ADR-0012`, con las de unicidad **garantizadas por la base**, no por chequeo previo.
 - Sellar el odontograma inicial **atómicamente** con la Historia Clínica, sin crear dependencia entre los dos módulos.
-- Registrar hallazgos con las tres formas de localización, con coherencia validada en el boundary.
+- Registrar hallazgos con las **cinco** formas de localización (`ADR-0017` D4), con coherencia validada en el boundary.
 - Una representación gráfica que un odontólogo reconozca como un odontograma.
 
-**Non-Goals:** los de `proposal.md` (evolución, comparación entre fechas, cierre automático, integración con `treatments`, retención, COP). Además, acá tampoco se decide **el catálogo definitivo de tipos de condición**: la lista de `ADR-0012` es tentativa y debe revisarse con el odontólogo antes de fijarla en la migración (ver Open Questions).
+**Non-Goals:** los de `proposal.md` (evolución, comparación entre fechas, cierre automático, integración con `treatments`, retención, COP). El **catálogo** ya no es un non-goal: quedó **cerrado** en `ADR-0017` D7 con los 38 hallazgos de 6.1.1–6.1.38.
 
 ## Decisions
 
 ### D1 — Dos tablas: bloque + hallazgos
 
-`dental_chart_block` (el aggregate root) y `dental_chart_finding` (los hallazgos). No una sola tabla con JSONB: los hallazgos se consultan por pieza y por tipo (el render agrupa por pieza, la regla de contagio de color necesita "¿esta pieza tiene algún hallazgo que requiere intervención?"), y JSONB perdería los `CHECK` de integridad.
+`dental_chart_block` (el aggregate root) y `dental_chart_finding` (los hallazgos). No una sola tabla con JSONB: los hallazgos se consultan por pieza y por tipo (el render agrupa por pieza), y JSONB perdería los `CHECK` de integridad.
 
 Ambas con `organization_id` NOT NULL + índice + `ENABLE`/`FORCE ROW LEVEL SECURITY` + policy `organization_isolation`, **cada una la suya**. La RLS de Postgres **no es transitiva**: que `dental_chart_finding` tenga FK a un bloque aislado no la protege. Es el hallazgo que costó una auditoría entera en `add-clinical-history`.
 
@@ -30,22 +32,34 @@ Ambas con `organization_id` NOT NULL + índice + `ENABLE`/`FORCE ROW LEVEL SECUR
 
 ### D2 — `Location` polimórfico: discriminador explícito + `CHECK`, no columnas implícitas
 
-El `sealed interface Location` de `ADR-0012` (tres variantes) se persiste como un `@Embeddable` con **discriminador explícito**:
+El `sealed interface Location` se persiste como un `@Embeddable` con **discriminador explícito**. Son **cinco** variantes (`ADR-0017` D4), no las tres de `ADR-0012` D8:
 
 ```
-location_kind   VARCHAR  NOT NULL  CHECK (location_kind IN ('SURFACE','TOOTH','BETWEEN_TEETH'))
-tooth_a         INT      NOT NULL              -- pieza principal (o la menor, si BETWEEN_TEETH)
-tooth_b         INT      NULL                  -- solo BETWEEN_TEETH
-surface         VARCHAR  NULL                  -- solo SURFACE
+location_kind   VARCHAR  NOT NULL  CHECK (location_kind IN
+                  ('SURFACE','TOOTH','BETWEEN_TEETH','TOOTH_RANGE','ARCH'))
+tooth_a         INT      NULL      -- pieza principal (o la menor, si BETWEEN_TEETH)
+tooth_b         INT      NULL      -- solo BETWEEN_TEETH
+surface         VARCHAR  NULL      -- solo SURFACE
+arch            VARCHAR  NULL      -- solo ARCH: 'SUPERIOR' | 'INFERIOR'
 ```
 
-Más un `CHECK` que empareja discriminador y columnas: `SURFACE ⇒ surface NOT NULL AND tooth_b IS NULL`, `TOOTH ⇒ ambos NULL`, `BETWEEN_TEETH ⇒ tooth_b NOT NULL AND surface IS NULL`.
+Más un `CHECK` que empareja discriminador y columnas:
 
-**Precedente exacto en el repo**: `clinical_history_diagnosis` ya hace esto con `ubicacion` + `fdi_number` + la constraint `clinical_history_diagnosis_location_paired`. Se replica el patrón, no se inventa uno.
+| `location_kind` | Columnas pobladas | Ejemplo |
+|---|---|---|
+| `SURFACE` | `tooth_a` + `surface` | caries 36-O · restauración · sellante |
+| `TOOTH` | `tooth_a` | corona · movilidad · ausente · implante |
+| `BETWEEN_TEETH` | `tooth_a` + `tooth_b` | diastema · supernumerario · fusión |
+| `TOOTH_RANGE` | ninguna de las de arriba — ver abajo | prótesis parcial fija · ortodoncia fija |
+| `ARCH` | `arch` | edéntulo total · prótesis completa |
 
-*Alternativas descartadas:* (a) sin discriminador, infiriendo la variante de qué columnas están llenas — frágil e imposible de constrainear con claridad; (b) tabla por variante — tres joins para leer un odontograma; (c) JSONB — ver D1.
+**`TOOTH_RANGE` no cabe en columnas planas**: comprende un **conjunto ordenado** de piezas (6.1.29 dibuja los pilares), de cardinalidad variable. Va en **tabla hija** `dental_chart_finding_tooth (finding_id, position, tooth)` con `UNIQUE (finding_id, position)` — no un array ni una lista separada por comas: se consulta por pieza ("¿qué hallazgos tocan la 36?") y esa consulta debe poder usar un índice. La tabla hija lleva **su propia RLS**; la de la tabla padre no la protege (mismo hallazgo de D1).
 
-**Orden canónico en `BETWEEN_TEETH`**: se persiste siempre `tooth_a < tooth_b`, normalizado al construir el VO. Sin esto, `(11,21)` y `(21,11)` serían dos hallazgos distintos para el mismo diastema (INV-12).
+**Precedente exacto en el repo**: `clinical_history_diagnosis` ya hace el emparejamiento discriminador↔columnas con `ubicacion` + `fdi_number` y la constraint `clinical_history_diagnosis_location_paired`. Se replica el patrón, no se inventa uno.
+
+*Alternativas descartadas:* (a) sin discriminador, infiriendo la variante de qué columnas están llenas — frágil e imposible de constrainear con claridad; (b) tabla por variante — cinco joins para leer un odontograma; (c) JSONB — ver D1; (d) **expandir un rango o un arco en N hallazgos de pieza** — inventaría hasta 16 registros donde la norma pide uno, y haría indistinguible una prótesis completa de 16 coronas (`ADR-0017` D4).
+
+**Orden canónico en `BETWEEN_TEETH`**: se persiste siempre `tooth_a < tooth_b`, normalizado al construir el VO. Sin esto, `(11,21)` y `(21,11)` serían dos hallazgos distintos para el mismo diastema (INV-12). **En `TOOTH_RANGE` el orden sí es dato** —identifica los pilares— y por eso se conserva en `position`, sin normalizar.
 
 ### D3 — Las invariantes de unicidad van a la base, no al servicio
 
@@ -78,27 +92,38 @@ Ninguno de los dos servicios de dominio conoce al otro. El coordinador depende d
 
 ### D5 — Qué exige el checklist de sellado (y qué no)
 
-Al sellar, el checklist de `clinical-history` gana un ítem: **existe un odontograma inicial con especificaciones registradas**. La Historia sola ya no basta.
+Al sellar, el checklist de `clinical-history` gana un ítem: **existe un odontograma inicial con especificaciones y observaciones registradas** — son dos campos distintos y uno no cubre al otro (`ADR-0017` D6). La Historia sola ya no basta.
 
 Deliberadamente **no** se exige un número mínimo de hallazgos: una boca sana es un odontograma legítimo y vacío de patología. Exigir "al menos un hallazgo" empujaría a inventar uno. Lo que sí se exige es que el odontograma **exista y haya sido revisado** — mismo criterio afirmativo que `alergiasRevisado` en `clinical-history`: la ausencia de hallazgos es un dato clínico, no un campo sin llenar.
 
-### D6 — El catálogo de tipos: enum en la app, `CHECK` en la BD, atributos solo en código
+### D6 — El catálogo: `tipo` + `subtipo` como enums, `CHECK` en la BD, atributos solo en código
 
 Conjunto cerrado ⇒ **enum Java + `CHECK` en Postgres + contrato** (regla del proyecto, `add-patients` D8). Los atributos del tipo viven **solo en el enum Java**, no en columnas: son derivables del tipo, y almacenarlos permitiría que se desincronicen. La BD solo restringe el conjunto de valores válidos.
 
-Atributos del tipo, **alineados a `ADR-0013`** (NTS 188):
+**Dos niveles, no ~40 tipos planos** (`ADR-0017` D5). El texto agrupa hallazgos bajo un mismo concepto con siglas distintas según material, profundidad o causa: la lesión de caries es `MB`/`CE`/`CD`/`CDP`, la corona es `CM`/`CF`/`CMC`/`CV`/`CLM`. El **comportamiento de color y el alcance pertenecen al concepto** (toda corona es `SEGUN_ESTADO` y de alcance pieza); el subtipo solo precisa cuál es. Aplanarlo repetiría esos atributos en cada variante, con riesgo de que diverjan.
+
+```
+type      VARCHAR  NOT NULL   CHECK (type IN (...38 valores...))
+subtype   VARCHAR  NULL       -- obligatorio si el tipo tiene subtipos, prohibido si no
+```
+
+Más un `CHECK` que valida **el par**, no cada columna por separado: un `subtype = 'CD'` con `type = 'CORONA'` es inválido aunque ambos valores existan.
+
+Atributos del **tipo**, alineados a `ADR-0017`:
 
 | Atributo | Para qué |
 |---|---|
-| `behavior` | `PATOLOGIA` (siempre rojo) · `DESCRIPTIVO` (siempre azul) · `RESTAURACION` (color según el estado del hallazgo) |
-| `scope` | superficie / pieza / entre piezas — determina la variante de `Location` admitida |
-| `sigla` | la **sigla oficial de NTS 188** (`MAC`, `MIC`, `IMP`, `DES`, `E`, `S`…), dato normativo que el render debe pintar exacto |
+| `colorBehavior` | `SIEMPRE_AZUL` · `SIEMPRE_ROJO` · `SEGUN_ESTADO` (`ADR-0017` D1) |
+| `scope` | superficie / pieza / entre piezas / **rango** / **arco** — determina la variante de `Location` admitida |
+| `subtypes` | conjunto cerrado de subtipos admitidos; vacío si el tipo no los tiene |
 | `requiresGrade` | solo movilidad (`M1`/`M2`/`M3`) |
-| `requiresSpecification` | el tipo obliga a llenar una entrada en especificaciones (movilidad ⇒ clasificación usada · prótesis ⇒ material) |
+| `requiresSpecification` | el tipo obliga a llenar una entrada en **especificaciones** (movilidad ⇒ clasificación · corona ⇒ color del metal · fluorosis ⇒ clasificación) |
 
-⚠️ **`behavior` reemplaza al `nature` fijo de `ADR-0012`.** NTS 188 tiene tipos —sellante, prótesis— cuyo color depende del **estado del propio hallazgo**, no del tipo ni de otro hallazgo. Por eso los `RESTAURACION` llevan además un campo **`condition`** (`GOOD`/`POOR`) en la fila del hallazgo: es el único dato de color que sí se persiste, porque no es derivable.
+Y del **subtipo**: la **`sigla` oficial de NTS 188**, dato normativo que el render debe pintar exacto. Si el tipo no tiene subtipos, la sigla —cuando existe— cuelga del tipo. Se guarda como atributo, **no como nombre del enum** (`ADR-0013` D3): el nombre del enum es descriptivo y en español; la sigla es lo que se imprime.
 
-El frontend recibe el tipo por el contrato y **espeja** los atributos, igual que ya espeja `VALID_FDI_TEETH` desde `FdiTooth`.
+⚠️ **Tres comportamientos, no una naturaleza clínica.** El texto (5.13) califica **el hallazgo**, no el tipo ni la pieza: *"azul indica un hallazgo clínico en buen estado y rojo un hallazgo en mal estado, temporal o con características patológicas"*. Por eso los `SEGUN_ESTADO` llevan además un campo **`condition`** (`GOOD`/`POOR`) en la fila del hallazgo: es el único dato de color que sí se persiste, porque no es derivable. **"Temporal" no es un eje aparte**: la corona temporal es un tipo distinto (`CT` ≠ `CM`) que simplemente declara `SIEMPRE_ROJO` (`ADR-0017` D1).
+
+El frontend recibe tipo y subtipo por el contrato y **espeja** los atributos, igual que ya espeja `VALID_FDI_TEETH` desde `FdiTooth`.
 
 ### D7 — Notación FDI y solo FDI, en todo el dominio
 
@@ -122,8 +147,9 @@ No es una obviedad que se pueda dar por supuesta: las librerías de odontograma 
 
 | Invariante | Dónde |
 |---|---|
-| INV-10 (`scope` ↔ variante de `Location`), INV-11 (`requiresGrade` ⇔ `grade`), INV-13 (superficie aplicable a la pieza), INV-14 (FDI real) | `@ValidFindingLocation` — constraint Bean Validation **a nivel de objeto** sobre el DTO, mismo patrón que `@ValidDiagnosisLocation` (`@Constraint` + `ConstraintValidator` + `addPropertyNode` para reportar sobre el campo correcto) |
-| INV-01, INV-02, INV-04 | índice único parcial + traducción de la violación (D3) |
+| INV-10 (`scope` ↔ variante de `Location`, ahora cinco), INV-11 (`requiresGrade` ⇔ `grade`), INV-13 (superficie aplicable a la pieza), INV-14 (FDI real), **par `type`↔`subtype` válido** y **`condition` exigida solo en `SEGUN_ESTADO`** | `@ValidFindingLocation` — constraint Bean Validation **a nivel de objeto** sobre el DTO, mismo patrón que `@ValidDiagnosisLocation` (`@Constraint` + `ConstraintValidator` + `addPropertyNode` para reportar sobre el campo correcto) |
+| INV-02, INV-04 | índice único parcial + traducción de la violación (D3) |
+| ~~INV-01 (un bloque abierto **por día**)~~ | **Cae**: NTS 188 genera odontograma **por evento**, no por día (`ADR-0017` D3). Sobrevive como *un bloque abierto por paciente* — la cronología de `ADR-0012` D7, misma implementación de D3 |
 | INV-03 (sellado inmutable), INV-06/07/08 (asientos), INV-09 (pieza ausente sin superficies) | servicio — requieren estado ya persistido |
 | INV-15 (dentición ↔ edad) | servicio, como **aviso** en la respuesta; nunca rechaza |
 
@@ -137,7 +163,8 @@ La representación es **SVG inline**, no canvas ni imágenes: cada pieza y cada 
 
 - El odontograma se renderiza **siempre sobre fondo blanco con los hex exactos**, aunque el resto de la aplicación esté en modo oscuro. Se comporta como un documento embebido, no como una superficie de UI: **lo que el odontólogo ve debe ser idénticamente lo que se audita**.
 - Es la **única excepción** a la regla de `frontend-guard` de no hardcodear colores. Hay que dejarlo comentado en el código, porque a simple vista parece la violación que esa regla persigue.
-- Los colores derivan del `behavior` del tipo y —para los `RESTAURACION`— de la `condition` del hallazgo. La regla de **contagio** de `ADR-0012` sigue vigente y se calcula al renderizar, sin almacenarse.
+- Los colores derivan del `colorBehavior` del tipo y —para los `SEGUN_ESTADO`— de la `condition` del hallazgo. **Nada más**: la regla de **contagio** de `ADR-0012` D2 **se elimina** (`ADR-0017` D2), no existe en la norma. Cada marcador se pinta por su propio estado, sin mirar la pieza entera. Un diente con caries **y** giroversión lleva la caries en rojo y la flecha en azul (6.1.13).
+- ⚠️ **Colores corregidos por el texto oficial**: la **movilidad** es **roja** (6.1.19), no azul; **extruida** e **intruida** son **azules** (6.1.24/6.1.25), no rojas. `ADR-0013` las tenía al revés.
 - **El color nunca es el único portador de significado**: la sigla oficial y la forma también lo comunican, que es justamente lo que la norma exige. Eso mantiene la accesibilidad aunque el contraste no se adapte al tema.
 
 *Riesgo asumido:* es la pieza de frontend más grande construida hasta ahora en el proyecto. Ver Riesgos.
@@ -150,7 +177,9 @@ La representación es **SVG inline**, no canvas ni imágenes: cada pieza y cada 
 
 **[Dentición mixta y piezas fuera de lo esperado]** → El modelo localiza por FDI, así que temporales y permanentes coexisten sin caso especial. La incoherencia con la edad **avisa pero no bloquea** (INV-15): una temporal retenida en un adulto es rara y real, y bloquearla impediría registrar un caso legítimo.
 
-**[Afirmaciones normativas sin validar documentalmente]** → Heredado de `ADR-0012`: el código de color, la representación de diastema/supernumerario y la obligatoriedad de las especificaciones vienen de la práctica del decisor, no de los textos de la NTS. **Las decisiones técnicas se sostienen igual; lo que no se puede afirmar todavía es que cumplan la norma.** Completar la columna § de `docs/compliance/regulatory-matrix.md` antes de presentar esto como evidencia de cumplimiento.
+**[~~Afirmaciones normativas sin validar documentalmente~~ — resuelto]** → Era el riesgo mayor, heredado de `ADR-0012`: código de color, localizaciones y especificaciones venían de análisis derivados, no del texto. **Cerrado el 2026-08-03** contra el texto oficial (`ADR-0017`), que encontró tres colores mal, una regla inexistente y cuatro huecos estructurales. `docs/compliance/regulatory-matrix.md` cita ahora el artículo (6.1.x / 5.x), no un documento intermedio.
+
+**[Riesgo que queda: la sigla es dato normativo, no etiqueta de UI]** → Las 38 siglas se imprimen **exactas** en el recuadro de la pieza. Un typo en el enum no lo atrapa ningún test de comportamiento: hay que verificarlas contra `ADR-0017` D7 una por una al escribir el catálogo, y dejar un test que las fije para que un rename no las arrastre.
 
 **[El bloque inicial abierto es editable, y eso parece contradecir append-only]** → No lo contradice: mientras el bloque está `OPEN` se puede corregir libremente, igual que un `DRAFT` de `clinical-history`. La regla append-only protege lo **sellado** y, en fase 2, el cierre de hallazgos de bloques anteriores. En v1 solo hay un bloque en borrador, así que la distinción todavía no se nota — conviene tenerla escrita para que nadie "arregle" esto después.
 
@@ -167,10 +196,9 @@ Migraciones nuevas a partir de `V16` (la última en `dev` es `V15__clinical_hist
 
 ## Open Questions
 
-1. **El catálogo de `TipoCondicion` es tentativo.** La lista de `ADR-0012` salió de la sesión de modelado, no de una lectura exhaustiva de la norma. **Revisarla con el odontólogo antes de escribir la migración** (tarea 0.1, bloqueante): agregar un tipo después cuesta migración de datos. Fuentes a contrastar: **NTS 188 y sus anexos gráficos** (la NTS 150 está **derogada** — ver `ADR-0013`), el Colegio Odontológico y la práctica clínica peruana. Faltan por confirmar al menos: recesión gingival (¿va solo en especificaciones?), giroversión (`ADR-0012` la deja con naturaleza fija y color por contagio), y si `NON_RESTORABLE` es el nombre correcto o debería ser el término de la norma.
+> ✅ **Las tres primeras se cerraron** el 2026-08-03 con el texto oficial de NTS 188 ([`ADR-0017`](../../../docs/adr/0017-catalogo-odontograma-nts-188.md)) — eran las tareas bloqueantes `0.1`, `0.2` y `0.3`.
 
-2. **⚠️ Índice de Higiene Oral (IHO) — sin decidir, y podría no ser un tipo de condición.** No aparece en ninguna parte del proyecto (verificado: cero menciones en `docs/` y `openspec/`); lo trae la revisión de este change. Si resulta ser **obligatorio** en el examen odontológico inicial, **no encaja como `TipoCondicion`**: es un **índice numérico calculado** sobre superficies con placa, con su propio método de medición y su valor agregado — otra forma de dato, no un hallazgo localizado. Eso lo haría un requirement adicional de esta capacidad, no un valor más del catálogo. **Investigar antes de la migración**, junto con 0.1: si es obligatorio y se omite, el odontograma quedaría incompleto ante auditoría; si se modela mal (como un tipo de hallazgo), corregirlo después cuesta migración.
-
-3. **⚠️ Registro periodontal (sondaje, furca) — fuera de alcance, sin decisión formal.** El modelo cubre **movilidad** (tipo con grado) y **recesión gingival** (texto en especificaciones), pero **sondaje periodontal y compromiso de furca no están contemplados en ningún artefacto** (verificado). En la práctica suelen vivir en un **periodontograma**, documento distinto del odontograma, con su propia grilla de seis sitios por pieza. Queda **fuera de este change** — pero hay que decidir explícitamente si es (a) una capacidad futura propia, (b) parte de `update-dental-chart`, o (c) texto en especificaciones. Dejarlo sin decidir es lo peligroso: es la clase de cosa que después se mete a presión en el modelo equivocado.
-
-4. **Alcance del SVG en v1** — ver Riesgos. Si el odontograma completo desborda, el corte hay que decidirlo explícitamente, no improvisarlo.
+1. ~~**El catálogo de `TipoCondicion` es tentativo**~~ — **cerrado** (`ADR-0017` D5 + D7): 38 hallazgos de 6.1.1–6.1.38, con sigla, subtipo, alcance y comportamiento de color. De lo que estaba por confirmar: la **recesión gingival** es hallazgo propio (6.1.31), la **giroversión** es azul **sin condicional** (6.1.13) y `NON_RESTORABLE` no existe en la norma — el término correcto es **remanente radicular** `RR` (6.1.32).
+2. ~~**Índice de Higiene Oral (IHO)**~~ — **cerrado** (`ADR-0017` D8): **no aparece en NTS 188**. No pertenece al odontograma. Si resulta obligatorio será por NTS 139, en la Ficha Odonto-Estomatológica, y con su propio change.
+3. ~~**Registro periodontal (sondaje, furca)**~~ — **cerrado** (`ADR-0017` D8): **no aparecen en NTS 188**. Lo periodontal que la norma sí exige ya entra como hallazgo del catálogo (movilidad 6.1.19, recesión 6.1.31); el **periodontograma** completo es documento aparte, con su propia grilla de seis sitios por pieza. Fuera de alcance, ahora por decisión y no por omisión.
+4. **Alcance del SVG en v1** — ver Riesgos. Sigue abierta, y ahora es la más grande: el catálogo pasó de tentativo a 38 hallazgos con cinco alcances, incluidos marcadores que cruzan varias piezas (prótesis parcial, ortodoncia fija) y el arco completo. Si el odontograma desborda el change, el corte hay que decidirlo explícitamente, no improvisarlo.

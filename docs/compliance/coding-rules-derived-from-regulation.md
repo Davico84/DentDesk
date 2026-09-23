@@ -1,5 +1,15 @@
 # Reglas de Codificación Derivadas de Regulaciones
 
+> # 🔴 ADVERTENCIA — LOS "FUNDAMENTOS NORMATIVOS" DE ESTE DOCUMENTO NO SON VERIFICABLES
+>
+> Cada regla de este manual declara un **Fundamento Normativo** con numeral. **Los de NTS 139 no existen en la norma**: `5.4.1 f`, `5.4.1 i` y `6.1.4` se citan cinco veces entre todas las reglas y ninguno corresponde a la estructura real del texto oficial. Los § reales están en [`ADR-0018`](../adr/0018-cumplimiento-nts-139-y-cop.md) **D3**.
+>
+> **Las reglas de codificación en sí son, en general, buenas** — append-only, sellado server-side, prohibición de `UPDATE`/`DELETE`, tenant en cada tabla. Varias ya están construidas y testeadas. Lo que no se sostiene es **la línea que dice de qué artículo salen**.
+>
+> **Consecuencia práctica:** usá este documento como **catálogo de reglas técnicas propuestas**, nunca como prueba de cumplimiento. Para responder *"¿qué norma obliga a esto?"* la fuente es [`regulatory-matrix.md`](regulatory-matrix.md), y solo sus filas con § verificado.
+
+---
+
 ## 1. INTRODUCCIÓN Y PROPÓSITO DEL MANUAL DE CODIFICACIÓN
 
 El presente documento consolida y traduce el marco normativo sanitario del Perú —regulado por el Ministerio de Salud (MINSA), la Superintendencia Nacional de Salud (SUSALUD) y el Colegio Odontológico del Perú (COP)— en un conjunto de Reglas de Codificación Obligatorias para el equipo de desarrollo.

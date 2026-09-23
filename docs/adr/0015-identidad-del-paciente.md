@@ -3,11 +3,12 @@
 - **Estado:** Aceptado (decisión); **pendiente de implementar** — requiere `update-patients` + `update-clinical-history`
 - **Fecha:** 2026-08-03
 - **Decisores:** David Velarde Alvarado
+- ⚠️ **Fundamento normativo corregido por [`ADR-0018`](0018-cumplimiento-nts-139-y-cop.md) D3.** El § citado (`6.1.1 a`) **no existe** en NTS 139; los reales son **5.3.1 (1) b** y **5.3.3 d**. El **requisito** (filiación completa obligatoria) es cierto; el **momento** — exigirla en la apertura — **no está verificado contra el texto oficial** (ver Contexto). La decisión se mantiene por su argumento de ingeniería, no por la cita.
 - **Relacionado:** completa [`ADR-0005`](0005-registro-minimo-paciente.md) (no lo deroga) · aplica el criterio de [`ADR-0006`](0006-validaciones-clinicas-por-etapa.md) · no toca [`ADR-0004`](0004-el-paciente-pertenece-a-una-clinica.md) ni [`ADR-0009`](0009-documento-unico-por-clinica.md)
 
 ## Contexto
 
-La **NTS N°139-MINSA/2018/DGAIN, numeral 6.1.1 literal a) ("Filiación")** exige que toda historia clínica cuente de forma mandatoria con un conjunto de datos de identificación: nombres, apellidos, tipo y número de documento, sexo, fecha de nacimiento, y las cadenas de **Ubigeo de nacimiento y de procedencia**.
+La **NTS N°139-MINSA/2018/DGAIN** (**5.3.1 (1) b** · **5.3.3 d**; esta línea citaba `6.1.1 a`, inexistente — [`ADR-0018`](0018-cumplimiento-nts-139-y-cop.md) D3) exige que toda historia clínica cuente de forma mandatoria con un conjunto de datos de identificación: nombres, apellidos, tipo y número de documento, sexo, fecha de nacimiento, y las cadenas de **Ubigeo de nacimiento y de procedencia**.
 
 Lo construido diverge en dos puntos:
 
@@ -34,12 +35,16 @@ ALTA (recepción)          APERTURA DE LA HC          SELLADO DE LA HC
   el bebé sin DNI entra
 ```
 
-**Por qué en la apertura y no en los extremos.** El análisis normativo del repo ([`nts-139-history-clinical.md`](../compliance/nts-139-history-clinical.md), numeral 6.1.1 a) lo sitúa ahí con precisión: *"el formulario debe obligar a completar la totalidad de los campos demográficos **antes de permitir la apertura de la historia clínica**"*.
+**Por qué en la apertura y no en los extremos.**
+
+> 🔴 **Esta es la parte que [`ADR-0018`](0018-cumplimiento-nts-139-y-cop.md) D3 no puede respaldar.** La redacción original decía que el análisis del repo *"lo sitúa ahí con precisión"* y citaba entre comillas: *"el formulario debe obligar a completar la totalidad de los campos demográficos antes de permitir la apertura de la historia clínica"*. Esa frase **no es texto de la norma**: es el apartado *"Impacto Funcional"* de [`nts-139-history-clinical.md`](../compliance/nts-139-history-clinical.md), es decir **una inferencia del análisis derivado presentada como cita normativa**. El texto oficial exige la filiación completa; **no se ha verificado que fije la apertura como el momento**.
+>
+> **La decisión se mantiene**, y sobre otro apoyo: los dos argumentos de abajo se sostienen solos, y son de diseño, no de cita. Lo que se retira es la afirmación de que la norma señala ese momento — exigirla en la apertura es **la lectura más conservadora compatible** con la norma (más temprano frenaría la admisión, más tarde dejaría un documento clínico en curso sin filiación), no un mandato textual.
 
 - **No en el alta**: la norma regula la historia clínica, no el acto administrativo de anotar a alguien en la agenda. Exigirlo ahí frena la recepción y mata el caso del recién nacido sin DNI.
 - **No en el sellado**: sería más tarde de lo que la norma pide. Una historia abierta ya es un documento clínico en curso.
 
-Así **`ADR-0005` sobrevive íntegro** (el alta conserva su mínimo) y se cumple el momento que la norma señala. Sigue aplicando el criterio de [`ADR-0006`](0006-validaciones-clinicas-por-etapa.md) —*"validaciones según la etapa"*—, solo que la etapa correcta resultó ser la apertura.
+Así **`ADR-0005` sobrevive íntegro** (el alta conserva su mínimo) y la filiación queda exigida en el punto más temprano que no rompe la admisión. Sigue aplicando el criterio de [`ADR-0006`](0006-validaciones-clinicas-por-etapa.md) —*"validaciones según la etapa"*—, solo que la etapa correcta resultó ser la apertura.
 
 > 💡 **Efecto secundario valioso**: al no tocar el checklist de sellado, este ADR **no colisiona** con `add-dental-chart`, que sí lo modifica. Son requirements distintos de la misma capacidad (*creación* vs. *sellado*) y pueden implementarse por separado sin que uno pise al otro.
 

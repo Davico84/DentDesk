@@ -1,5 +1,19 @@
 # Especificación de Cumplimiento: NTS N° 188-MINSA/DGIESP-2022 (Odontograma)
 
+> # 🔴 ADVERTENCIA — ESTE DOCUMENTO NO ES FUENTE NORMATIVA
+>
+> **Es un análisis derivado, escrito sin el texto oficial de la norma delante.** No se puede citar en un ADR, en un spec ni en una fila de [`regulatory-matrix.md`](regulatory-matrix.md). Degradado por [`ADR-0018`](../adr/0018-cumplimiento-nts-139-y-cop.md) **D8**.
+>
+> **Qué se comprobó.** Al leer el texto oficial se encontró que **tres afirmaciones de color y una regla de generación eran falsas**: la movilidad va en **rojo** (6.1.19), no azul; extruida/intruida van en **azul**; la *"regla de contagio"* que pinta un hallazgo según el estado de la pieza **no existe en la norma** (6.1.13); y el odontograma se genera **por evento clínico** (5.10/5.11), no uno por día. El modelo correcto está en `ADR-0017` — **ese** ADR sí se escribió con el texto oficial y sustituye a este documento para NTS 188.
+>
+> **Por qué sigue en el repo y no se borró.** Su traducción a impacto técnico —qué toca en dominio, base de datos, API, contrato y testing— es trabajo real y reutilizable, y en NTS 188 el espíritu de la norma estaba bien traducido: falló el detalle. Borrarlo perdería eso y, peor, borraría **la evidencia de qué creíamos y por qué**. Un error documentado enseña; un error desaparecido se repite.
+>
+> **Para qué sirve, entonces:** como **inventario de hipótesis a verificar** y como impacto técnico ya razonado. Leelo como *"esto es lo que habría que comprobar"*, nunca como *"esto es lo que dice la norma"*.
+>
+> ⚠️ **Todo § y todo artículo citado en las páginas siguientes debe considerarse NO VERIFICADO** salvo que aparezca en `ADR-0017` (NTS 188) o `ADR-0018` (NTS 139, COP), que sí se escribieron con el texto oficial.
+
+---
+
 ## 1. INTRODUCCIÓN Y CONTEXTO NORMATIVO
 
 El presente documento constituye la especificación de ingeniería y el análisis de cumplimiento para el módulo del Odontograma, derivado de la Norma Técnica de Salud para el Uso del Odontograma (NTS N° 188-MINSA/DGIESP-2022), aprobada mediante la Resolución Ministerial N° 559-2022/MINSA y publicada en el Diario Oficial El Peruano.
