@@ -24,8 +24,11 @@ MINSA, COP, protección de datos. ¿Qué norma **exige** esto, y qué dice exact
 
 - Citar el fragmento puntual, no un resumen de la norma completa (un resumen local se desactualiza en silencio).
 - 🔴 **Una fila de la matriz solo pasa a ✅ citando el ARTÍCULO del texto oficial, nunca un documento que lo interpreta.** Un análisis derivado traduce bien el espíritu y se aparta en el detalle: `ADR-0013` cerró una Open Question como *"confirmada"* sobre un resumen, y el texto decía lo contrario en tres puntos (ver `ADR-0017`).
-- Registrar la fila correspondiente en [`docs/compliance/regulatory-matrix.md`](../compliance/regulatory-matrix.md).
-- Si la decisión **no** cumple del todo y se difiere, decirlo explícitamente — un hueco documentado es gestionable; uno implícito, no.
+- 🔴 **Un requisito correcto NO valida su cita.** Son dos afirmaciones independientes y se verifican por separado: una fila puede estar bien en la columna *Requisito* y fabricada en la columna *§*. Es el modo de falla de [`ADR-0018`](0018-cumplimiento-nts-139-y-cop.md) — siete requisitos ciertos apoyados en siete numerales inexistentes, invisibles a dos revisiones **porque cada fila se leía verdadera**.
+- 🔴 **Un número no es más confiable por ser específico.** `6.1.1 a)` se lee más verificado que *"la norma exige filiación"*, y era lo contrario: la prosa venía del espíritu de la norma, el número no venía de ninguna parte. **La precisión aparente es un riesgo, no una garantía.**
+- 🔴 **La fuente se declara en la cabecera del ADR, y se audita: no se hereda.** `ADR-0014` y `ADR-0016` citaron artículos que nadie verificó, en un proyecto que ya tenía esta regla escrita — porque la regla vigilaba los ADR **nuevos** y esos dos ya estaban aceptados. **Una regla que solo aplica hacia adelante deja atrás todo lo que la motivó.**
+- Registrar la fila correspondiente en [`docs/compliance/regulatory-matrix.md`](../compliance/regulatory-matrix.md). ⚠️ **Los análisis por norma de `docs/compliance/` no son citables** (`ADR-0018` D8): son derivados, escritos sin el texto oficial. Cada uno lleva su advertencia en cabecera.
+- Si la decisión **no** cumple del todo y se difiere, decirlo explícitamente — un hueco documentado es gestionable; uno implícito, no. **Y si no se pudo verificar la cita, marcarla ⚠️ en vez de poner una plausible**: inventar un § verosímil es peor que no tener ninguno, porque nadie lo vuelve a revisar.
 
 ### 2. Dominio clínico
 

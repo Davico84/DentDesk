@@ -160,10 +160,12 @@ El Anexo confirma dos áreas de texto separadas.
 
 ### D8 — Fuera del odontograma: IHO y registro periodontal
 
+> 🔴 **Corregido en parte por [`ADR-0018`](0018-cumplimiento-nts-139-y-cop.md) D2.** La conclusión *"no está en NTS 188"* es correcta para los dos. Pero la frase de abajo *"si es obligatorio, será por NTS 139"* se escribió como hipótesis y **es un hecho**: NTS 139 **5.2.2 numeral 12.2** exige índice de higiene oral simplificado, índice de placa blanda y calcificada, y alta básica odontológica con fecha; el **12.1** exige odontograma **inicial y final**. Eso convierte el IHO en un gap 🔴 sobre `clinical-history`, **ya construida**, y descubre que el **odontograma final** no está en ningún artefacto — no se excluyó, se pasó por alto (va a `update-dental-chart`). **La exclusión de `add-dental-chart` se mantiene**: el IHO no pertenece al odontograma.
+
 Revisado el texto completo, **ninguno de los dos aparece**:
 
-- **Índice de Higiene Oral** — no se menciona. **No pertenece al odontograma.** Cierra la tarea `0.2`; si es obligatorio, será por NTS 139 y en la Ficha Odonto-Estomatológica, no acá.
-- **Sondaje periodontal y furca** — no se mencionan. La única condición periodontal del catálogo es la **movilidad** (6.1.19). Confirma que el **periodontograma es un documento aparte**. Cierra la tarea `0.3`.
+- **Índice de Higiene Oral** — no se menciona. **No pertenece al odontograma.** Cierra la tarea `0.2`; si es obligatorio, será por NTS 139 y en la Ficha Odonto-Estomatológica, no acá. ✅ **Confirmado: lo es** (`ADR-0018` D2).
+- **Sondaje periodontal y furca** — no se mencionan **ni en NTS 188 ni en el numeral 12 de NTS 139** (verificado, `ADR-0018` D2). La única condición periodontal del catálogo es la **movilidad** (6.1.19). Confirma que el **periodontograma es un documento aparte**. Cierra la tarea `0.3`.
 
 ## Consecuencias
 
