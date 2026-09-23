@@ -6,7 +6,7 @@
 - **Supersede:** [`ADR-0018`](0018-cumplimiento-nts-139-y-cop.md) **D8** (versionado de textos oficiales — ver **D12**) · resuelve la **Open Question 3** de [`ADR-0014`](0014-ciclo-de-vida-del-documento-clinico.md) D7 · **cierra** [`ADR-0016`](0016-responsabilidad-clinica.md) **D4** y refuerza **D2/D3**, **D5** y **D6**
 - **Fuentes — texto oficial, completo y vigente, versionado en [`docs/compliance/normas/`](../compliance/normas/):**
   - **Ley N°29733** — arts. 1–40, Títulos Preliminar a VII, 12 disposiciones complementarias. ⚠️ texto original de 2011, sin modificatorias incorporadas
-  - **D.S. N°016-2024-JUS** — reglamento **vigente**, arts. 1–135, El Peruano 30.11.2024, en vigor desde el **30.03.2025**
+  - **D.S. N°016-2024-JUS** — reglamento **vigente**, El Peruano 30.11.2024, en vigor desde el **30.03.2025**. **Título Preliminar con artículos en romanos** (I–VII) + arts. **1–135** en arábigos — ver la nota de lectura en **D1**
 - ⚠️ **No se cita:** el **D.S. N°003-2013-JUS**, auténtico y completo pero **derogado** por el anterior; y la **Directiva de Seguridad de la ANPDP** (R.D. 019-2013-JUS), ilegible y desplazada. Ambos se conservan como evidencia — ver **D12**
 
 ## Contexto
@@ -68,6 +68,10 @@ Esto no estaba escrito en ningún artefacto del proyecto, y es la decisión de l
 1. **Los datos no pueden usarse con un fin distinto al del contrato.** Esto convierte la tercera regla de `ADR-0018` D5 —*ninguna funcionalidad monetiza el dato clínico*— de principio ético del COP a **obligación legal exigible**, y de paso la saca de *"sin decisión escrita"*: **queda decidida acá**. Ni benchmarking entre clínicas, ni venta de estadísticas, ni entrenamiento de modelos, mientras no esté en el contrato. Usar datos para otra finalidad es **infracción grave** (Regl. art. 133 num. 7).
 2. **El encargado no puede transferir a terceros** salvo que la clínica lo autorice **y** el paciente consienta (Regl. art. 31.1). Aplica a sub-encargados de nube.
 3. **Al terminar el servicio hay que devolver y suprimir.** Ver **D2**.
+
+⚠️ **El hospedaje fuera del Perú no exime de nada.** El art. **VI num. 2** del Título Preliminar del Reglamento aplica la ley *"cuando (…) sea efectuado por un encargado del tratamiento, **con independencia de su ubicación**, a nombre de un titular de banco de datos personales establecido en territorio peruano"*. Dentdesk queda sujeto a la norma peruana donde sea que corra. **Sigue faltando escribir dónde se hospeda** —ningún artefacto lo dice— pero la ubicación no cambia qué se debe cumplir, solo las formalidades del flujo transfronterizo (Ley art. 15).
+
+⚠️ **Nota de lectura del Reglamento**: su **Título Preliminar numera los artículos en romanos** (I a VII u ocho) y el resto en arábigos (1 a 135). Un barrido que solo busque `Artículo <número>` **se saltea el Título Preliminar entero**, que es donde viven el ámbito de aplicación y las definiciones. Pasó en esta misma sesión: la primera versión de la fila de la matriz citó el `art. 5`, que es el del reglamento **derogado**.
 
 ### D2 — Dar de baja un tenant: **devolver a la clínica, después borrar**. Máximo dos años
 
