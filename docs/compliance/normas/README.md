@@ -11,6 +11,7 @@ Esta carpeta guarda el **texto oficial** de las normas que el proyecto cita, par
 | `ley-29733-proteccion-datos-personales-2011.pdf` | **Ley N°29733**, Ley de Protección de Datos Personales | ✅ arts. 1–40, Título Preliminar + Títulos I–VII, 12 disposiciones complementarias, firmas de promulgación (02.07.2011) | ✅ **VIGENTE**. El D.S. 016-2024-JUS derogó su reglamento, **no la ley**. ⚠️ Texto original 2011, **sin modificatorias incorporadas** — la denominación de la autoridad cambió desde entonces | ✅ **sí**, es la fuente de [`ADR-0019`](../../adr/0019-proteccion-de-datos-ley-29733.md) |
 | `DEROGADO-ds-003-2013-jus-reglamento-ley-29733-2013.pdf` | **D.S. N°003-2013-JUS**, reglamento | ✅ arts. 1–131, El Peruano 22.03.2013 | 🔴 **DEROGADO** por el **D.S. N°016-2024-JUS** (El Peruano, 30.11.2024), en vigor desde el **30.03.2025** | 🔴 **NO**. Se conserva como evidencia del episodio, no como fuente |
 | `Decreto-Supremo-016-2024-JUS-LPDerecho.pdf` | **D.S. N°016-2024-JUS**, reglamento **vigente** | ✅ **Título Preliminar con artículos en ROMANOS** (I–VII) + arts. **1–135** en arábigos, El Peruano 30.11.2024. ⚠️ Un barrido que solo busque `Artículo <número>` **se saltea el Título Preliminar**, donde viven el ámbito de aplicación y las definiciones | ✅ **VIGENTE** desde el **30.03.2025**. Deroga expresamente al D.S. 003-2013-JUS | ✅ **sí**, es la segunda fuente de [`ADR-0019`](../../adr/0019-proteccion-de-datos-ley-29733.md) |
+| `nts-188-odontograma-rm-559-2022-ESCANEADA.pdf` | **NTS N°188-MINSA/DGIESP-2022**, uso del Odontograma (RM N°559-2022/MINSA) | ⚠️ **24 páginas escaneadas, sin capa de texto** (`pdftotext` extrae 24 bytes). ✅ **Legible por extracción de imágenes** — ver *Cómo leer un PDF escaneado*. Contiene el catálogo **6.1.1–6.1.38** | ✅ **VIGENTE**. Deroga la NTS N°150 (RM N°595-2019) | ✅ **sí** — fuente de [`ADR-0017`](../../adr/0017-catalogo-odontograma-nts-188.md). ⚠️ **El catálogo necesita re-verificación completa entrada por entrada** |
 | `directiva-seguridad-anpdp-2013-ESCANEADA-SIN-TEXTO.pdf` | **Directiva de Seguridad de la Información Administrada por los Bancos de Datos Personales** (R.D. N°019-2013-JUS/DGPDP) | ⚠️ 38 páginas **escaneadas como imagen, sin capa de texto** — `pdftotext` extrae 38 bytes, uno por salto de página | ⚠️ de 2013, escrita sobre el reglamento derogado. El D.S. 016-2024-JUS subió las obligaciones de seguridad al propio texto reglamentario | 🔴 **NO**, por partida doble: ilegible y desplazada |
 
 ## Qué falta
@@ -19,7 +20,7 @@ Esta carpeta guarda el **texto oficial** de las normas que el proyecto cita, par
 |---|---|---|
 | **Modificatorias de la Ley N°29733** | El texto versionado es el original de 2011 | ⚠️ sin verificar |
 | **Ley N°27269** + D.S. N°052-2008-PCM — firma digital | Tras `ADR-0018` D4 es la **única** fuente de la firma digital: el COP no la menciona en ningún artículo | ⚠️ pendiente |
-| **NTS N°139-MINSA/2018/DGAIN** · **NTS N°188-MINSA/DGIESP-2022** · **Código de Ética del COP (2024)** | Leídas y usadas en `ADR-0017` y `ADR-0018`, **no versionadas** — ver *Qué se versiona* | ⚠️ citadas por fecha de consulta |
+| **NTS N°139-MINSA/2018/DGAIN** · **Código de Ética del COP (2024)** | Leídas y usadas en `ADR-0018`, **no versionadas** — ver *Qué se versiona* | ⚠️ citadas por fecha de consulta |
 
 ## Qué se versiona y qué no
 
@@ -38,6 +39,26 @@ Esta carpeta guarda el **texto oficial** de las normas que el proyecto cita, par
 4. **Un PDF acá no convierte en verificado lo que nadie leyó.** La fila de la matriz se cierra citando el artículo, no la existencia del archivo.
 5. **Comprobar el esquema de numeración antes de barrer el texto.** El D.S. 016-2024-JUS numera su Título Preliminar en **romanos** y el resto en arábigos. Buscar solo `Artículo <número>` deja fuera el ámbito de aplicación y las definiciones — pasó en esta sesión, y produjo una cita al artículo equivocado.
 6. **Antes de citar, comprobar la vigencia contra una fuente externa.** El documento no la declara: un texto derogado se ve idéntico al día que se publicó. Cuanto más viejo, más obligatoria la comprobación — el reglamento derogado tenía **trece años**.
+
+## Cómo leer un PDF escaneado
+
+Dos de los textos de esta carpeta son **escaneos sin capa de texto**. `pdftotext` devuelve un byte por página y `pypdf.extract_text()` devuelve vacío. Eso **no significa que no se puedan leer**.
+
+Un escaneo lleva cada página como **una imagen incrustada**. Se extrae así:
+
+```python
+import io, os, pypdf
+r = pypdf.PdfReader('docs/compliance/normas/<archivo>.pdf')
+for i, pg in enumerate(r.pages, start=1):
+    for j, im in enumerate(pg.images):
+        io.open('salida/pag%02d_%d%s' % (i, j, os.path.splitext(im.name)[1]), 'wb').write(im.data)
+```
+
+Y las imágenes resultantes **sí** se leen. En NTS 188 el texto sale rotado 90° y aun así es legible.
+
+⚠️ **Antes de declarar ilegible un PDF, probar esto.** La `directiva-seguridad-anpdp-2013` se dio por ilegible en `ADR-0019` sin intentarlo; puede que sí se pueda leer por esta vía.
+
+⚠️ **No hay OCR en este entorno** (no está `tesseract`, y de poppler solo está `pdftotext.exe`, falta `pdftoppm`). Así que el texto **no se puede buscar con `grep`**: hay que localizar el numeral por posición, página por página. En NTS 188 el catálogo va a ~3 entradas por página desde la página 8.
 
 ## Por qué existe esta carpeta
 

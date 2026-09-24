@@ -4,7 +4,8 @@
 - **Fecha:** 2026-08-03
 - **Decisores:** David Velarde Alvarado
 - **Supersede:** [`ADR-0012`](0012-odontograma-libro-de-asientos.md) **D2** (regla de contagio) y **D4** (bloque diario) · [`ADR-0013`](0013-odontograma-nts-188.md) **D3** (colores del catálogo)
-- **Fuente:** **texto oficial** de la NTS N°188-MINSA/DGIESP-2022 (RM N°559-2022/MINSA), numerales 5.4–5.18, 6.1.1–6.1.38 y Anexo
+- **Fuente:** **texto oficial** de la NTS N°188-MINSA/DGIESP-2022 (RM N°559-2022/MINSA), numerales 5.4–5.18, 6.1.1–6.1.38 y Anexo. ✅ **Ahora versionado** en [`docs/compliance/normas/nts-188-odontograma-rm-559-2022-ESCANEADA.pdf`](../compliance/normas/) — es un escaneo sin capa de texto; se lee extrayendo las imágenes de página (ver el README de esa carpeta)
+- ⚠️ **Re-verificación parcial del 2026-09-23** (a raíz de una revisión externa del change): **`5.2.23` es un typo DE LA NORMA**, no de este ADR — la página 14 del texto oficial dice literalmente *"5.2.23 PIEZA DENTARIA EN ERUPCIÓN"* entre 6.1.22 y 6.1.24. Confirmados además **6.1.24 extruida** y **6.1.25 intruida**, ambas en **azul** (D7 acertó), **6.1.29–31** prótesis fija / completa / **parcial removible**, **6.1.32** remanente radicular, **6.1.33–34** restauraciones, **6.1.35** sellantes, **6.1.36** superficie desgastada (`DES`), **6.1.37** tratamiento de conducto. 🔴 **Falta re-verificar el resto entrada por entrada** — ver la nota al final de D7
 
 ## Contexto
 
@@ -135,7 +136,7 @@ El Anexo confirma dos áreas de texto separadas.
 | | Pieza ausente | 6.1.20 | `DNE` `DEX` `DAO` | 🔵 |
 | | Pieza en clavija | 6.1.21 | — | 🔵 |
 | | Pieza ectópica | 6.1.22 | `E` | 🔵 |
-| | Pieza en erupción | 5.2.23 | — | 🔵 |
+| | Pieza en erupción | **5.2.23** [sic] | — | 🔵 |
 | | **Pieza extruida** | 6.1.24 | — | 🔵 **(no roja)** |
 | | **Pieza intruida** | 6.1.25 | — | 🔵 **(no roja)** |
 | | Pulpotomía | 6.1.27 | `PP` | ⚪ estado |

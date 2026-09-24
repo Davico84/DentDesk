@@ -2,9 +2,9 @@
 
 - [x] 0.1 ~~Revisar el catálogo de tipos de condición y fijarlo~~ — **hecho** (2026-08-03) contra el **texto oficial de NTS 188**, no un análisis derivado: [`ADR-0017`](../../../docs/adr/0017-catalogo-odontograma-nts-188.md) cierra los **38 hallazgos** (6.1.1–6.1.38) con sigla, subtipo, alcance y color. Resuelve los dos hallazgos abiertos: **(a)** `DES` se registra como hallazgo **de superficie** y la sigla del recuadro se **deriva** al renderizar (D7); **(b)** `IMP` **no** implica pieza ausente — **coexiste** con ella (un implante sin corona está en una pieza ausente, uno con corona no), así que la invariante propuesta habría rechazado registros válidos (D7)
 - [x] 0.2 ~~Decidir si el IHO es obligatorio~~ — **hecho**: **no está en NTS 188**, no es requisito del odontograma. Fuera de alcance (`ADR-0017` **D8**)
-- [x] 0.3 ~~Decidir dónde vive el registro periodontal~~ — **hecho**: **no está en NTS 188**. Lo periodontal que la norma sí exige (movilidad 6.1.19, recesión 6.1.31, furca) ya entra como hallazgo del catálogo; el **periodontograma** completo es documento aparte, fuera de alcance (`ADR-0017` **D8**)
+- [x] 0.3 ~~Decidir dónde vive el registro periodontal~~ — **hecho**: **no está en NTS 188**. Lo periodontal que la norma sí exige (**movilidad 6.1.19**) ya entra como hallazgo del catálogo. 🔴 **Esta línea decía además "recesión 6.1.31, furca" y tenía dos errores**: 6.1.31 es la **prótesis dental parcial removible** en el texto oficial, y la **furca está fuera de alcance** por `ADR-0017` D8 — decirla dentro contradecía el propio proposal; el **periodontograma** completo es documento aparte, fuera de alcance (`ADR-0017` **D8**)
 - [x] 0.4 ~~Completar la columna **§** de `docs/compliance/regulatory-matrix.md`~~ — **hecho** (2026-08-03) con los numerales de NTS 139 (5.4.1 f/i, 6.1.1 a, 6.1.4, 6.6.1), NTS 188 (6.1, 6.2, Anexo N°01), COP y las leyes 29733 / 27269
-- [ ] 0.5 Verificar el número real de la última migración en `dev` (hoy `V15__clinical_history_diagnosis.sql`) por si otro change se adelantó
+- [x] 0.5 Verificar el número real de la última migración en `dev` — ✅ **verificado 2026-09-23**: sigue siendo `V15__clinical_history_diagnosis.sql`, ningún change se adelantó. **La primera migración de este change es `V16`.**
 
 ### 0.6 Realinear los artefactos con `ADR-0017` (bloquea al grupo 1) — ✅ hecho (2026-08-03)
 
@@ -18,6 +18,20 @@ Proposal, design, spec y tasks se escribieron **antes** de tener el texto oficia
 - [x] 0.6.6 `spec.md` + `proposal.md` — fuera el **bloque diario**: el odontograma se genera **por evento** (5.10/5.11). El cierre diario es de la nota de evolución de NTS 139, no de este documento (`ADR-0017` D3)
 - [x] 0.6.7 `spec.md` — scenarios que fijan que **cada hallazgo se pinta por su propio estado**: la giroversión sigue azul junto a una caries, y el implante **coexiste** con la ausencia sin implicarla (`ADR-0017` D2/D7)
 - [x] 0.6.8 `openspec validate add-dental-chart --strict` en verde
+
+### 0.7 Re-verificar el catálogo completo contra el PDF versionado (bloquea el `CHECK` de 1.3)
+
+> 🔴 Abierto el **2026-09-23** por una revisión externa del change. El PDF de NTS 188 **ya está versionado** en `docs/compliance/normas/`, así que esto ya no depende de conseguir nada.
+>
+> **Por qué hace falta**: se encontró que `ADR-0017` es **internamente inconsistente** — su tabla asigna `6.1.31` a *prótesis dental parcial removible* (✅ correcto según el texto oficial) mientras que el proposal, las tasks y la matriz decían que `6.1.31` era *recesión gingival* (🔴 falso, ya corregido). Si una entrada se desalineó, **las otras 37 no están garantizadas**.
+
+- [ ] 0.7.1 Extraer las 24 páginas como imagen (`pypdf` + `pg.images`, ver el README de `docs/compliance/normas/`) y recorrer el catálogo **entrada por entrada**, del `6.1.1` al `6.1.38`
+- [ ] 0.7.2 Fijar la tabla definitiva **numeral → nombre → sigla oficial → alcance → comportamiento de color**, y corregir `ADR-0017` D7 donde difiera
+- [ ] 0.7.3 Resolver **dónde está la recesión gingival**, o concluir que **no está en NTS 188** — hoy no se sabe, y `ADR-0017` D8 la daba por incluida
+- [ ] 0.7.4 Confirmar que la **furca** no aparece (`ADR-0017` D8 lo afirma; `tasks.md` lo contradecía)
+- [ ] 0.7.5 Anotar los **typos de la propia norma** con `[sic]` y su numeral corregido por posición (ya detectado: `5.2.23` debería ser `6.1.23`)
+
+⚠️ **No se escribe el `CHECK` de 38 pares hasta que esto cierre.** Un `CHECK` sobre un catálogo con una entrada mal numerada es una migración correctiva sobre datos clínicos.
 
 ## 1. Modelo y persistencia (backend)
 
