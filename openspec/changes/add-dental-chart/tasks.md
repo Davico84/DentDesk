@@ -25,13 +25,18 @@ Proposal, design, spec y tasks se escribieron **antes** de tener el texto oficia
 >
 > **Por qué hace falta**: se encontró que `ADR-0017` es **internamente inconsistente** — su tabla asigna `6.1.31` a *prótesis dental parcial removible* (✅ correcto según el texto oficial) mientras que el proposal, las tasks y la matriz decían que `6.1.31` era *recesión gingival* (🔴 falso, ya corregido). Si una entrada se desalineó, **las otras 37 no están garantizadas**.
 
-- [ ] 0.7.1 Extraer las 24 páginas como imagen (`pypdf` + `pg.images`, ver el README de `docs/compliance/normas/`) y recorrer el catálogo **entrada por entrada**, del `6.1.1` al `6.1.38`
-- [ ] 0.7.2 Fijar la tabla definitiva **numeral → nombre → sigla oficial → alcance → comportamiento de color**, y corregir `ADR-0017` D7 donde difiera
-- [ ] 0.7.3 Resolver **dónde está la recesión gingival**, o concluir que **no está en NTS 188** — hoy no se sabe, y `ADR-0017` D8 la daba por incluida
-- [ ] 0.7.4 Confirmar que la **furca** no aparece (`ADR-0017` D8 lo afirma; `tasks.md` lo contradecía)
-- [ ] 0.7.5 Anotar los **typos de la propia norma** con `[sic]` y su numeral corregido por posición (ya detectado: `5.2.23` debería ser `6.1.23`)
+- [x] 0.7.1 Extraer las 24 páginas como imagen y recorrer el catálogo entrada por entrada — ✅ **hecho 2026-09-23**
+- [x] 0.7.2 Fijar la tabla definitiva — ✅ **la tabla de `ADR-0017` D7 es CORRECTA en las 38 filas**: numeral, sigla, color y alcance. No hubo que corregir ninguna. Los errores estaban en la matriz (implante atribuido a 6.1.16) y en proposal/tasks (recesión atribuida a 6.1.31), ya corregidos
+- [x] 0.7.3 Recesión gingival — ✅ **NO está en NTS 188**. El catálogo es alfabético y entre 6.1.31 (prótesis parcial removible) y 6.1.32 (remanente radicular) no hay hueco. `ADR-0017` D8 corregido: lo único periodontal del catálogo es la **movilidad** (6.1.19)
+- [x] 0.7.4 Furca — ✅ **no aparece**. `ADR-0017` D8 tenía razón; la contradicción de este archivo ya está corregida
+- [x] 0.7.5 Typos de la norma — ✅ **dos**, ambos anotados `[sic]` en `ADR-0017` D7: `5.2.23` (pieza en erupción, debería ser 6.1.23) y `6.115` (implante dental, debería ser 6.1.15)
+- [x] 0.7.6 **Hallazgo nuevo**: la **sigla no es única**. `M` es movilidad (6.1.19, rojo, con dígito) y también mesializado (6.1.28, azul, sola); `S` es supernumeraria (6.1.26) y también sellante (6.1.35). ⚠️ **La sigla no puede ser clave** ni identificar un hallazgo: la clave es `tipo`+`subtipo` y la sigla es atributo de salida (`ADR-0017` D7)
 
-⚠️ **No se escribe el `CHECK` de 38 pares hasta que esto cierre.** Un `CHECK` sobre un catálogo con una entrada mal numerada es una migración correctiva sobre datos clínicos.
+✅ **Cerrado el 2026-09-23. El `CHECK` ya se puede escribir**, con tres avisos que salieron de la verificación:
+>
+> 1. Los numerales `5.2.23` y `6.115` son **así en la norma**. Si el `CHECK` o el enum los "corrige" a 6.1.23 y 6.1.15, deja de coincidir con el documento que un auditor tiene en la mano. Se guardan como los imprime la norma, con el corregido por posición al lado.
+> 2. **Ningún índice único sobre la sigla** (0.7.6).
+> 3. El catálogo está en **orden alfabético por nombre**, no por alcance ni por color. Es útil para auditarlo, y explica por qué la ausencia de la recesión gingival es demostrable.
 
 ## 1. Modelo y persistencia (backend)
 

@@ -113,6 +113,12 @@ El Anexo confirma dos áreas de texto separadas.
 
 38 hallazgos, tomados de 6.1.1–6.1.38. **Cierra la tarea `0.1`.**
 
+> ✅ **Re-verificado entrada por entrada el 2026-09-23** contra el PDF oficial versionado (tarea `0.7`), tras una revisión externa que hizo dudar del catálogo. **Las 38 filas son correctas**: numeral, sigla, color y alcance. Las 6+22+4+3+3 entradas de las cinco secciones suman 38.
+>
+> ⚠️ **Lo que sí estaba mal era aguas abajo**, no acá: `regulatory-matrix.md` atribuía el implante a `6.1.16` (es **6.1.15**; 6.1.16 es la lesión de caries), y `proposal.md`/`tasks.md` daban la recesión gingival por `6.1.31` (es **prótesis dental parcial removible**). Corregidos.
+>
+> 🔴 **Dos typos de la propia norma**, transcritos tal cual con `[sic]`: la pieza en erupción aparece como **`5.2.23`** (debería ser 6.1.23) y el implante dental como **`6.115`** (debería ser 6.1.15). Ambos verificados en las páginas 14 y 11 del texto oficial. **No son errores de este ADR.**
+
 | Alcance | Hallazgo | § | Sigla | Color |
 |---|---|---|---|---|
 | **superficie** | Lesión de caries | 6.1.16 | `MB` `CE` `CD` `CDP` | 🔴 |
@@ -129,7 +135,7 @@ El Anexo confirma dos áreas de texto separadas.
 | | Geminación | 6.1.12 | — | 🔵 |
 | | Giroversión | 6.1.13 | — | 🔵 |
 | | Impactación | 6.1.14 | `I` | 🔵 |
-| | Implante dental | 6.1.15 | `IMP` | ⚪ estado |
+| | Implante dental | **6.115** [sic] | `IMP` | ⚪ estado |
 | | Macrodoncia | 6.1.17 | `MAC` | 🔵 |
 | | Microdoncia | 6.1.18 | `MIC` | 🔵 |
 | | **Movilidad patológica** | 6.1.19 | `M1` `M2` `M3` | 🔴 **(no azul)** |
@@ -154,6 +160,15 @@ El Anexo confirma dos áreas de texto separadas.
 | | Edéntulo total sup./inf. | 6.1.7 | — | 🔵 |
 | | Prótesis completa sup./inf. | 6.1.30 | — | ⚪ estado |
 
+🔴 **La sigla NO es única: dos colisiones reales en el catálogo oficial.**
+
+| Sigla | Un tipo | Otro tipo | Cómo se distinguen |
+|---|---|---|---|
+| **`M`** | **Movilidad patológica** (6.1.19), 🔴 rojo | **Mesializado** (subtipo de Posición anormal, 6.1.28), 🔵 azul | la movilidad lleva **dígito de grado** (`M1`/`M2`/`M3`); mesializado va **sola** |
+| **`S`** | **Pieza supernumeraria** (6.1.26), entre piezas | **Sellante** (6.1.35), superficie/pieza | por **alcance**: una va entre ápices, la otra en la pieza |
+
+⚠️ **Consecuencia de modelado**: la sigla **no puede ser clave** del catálogo ni identificar un hallazgo por sí sola. La clave es el par **`tipo` + `subtipo`** (D5), y la sigla es un **atributo de salida**. Un índice único sobre la sigla rechazaría registros válidos.
+
 **Dos casos con reglas propias:**
 
 - **`DES` (6.1.36)** — *"se registra la sigla en el **recuadro correspondiente a la pieza** y se dibuja de color rojo en el **gráfico** acorde al lugar donde se observa"*. Se registra como hallazgo **de superficie**; la sigla del recuadro se **deriva** al renderizar. El modelo no cambia (era la opción recomendada en `ADR-0013` OQ2).
@@ -166,6 +181,7 @@ El Anexo confirma dos áreas de texto separadas.
 Revisado el texto completo, **ninguno de los dos aparece**:
 
 - **Índice de Higiene Oral** — no se menciona. **No pertenece al odontograma.** Cierra la tarea `0.2`; si es obligatorio, será por NTS 139 y en la Ficha Odonto-Estomatológica, no acá. ✅ **Confirmado: lo es** (`ADR-0018` D2).
+- **Recesión gingival** — 🔴 **tampoco está, y este ADR lo daba por incluido.** Verificado el 2026-09-23: el catálogo está en **orden alfabético** y entre `6.1.31` (Prótesis dental parcial removible) y `6.1.32` (Remanente radicular) **no hay hueco** — *"Rece"* ordena antes de *"Rema"*, así que si existiera estaría ahí. **No existe en NTS 188.** La exclusión de lo periodontal es entonces **más completa** de lo que decía este numeral: lo único periodontal del catálogo es la **movilidad** (6.1.19).
 - **Sondaje periodontal y furca** — no se mencionan **ni en NTS 188 ni en el numeral 12 de NTS 139** (verificado, `ADR-0018` D2). La única condición periodontal del catálogo es la **movilidad** (6.1.19). Confirma que el **periodontograma es un documento aparte**. Cierra la tarea `0.3`.
 
 ## Consecuencias

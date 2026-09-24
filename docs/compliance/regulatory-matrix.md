@@ -227,7 +227,7 @@ Qué datos identifican a un paciente, y quién responde por cada registro.
 | # | Requisito | Estado | Resolución |
 |---|---|---|---|
 | D1 | Alcance dual de `DES` | ✅ | Se registra como hallazgo **de superficie** (la verdad clínica); la sigla del recuadro se **deriva** al renderizar. El modelo no cambia (`ADR-0017` **D7**). |
-| D2 | ~~`IMP` implica pieza ausente~~ | ✅ | **Falso.** 6.1.16 describe el implante como hallazgo propio; puede **coexistir** con la ausencia sin implicarla — un implante sin corona está en una pieza ausente, uno con corona no. La invariante habría rechazado registros válidos (`ADR-0017` **D7**). |
+| D2 | ~~`IMP` implica pieza ausente~~ | ✅ | **Falso.** El implante es un hallazgo propio y puede **coexistir** con la ausencia sin implicarla. 🔴 Esta fila citaba `6.1.16`, que es la **lesión de caries dental**; el implante es **`6.115` [sic, por 6.1.15]** — verificado el 2026-09-23 en la página 11 del texto oficial. La conclusión se mantiene, la cita estaba mal — un implante sin corona está en una pieza ausente, uno con corona no. La invariante habría rechazado registros válidos (`ADR-0017` **D7**). |
 | D3 | Índice de Higiene Oral (IHO) | ✅ | **No está en NTS 188** — no es requisito del odontograma. Fuera de alcance (`ADR-0017` **D8**). |
 | D4 | Registro periodontal (sondaje, furca) | ✅ | **No está en NTS 188.** Lo periodontal que sí norma (**movilidad 6.1.19**) ya está en el catálogo como hallazgo. 🔴 Esta fila decía además *"recesión 6.1.31, furca"*: **6.1.31 es prótesis dental parcial removible** en el texto oficial, y la furca está fuera de alcance; el periodontograma completo es documento aparte, fuera de alcance (`ADR-0017` **D8**). |
 
