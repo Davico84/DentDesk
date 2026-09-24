@@ -107,7 +107,7 @@ class ClinicalHistoryCompletionServiceIT extends AbstractTenantAwareIntegrationT
     void completes_when_the_checklist_is_satisfied() {
         Long patientId = aPatientReadyToComplete("Completa");
 
-        ClinicalHistoryView view = clinicalHistoryService.complete(patientId);
+        ClinicalHistoryView view = clinicalHistoryService.complete(patientId, true);
 
         assertThat(view.status()).isEqualTo(HistoriaClinicaStatus.COMPLETED);
     }
@@ -119,10 +119,23 @@ class ClinicalHistoryCompletionServiceIT extends AbstractTenantAwareIntegrationT
         clinicalHistoryService.update(patientId, fullData());
         // Sin diagnóstico: falta un ítem del checklist.
 
-        assertThatThrownBy(() -> clinicalHistoryService.complete(patientId))
+        assertThatThrownBy(() -> clinicalHistoryService.complete(patientId, true))
             .isInstanceOf(ChecklistIncompleteException.class)
             .satisfies(e -> assertThat(((ChecklistIncompleteException) e).getMissingFields())
                 .contains("diagnosticos"));
+    }
+
+    @Test
+    void rejects_completion_without_an_initial_dental_chart() {
+        // El sellado coordinado real vive en CloseAdmissionServiceIT; esto prueba SOLO que este
+        // servicio, llamado con hasInitialDentalChart=false, reporta el ítem que le corresponde
+        // (design.md D4, ADR-0012 D5, add-dental-chart: la Historia ya no se sella sola).
+        Long patientId = aPatientReadyToComplete("Sin odontograma");
+
+        assertThatThrownBy(() -> clinicalHistoryService.complete(patientId, false))
+            .isInstanceOf(ChecklistIncompleteException.class)
+            .satisfies(e -> assertThat(((ChecklistIncompleteException) e).getMissingFields())
+                .containsExactly("dentalChart"));
     }
 
     @Test
@@ -135,7 +148,7 @@ class ClinicalHistoryCompletionServiceIT extends AbstractTenantAwareIntegrationT
         diagnosisService.add(patientId,
             new DiagnosisData("A00", DiagnosisLocation.GENERAL, null, TipoDiagnostico.PRESUNTIVO));
 
-        assertThatThrownBy(() -> clinicalHistoryService.complete(patientId))
+        assertThatThrownBy(() -> clinicalHistoryService.complete(patientId, true))
             .isInstanceOf(ChecklistIncompleteException.class)
             .satisfies(e -> assertThat(((ChecklistIncompleteException) e).getMissingFields())
                 .contains("alergiasRevisado"));
@@ -151,7 +164,7 @@ class ClinicalHistoryCompletionServiceIT extends AbstractTenantAwareIntegrationT
         diagnosisService.add(patientId,
             new DiagnosisData("A00", DiagnosisLocation.GENERAL, null, TipoDiagnostico.PRESUNTIVO));
 
-        assertThatThrownBy(() -> clinicalHistoryService.complete(patientId))
+        assertThatThrownBy(() -> clinicalHistoryService.complete(patientId, true))
             .isInstanceOf(ChecklistIncompleteException.class)
             .satisfies(e -> assertThat(((ChecklistIncompleteException) e).getMissingFields())
                 .contains("medicacionRevisado"));
@@ -160,16 +173,16 @@ class ClinicalHistoryCompletionServiceIT extends AbstractTenantAwareIntegrationT
     @Test
     void rejects_completing_an_already_completed_history() {
         Long patientId = aPatientReadyToComplete("Doble Sello");
-        clinicalHistoryService.complete(patientId);
+        clinicalHistoryService.complete(patientId, true);
 
-        assertThatThrownBy(() -> clinicalHistoryService.complete(patientId))
+        assertThatThrownBy(() -> clinicalHistoryService.complete(patientId, true))
             .isInstanceOf(HistoriaClinicaSealedException.class);
     }
 
     @Test
     void a_patient_with_a_completed_history_is_enabled_for_treatment() {
         Long patientId = aPatientReadyToComplete("Habilitado");
-        clinicalHistoryService.complete(patientId);
+        clinicalHistoryService.complete(patientId, true);
 
         EnablementView enablement = clinicalHistoryService.getEnablementStatus(patientId);
 

@@ -10,7 +10,10 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Clock;
+import java.time.Instant;
 import java.time.LocalDate;
+import java.util.List;
 
 /**
  * Creación del odontograma inicial y sus dos campos de texto (ADR-0012, ADR-0017 D3/D6). Mismo
@@ -24,10 +27,13 @@ public class DentalChartService {
 
     private final DentalChartBlockRepository blockRepository;
     private final PatientRepository patientRepository;
+    private final Clock clock;
 
-    public DentalChartService(DentalChartBlockRepository blockRepository, PatientRepository patientRepository) {
+    public DentalChartService(DentalChartBlockRepository blockRepository, PatientRepository patientRepository,
+                               Clock clock) {
         this.blockRepository = blockRepository;
         this.patientRepository = patientRepository;
+        this.clock = clock;
     }
 
     /**
@@ -82,6 +88,48 @@ public class DentalChartService {
         requireOpen(block);
         block.setObservations(text);
         block.setObservationsReviewed(true);
+        return DentalChartBlockView.from(blockRepository.save(block));
+    }
+
+    /**
+     * {@code true} si el paciente tiene un odontograma inicial, en <b>cualquier</b> estado
+     * (abierto o sellado). Es el hecho que {@code CloseAdmissionService} le pasa a {@code
+     * ClinicalHistoryService.complete(...)} sin que ese servicio conozca este tipo (design.md D4)
+     * — el ítem {@code dentalChart} del checklist de la Historia solo pregunta "¿existe?"; que su
+     * contenido esté completo lo exige {@link #sealInitial}, no esta consulta.
+     */
+    @Transactional(readOnly = true)
+    public boolean existsForPatient(Long patientId) {
+        return blockRepository.findByPatientIdAndStatus(patientId, DentalChartBlockStatus.OPEN).isPresent()
+            || blockRepository.findByPatientIdAndStatus(patientId, DentalChartBlockStatus.SEALED).isPresent();
+    }
+
+    /**
+     * Sella el odontograma inicial a {@code SEALED} (ADR-0012 D3, ADR-0017 D6, spec: <i>Odontograma
+     * sellado e inmutable</i>): valida su <b>propio</b> checklist — especificaciones Y
+     * observaciones registradas, por separado (dos campos distintos, ninguno cubre al otro) — y
+     * la transición unidireccional (rechaza si ya está {@code SEALED}). Permite sellar sin
+     * hallazgos: una boca sana es un registro clínico válido, no exige un mínimo.
+     *
+     * <p>🔴 <b>Público a propósito, no package-private.</b> El coordinador (
+     * {@code service.admission.CloseAdmissionService}) vive en otro paquete y es quien debe
+     * invocarlo — design.md D4 lo describía como package-private antes de saber que el coordinador
+     * cruzaría paquetes; la visibilidad real la impone Java, así que la disciplina de "solo lo
+     * llama el coordinador" se sostiene por convención de capas (nadie más lo referencia) y por
+     * test, no por el compilador — mismo trato que {@code ClinicalHistoryService.complete(...)}
+     * desde que dejó de ser el único punto de entrada.
+     */
+    public DentalChartBlockView sealInitial(Long patientId) {
+        DentalChartBlock block = findByPatientOrThrow(patientId);
+        requireOpen(block);
+
+        List<String> missing = DentalChartChecklist.missingFields(block);
+        if (!missing.isEmpty()) {
+            throw new DentalChartChecklistIncompleteException(missing);
+        }
+
+        block.setStatus(DentalChartBlockStatus.SEALED);
+        block.setSealedAt(Instant.now(clock));
         return DentalChartBlockView.from(blockRepository.save(block));
     }
 

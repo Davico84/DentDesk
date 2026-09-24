@@ -85,13 +85,29 @@ public class ClinicalHistoryService {
      * Sella la Historia a {@code COMPLETED} (design.md D4): valida el checklist mínimo (rechaza
      * con {@link ChecklistIncompleteException} listando lo que falta) y la transición
      * <b>unidireccional</b> (rechaza si ya está {@code COMPLETED} — spec: transición inválida).
+     *
+     * <p>🔴 <b>Firma cambiada por {@code add-dental-chart}</b> (proposal.md, BREAKING): el sellado
+     * de la Historia deja de ser una operación autónoma — el checklist gana el ítem {@code
+     * dentalChart} (ADR-0012 D5, spec del delta de `clinical-history`: <i>Sellado a COMPLETED con
+     * checklist mínimo afirmativo</i>). Este método <b>no conoce</b> el tipo {@code
+     * DentalChartBlock} ni el servicio de dental-chart (design.md D4: ningún servicio de dominio
+     * conoce al otro) — recibe el hecho ya resuelto como {@code boolean}. Quien orquesta ambos
+     * sellados en una sola transacción es {@code CloseAdmissionService}, el único llamador
+     * legítimo desde que existe (la ruta pública sigue siendo {@code
+     * POST /patients/{id}/clinical-history/complete}, que ahora delega en el coordinador en vez
+     * de llamar aquí directo).
+     *
+     * @param hasInitialDentalChart si el paciente tiene un odontograma inicial registrado
+     *                              (cualquier estado) — su completitud propia (especificaciones y
+     *                              observaciones revisadas) la exige el sellado del odontograma
+     *                              mismo, no este checklist
      */
-    public ClinicalHistoryView complete(Long patientId) {
+    public ClinicalHistoryView complete(Long patientId, boolean hasInitialDentalChart) {
         HistoriaClinica historia = findByPatientOrThrow(patientId);
         requireDraft(historia);
 
         long diagnosisCount = diagnosisRepository.countByHistoriaId(historia.getId());
-        List<String> missing = ClinicalHistoryChecklist.missingFields(historia, diagnosisCount);
+        List<String> missing = ClinicalHistoryChecklist.missingFields(historia, diagnosisCount, hasInitialDentalChart);
         if (!missing.isEmpty()) {
             throw new ChecklistIncompleteException(missing);
         }
