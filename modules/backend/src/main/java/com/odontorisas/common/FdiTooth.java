@@ -1,5 +1,6 @@
 package com.odontorisas.common;
 
+import java.util.EnumSet;
 import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
@@ -24,11 +25,41 @@ public final class FdiTooth {
             .flatMap(Set::stream)
             .collect(Collectors.toSet()));
 
+    /** Posición dentro del cuadrante (1–3 en permanentes y temporales) que separa anteriores de
+     *  posteriores — incisivos y caninos vs. premolares y molares. */
+    private static final int LAST_ANTERIOR_POSITION = 3;
+
     private FdiTooth() {
     }
 
     public static boolean isValid(int fdiNumber) {
         return VALID.contains(fdiNumber);
+    }
+
+    /**
+     * {@code true} si la pieza es anterior (incisivo o canino): posición 1–3 del cuadrante, igual
+     * en dentición permanente y temporal.
+     */
+    public static boolean isAnterior(int fdiNumber) {
+        if (!isValid(fdiNumber)) {
+            throw new IllegalArgumentException("Número FDI inválido: " + fdiNumber);
+        }
+        return (fdiNumber % 10) <= LAST_ANTERIOR_POSITION;
+    }
+
+    /**
+     * Las superficies que aplican a una pieza (design.md D7, extiende lo construido en vez de
+     * crear un catálogo nuevo): mesial, distal, vestibular, palatino y lingual son comunes a toda
+     * pieza; incisal solo aplica a piezas anteriores y oclusal solo a posteriores.
+     *
+     * @throws IllegalArgumentException si {@code fdiNumber} no es una pieza real
+     */
+    public static Set<ToothSurface> applicableSurfaces(int fdiNumber) {
+        Set<ToothSurface> surfaces = EnumSet.of(
+            ToothSurface.MESIAL, ToothSurface.DISTAL, ToothSurface.VESTIBULAR,
+            ToothSurface.PALATINO, ToothSurface.LINGUAL);
+        surfaces.add(isAnterior(fdiNumber) ? ToothSurface.INCISAL : ToothSurface.OCLUSAL);
+        return surfaces;
     }
 
     private static Set<Integer> quadrant(int quadrant, int teethInQuadrant) {
