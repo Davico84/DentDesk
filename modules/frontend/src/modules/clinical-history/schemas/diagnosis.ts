@@ -1,20 +1,7 @@
 import { z } from "zod";
 import type { DiagnosisRequest } from "@/modules/core/services/generated/model";
 import { DiagnosisRequestUbicacion, DiagnosisRequestTipoDiagnostico } from "@/modules/core/services/generated/model";
-
-/**
- * El conjunto real de números FDI (notación universal) — paridad con `FdiTooth.java`
- * (design.md D5): permanentes 11–18/21–28/31–38/41–48, temporales 51–55/61–65/71–75/81–85. Nunca
- * un rango numérico laxo: aceptaría piezas que no existen (19, 20, 29...).
- */
-function quadrant(quadrantNumber: number, teethInQuadrant: number): number[] {
-  return Array.from({ length: teethInQuadrant }, (_, i) => quadrantNumber * 10 + (i + 1));
-}
-
-export const VALID_FDI_TEETH = new Set<number>([
-  ...quadrant(1, 8), ...quadrant(2, 8), ...quadrant(3, 8), ...quadrant(4, 8),
-  ...quadrant(5, 5), ...quadrant(6, 5), ...quadrant(7, 5), ...quadrant(8, 5),
-]);
+import { VALID_FDI_TEETH } from "@/modules/core/utils/fdiTeeth";
 
 const FDI_REQUIRED = "La pieza (número FDI) es obligatoria para esta ubicación.";
 const FDI_INVALID = "El número FDI no corresponde a ninguna pieza válida.";

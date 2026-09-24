@@ -44,8 +44,18 @@ const COMPLETED_HISTORY = {
   completedAt: "2026-07-28T10:00:00Z",
 };
 
-function renderScreen(history: Record<string, unknown>) {
+/**
+ * `ClinicalHistoryEditor` consulta el odontograma para reflejar el requisito nuevo de
+ * `add-dental-chart` (design.md D4/D5b) — 404 por defecto (sin odontograma), salvo que el test lo
+ * pise explícitamente.
+ */
+function renderScreen(history: Record<string, unknown>, dentalChart?: Record<string, unknown>) {
   server.use(http.get("*/patients/1/clinical-history", () => HttpResponse.json(history)));
+  server.use(
+    http.get("*/patients/1/dental-chart", () =>
+      dentalChart ? HttpResponse.json(dentalChart) : HttpResponse.json({ type: "/errors/dental-chart-block-not-found" }, { status: 404 }),
+    ),
+  );
   return renderWithProviders(
     <Routes>
       <Route path="/patients/:id/clinical-history" element={<ClinicalHistoryScreen />} />
@@ -111,6 +121,23 @@ describe("ClinicalHistoryScreen — cambios sin guardar bloquean el sello", () =
 
     expect(await screen.findByText(/guarda el avance antes de completar/i)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /completar historia clínica/i })).toBeDisabled();
+  });
+});
+
+describe("ClinicalHistoryScreen — requisito del odontograma (add-dental-chart)", () => {
+  it("sin odontograma, muestra el aviso y enlaza a crearlo", async () => {
+    renderScreen(EMPTY_DRAFT);
+
+    const link = await screen.findByRole("link", { name: /ir al odontograma/i });
+    expect(link).toHaveAttribute("href", "/patients/1/dental-chart");
+    expect(screen.getByText(/falta el odontograma inicial/i)).toBeInTheDocument();
+  });
+
+  it("con odontograma ya creado, no muestra el aviso", async () => {
+    renderScreen(EMPTY_DRAFT, { id: 1, patientId: 1, status: "OPEN", findings: [] });
+
+    await screen.findByLabelText(/motivo de consulta/i);
+    await waitFor(() => expect(screen.queryByRole("link", { name: /ir al odontograma/i })).not.toBeInTheDocument());
   });
 });
 
