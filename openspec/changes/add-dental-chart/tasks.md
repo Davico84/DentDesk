@@ -84,9 +84,9 @@ Proposal, design, spec y tasks se escribieron **antes** de tener el texto oficia
 
 ## 4. Contrato y API (backend)
 
-- [ ] 4.1 DTOs de request/response (crear odontograma, agregar/eliminar hallazgo, **especificaciones y observaciones por separado**, consultar) + controller de la capacidad. El catálogo viaja con **tipo, subtipo, sigla, alcance y comportamiento de color** para que el frontend no los reinvente
-- [ ] 4.2 El aviso de dentición↔edad viaja en la respuesta como dato, no como error (es no bloqueante) — decidir su forma en el contrato, no inventarla en el cliente
-- [ ] 4.3 Regenerar `contracts/openapi.json` + cliente orval (**commit aparte**); `ContractDriftIT` en verde
+- [x] 4.1 DTOs de request/response (crear odontograma, agregar/eliminar hallazgo, **especificaciones y observaciones por separado**, consultar) + controller de la capacidad. El catálogo viaja con **tipo, subtipo, sigla, alcance y comportamiento de color** para que el frontend no los reinvente — `GET /dental-chart/catalog`, global, aplanado por `(type, subtype)` desde el enum `FindingType`
+- [x] 4.2 El aviso de dentición↔edad viaja en la respuesta como dato, no como error (es no bloqueante) — `DentalChartFindingCreatedResponse.denticionWarning`
+- [x] 4.3 Regenerar `contracts/openapi.json` + cliente orval (**commit aparte**); `ContractDriftIT` en verde
 
 ## 5. Frontend
 
