@@ -48,6 +48,18 @@ public final class FdiTooth {
     }
 
     /**
+     * {@code true} si la pieza es de dentición <b>temporal</b> (cuadrantes 5–8). Usado para el
+     * aviso no bloqueante de incoherencia dentición↔edad (design.md D9, INV-15): una pieza
+     * temporal retenida en un adulto es rara pero real, no se rechaza — solo se advierte.
+     */
+    public static boolean isTemporary(int fdiNumber) {
+        if (!isValid(fdiNumber)) {
+            throw new IllegalArgumentException("Número FDI inválido: " + fdiNumber);
+        }
+        return (fdiNumber / 10) >= 5;
+    }
+
+    /**
      * Las superficies que aplican a una pieza (design.md D7, extiende lo construido en vez de
      * crear un catálogo nuevo): mesial, distal, vestibular, palatino y lingual son comunes a toda
      * pieza; incisal solo aplica a piezas anteriores y oclusal solo a posteriores.
