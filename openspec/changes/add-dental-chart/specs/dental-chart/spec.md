@@ -158,6 +158,78 @@ El color de un hallazgo SHALL depender **únicamente de sí mismo** —su tipo y
 - **WHEN** un usuario registra un hallazgo sobre una pieza temporal en un paciente adulto (o permanente en un lactante)
 - **THEN** el sistema **registra el hallazgo** y devuelve un aviso de incoherencia con la edad, sin bloquear la operación
 
+### Requirement: Integridad del hallazgo y de su localización
+
+El sistema SHALL rechazar todo hallazgo cuya localización sea incoherente con su alcance o internamente contradictoria, **y la garantía SHALL vivir en la base de datos** para las cuatro variantes de cardinalidad fija.
+
+#### Scenario: Rechazar un rango de una sola pieza
+- **WHEN** se registra un hallazgo de alcance rango con una única pieza
+- **THEN** el sistema lo rechaza, porque un rango de una pieza es un hallazgo de pieza mal localizado
+
+#### Scenario: Rechazar un rango sin piezas
+- **WHEN** se registra un hallazgo de alcance rango sin ninguna pieza
+- **THEN** el sistema lo rechaza
+
+#### Scenario: Rechazar una pieza repetida dentro de un rango
+- **WHEN** se registra un rango que incluye dos veces la misma pieza
+- **THEN** el sistema lo rechaza
+
+#### Scenario: Rechazar piezas de rango en un hallazgo que no es de rango
+- **WHEN** se intenta asociar piezas de rango a un hallazgo cuyo alcance no es rango
+- **THEN** el sistema lo rechaza
+
+#### Scenario: Rechazar un arco que no sea superior ni inferior
+- **WHEN** se registra un hallazgo de arco con un valor distinto de superior o inferior
+- **THEN** el sistema lo rechaza
+
+#### Scenario: Rechazar entre-piezas con la misma pieza dos veces
+- **WHEN** se registra un hallazgo entre piezas indicando dos veces la misma pieza
+- **THEN** el sistema lo rechaza
+
+#### Scenario: Normalizar el orden en un hallazgo entre piezas
+- **WHEN** se registra un hallazgo entre piezas indicándolas en orden inverso
+- **THEN** el sistema lo persiste en orden canónico, de modo que no puedan existir dos registros del mismo hallazgo
+
+#### Scenario: Rechazar un hallazgo duplicado emitido de forma concurrente
+- **WHEN** dos solicitudes simultáneas registran el mismo tipo y subtipo en la misma localización del mismo odontograma
+- **THEN** una prevalece y la otra es rechazada, sin que queden dos hallazgos iguales
+
+#### Scenario: Rechazar un hallazgo que apunta a un odontograma de otra organización
+- **WHEN** se intenta registrar un hallazgo cuya organización no coincide con la del odontograma referenciado
+- **THEN** el sistema lo rechaza
+
+#### Scenario: Aislar las piezas de un rango entre organizaciones
+- **WHEN** una sesión de una organización consulta o escribe las piezas de rango de otra organización
+- **THEN** no obtiene ninguna fila y no puede escribir
+
+### Requirement: El sellado del odontograma es irreversible y protege sus hallazgos
+
+Un odontograma sellado SHALL rechazar toda modificación, **incluidas las de sus hallazgos y de las piezas de sus rangos**, y el estado del sellado SHALL ser coherente por construcción.
+
+#### Scenario: Rechazar la reapertura de un odontograma sellado
+- **WHEN** se intenta devolver a abierto un odontograma sellado
+- **THEN** el sistema lo rechaza
+
+#### Scenario: Rechazar el segundo sellado
+- **WHEN** se intenta sellar un odontograma ya sellado
+- **THEN** el sistema lo rechaza y la fecha de sellado original no cambia
+
+#### Scenario: Rechazar la modificación de un hallazgo sellado
+- **WHEN** se intenta modificar o eliminar un hallazgo de un odontograma sellado, aun por API directa
+- **THEN** el sistema lo rechaza
+
+#### Scenario: Rechazar la modificación de las piezas de un rango sellado
+- **WHEN** se intenta modificar las piezas de rango de un hallazgo de un odontograma sellado
+- **THEN** el sistema lo rechaza
+
+#### Scenario: Rechazar un hallazgo agregado durante un sellado concurrente
+- **WHEN** se registra un hallazgo mientras otra operación sella el mismo odontograma
+- **THEN** una de las dos prevalece y el odontograma sellado no queda con un hallazgo agregado después de su fecha de sellado
+
+#### Scenario: Sellar la admisión bloquea en un orden único
+- **WHEN** dos operaciones sellan concurrentemente la admisión del mismo paciente
+- **THEN** una prevalece y la otra es rechazada, sin bloqueo mutuo entre ambas
+
 ### Requirement: Especificaciones y observaciones del odontograma
 
 El odontograma SHALL incluir **dos** secciones de texto distintas, con propósitos que no se sustituyen:
@@ -178,6 +250,14 @@ Ambas SHALL estar registradas antes de poder sellar el odontograma; registrar qu
 #### Scenario: Rechazar el sellado sin especificaciones revisadas
 - **WHEN** se intenta sellar un odontograma cuyas especificaciones nunca fueron registradas
 - **THEN** el sistema rechaza el sellado indicando que faltan
+
+#### Scenario: Distinguir una sección revisada y vacía de una nunca revisada
+- **WHEN** un usuario registra que no hay especificaciones que anotar
+- **THEN** el sistema guarda esa afirmación como un dato distinto de la sección nunca revisada, y el sellado deja de estar bloqueado por ella
+
+#### Scenario: Corregir el texto no vuelve a exigir revisión
+- **WHEN** un usuario edita el texto de una sección ya revisada de un odontograma abierto
+- **THEN** la sección sigue revisada, porque quien escribe está revisando
 
 #### Scenario: Rechazar el sellado sin observaciones revisadas
 - **WHEN** se intenta sellar un odontograma con las especificaciones registradas pero cuyas observaciones nunca fueron revisadas

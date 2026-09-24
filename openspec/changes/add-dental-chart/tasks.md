@@ -40,6 +40,18 @@ Proposal, design, spec y tasks se escribieron **antes** de tener el texto oficia
 
 ## 1. Modelo y persistencia (backend)
 
+> 🔴 **Ampliado el 2026-09-23 tras una revisión externa del change.** Cinco cosas no estaban: FK compuestas por tenant, el `CHECK` a prueba de `NULL`, los pares `_revisado`, la unicidad de *hallazgos* (solo estaba la de bloques) y la coherencia del sellado. Todas son de esquema, así que entran **antes** de la primera migración — corregirlas después es una migración sobre datos clínicos. Ver `design.md` D1, D2, D3, D5, D6 y D9.
+
+- [ ] 1.0a **FK compuestas por tenant** en las tres relaciones nuevas: `UNIQUE (organization_id, id)` en cada padre y `FOREIGN KEY (organization_id, <fk>)` en cada hijo (`finding → block`, `finding_tooth → finding`, `block → patient`). ⚠️ **No copiar el patrón de `V14`/`V15`**, que usan FK separadas y arrastran la deuda (design.md D1)
+- [ ] 1.0b **Tabla de catálogo** `dental_finding_catalog` con clave `(type, subtype)`, cargada por migración al modo `Cie10CatalogLoader`, con `official_numeral` **y** `numeral_by_position` (la norma tiene dos typos: `5.2.23` y `6.115`). ⚠️ **Sin `UNIQUE` sobre la sigla** — colisiona (`M`, `S`). El `finding` referencia el par por FK en vez de un `CHECK` de 38 pares (design.md D6)
+- [ ] 1.0c **`CHECK` de localización a prueba de `NULL`**: una rama `CASE` por cada uno de los cinco `location_kind`, con `IS NULL`/`IS NOT NULL` explícitos y negando las columnas que no corresponden. ⚠️ En Postgres un `CHECK` que evalúa a `NULL` **se considera satisfecho**: escrito con expresiones nullables no valida nada, en silencio (design.md D2)
+- [ ] 1.0d **Conjuntos cerrados en la base**: `arch IS NULL OR arch IN (...)`, `surface IS NULL OR surface IN (...)`, y `tooth_a < tooth_b` para `BETWEEN_TEETH` — el orden canónico es invariante de dato, no solo del VO (design.md D2)
+- [ ] 1.0e **Pares `<sección>_reviewed`** para especificaciones y observaciones, replicando `V14__historia_clinica.sql:26` (`alergias_revisado`), más `CHECK (texto IS NULL OR reviewed)`. Sin esto, "revisado y vacío" y "nunca revisado" son indistinguibles y el spec exige distinguirlos (design.md D5)
+- [ ] 1.0f **Coherencia del sellado**: `CHECK ((status='OPEN' AND sealed_at IS NULL) OR (status='SEALED' AND sealed_at IS NOT NULL))` (design.md D9)
+- [ ] 1.0g **Índices únicos parciales de HALLAZGOS**, uno por variante de localización de cardinalidad fija (`SURFACE`, `TOOTH`, `BETWEEN_TEETH`, `ARCH`). ⚠️ `TOOTH_RANGE` queda fuera por diseño: su identidad vive en la tabla hija y se garantiza con el bloqueo del `finding` (design.md D3)
+- [ ] 1.0h **Invariantes de la tabla hija**: `CHECK (position >= 1)`, `UNIQUE (finding_id, position)`, `UNIQUE (finding_id, tooth)` e **índice por `tooth`** — la consulta "¿qué hallazgos tocan la 36?" es la razón de ser de la tabla y no tenía índice (design.md D2)
+
+
 - [ ] 1.1 Migración Flyway `dental_chart_block`: `organization_id` NOT NULL + índice, `patient_id`, `type` CHECK `INITIAL`, `status` CHECK `OPEN|SEALED`, `examined_on`, `sealed_at`, **`specifications` y `observations` (dos columnas, `ADR-0017` D6)**, autoría + timestamps · `ENABLE`/`FORCE ROW LEVEL SECURITY` + policy `organization_isolation` (patrón de `V14__historia_clinica.sql`) (design.md D1)
 - [ ] 1.2 Índices **únicos parciales** en la misma migración: uno por `patient_id WHERE status='OPEN'` (un odontograma abierto por paciente — la cronología de `ADR-0012` D7; **ya no es "por día"**, `ADR-0017` D3), otro por `patient_id WHERE type='INITIAL'` — las invariantes de unicidad las garantiza la base, no un chequeo previo (design.md D3)
 - [ ] 1.3 Migración Flyway `dental_chart_finding`: `organization_id` NOT NULL + índice, FK al bloque, `location_kind` CHECK con **cinco** valores (`SURFACE|TOOTH|BETWEEN_TEETH|TOOTH_RANGE|ARCH`), `tooth_a`, `tooth_b`, `surface`, **`arch`**, `type` + **`subtype`** CHECK contra el catálogo de `ADR-0017` D7, `grade` nullable, **`condition` nullable** (buen/mal estado — solo en los `SEGUN_ESTADO`), autoría · RLS propia igual que 1.1 (design.md D1/D2)
@@ -87,6 +99,15 @@ Proposal, design, spec y tasks se escribieron **antes** de tener el texto oficia
 - [ ] 5.6 Odontograma sellado en **modo lectura**, con especificaciones y observaciones visibles por separado; el aviso de dentición↔edad se muestra sin bloquear
 - [ ] 5.6b La pantalla de **Historia Clínica** refleja el requisito nuevo: muestra que falta el odontograma y enlaza a él. La ruta de `complete` no cambia, pero el flujo sí — sin esto el odontólogo choca con un rechazo sin entender por qué (design.md D4)
 - [ ] 5.7 Tests Vitest/MSW: registrar hallazgo por superficie · rechazar superficie no aplicable · hallazgo entre piezas · **hallazgo de rango dibujado como un marcador, no como N** · odontograma sellado en solo lectura · aviso no bloqueante por edad · navegación por teclado sobre las piezas · **restauración en mal estado se pinta en rojo y en buen estado en azul** · **la giroversión sigue azul junto a una caries en la misma pieza** · el odontograma conserva fondo blanco con la app en modo oscuro
+
+### 2.8 Tests que la revisión externa dejó al descubierto
+
+- [ ] 2.8a Test de **concurrencia con hilos reales** del sellado coordinado, verificando que **no hay deadlock**: el orden de bloqueo es paciente → historia → odontograma en **toda** ruta (design.md D4). Un test secuencial no lo detecta
+- [ ] 2.8b Test de **duplicado concurrente de hallazgos** — no solo de creación de bloque, que es lo único que había (design.md D3)
+- [ ] 2.8c Test de **RLS de la tabla hija por separado**: son **tres** tablas de negocio nuevas, no dos. La RLS no se hereda por FK
+- [ ] 2.8d Test de que un hallazgo **no puede apuntar a un bloque de otra organización**, aun declarando su propio `organization_id` (design.md D1)
+- [ ] 2.8e Test de que **`sealInitial()` no es invocable fuera del coordinador** — si lo fuera, caería la invariante de atomicidad de `ADR-0012` D5 (design.md D4)
+- [ ] 2.8f Test de que **agregar un hallazgo mientras otra transacción sella** no deja el odontograma sellado con un hallazgo posterior a su fecha de sellado (design.md D9)
 
 ## 6. Gobernanza y cierre
 
