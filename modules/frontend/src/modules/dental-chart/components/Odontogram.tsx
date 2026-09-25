@@ -1,4 +1,4 @@
-import type { KeyboardEvent } from "react";
+import type { KeyboardEvent, ReactNode } from "react";
 import type { DentalChartFindingResponse, DentalFindingCatalogEntryResponse } from "@/modules/core/services/generated/model";
 import { teethInQuadrant, type ToothSurfaceCode } from "@/modules/core/utils/fdiTeeth";
 import type { FindingFormValues } from "@/modules/dental-chart/schemas/dentalChart";
@@ -106,8 +106,14 @@ const CHART_WIDTH = colX(15) + CROWN_PERM + 4;
  * <p>Dirección visual acordada con el usuario (artefacto de diseño, 2026-09-24): celda de tres
  * capas (sigla · número FDI · corona de 5 polígonos anatómicos), marcadores de arco/rango/entre-
  * piezas en un carril propio fuera de la grilla, paleta y tipografía (Atkinson Hyperlegible) fijas.
- * ⚠️ Simplificación consciente frente al artefacto: cada elemento es su propia parada de Tab
- * (roving tabindex con navegación por flechas queda para una iteración posterior).
+ *
+ * <p>⚠️ Cada uno de los 38 tipos tiene su propio símbolo en NTS 188 — no son variaciones de 4
+ * formas genéricas por alcance. Auditoría completa contra el PDF oficial (2026-09-25, ver memoria
+ * "Odontograma: auditoría completa de símbolos"): el anillo alrededor de la corona es **solo**
+ * para CORONA/CORONA_TEMPORAL ("cuadrado bordeando la corona"), no un símbolo genérico de pieza —
+ * los demás tipos con sigla (impactación, implante, macrodoncia...) van sigla-sola, sin anillo.
+ * ⚠️ Simplificación consciente frente al artefacto de diseño: cada elemento es su propia parada de
+ * Tab (roving tabindex con navegación por flechas queda para una iteración posterior).
  */
 export function Odontogram({
   findings,
@@ -179,8 +185,8 @@ export function Odontogram({
   }
   const height = rowsTop + rowHeights.reduce((a, b) => a + b, 0) + LANE_H;
 
-  // Centro real de cada pieza (columna × fila), para poder ubicar el marcador de entre-piezas
-  // exactamente donde corresponde — no en el carril externo de arco/rango.
+  // Centro real de cada pieza (columna × fila), para ubicar entre-piezas y los pilares de un
+  // rango exactamente donde corresponde — no en un carril genérico desconectado de las piezas.
   const toothCenters = new Map<number, { cx: number; cy: number }>();
   ROWS.forEach((row, i) => {
     const crownYOffset = row.upper ? SIGLA_H + ROW_GAP + NUM_H + ROW_GAP : 0;
@@ -221,13 +227,13 @@ export function Odontogram({
           <line x1={colX(7) + CROWN_PERM + MIDLINE_GAP / 2} y1={rowsTop} x2={colX(7) + CROWN_PERM + MIDLINE_GAP / 2} y2={height - rowsTop} stroke={DIVIDER} strokeDasharray="2 3" />
           <line x1={0} y1={height / 2} x2={CHART_WIDTH} y2={height / 2} stroke={DIVIDER} />
 
-          {lane("SUPERIOR", 4, CHART_WIDTH, upperLaneFindings, colorOf, siglaOfFinding, interactive, selectArch)}
+          {lane("SUPERIOR", 4, CHART_WIDTH, upperLaneFindings, toothCenters, colorOf, siglaOfFinding, interactive, selectArch)}
 
           {ROWS.map((row, i) =>
             toothRow(row, ROW_COL_OFFSET[i], rowY[i], toothFindings, surfaceFindings, colorOf, siglaOfFinding, interactive, selectTooth, selectSurface),
           )}
 
-          {lane("INFERIOR", height - LANE_H + 4, CHART_WIDTH, lowerLaneFindings, colorOf, siglaOfFinding, interactive, selectArch)}
+          {lane("INFERIOR", height - LANE_H + 4, CHART_WIDTH, lowerLaneFindings, toothCenters, colorOf, siglaOfFinding, interactive, selectArch)}
 
           {betweenFindings.map((f) => betweenMarker(f, toothCenters, colorOf, siglaOfFinding))}
         </svg>
@@ -265,23 +271,49 @@ function findingColor(f: DentalChartFindingResponse, catalog: DentalFindingCatal
 /**
  * ⚠️ Sin fallback al nombre del tipo (bug real, encontrado por el user probando GEMINACIÓN: el
  * recuadro de sigla es para 2-3 letras, no para "GEMINACION" entero). 17 de los 38 tipos NO
- * tienen sigla oficial (`acronym == null` y sin subtipos en `FindingType.java`) — para esos la
- * norma dibuja un símbolo propio (círculo en el número, flecha curva, doble círculo...), no una
- * sigla. Devolver "" es correcto para ellos; mostrar el nombre interno del enum no lo es.
+ * tienen sigla oficial — para esos la norma dibuja un símbolo propio (ver `TOOTH_GLYPH` y demás
+ * mapas de glifos), no una sigla. Devolver "" es correcto para ellos.
+ *
+ * <p>⚠️ MOVILIDAD_PATOLOGICA (6.1.19) es la única excepción: su sigla lleva el grado pegado
+ * ("M2", no "M" sola) — "la sigla 'M' seguida del número arábigo que representa el grado".
  */
 function siglaOf(f: DentalChartFindingResponse, catalog: DentalFindingCatalogEntryResponse[] | undefined): string {
   const entry = catalog?.find((e) => e.type === f.type && (e.subtype ?? "") === (f.subtype ?? ""));
-  return entry?.acronym ?? "";
+  const acronym = entry?.acronym ?? "";
+  if (f.type === "MOVILIDAD_PATOLOGICA" && f.grade != null) return `${acronym}${f.grade}`;
+  return acronym;
 }
 
-/** Tipos verificados contra el PDF oficial cuyo símbolo NO es sigla+anillo de corona genérico.
- *  ⚠️ Parcial a propósito: de los 17 tipos sin sigla, GEMINACIÓN (6.1.12) y ESPIGO-MUÑÓN (6.1.8)
- *  están confirmados. Los otros 15 (fractura dental, extruida/intruida, prótesis..., aparatos...)
- *  todavía caen en el símbolo genérico — no tienen glifo propio implementado, tarea pendiente
- *  registrada (memoria: "Odontograma: 17 tipos sin sigla, falta el glifo normativo"). */
-const NUMBER_CIRCLE_TYPES = new Set(["GEMINACION"]);
-/** 6.1.8: "línea vertical en la raíz unida a un cuadrado en la corona", color según estado. */
-const ESPIGO_MUNON_TYPE = "ESPIGO_MUNON";
+// --- glifos de pieza (TOOTH): auditoría completa contra el PDF oficial, 2026-09-25 ---
+// Fuente: nts-188-odontograma-rm-559-2022-ESCANEADA.pdf, numerales citados en cada caso.
+
+type ToothGlyphKind =
+  | "ring" // 6.1.3/6.1.4: cuadrado bordeando la corona (SOLO estos dos — no un símbolo genérico de pieza)
+  | "numberCircle" // 6.1.12: circunferencia encerrando el número FDI
+  | "crossOut" // 6.1.20: aspa sobre la corona (además de la sigla DNE/DEX/DAO en el recuadro)
+  | "outsidePost" // 6.1.8: línea vertical + cuadrado, fuera de la corona (hacia la raíz)
+  | "outsideTriangle" // 6.1.21: triángulo por encima o debajo de las raíces
+  | "outsideArrowOut" // 6.1.24: flecha recta hacia afuera, fuera del gráfico
+  | "outsideArrowIn" // 6.1.25: flecha recta hacia el plano oclusal, fuera del gráfico
+  | "crownFracture" // 6.1.10: línea representando la fractura sobre la corona/raíz
+  | "crownGiroversion" // 6.1.13: flecha curva a nivel de la zona oclusal
+  | "crownEruption"; // 6.1.23: flecha en zigzag sobre la gráfica, hacia el plano oclusal
+
+const TOOTH_GLYPH: Record<string, ToothGlyphKind> = {
+  CORONA: "ring",
+  CORONA_TEMPORAL: "ring",
+  GEMINACION: "numberCircle",
+  PIEZA_AUSENTE: "crossOut",
+  ESPIGO_MUNON: "outsidePost",
+  PIEZA_EN_CLAVIJA: "outsideTriangle",
+  PIEZA_EXTRUIDA: "outsideArrowOut",
+  PIEZA_INTRUIDA: "outsideArrowIn",
+  FRACTURA_DENTAL: "crownFracture",
+  GIROVERSION: "crownGiroversion",
+  PIEZA_EN_ERUPCION: "crownEruption",
+};
+const OUTSIDE_KINDS = new Set<ToothGlyphKind>(["outsidePost", "outsideTriangle", "outsideArrowOut", "outsideArrowIn"]);
+const CROWN_OVERLAY_KINDS = new Set<ToothGlyphKind>(["crownFracture", "crownGiroversion", "crownEruption"]);
 
 function toothRow(
   row: Row,
@@ -309,10 +341,13 @@ function toothRow(
         const surfacesOnTooth = slots.flatMap((s) => surfaceFindings.get(`${fdi}-${s.surface}`) ?? []);
         const hasAny = toothList.length > 0 || surfacesOnTooth.length > 0;
         const siglaEntries = uniqueSiglas([...toothList, ...surfacesOnTooth], colorOf, siglaOfFinding);
-        const numberCircle = toothList.find((f) => NUMBER_CIRCLE_TYPES.has(f.type ?? ""));
-        const espigoMunon = toothList.find((f) => f.type === ESPIGO_MUNON_TYPE);
-        const ringFindings = toothList.filter((f) => !NUMBER_CIRCLE_TYPES.has(f.type ?? "") && f.type !== ESPIGO_MUNON_TYPE);
-        const ringColor = ringFindings.length > 0 ? colorOf(ringFindings[ringFindings.length - 1]) : undefined;
+
+        const glyphOf = (f: DentalChartFindingResponse) => TOOTH_GLYPH[f.type ?? ""];
+        const ringFinding = toothList.find((f) => glyphOf(f) === "ring");
+        const numberCircle = toothList.find((f) => glyphOf(f) === "numberCircle");
+        const crossOut = toothList.find((f) => glyphOf(f) === "crossOut");
+        const outsideFinding = toothList.find((f) => OUTSIDE_KINDS.has(glyphOf(f)));
+        const crownOverlay = toothList.find((f) => CROWN_OVERLAY_KINDS.has(glyphOf(f)));
 
         return (
           <g key={fdi} transform={`translate(${x}, ${y})`}>
@@ -323,8 +358,8 @@ function toothRow(
               height={SIGLA_H}
               rx={3}
               fill={PAPER}
-              stroke={siglaEntries.length > 0 ? OUTLINE : DIVIDER}
-              strokeDasharray={siglaEntries.length > 0 ? undefined : "3 2"}
+              stroke={siglaEntries.length > 0 || outsideFinding ? OUTLINE : DIVIDER}
+              strokeDasharray={siglaEntries.length > 0 || outsideFinding ? undefined : "3 2"}
             />
             {siglaEntries.slice(0, 2).map((s, si) => (
               <text
@@ -340,6 +375,9 @@ function toothRow(
                 {s.text}
               </text>
             ))}
+            {outsideFinding && siglaEntries.length === 0
+              ? outsideGlyph(glyphOf(outsideFinding), size, sigY, row.upper, colorOf(outsideFinding))
+              : null}
 
             <g
               role="button"
@@ -395,39 +433,106 @@ function toothRow(
                   />
                 );
               })}
-              {ringColor ? (
-                <rect x={ring.x} y={ring.y} width={ring.wh} height={ring.wh} rx={4} fill="none" stroke={ringColor} strokeWidth={2.5} pointerEvents="none" />
+              {ringFinding ? (
+                <rect x={ring.x} y={ring.y} width={ring.wh} height={ring.wh} rx={4} fill="none" stroke={colorOf(ringFinding)} strokeWidth={2.5} pointerEvents="none" />
               ) : null}
-              {espigoMunon ? (
-                // 6.1.8: línea vertical en la raíz unida a un cuadrado en la corona. La "raíz" es
-                // el borde de la corona más cercano al número/sigla (el lado de afuera de la boca
-                // en este layout) — arriba en filas superiores, abajo en filas inferiores.
-                <g pointerEvents="none">
-                  <line
-                    x1={size / 2}
-                    y1={row.upper ? 0 : size}
-                    x2={size / 2}
-                    y2={row.upper ? 9 : size - 9}
-                    stroke={colorOf(espigoMunon)}
-                    strokeWidth={2}
-                  />
-                  <rect
-                    x={size / 2 - 4}
-                    y={row.upper ? 6 : size - 14}
-                    width={8}
-                    height={8}
-                    fill="none"
-                    stroke={colorOf(espigoMunon)}
-                    strokeWidth={1.5}
-                  />
+              {crossOut ? (
+                // 6.1.20: aspa de color azul sobre la corona, además de la sigla en el recuadro.
+                <g pointerEvents="none" stroke={colorOf(crossOut)} strokeWidth={2}>
+                  <line x1={4} y1={4} x2={size - 4} y2={size - 4} />
+                  <line x1={size - 4} y1={4} x2={4} y2={size - 4} />
                 </g>
               ) : null}
+              {crownOverlay ? crownOverlayGlyph(glyphOf(crownOverlay), size, colorOf(crownOverlay)) : null}
             </g>
           </g>
         );
       })}
     </g>
   );
+}
+
+/** Los 4 glifos "fuera de la corona" (hacia la raíz / fuera del gráfico): comparten posición en
+ *  el recuadro de sigla — nunca sobre la corona, donde se confundían con una cara de superficie
+ *  (bug real, espigo-muñón, encontrado por el user probando en vivo). */
+function outsideGlyph(kind: ToothGlyphKind, size: number, sigY: number, upper: boolean, color: string): ReactNode {
+  const cx = size / 2;
+  const outerY = sigY + 4; // el borde del recuadro más lejos de la corona
+  const innerY = sigY + SIGLA_H - 6; // el borde más cerca de la corona
+
+  switch (kind) {
+    case "outsidePost":
+      // 6.1.8: línea vertical unida a un cuadrado.
+      return (
+        <g key="glyph" pointerEvents="none" stroke={color}>
+          <line x1={cx} y1={outerY + 4} x2={cx} y2={innerY} strokeWidth={2} />
+          <rect x={cx - 4} y={outerY} width={8} height={8} fill="none" strokeWidth={1.5} />
+        </g>
+      );
+    case "outsideTriangle": {
+      // 6.1.21: triángulo por encima (fila superior) o debajo (fila inferior) de las raíces.
+      const apexY = upper ? outerY : innerY;
+      const baseY = upper ? innerY : outerY;
+      return (
+        <polygon
+          key="glyph"
+          pointerEvents="none"
+          points={`${cx},${apexY} ${cx - 6},${baseY} ${cx + 6},${baseY}`}
+          fill="none"
+          stroke={color}
+          strokeWidth={1.5}
+        />
+      );
+    }
+    case "outsideArrowOut":
+      // 6.1.24: flecha hacia afuera del gráfico (se aleja de la corona — extruida).
+      return arrow(cx, innerY, cx, outerY, color);
+    case "outsideArrowIn":
+      // 6.1.25: flecha hacia el plano oclusal (entra hacia la corona — intruida).
+      return arrow(cx, outerY, cx, innerY, color);
+    default:
+      return null;
+  }
+}
+
+function arrow(x1: number, y1: number, x2: number, y2: number, color: string): ReactNode {
+  const up = y2 < y1;
+  return (
+    <g key="glyph" pointerEvents="none" stroke={color} strokeWidth={2}>
+      <line x1={x1} y1={y1} x2={x2} y2={y2} />
+      <polyline points={up ? `${x2 - 4},${y2 + 5} ${x2},${y2} ${x2 + 4},${y2 + 5}` : `${x2 - 4},${y2 - 5} ${x2},${y2} ${x2 + 4},${y2 - 5}`} fill="none" />
+    </g>
+  );
+}
+
+/** Los 3 glifos que sí van "sobre la figura de la corona" (fractura, giroversión, erupción) —
+ *  trazos finos que cruzan la corona entera, nunca un relleno: no se confunden con una cara de
+ *  superficie porque no ocupan la forma de ninguna cara específica. */
+function crownOverlayGlyph(kind: ToothGlyphKind, size: number, color: string): ReactNode {
+  const c = size / 2;
+  switch (kind) {
+    case "crownFracture":
+      // 6.1.10: línea representando la fractura sobre la corona y/o la raíz.
+      return <line key="glyph" x1={size * 0.2} y1={size * 0.15} x2={size * 0.8} y2={size * 0.85} stroke={color} strokeWidth={2} pointerEvents="none" />;
+    case "crownGiroversion":
+      // 6.1.13: flecha curva a nivel de la zona oclusal.
+      return (
+        <g key="glyph" pointerEvents="none">
+          <path d={`M ${c - 10} ${c + 6} A 12 12 0 1 1 ${c + 6} ${c - 10}`} fill="none" stroke={color} strokeWidth={2} />
+          <polyline points={`${c + 2},${c - 14} ${c + 6},${c - 10} ${c + 1},${c - 6}`} fill="none" stroke={color} strokeWidth={2} />
+        </g>
+      );
+    case "crownEruption":
+      // 6.1.23: flecha en zigzag dirigida hacia el plano oclusal (hacia el centro).
+      return (
+        <g key="glyph" pointerEvents="none" stroke={color} strokeWidth={2} fill="none">
+          <polyline points={`${c - 6},${size - 8} ${c + 6},${size - 18} ${c - 6},${size - 28} ${c},${8}`} />
+          <polyline points={`${c - 4},${13} ${c},${8} ${c + 4},${13}`} />
+        </g>
+      );
+    default:
+      return null;
+  }
 }
 
 function uniqueSiglas(
@@ -439,7 +544,7 @@ function uniqueSiglas(
   const out: { text: string; color: string }[] = [];
   for (const f of list) {
     const text = siglaOfFinding(f);
-    if (!text) continue; // sin sigla oficial: su símbolo es otro (ver NUMBER_CIRCLE_TYPES), no un recuadro vacío
+    if (!text) continue; // sin sigla oficial: su símbolo es otro (ver TOOTH_GLYPH), no un recuadro vacío
     const color = colorOf(f);
     const key = text + color;
     if (!seen.has(key)) {
@@ -461,25 +566,44 @@ function toothLabel(fdi: number, list: DentalChartFindingResponse[], surfaces: D
   return parts.join(", ");
 }
 
+// --- glifos de arco y rango: cada tipo tiene el suyo, no son intercambiables ---
+
+type ArchGlyphKind = "singleLine" | "doubleLine" | "zigzag";
+const ARCH_GLYPH: Record<string, ArchGlyphKind> = {
+  EDENTULO_TOTAL: "singleLine", // 6.1.7: línea recta horizontal sobre las coronas
+  PROTESIS_COMPLETA: "doubleLine", // 6.1.30: 2 líneas rectas paralelas y horizontales
+  APARATO_ORTODONTICO_REMOVIBLE: "zigzag", // 6.1.2: línea en zig-zag a la altura de los ápices
+};
+
+type RangeGlyphKind = "bracketPillars" | "doubleLine" | "squaresWithCross";
+const RANGE_GLYPH: Record<string, RangeGlyphKind> = {
+  PROTESIS_PARCIAL_FIJA: "bracketPillars", // 6.1.29: línea horizontal con verticales sobre los pilares
+  PROTESIS_PARCIAL_REMOVIBLE: "doubleLine", // 6.1.31: 2 líneas horizontales paralelas
+  APARATO_ORTODONTICO_FIJO: "squaresWithCross", // 6.1.1: cuadrados con una cruz en los extremos, unidos por una línea
+};
+
 /**
- * El carril de un arco (design: "un hallazgo = un elemento"): arco completo como barra de borde a
- * borde, rangos como corchete con sigla, entre-piezas fuera de alcance de este carril simplificado
- * — se anuncian igual por su `aria-label`, apilados si hay más de uno.
+ * El carril de un arco: arco completo y rango, cada tipo con su propio glifo (auditoría completa
+ * 2026-09-25) — un aparato removible NO se ve igual que una prótesis completa, aunque ambos sean
+ * de arco. Entre-piezas queda fuera de este carril (ver `betweenMarker`).
  */
 function lane(
   arch: "SUPERIOR" | "INFERIOR",
   y: number,
   width: number,
   findings: DentalChartFindingResponse[],
+  toothCenters: Map<number, { cx: number; cy: number }>,
   colorOf: (f: DentalChartFindingResponse) => string,
   siglaOfFinding: (f: DentalChartFindingResponse) => string,
   interactive: boolean,
   selectArch: (arch: "SUPERIOR" | "INFERIOR") => void,
 ) {
   const archFindings = findings.filter((f) => f.location?.locationKind === "ARCH");
-  const otherFindings = findings.filter((f) => f.location?.locationKind !== "ARCH");
-  const archColor = archFindings.length > 0 ? colorOf(archFindings[archFindings.length - 1]) : undefined;
-  const baseline = arch === "SUPERIOR" ? y + LANE_H - 6 : y + 6;
+  const rangeFindings = findings.filter((f) => f.location?.locationKind === "TOOTH_RANGE");
+  const lastArch = archFindings[archFindings.length - 1];
+  // La barra de SUPERIOR quedaba pegada (a veces solapada) con la primera fila de piezas — el
+  // user lo notó probando en vivo. Más margen antes de la fila (INFERIOR ya tenía suficiente).
+  const baseline = arch === "SUPERIOR" ? y + LANE_H - 14 : y + 6;
 
   return (
     <g key={arch}>
@@ -491,19 +615,25 @@ function lane(
         onKeyDown={(e) => activateOnEnterOrSpace(e, () => selectArch(arch))}
         className={interactive ? "cursor-pointer focus:outline-none" : "focus:outline-none"}
       >
-        <rect x={8} y={baseline - 3} width={width - 16} height={6} fill={archColor ?? DIVIDER} />
+        {lastArch ? (
+          archGlyph(ARCH_GLYPH[lastArch.type ?? ""], 8, width - 8, baseline, colorOf(lastArch))
+        ) : (
+          <rect x={8} y={baseline - 1} width={width - 16} height={2} fill={DIVIDER} />
+        )}
       </g>
 
-      {otherFindings.map((f, i) => {
-        // Solo llegan hallazgos de RANGO acá — entre-piezas se dibuja aparte, pegado a las piezas
-        // reales que conecta (ver `betweenMarker`), no en este carril externo.
+      {rangeFindings.map((f, i) => {
         const teeth = f.location?.teeth ?? [];
         const label = `Rango de piezas ${teeth.join(", ")}: ${siglaOfFinding(f)}`;
-        const trackY = arch === "SUPERIOR" ? y + 4 + i * 16 : y + LANE_H - 20 - i * 16;
+        const trackY = arch === "SUPERIOR" ? y + 6 + i * 14 : y + LANE_H - 20 - i * 14;
+        const first = teeth[0] != null ? toothCenters.get(teeth[0]) : undefined;
+        const last = teeth[teeth.length - 1] != null ? toothCenters.get(teeth[teeth.length - 1]) : undefined;
+        const x1 = first?.cx ?? 8;
+        const x2 = last?.cx ?? 118;
         return (
-          <g key={f.id} role="img" aria-label={label} transform={`translate(8, ${trackY})`}>
-            <rect width={110} height={3} fill={colorOf(f)} />
-            <text x={116} y={8} fontFamily={FONT_MONO} fontSize={11} fontWeight={700} fill={colorOf(f)}>
+          <g key={f.id} role="img" aria-label={label}>
+            {rangeGlyph(RANGE_GLYPH[f.type ?? ""], Math.min(x1, x2), Math.max(x1, x2), trackY, colorOf(f))}
+            <text x={Math.min(x1, x2)} y={trackY - 4} fontFamily={FONT_MONO} fontSize={10} fontWeight={700} fill={colorOf(f)}>
               {siglaOfFinding(f)}
             </text>
           </g>
@@ -513,11 +643,74 @@ function lane(
   );
 }
 
+function archGlyph(kind: ArchGlyphKind | undefined, x1: number, x2: number, y: number, color: string): ReactNode {
+  switch (kind) {
+    case "doubleLine":
+      return (
+        <g stroke={color} strokeWidth={2}>
+          <line x1={x1} y1={y - 3} x2={x2} y2={y - 3} />
+          <line x1={x1} y1={y + 3} x2={x2} y2={y + 3} />
+        </g>
+      );
+    case "zigzag": {
+      const step = (x2 - x1) / 16;
+      const points = Array.from({ length: 17 }, (_, i) => `${x1 + i * step},${y + (i % 2 === 0 ? -4 : 4)}`).join(" ");
+      return <polyline points={points} fill="none" stroke={color} strokeWidth={2} />;
+    }
+    case "singleLine":
+    default:
+      return <line x1={x1} y1={y} x2={x2} y2={y} stroke={color} strokeWidth={3} />;
+  }
+}
+
+function rangeGlyph(kind: RangeGlyphKind | undefined, x1: number, x2: number, y: number, color: string): ReactNode {
+  switch (kind) {
+    case "doubleLine":
+      return (
+        <g stroke={color} strokeWidth={2}>
+          <line x1={x1} y1={y - 2} x2={x2} y2={y - 2} />
+          <line x1={x1} y1={y + 2} x2={x2} y2={y + 2} />
+        </g>
+      );
+    case "squaresWithCross":
+      return (
+        <g stroke={color} strokeWidth={1.5}>
+          <line x1={x1} y1={y} x2={x2} y2={y} />
+          {[x1, x2].map((x, i) => (
+            <g key={i}>
+              <rect x={x - 5} y={y - 5} width={10} height={10} fill="none" />
+              <line x1={x - 5} y1={y - 5} x2={x + 5} y2={y + 5} />
+              <line x1={x + 5} y1={y - 5} x2={x - 5} y2={y + 5} />
+            </g>
+          ))}
+        </g>
+      );
+    case "bracketPillars":
+    default:
+      return (
+        <g stroke={color} strokeWidth={1.5}>
+          <line x1={x1} y1={y} x2={x2} y2={y} />
+          <line x1={x1} y1={y - 5} x2={x1} y2={y + 5} />
+          <line x1={x2} y1={y - 5} x2={x2} y2={y + 5} />
+        </g>
+      );
+  }
+}
+
+// --- glifos entre-piezas: cada tipo tiene el suyo (auditoría completa 2026-09-25) ---
+
+type BetweenGlyphKind = "circleSigla" | "invertedParen" | "doubleCircle" | "crossedArrows";
+const BETWEEN_GLYPH: Record<string, BetweenGlyphKind> = {
+  PIEZA_SUPERNUMERARIA: "circleSigla", // 6.1.26: circunferencia con la sigla S encerrada
+  DIASTEMA: "invertedParen", // 6.1.6: signo del paréntesis invertido
+  FUSION: "doubleCircle", // 6.1.11: 2 circunferencias interceptadas, una por pieza
+  TRANSPOSICION_DENTARIA: "crossedArrows", // 6.1.38: 2 flechas curvas entrecruzadas
+};
+
 /**
- * Entre-piezas (diastema 6.1.6 · fusión 6.1.11 · supernumeraria 6.1.26 · transposición 6.1.38):
- * un círculo con la sigla encerrada, entre los ápices de las dos piezas adyacentes — así lo dibuja
- * la propia norma (verificado contra el PDF oficial, no un análisis derivado). Se posiciona con el
- * centro real de cada pieza, no con un carril genérico.
+ * Entre-piezas: cada tipo con su propio símbolo, verificado contra el PDF oficial — no son todos
+ * "un círculo con sigla" (eso es solo supernumeraria, 6.1.26). Se posiciona con el centro real de
+ * cada pieza, no con un carril genérico.
  */
 function betweenMarker(
   f: DentalChartFindingResponse,
@@ -532,12 +725,37 @@ function betweenMarker(
   const cy = (a.cy + b.cy) / 2;
   const color = colorOf(f);
   const sigla = siglaOfFinding(f);
+  const label = `Entre las piezas ${f.location?.toothA} y ${f.location?.toothB}: ${sigla || f.type}`;
+  const kind = BETWEEN_GLYPH[f.type ?? ""] ?? "circleSigla";
+
   return (
-    <g key={f.id} role="img" aria-label={`Entre las piezas ${f.location?.toothA} y ${f.location?.toothB}: ${sigla}`}>
-      <circle cx={cx} cy={cy} r={10} fill={PAPER} stroke={color} strokeWidth={2} />
-      <text x={cx} y={cy + 4} textAnchor="middle" fontFamily={FONT_MONO} fontSize={11} fontWeight={700} fill={color}>
-        {sigla}
-      </text>
+    <g key={f.id} role="img" aria-label={label}>
+      {kind === "invertedParen" ? (
+        // 6.1.6: signo del paréntesis invertido — )( entre las dos piezas.
+        <g stroke={color} strokeWidth={2} fill="none">
+          <path d={`M ${cx - 6} ${cy - 8} Q ${cx - 1} ${cy} ${cx - 6} ${cy + 8}`} />
+          <path d={`M ${cx + 6} ${cy - 8} Q ${cx + 1} ${cy} ${cx + 6} ${cy + 8}`} />
+        </g>
+      ) : kind === "doubleCircle" ? (
+        // 6.1.11: 2 circunferencias interceptadas, encerrando el número de cada pieza.
+        <g stroke={color} strokeWidth={1.5} fill="none">
+          <circle cx={a.cx} cy={a.cy} r={12} />
+          <circle cx={b.cx} cy={b.cy} r={12} />
+        </g>
+      ) : kind === "crossedArrows" ? (
+        // 6.1.38: 2 flechas curvas entrecruzadas, a la altura de los números.
+        <g stroke={color} strokeWidth={2} fill="none">
+          <path d={`M ${a.cx - 6} ${a.cy + 6} Q ${cx} ${cy - 10} ${b.cx + 6} ${b.cy + 6}`} />
+          <path d={`M ${a.cx - 6} ${a.cy - 6} Q ${cx} ${cy + 10} ${b.cx + 6} ${b.cy - 6}`} />
+        </g>
+      ) : (
+        <>
+          <circle cx={cx} cy={cy} r={10} fill={PAPER} stroke={color} strokeWidth={2} />
+          <text x={cx} y={cy + 4} textAnchor="middle" fontFamily={FONT_MONO} fontSize={11} fontWeight={700} fill={color}>
+            {sigla}
+          </text>
+        </>
+      )}
     </g>
   );
 }
