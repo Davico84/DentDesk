@@ -105,6 +105,11 @@ Proposal, design, spec y tasks se escribieron **antes** de tener el texto oficia
 - [x] 5.8a `FindingDialog`/`FindingDialogForm`: clickear pieza/superficie/arco abre un modal con la localización ya fija — si ya hay hallazgos ahí, primero lista cuál editar/eliminar antes de ofrecer agregar otro (varios hallazgos pueden compartir localización exacta: sellante + caries en la misma superficie, ADR-0017 D7)
 - [ ] 5.8b Rango y entre-piezas siguen sin ser clickeables en el gráfico — el formulario suelto al final de la sección "Hallazgos" es el único camino para esos dos alcances
 
+### 5.9 Auditoría de símbolos contra el PDF oficial (encontrada probando en vivo, no estaba en el diseño original)
+
+- [x] 5.9a Auditoría de los 38 tipos del catálogo contra `nts-188-odontograma-rm-559-2022-ESCANEADA.pdf`: el anillo alrededor de la corona era tratado como símbolo genérico de "pieza con hallazgo" — la norma lo reserva solo a CORONA/CORONA_TEMPORAL (6.1.3/6.1.4). Cada tipo de arco/rango/entre-piezas tiene su propio símbolo, no uno compartido por alcance. Reescrito con dispatch por tipo (`TOOTH_GLYPH`/`ARCH_GLYPH`/`RANGE_GLYPH`/`BETWEEN_GLYPH`), 25 tests de regresión (commit `7babeae`)
+- [x] 5.9b Lista de hallazgos (`FindingList`) con el formato descriptivo del artefacto de diseño: tabla sigla/hallazgo/localización/estado, mismo color normativo que el odontograma (commit `f7fb608`)
+
 ### 2.8 Tests que la revisión externa dejó al descubierto
 
 - [ ] 2.8a Test de **concurrencia con hilos reales** del sellado coordinado, verificando que **no hay deadlock**: el orden de bloqueo es paciente → historia → odontograma en **toda** ruta (design.md D4). Un test secuencial no lo detecta
