@@ -30,11 +30,11 @@ export function FindingList({
       <table className="w-full text-sm">
         <thead>
           <tr className="border-b bg-muted/50 text-left text-xs uppercase tracking-wide text-muted-foreground">
-            <th className="px-3 py-2 font-medium">Sigla</th>
-            <th className="px-3 py-2 font-medium">Hallazgo</th>
-            <th className="px-3 py-2 font-medium">Localización</th>
-            <th className="px-3 py-2 font-medium">Estado</th>
-            {editable ? <th className="px-3 py-2" /> : null}
+            <th className="px-3 py-[6px] font-medium">Sigla</th>
+            <th className="px-3 py-[6px] font-medium">Hallazgo</th>
+            <th className="px-3 py-[6px] font-medium">Localización</th>
+            <th className="px-3 py-[6px] font-medium">Estado</th>
+            {editable ? <th className="px-3 py-[6px]" /> : null}
           </tr>
         </thead>
         <tbody className="divide-y">
@@ -42,19 +42,19 @@ export function FindingList({
             const color = findingColor(f, catalog);
             return (
               <tr key={f.id}>
-                <td className="px-3 py-2.5 font-mono text-sm font-bold" style={{ color }}>
+                <td className="px-3 py-[7px] font-mono text-sm font-bold" style={{ color }}>
                   {siglaOf(f, catalog) || "—"}
                 </td>
-                <td className="px-3 py-2.5 font-medium">{findingTypeLabel(f.type ?? "")}</td>
-                <td className="px-3 py-2.5 text-muted-foreground">{locationSummary(f)}</td>
-                <td className="px-3 py-2.5">
+                <td className="px-3 py-[7px] font-medium">{findingTypeLabel(f.type ?? "")}</td>
+                <td className="px-3 py-[7px] text-muted-foreground">{locationSummary(f)}</td>
+                <td className="px-3 py-[7px]">
                   <span className="inline-flex items-center gap-1.5">
                     <span aria-hidden="true" className="inline-block size-2.5 rounded-full" style={{ background: color }} />
                     {findingStatusLabel(f, catalog)}
                   </span>
                 </td>
                 {editable ? (
-                  <td className="px-3 py-2.5 text-right">
+                  <td className="px-3 py-[7px] text-right">
                     <Button
                       type="button"
                       variant="ghost"
