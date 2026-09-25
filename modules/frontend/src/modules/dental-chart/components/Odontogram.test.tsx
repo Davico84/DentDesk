@@ -337,9 +337,10 @@ describe("Odontogram", () => {
    * Regresión: un rango en la fila temporal (caso real del user: aparato fijo 54-52) quedaba casi
    * pegado al borde de la corona de la fila vecina — "está pegada al código de un hallazgo",
    * "sobre la línea gris" (probado en vivo). El marcador debe quedar con margen real respecto al
-   * borde inferior de la corona permanente (y=242) y al recuadro de sigla de la fila temporal
-   * (y=314). Como 54-52 y 61-64 no se solapan en X (piezas de lados distintos), comparten carril
-   * — no es un caso de apilado, ver el test de lane-packing más abajo para eso.
+   * borde inferior de la corona permanente (y=178, sin rangos en esa fila la franja mide el mínimo)
+   * y al recuadro de sigla de la fila temporal (y=218). Como 54-52 y 61-64 no se solapan en X
+   * (piezas de lados distintos), comparten carril — no es un caso de apilado, ver el test de
+   * lane-packing más abajo para eso.
    */
   it("dos rangos que no se solapan en la misma fila temporal no quedan pegados a la fila vecina", () => {
     const fijo: DentalChartFindingResponse = {
@@ -366,11 +367,11 @@ describe("Odontogram", () => {
     ];
     const ys = markers.map((m) => Number(m.querySelector("text")!.getAttribute("y")));
 
-    // Fila permanente termina en y=242 (borde de la corona), fila temporal empieza en y=314
-    // (recuadro de sigla) — ningún marcador debe caer a menos de 8px de ninguno de los dos.
+    // Fila permanente termina en y=178 (borde de la corona), fila temporal empieza en y=218
+    // (recuadro de sigla) — ningún marcador debe caer a menos de 4px de ninguno de los dos.
     for (const y of ys) {
-      expect(y).toBeGreaterThan(246);
-      expect(y).toBeLessThan(302);
+      expect(y).toBeGreaterThan(182);
+      expect(y).toBeLessThan(214);
     }
     // Sin solaparse en X, comparten el mismo carril.
     expect(ys[0]).toBe(ys[1]);
@@ -400,11 +401,11 @@ describe("Odontogram", () => {
     // prótesis parcial removible dibuja 2 líneas a ±2px del centro) — es el proxy fiable del carril.
     const ys = markers.map((m) => Number(m.querySelector("text")!.getAttribute("y")));
 
-    // La franja de la fila permanente superior va de y=56 (fin del carril de arco) a y=128
-    // (inicio de la corona) — ningún marcador debe caer a menos de 8px de ninguno de los dos bordes.
+    // Sin solaparse, los 3 comparten un solo carril — la franja mide lo justo para uno (40px):
+    // de y=56 (fin del carril de arco) a y=96 (inicio de la corona).
     for (const y of ys) {
       expect(y).toBeGreaterThan(60);
-      expect(y).toBeLessThan(116);
+      expect(y).toBeLessThan(92);
     }
     // Sin solaparse en X, comparten el mismo carril: misma altura para los 3.
     expect(new Set(ys).size).toBe(1);
@@ -428,6 +429,31 @@ describe("Odontogram", () => {
     const ys = markers.map((m) => Number(m.querySelector("text")!.getAttribute("y")));
 
     expect(new Set(ys).size).toBe(2);
+  });
+
+  /**
+   * El user notó que sacar el texto "Arco"/"Rango" (sin info una vez que ya hay botones) dejó un
+   * espacio en blanco sin usar: las franjas medían un alto FIJO aunque no tuvieran ningún rango.
+   * Ahora cada franja mide según cuántos carriles necesita de verdad (`packRangeLanes` +
+   * `rangeStripHeight`) — sin rangos, el odontograma entero debe ser más bajo que con 3
+   * concurrentes en la misma fila.
+   */
+  it("sin rangos, el odontograma es más bajo que con varios concurrentes (la franja no es un tamaño fijo)", () => {
+    const { container: empty } = render(<Odontogram findings={[]} catalog={CATALOG} />);
+    const { container: busy } = render(
+      <Odontogram
+        findings={[
+          { id: 40, blockId: 1, type: "APARATO_ORTODONTICO_FIJO", subtype: "", condition: "GOOD", location: { locationKind: "TOOTH_RANGE", teeth: [17, 16, 15, 14] } },
+          { id: 41, blockId: 1, type: "PROTESIS_PARCIAL_FIJA", subtype: "", condition: "GOOD", location: { locationKind: "TOOTH_RANGE", teeth: [16, 15] } },
+        ]}
+        catalog={CATALOG}
+      />,
+    );
+
+    const emptyHeight = Number(empty.querySelector("svg")!.getAttribute("height"));
+    const busyHeight = Number(busy.querySelector("svg")!.getAttribute("height"));
+
+    expect(busyHeight).toBeGreaterThan(emptyHeight);
   });
 
   /**

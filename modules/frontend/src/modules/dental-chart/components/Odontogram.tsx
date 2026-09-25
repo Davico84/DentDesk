@@ -41,10 +41,10 @@ const LANE_H = 56; // alto del carril de ARCO (bar/botón) — nunca comparte es
 // después en fila permanente: el problema era genérico, no exclusivo de una fila). Unificado: las
 // 4 filas usan el mismo patrón, el carril de arco queda libre solo para el bar/botón de arco.
 //
-// ⚠️ 48px alcanzaba para 2 apilados con margen, pero NO para 3 (caso real: los 3 tipos de arriba,
-// los tres a la vez) — el tercero terminaba exactamente en el borde de la franja, sin margen. 72px
-// deja ~10px de aire en ambos bordes hasta con 3 concurrentes.
-const RANGE_STRIP_H = 72;
+// ⚠️ Un alto FIJO por franja (probado con 48px y 72px) sobraba en el caso común (0-1 rangos, la
+// gran mayoría) y el user lo notó como espacio en blanco sin uso ("¿para qué me sirve este
+// espacio?", probado en vivo) — cada franja mide ahora según cuántos carriles necesita de verdad
+// (`rangeStripHeight`, a partir de `packRangeLanes`), no un tamaño fijo que sobra o falta.
 const RANGE_STACK_STEP = 16;
 
 type LocationUpdate = Partial<FindingFormValues["location"]> & {
@@ -250,26 +250,38 @@ export function Odontogram({
   }
 
   const rowHeights = ROWS.map((r) => SIGLA_H + ROW_GAP + NUM_H + ROW_GAP + r.size);
+
+  // Posición horizontal de cada pieza — no depende de en qué fila (Y) cae, así que se puede
+  // calcular ANTES del layout vertical, para saber cuántos carriles necesita cada franja de rango
+  // (`packRangeLanes`) y no reservarle un alto fijo que la mayoría de las veces sobra.
+  const toothX = new Map<number, number>();
+  ROWS.forEach((row, i) => {
+    row.teeth.forEach((fdi, k) => toothX.set(fdi, colX(ROW_COL_OFFSET[i] + k) + row.size / 2));
+  });
+  const rangeLanes = rangesByRow.map((g) => packRangeLanes(g, (fdi) => toothX.get(fdi)));
+  const rangeStripHeights = rangeLanes.map((l) => rangeStripHeight(l.laneCount));
+
   // Carril de arco (LANE_H) → franja de rango de la fila 0 → fila 0 → franja de la fila 1 → fila 1
   // → fila 2 (pegada a la fila 1, sin franja: es la línea media entre denticiones) → franja de la
   // fila 2 → fila 3 → franja de la fila 3 → carril de arco. Las 4 filas tienen su propia franja,
-  // ninguna comparte espacio con el carril de arco (ver comentario de RANGE_STRIP_H).
-  const rowsTop = LANE_H + RANGE_STRIP_H;
+  // ninguna comparte espacio con el carril de arco (ver comentario junto a LANE_H, arriba).
+  const rowsTop = LANE_H + rangeStripHeights[0];
   const rowY: number[] = [];
   {
     let y = rowsTop;
     for (let i = 0; i < rowHeights.length; i++) {
-      if (i === 1 || i === 3) y += RANGE_STRIP_H;
+      if (i === 1) y += rangeStripHeights[1];
+      if (i === 3) y += rangeStripHeights[2];
       rowY.push(y);
       y += rowHeights[i];
     }
   }
-  const height = rowY[3] + rowHeights[3] + RANGE_STRIP_H + LANE_H;
+  const height = rowY[3] + rowHeights[3] + rangeStripHeights[3] + LANE_H;
   const rangeStrips = [
-    { top: rowY[0] - RANGE_STRIP_H, bottom: rowY[0] }, // fila 0 (permanente superior)
+    { top: rowY[0] - rangeStripHeights[0], bottom: rowY[0] }, // fila 0 (permanente superior)
     { top: rowY[0] + rowHeights[0], bottom: rowY[1] }, // fila 1 (temporal superior)
     { top: rowY[2] + rowHeights[2], bottom: rowY[3] }, // fila 2 (temporal inferior)
-    { top: rowY[3] + rowHeights[3], bottom: rowY[3] + rowHeights[3] + RANGE_STRIP_H }, // fila 3 (permanente inferior)
+    { top: rowY[3] + rowHeights[3], bottom: rowY[3] + rowHeights[3] + rangeStripHeights[3] }, // fila 3 (permanente inferior)
   ];
 
   // Centro real de cada pieza (columna × fila), para ubicar entre-piezas y los pilares de un
@@ -337,14 +349,14 @@ export function Odontogram({
       <div className="flex">
         <div className="flex shrink-0 flex-col text-right text-[11px] font-bold uppercase tracking-wide" style={{ width: 88 }}>
           <div style={{ height: LANE_H }} />
-          <div style={{ height: RANGE_STRIP_H }} />
+          <div style={{ height: rangeStripHeights[0] }} />
           <div style={{ height: rowHeights[0], color: INK, display: "flex", alignItems: "center", justifyContent: "flex-end" }}>Permanente</div>
-          <div style={{ height: RANGE_STRIP_H }} />
+          <div style={{ height: rangeStripHeights[1] }} />
           <div style={{ height: rowHeights[1], color: INK_2, display: "flex", alignItems: "center", justifyContent: "flex-end" }}>Temporal</div>
           <div style={{ height: rowHeights[2], color: INK_2, display: "flex", alignItems: "center", justifyContent: "flex-end" }}>Temporal</div>
-          <div style={{ height: RANGE_STRIP_H }} />
+          <div style={{ height: rangeStripHeights[2] }} />
           <div style={{ height: rowHeights[3], color: INK, display: "flex", alignItems: "center", justifyContent: "flex-end" }}>Permanente</div>
-          <div style={{ height: RANGE_STRIP_H }} />
+          <div style={{ height: rangeStripHeights[3] }} />
           <div style={{ height: LANE_H }} />
         </div>
 
@@ -362,11 +374,11 @@ export function Odontogram({
           {lane("SUPERIOR", 4, CHART_WIDTH, upperLaneFindings, colorOf, siglaOfFinding, interactive && !rangeMode, selectArch)}
 
           {rangesByRow[0].length > 0
-            ? rangeMarkers(rangesByRow[0], (i) => rangeStrips[0].bottom - 16 - i * RANGE_STACK_STEP, toothCenters, colorOf, siglaOfFinding)
+            ? rangeMarkers(rangesByRow[0], rangeLanes[0], (i) => rangeStrips[0].bottom - 16 - i * RANGE_STACK_STEP, toothCenters, colorOf, siglaOfFinding)
             : null}
 
           {rangesByRow[1].length > 0
-            ? rangeMarkers(rangesByRow[1], (i) => rangeStrips[1].bottom - 16 - i * RANGE_STACK_STEP, toothCenters, colorOf, siglaOfFinding)
+            ? rangeMarkers(rangesByRow[1], rangeLanes[1], (i) => rangeStrips[1].bottom - 16 - i * RANGE_STACK_STEP, toothCenters, colorOf, siglaOfFinding)
             : null}
 
           {ROWS.map((row, i) =>
@@ -388,11 +400,11 @@ export function Odontogram({
           )}
 
           {rangesByRow[2].length > 0
-            ? rangeMarkers(rangesByRow[2], (i) => rangeStrips[2].top + 16 + i * RANGE_STACK_STEP, toothCenters, colorOf, siglaOfFinding)
+            ? rangeMarkers(rangesByRow[2], rangeLanes[2], (i) => rangeStrips[2].top + 16 + i * RANGE_STACK_STEP, toothCenters, colorOf, siglaOfFinding)
             : null}
 
           {rangesByRow[3].length > 0
-            ? rangeMarkers(rangesByRow[3], (i) => rangeStrips[3].top + 16 + i * RANGE_STACK_STEP, toothCenters, colorOf, siglaOfFinding)
+            ? rangeMarkers(rangesByRow[3], rangeLanes[3], (i) => rangeStrips[3].top + 16 + i * RANGE_STACK_STEP, toothCenters, colorOf, siglaOfFinding)
             : null}
 
           {lane("INFERIOR", height - LANE_H + 4, CHART_WIDTH, lowerLaneFindings, colorOf, siglaOfFinding, interactive && !rangeMode, selectArch)}
@@ -818,39 +830,26 @@ function lane(
   );
 }
 
+type RangeLanes = { laneOf: Map<number | undefined, number>; laneCount: number };
+
 /**
- * Marcadores de rango, posicionados con el centro real de sus piezas pilares (primera y última
- * del array) — nunca en un carril genérico. `trackYFor(lane)` decide la altura de un carril de
- * apilado: crece hacia la fila que describe o hacia afuera de ella según el llamador, porque un
- * carril externo (junto a fila permanente) y una franja interna (junto a fila temporal) apilan en
- * sentidos opuestos.
- *
- * <p>⚠️ El carril NO es el índice en el array — es "lane packing" por solapamiento horizontal real
- * (mismo algoritmo que un calendario con eventos concurrentes): dos rangos que no comparten ni
+ * Empaquetado de carriles por solapamiento horizontal real (mismo algoritmo que un calendario con
+ * eventos concurrentes) — el carril NO es el índice en el array: dos rangos que no comparten ni
  * tocan piezas (ej. 17-14 y 13-11, en la misma fila pero sin solapar) van al MISMO carril, a la
  * misma altura — apilarlos sin necesidad confundía al user probando en vivo ("¿por qué quedaron a
  * distinta altura si no se tocan?"). Solo sube de carril cuando dos rangos SÍ se solapan en X.
+ * Se calcula ANTES del layout (con `cxOf`, que no depende de la posición vertical de la fila) para
+ * que la franja de cada fila mida solo lo que sus rangos realmente necesitan — no gastar 72px fijos
+ * cuando la fila no tiene ningún rango, o tiene uno solo, era espacio en blanco sin uso real.
  */
-function rangeMarkers(
-  rangeFindings: DentalChartFindingResponse[],
-  trackYFor: (lane: number) => number,
-  toothCenters: Map<number, { cx: number; cy: number }>,
-  colorOf: (f: DentalChartFindingResponse) => string,
-  siglaOfFinding: (f: DentalChartFindingResponse) => string,
-): ReactNode {
+function packRangeLanes(rangeFindings: DentalChartFindingResponse[], cxOf: (fdi: number) => number | undefined): RangeLanes {
+  const GAP = 24;
   const items = rangeFindings.map((f) => {
     const teeth = f.location?.teeth ?? [];
-    const first = teeth[0] != null ? toothCenters.get(teeth[0]) : undefined;
-    const last = teeth[teeth.length - 1] != null ? toothCenters.get(teeth[teeth.length - 1]) : undefined;
-    const x1 = Math.min(first?.cx ?? 8, last?.cx ?? 118);
-    const x2 = Math.max(first?.cx ?? 8, last?.cx ?? 118);
-    return { f, teeth, x1, x2 };
+    const x1raw = teeth[0] != null ? cxOf(teeth[0]) : undefined;
+    const x2raw = teeth[teeth.length - 1] != null ? cxOf(teeth[teeth.length - 1]) : undefined;
+    return { f, x1: Math.min(x1raw ?? 8, x2raw ?? 118), x2: Math.max(x1raw ?? 8, x2raw ?? 118) };
   });
-
-  // Empaquetado de carriles: ordenados por x1, cada uno entra al primer carril cuyo último rango
-  // termina con margen antes de que este empiece (GAP evita que queden pegados aunque no se
-  // solapen técnicamente — piezas contiguas de rangos distintos, ej. 14 y 13).
-  const GAP = 24;
   const laneEndX: number[] = [];
   const laneOf = new Map<number | undefined, number>();
   for (const it of [...items].sort((a, b) => a.x1 - b.x1)) {
@@ -863,12 +862,41 @@ function rangeMarkers(
     }
     laneOf.set(it.f.id, lane);
   }
+  return { laneOf, laneCount: laneEndX.length };
+}
 
+/** Sin rangos, casi nada (un separador visual mínimo); con 1+, lo justo para ese tantos carriles
+ *  apilados — nunca un tamaño fijo que sobre o falte según el caso real (ver `packRangeLanes`). */
+function rangeStripHeight(laneCount: number): number {
+  return laneCount === 0 ? 8 : 40 + (laneCount - 1) * RANGE_STACK_STEP;
+}
+
+/**
+ * Marcadores de rango, posicionados con el centro real de sus piezas pilares (primera y última
+ * del array) — nunca en un carril genérico. `trackYFor(lane)` decide la altura de un carril de
+ * apilado: crece hacia la fila que describe o hacia afuera de ella según el llamador, porque un
+ * carril externo (junto a fila permanente) y una franja interna (junto a fila temporal) apilan en
+ * sentidos opuestos. `lanes` ya viene calculado (`packRangeLanes`, compartido con el layout que
+ * decide el alto de la franja) — no se recalcula acá para no divergir del tamaño reservado.
+ */
+function rangeMarkers(
+  rangeFindings: DentalChartFindingResponse[],
+  lanes: RangeLanes,
+  trackYFor: (lane: number) => number,
+  toothCenters: Map<number, { cx: number; cy: number }>,
+  colorOf: (f: DentalChartFindingResponse) => string,
+  siglaOfFinding: (f: DentalChartFindingResponse) => string,
+): ReactNode {
   return (
     <>
-      {items.map(({ f, teeth, x1, x2 }) => {
+      {rangeFindings.map((f) => {
+        const teeth = f.location?.teeth ?? [];
+        const first = teeth[0] != null ? toothCenters.get(teeth[0]) : undefined;
+        const last = teeth[teeth.length - 1] != null ? toothCenters.get(teeth[teeth.length - 1]) : undefined;
+        const x1 = Math.min(first?.cx ?? 8, last?.cx ?? 118);
+        const x2 = Math.max(first?.cx ?? 8, last?.cx ?? 118);
         const label = `Rango de piezas ${teeth.join(", ")}: ${siglaOfFinding(f)}`;
-        const trackY = trackYFor(laneOf.get(f.id) ?? 0);
+        const trackY = trackYFor(lanes.laneOf.get(f.id) ?? 0);
         return (
           <g key={f.id} role="img" aria-label={label}>
             {rangeGlyph(RANGE_GLYPH[f.type ?? ""], x1, x2, trackY, colorOf(f))}
