@@ -31,7 +31,7 @@ const NUM_H = 18;
 const ROW_GAP = 4;
 const CROWN_PERM = 56;
 const CROWN_TEMP = 44;
-const LANE_H = 56; // alto del carril de ARCO (bar/botón) — nunca comparte espacio con rangos
+const LANE_H = 44; // alto del carril de ARCO (bar/botón) — nunca comparte espacio con rangos
 // ⚠️ CADA fila (las 4) tiene su propia franja de rango, pegada a ella — nunca el carril de arco.
 // Primera versión (solo filas 1/2, temporales) hacía compartir el carril de arco con las filas 0/3
 // (permanentes) — con 2-3 rangos concurrentes en la misma fila (caso real: aparato fijo + prótesis
@@ -350,12 +350,12 @@ export function Odontogram({
         <div className="flex shrink-0 flex-col text-right text-[11px] font-bold uppercase tracking-wide" style={{ width: 88 }}>
           <div style={{ height: LANE_H }} />
           <div style={{ height: rangeStripHeights[0] }} />
-          <div style={{ height: rowHeights[0], color: INK, display: "flex", alignItems: "center", justifyContent: "flex-end" }}>Permanente</div>
+          <div style={{ height: rowHeights[0], color: INK, display: "flex", alignItems: "flex-start", justifyContent: "flex-end" }}>Permanente</div>
           <div style={{ height: rangeStripHeights[1] }} />
-          <div style={{ height: rowHeights[1], color: INK_2, display: "flex", alignItems: "center", justifyContent: "flex-end" }}>Temporal</div>
-          <div style={{ height: rowHeights[2], color: INK_2, display: "flex", alignItems: "center", justifyContent: "flex-end" }}>Temporal</div>
+          <div style={{ height: rowHeights[1], color: INK_2, display: "flex", alignItems: "flex-start", justifyContent: "flex-end" }}>Temporal</div>
+          <div style={{ height: rowHeights[2], color: INK_2, display: "flex", alignItems: "flex-start", justifyContent: "flex-end" }}>Temporal</div>
           <div style={{ height: rangeStripHeights[2] }} />
-          <div style={{ height: rowHeights[3], color: INK, display: "flex", alignItems: "center", justifyContent: "flex-end" }}>Permanente</div>
+          <div style={{ height: rowHeights[3], color: INK, display: "flex", alignItems: "flex-start", justifyContent: "flex-end" }}>Permanente</div>
           <div style={{ height: rangeStripHeights[3] }} />
           <div style={{ height: LANE_H }} />
         </div>
@@ -868,7 +868,7 @@ function packRangeLanes(rangeFindings: DentalChartFindingResponse[], cxOf: (fdi:
 /** Sin rangos, casi nada (un separador visual mínimo); con 1+, lo justo para ese tantos carriles
  *  apilados — nunca un tamaño fijo que sobre o falte según el caso real (ver `packRangeLanes`). */
 function rangeStripHeight(laneCount: number): number {
-  return laneCount === 0 ? 8 : 40 + (laneCount - 1) * RANGE_STACK_STEP;
+  return laneCount === 0 ? 8 : 32 + (laneCount - 1) * RANGE_STACK_STEP;
 }
 
 /**

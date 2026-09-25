@@ -112,7 +112,7 @@ describe("Odontogram", () => {
     const svg = container.querySelector("svg")!;
     const svgHeight = Number(svg.getAttribute("height"));
     const cy = Number(circle!.getAttribute("cy"));
-    // LANE_H = 56: ni en el carril superior (cy < 56) ni en el inferior (cy > height - 56).
+    // Ni en el carril superior de arco ni en el inferior (ambos bien menores a 56px de margen).
     expect(cy).toBeGreaterThan(56);
     expect(cy).toBeLessThan(svgHeight - 56);
   });
@@ -127,8 +127,8 @@ describe("Odontogram", () => {
     const bar = archButton.querySelector("rect:not([data-hit-area])")!;
     const barBottom = Number(bar.getAttribute("y")) + Number(bar.getAttribute("height"));
 
-    // LANE_H = 56: el carril de arco termina ahí — la barra debe quedar bien antes, con margen.
-    expect(barBottom).toBeLessThan(56);
+    // El carril de arco mide LANE_H (44px) — la barra debe quedar bien antes de que termine.
+    expect(barBottom).toBeLessThan(44);
   });
 
   it("los arcos son focoseables incluso sin hallazgos", () => {
@@ -328,8 +328,8 @@ describe("Odontogram", () => {
     const line = marker.querySelector("line")!;
     const y = Number(line.getAttribute("y1"));
 
-    // El carril externo de arco mide LANE_H=56 (y<56) — el marcador debe caer bien después, en la
-    // franja propia de su fila (temporal superior), no ahí.
+    // El carril externo de arco es angosto — el marcador debe caer bien después, en la franja
+    // propia de su fila (temporal superior), no ahí.
     expect(y).toBeGreaterThan(100);
   });
 
@@ -337,8 +337,8 @@ describe("Odontogram", () => {
    * Regresión: un rango en la fila temporal (caso real del user: aparato fijo 54-52) quedaba casi
    * pegado al borde de la corona de la fila vecina — "está pegada al código de un hallazgo",
    * "sobre la línea gris" (probado en vivo). El marcador debe quedar con margen real respecto al
-   * borde inferior de la corona permanente (y=178, sin rangos en esa fila la franja mide el mínimo)
-   * y al recuadro de sigla de la fila temporal (y=218). Como 54-52 y 61-64 no se solapan en X
+   * borde inferior de la corona permanente (y=166, sin rangos en esa fila la franja mide el mínimo)
+   * y al recuadro de sigla de la fila temporal (y=198). Como 54-52 y 61-64 no se solapan en X
    * (piezas de lados distintos), comparten carril — no es un caso de apilado, ver el test de
    * lane-packing más abajo para eso.
    */
@@ -367,11 +367,11 @@ describe("Odontogram", () => {
     ];
     const ys = markers.map((m) => Number(m.querySelector("text")!.getAttribute("y")));
 
-    // Fila permanente termina en y=178 (borde de la corona), fila temporal empieza en y=218
+    // Fila permanente termina en y=166 (borde de la corona), fila temporal empieza en y=198
     // (recuadro de sigla) — ningún marcador debe caer a menos de 4px de ninguno de los dos.
     for (const y of ys) {
-      expect(y).toBeGreaterThan(182);
-      expect(y).toBeLessThan(214);
+      expect(y).toBeGreaterThan(170);
+      expect(y).toBeLessThan(194);
     }
     // Sin solaparse en X, comparten el mismo carril.
     expect(ys[0]).toBe(ys[1]);
@@ -401,11 +401,11 @@ describe("Odontogram", () => {
     // prótesis parcial removible dibuja 2 líneas a ±2px del centro) — es el proxy fiable del carril.
     const ys = markers.map((m) => Number(m.querySelector("text")!.getAttribute("y")));
 
-    // Sin solaparse, los 3 comparten un solo carril — la franja mide lo justo para uno (40px):
-    // de y=56 (fin del carril de arco) a y=96 (inicio de la corona).
+    // Sin solaparse, los 3 comparten un solo carril — la franja mide lo justo para uno (32px):
+    // de y=44 (fin del carril de arco) a y=76 (inicio de la corona).
     for (const y of ys) {
-      expect(y).toBeGreaterThan(60);
-      expect(y).toBeLessThan(92);
+      expect(y).toBeGreaterThan(48);
+      expect(y).toBeLessThan(72);
     }
     // Sin solaparse en X, comparten el mismo carril: misma altura para los 3.
     expect(new Set(ys).size).toBe(1);
@@ -459,14 +459,14 @@ describe("Odontogram", () => {
   /**
    * Regresión: el objetivo de click de "arco" era la línea/glifo visual, de 2-3px de grosor —
    * el user no lograba encontrarlo probando en vivo con el mouse. El objetivo real debe cubrir
-   * toda la franja (alto LANE_H=56), no solo el trazo fino.
+   * toda la franja (alto LANE_H), no solo el trazo fino.
    */
   it("el botón de arco es clickeable en toda la franja, no solo sobre la línea fina", () => {
     render(<Odontogram findings={[]} catalog={CATALOG} />);
     const archButton = screen.getByRole("button", { name: /arco superior[:,]/i });
     const hitArea = archButton.querySelector("rect[data-hit-area]")!;
 
-    expect(Number(hitArea.getAttribute("height"))).toBe(56);
+    expect(Number(hitArea.getAttribute("height"))).toBe(44);
     expect(Number(hitArea.getAttribute("y"))).toBe(0);
   });
 
