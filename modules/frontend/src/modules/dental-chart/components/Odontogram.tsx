@@ -29,6 +29,12 @@ const ROW_GAP = 4;
 const CROWN_PERM = 56;
 const CROWN_TEMP = 44;
 const LANE_H = 56;
+// ⚠️ Franja para el rango de las filas temporales (índice 1 y 2 de ROWS): sin esto, un rango con
+// piezas temporales caía en el carril externo de ARRIBA de todo, lejos de su fila real — el user
+// lo encontró registrando un aparato fijo en 54-52 y viéndolo aparecer pegado a la fila permanente
+// (bug real, probado en vivo). Las filas 0 y 3 (permanentes) SÍ son adyacentes al carril externo
+// de arco/rango, así que sus rangos siguen ahí — solo las temporales (1 y 2) necesitan su propia.
+const RANGE_STRIP_H = 28;
 
 type LocationUpdate = Partial<FindingFormValues["location"]> & {
   locationKind: FindingFormValues["location"]["locationKind"];
@@ -163,8 +169,9 @@ export function Odontogram({
   const upperLaneFindings: DentalChartFindingResponse[] = [];
   const lowerLaneFindings: DentalChartFindingResponse[] = [];
   const betweenFindings: DentalChartFindingResponse[] = [];
-
-  const upperTeeth = new Set(ROWS.filter((r) => r.upper).flatMap((r) => r.teeth));
+  // Un rango se dibuja junto a SU fila real, no un binario arriba/abajo (bug real: un rango con
+  // piezas temporales caía en el carril de arriba de TODO, lejos de la fila 54-51 que describía).
+  const rangesByRow: DentalChartFindingResponse[][] = ROWS.map(() => []);
 
   for (const f of findings) {
     const kind = f.location?.locationKind;
@@ -181,7 +188,8 @@ export function Odontogram({
       betweenFindings.push(f);
     } else if (kind === "TOOTH_RANGE") {
       const firstTooth = f.location?.teeth?.[0] ?? 0;
-      (upperTeeth.has(firstTooth) ? upperLaneFindings : lowerLaneFindings).push(f);
+      const rowIndex = ROWS.findIndex((r) => r.teeth.includes(firstTooth));
+      if (rowIndex >= 0) rangesByRow[rowIndex].push(f);
     }
   }
 
@@ -227,12 +235,17 @@ export function Odontogram({
   const rowY: number[] = [];
   {
     let y = rowsTop;
-    for (const h of rowHeights) {
+    for (let i = 0; i < rowHeights.length; i++) {
+      if (i === 1 || i === 3) y += RANGE_STRIP_H; // franja de rango de la fila temporal que sigue
       rowY.push(y);
-      y += h;
+      y += rowHeights[i];
     }
   }
-  const height = rowsTop + rowHeights.reduce((a, b) => a + b, 0) + LANE_H;
+  const height = rowY[3] + rowHeights[3] + LANE_H;
+  // Los rangos de las filas temporales (1 y 2) van en la franja que las separa de su vecina
+  // permanente — no del carril externo, que queda demasiado lejos.
+  const innerTopStripBottom = rowY[1]; // borde pegado a la fila 1 (temporal superior)
+  const innerBottomStripTop = rowY[2] + rowHeights[2]; // borde pegado a la fila 2 (temporal inferior)
 
   // Centro real de cada pieza (columna × fila), para ubicar entre-piezas y los pilares de un
   // rango exactamente donde corresponde — no en un carril genérico desconectado de las piezas.
@@ -252,16 +265,18 @@ export function Odontogram({
         <span>Izquierda del paciente →</span>
       </div>
       <div className="flex">
-        <div className="flex shrink-0 flex-col text-right text-[11px] font-bold uppercase tracking-wide" style={{ width: 88 }}>
+        <div
+          className="flex shrink-0 flex-col text-right text-[11px] font-bold uppercase tracking-wide"
+          style={{ width: 88 }}
+          title={'Arco: hallazgo sobre TODA la arcada (edéntulo, prótesis completa...). Rango: 2+ piezas contiguas (prótesis parcial, aparato fijo) — activá "Registrar rango" arriba del odontograma y elegí la primera y la última pieza.'}
+        >
           <div style={{ height: LANE_H, color: INK_3, display: "flex", alignItems: "center", justifyContent: "flex-end" }}>Rango · arco</div>
-          {ROWS.map((r, i) => (
-            <div
-              key={i}
-              style={{ height: rowHeights[i], color: r.size === CROWN_PERM ? INK : INK_2, display: "flex", alignItems: "center", justifyContent: "flex-end" }}
-            >
-              {r.size === CROWN_PERM ? "Permanente" : "Temporal"}
-            </div>
-          ))}
+          <div style={{ height: rowHeights[0], color: INK, display: "flex", alignItems: "center", justifyContent: "flex-end" }}>Permanente</div>
+          <div style={{ height: RANGE_STRIP_H, color: INK_3, fontSize: 9, display: "flex", alignItems: "center", justifyContent: "flex-end" }}>Rango</div>
+          <div style={{ height: rowHeights[1], color: INK_2, display: "flex", alignItems: "center", justifyContent: "flex-end" }}>Temporal</div>
+          <div style={{ height: rowHeights[2], color: INK_2, display: "flex", alignItems: "center", justifyContent: "flex-end" }}>Temporal</div>
+          <div style={{ height: RANGE_STRIP_H, color: INK_3, fontSize: 9, display: "flex", alignItems: "center", justifyContent: "flex-end" }}>Rango</div>
+          <div style={{ height: rowHeights[3], color: INK, display: "flex", alignItems: "center", justifyContent: "flex-end" }}>Permanente</div>
           <div style={{ height: LANE_H, color: INK_3, display: "flex", alignItems: "center", justifyContent: "flex-end" }}>Rango · arco</div>
         </div>
 
@@ -274,9 +289,13 @@ export function Odontogram({
           style={{ background: PAPER, color: INK }}
         >
           <line x1={colX(7) + CROWN_PERM + MIDLINE_GAP / 2} y1={rowsTop} x2={colX(7) + CROWN_PERM + MIDLINE_GAP / 2} y2={height - rowsTop} stroke={DIVIDER} strokeDasharray="2 3" />
-          <line x1={0} y1={height / 2} x2={CHART_WIDTH} y2={height / 2} stroke={DIVIDER} />
+          <line x1={0} y1={rowY[2]} x2={CHART_WIDTH} y2={rowY[2]} stroke={DIVIDER} />
 
-          {lane("SUPERIOR", 4, CHART_WIDTH, upperLaneFindings, toothCenters, colorOf, siglaOfFinding, interactive && !rangeMode, selectArch)}
+          {lane("SUPERIOR", 4, CHART_WIDTH, [...upperLaneFindings, ...rangesByRow[0]], toothCenters, colorOf, siglaOfFinding, interactive && !rangeMode, selectArch)}
+
+          {rangesByRow[1].length > 0
+            ? rangeMarkers(rangesByRow[1], (i) => innerTopStripBottom - 8 - i * 14, toothCenters, colorOf, siglaOfFinding)
+            : null}
 
           {ROWS.map((row, i) =>
             toothRow(
@@ -296,7 +315,11 @@ export function Odontogram({
             ),
           )}
 
-          {lane("INFERIOR", height - LANE_H + 4, CHART_WIDTH, lowerLaneFindings, toothCenters, colorOf, siglaOfFinding, interactive && !rangeMode, selectArch)}
+          {rangesByRow[2].length > 0
+            ? rangeMarkers(rangesByRow[2], (i) => innerBottomStripTop + 8 + i * 14, toothCenters, colorOf, siglaOfFinding)
+            : null}
+
+          {lane("INFERIOR", height - LANE_H + 4, CHART_WIDTH, [...lowerLaneFindings, ...rangesByRow[3]], toothCenters, colorOf, siglaOfFinding, interactive && !rangeMode, selectArch)}
 
           {betweenFindings.map((f) => betweenMarker(f, toothCenters, colorOf, siglaOfFinding))}
         </svg>
@@ -714,10 +737,31 @@ function lane(
         )}
       </g>
 
+      {rangeMarkers(rangeFindings, (i) => (arch === "SUPERIOR" ? y + 6 + i * 14 : y + LANE_H - 20 - i * 14), toothCenters, colorOf, siglaOfFinding)}
+    </g>
+  );
+}
+
+/**
+ * Marcadores de rango, posicionados con el centro real de sus piezas pilares (primera y última
+ * del array) — nunca en un carril genérico. `trackYFor(i)` decide la altura de apilado (varios
+ * rangos concurrentes en la misma franja): crece hacia la fila que describe o hacia afuera de
+ * ella según el llamador, porque un carril externo (junto a fila permanente) y una franja interna
+ * (junto a fila temporal) apilan en sentidos opuestos.
+ */
+function rangeMarkers(
+  rangeFindings: DentalChartFindingResponse[],
+  trackYFor: (i: number) => number,
+  toothCenters: Map<number, { cx: number; cy: number }>,
+  colorOf: (f: DentalChartFindingResponse) => string,
+  siglaOfFinding: (f: DentalChartFindingResponse) => string,
+): ReactNode {
+  return (
+    <>
       {rangeFindings.map((f, i) => {
         const teeth = f.location?.teeth ?? [];
         const label = `Rango de piezas ${teeth.join(", ")}: ${siglaOfFinding(f)}`;
-        const trackY = arch === "SUPERIOR" ? y + 6 + i * 14 : y + LANE_H - 20 - i * 14;
+        const trackY = trackYFor(i);
         const first = teeth[0] != null ? toothCenters.get(teeth[0]) : undefined;
         const last = teeth[teeth.length - 1] != null ? toothCenters.get(teeth[teeth.length - 1]) : undefined;
         const x1 = first?.cx ?? 8;
@@ -731,7 +775,7 @@ function lane(
           </g>
         );
       })}
-    </g>
+    </>
   );
 }
 

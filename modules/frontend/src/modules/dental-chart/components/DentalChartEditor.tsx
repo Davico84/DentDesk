@@ -60,17 +60,23 @@ export function DentalChartEditor({ patientId }: { patientId: number }) {
       </div>
 
       {!sealed ? (
-        <div>
+        <div className="flex flex-wrap items-center gap-2">
           <Button
             type="button"
             size="sm"
             variant={rangeMode ? "default" : "outline"}
             aria-pressed={rangeMode}
+            title="Para hallazgos sobre varias piezas contiguas: prótesis parcial, aparato ortodóntico fijo."
             onClick={() => setRangeMode((v) => !v)}
           >
             <ArrowLeftRight className="mr-2 size-4" />
             {rangeMode ? "Cancelar rango" : "Registrar rango"}
           </Button>
+          <p className="text-xs text-muted-foreground">
+            {rangeMode
+              ? "Elegí la primera pieza del tramo y después la última, en la misma fila."
+              : "Para prótesis parciales y aparatos que abarcan varias piezas contiguas (ej. 14 a 12)."}
+          </p>
         </div>
       ) : null}
 

@@ -304,4 +304,30 @@ describe("Odontogram", () => {
 
     expect(onSelect).not.toHaveBeenCalled();
   });
+
+  /**
+   * Regresión: un rango con piezas de una fila TEMPORAL caía en el carril externo de arriba de
+   * TODO (compartido con la fila permanente), lejos de su fila real — el user lo encontró
+   * registrando un aparato fijo en 54-52 y viéndolo aparecer pegado a la fila 18-11/21-28. El
+   * marcador debe quedar en la franja pegada a SU fila (54-51), no en el carril externo (y<56).
+   */
+  it("un rango con piezas temporales se dibuja junto a su propia fila, no en el carril externo", () => {
+    const rango: DentalChartFindingResponse = {
+      id: 20,
+      blockId: 1,
+      type: "PROTESIS_PARCIAL_FIJA",
+      subtype: "",
+      condition: "GOOD",
+      location: { locationKind: "TOOTH_RANGE", teeth: [54, 53, 52] },
+    };
+    render(<Odontogram findings={[rango]} catalog={CATALOG} />);
+
+    const marker = screen.getByRole("img", { name: /rango de piezas 54, 53, 52/i });
+    const line = marker.querySelector("line")!;
+    const y = Number(line.getAttribute("y1"));
+
+    // El carril externo superior mide LANE_H=56; la fila permanente termina en 170 y la franja de
+    // la fila temporal está justo después (170-198) — bien lejos del carril externo.
+    expect(y).toBeGreaterThan(100);
+  });
 });
