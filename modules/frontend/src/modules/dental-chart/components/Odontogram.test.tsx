@@ -124,7 +124,7 @@ describe("Odontogram", () => {
   it("la barra del carril superior no toca la primera fila de piezas", () => {
     render(<Odontogram findings={[]} catalog={CATALOG} />);
     const archButton = screen.getByRole("button", { name: /arco superior/i });
-    const bar = archButton.querySelector("rect")!;
+    const bar = archButton.querySelector("rect:not([data-hit-area])")!;
     const barBottom = Number(bar.getAttribute("y")) + Number(bar.getAttribute("height"));
 
     // LANE_H = 56: la primera fila empieza ahí — la barra debe terminar antes, con margen.
@@ -237,7 +237,7 @@ describe("Odontogram", () => {
 
     const archButton = screen.getByRole("button", { name: /arco inferior/i });
     expect(archButton.querySelector("polyline")).not.toBeNull();
-    expect(archButton.querySelector("rect")).toBeNull();
+    expect(archButton.querySelector("rect:not([data-hit-area])")).toBeNull();
   });
 
   /**
@@ -374,5 +374,19 @@ describe("Odontogram", () => {
     }
     // Y no deben coincidir entre sí (apilados, no superpuestos).
     expect(ys[0]).not.toBe(ys[1]);
+  });
+
+  /**
+   * Regresión: el objetivo de click de "arco" era la línea/glifo visual, de 2-3px de grosor —
+   * el user no lograba encontrarlo probando en vivo con el mouse. El objetivo real debe cubrir
+   * toda la franja (alto LANE_H=56), no solo el trazo fino.
+   */
+  it("el botón de arco es clickeable en toda la franja, no solo sobre la línea fina", () => {
+    render(<Odontogram findings={[]} catalog={CATALOG} />);
+    const archButton = screen.getByRole("button", { name: /arco superior/i });
+    const hitArea = archButton.querySelector("rect[data-hit-area]")!;
+
+    expect(Number(hitArea.getAttribute("height"))).toBe(56);
+    expect(Number(hitArea.getAttribute("y"))).toBe(0);
   });
 });

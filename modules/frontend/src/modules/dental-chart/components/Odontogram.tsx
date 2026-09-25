@@ -737,6 +737,10 @@ function lane(
         onKeyDown={(e) => activateOnEnterOrSpace(e, () => selectArch(arch))}
         className={interactive ? "cursor-pointer focus:outline-none" : "focus:outline-none"}
       >
+        {/* ⚠️ El objetivo de click real es TODA la franja (LANE_H), no la línea/glifo visual —
+            de 2-3px de grosor, prácticamente imposible de acertar con el mouse (bug real: el
+            user no encontraba cómo registrar un hallazgo de arco, probando en vivo). */}
+        <rect data-hit-area="true" x={0} y={y - 4} width={width} height={LANE_H} fill="transparent" />
         {lastArch ? (
           archGlyph(ARCH_GLYPH[lastArch.type ?? ""], 8, width - 8, baseline, colorOf(lastArch))
         ) : (
