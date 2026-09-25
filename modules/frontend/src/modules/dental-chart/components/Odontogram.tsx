@@ -262,10 +262,23 @@ function findingColor(f: DentalChartFindingResponse, catalog: DentalFindingCatal
   return f.condition === "POOR" ? RED : BLUE;
 }
 
+/**
+ * ⚠️ Sin fallback al nombre del tipo (bug real, encontrado por el user probando GEMINACIÓN: el
+ * recuadro de sigla es para 2-3 letras, no para "GEMINACION" entero). 17 de los 38 tipos NO
+ * tienen sigla oficial (`acronym == null` y sin subtipos en `FindingType.java`) — para esos la
+ * norma dibuja un símbolo propio (círculo en el número, flecha curva, doble círculo...), no una
+ * sigla. Devolver "" es correcto para ellos; mostrar el nombre interno del enum no lo es.
+ */
 function siglaOf(f: DentalChartFindingResponse, catalog: DentalFindingCatalogEntryResponse[] | undefined): string {
   const entry = catalog?.find((e) => e.type === f.type && (e.subtype ?? "") === (f.subtype ?? ""));
-  return entry?.acronym ?? f.type ?? "";
+  return entry?.acronym ?? "";
 }
+
+/** Tipos verificados contra el PDF oficial cuyo símbolo NO es sigla+anillo de corona genérico.
+ *  ⚠️ Parcial a propósito: de los 17 tipos sin sigla, solo GEMINACIÓN (6.1.12) está confirmado
+ *  acá. Los otros 16 (fractura dental, extruida/intruida, prótesis..., aparatos...) todavía caen
+ *  en el símbolo genérico — no tienen glifo propio implementado, tarea pendiente registrada. */
+const NUMBER_CIRCLE_TYPES = new Set(["GEMINACION"]);
 
 function toothRow(
   row: Row,
@@ -293,7 +306,9 @@ function toothRow(
         const surfacesOnTooth = slots.flatMap((s) => surfaceFindings.get(`${fdi}-${s.surface}`) ?? []);
         const hasAny = toothList.length > 0 || surfacesOnTooth.length > 0;
         const siglaEntries = uniqueSiglas([...toothList, ...surfacesOnTooth], colorOf, siglaOfFinding);
-        const ringColor = toothList.length > 0 ? colorOf(toothList[toothList.length - 1]) : undefined;
+        const numberCircle = toothList.find((f) => NUMBER_CIRCLE_TYPES.has(f.type ?? ""));
+        const ringFindings = toothList.filter((f) => !NUMBER_CIRCLE_TYPES.has(f.type ?? ""));
+        const ringColor = ringFindings.length > 0 ? colorOf(ringFindings[ringFindings.length - 1]) : undefined;
 
         return (
           <g key={fdi} transform={`translate(${x}, ${y})`}>
@@ -331,6 +346,17 @@ function toothRow(
               className={interactive ? "cursor-pointer focus:outline-none" : "focus:outline-none"}
             >
               <rect x={0} y={numY} width={size} height={NUM_H} rx={3} fill="transparent" />
+              {numberCircle ? (
+                <ellipse
+                  cx={size / 2}
+                  cy={numY + NUM_H / 2}
+                  rx={size === CROWN_PERM ? 15 : 13}
+                  ry={NUM_H / 2 + 2}
+                  fill="none"
+                  stroke={colorOf(numberCircle)}
+                  strokeWidth={1.5}
+                />
+              ) : null}
               <text
                 x={size / 2}
                 y={numY + NUM_H - 4}
@@ -385,6 +411,7 @@ function uniqueSiglas(
   const out: { text: string; color: string }[] = [];
   for (const f of list) {
     const text = siglaOfFinding(f);
+    if (!text) continue; // sin sigla oficial: su símbolo es otro (ver NUMBER_CIRCLE_TYPES), no un recuadro vacío
     const color = colorOf(f);
     const key = text + color;
     if (!seen.has(key)) {

@@ -10,6 +10,7 @@ const CATALOG: DentalFindingCatalogEntryResponse[] = [
   { type: "PROTESIS_PARCIAL_FIJA", subtype: "", acronym: undefined, scope: "TOOTH_RANGE", colorBehavior: "SEGUN_ESTADO", requiresGrade: false, requiresSpecification: false },
   { type: "EDENTULO_TOTAL", subtype: "", acronym: undefined, scope: "ARCH", colorBehavior: "SIEMPRE_AZUL", requiresGrade: false, requiresSpecification: false },
   { type: "PIEZA_SUPERNUMERARIA", subtype: "", acronym: "S", scope: "BETWEEN_TEETH", colorBehavior: "SIEMPRE_AZUL", requiresGrade: false, requiresSpecification: false },
+  { type: "GEMINACION", subtype: "", acronym: undefined, scope: "TOOTH", colorBehavior: "SIEMPRE_AZUL", requiresGrade: false, requiresSpecification: false },
 ];
 
 const FINDINGS: DentalChartFindingResponse[] = [
@@ -42,6 +43,23 @@ describe("Odontogram", () => {
   it("un rango se anuncia como un solo elemento, no uno por pieza", () => {
     render(<Odontogram findings={FINDINGS} catalog={CATALOG} />);
     expect(screen.getByRole("img", { name: /rango de piezas 14, 13, 12/i })).toBeInTheDocument();
+  });
+
+  /**
+   * Regresión: sin sigla oficial (GEMINACIÓN no tiene, `FindingType.java`), el recuadro de sigla
+   * mostraba el nombre entero del tipo ("GEMINACION") y se desbordaba — el user lo encontró
+   * probando en vivo. Verificado contra el PDF oficial (6.1.12): el símbolo correcto es un círculo
+   * azul alrededor del número FDI, no una sigla en el recuadro.
+   */
+  it("sin sigla oficial (geminación), no desborda el recuadro y dibuja el círculo en el número", () => {
+    const geminacion: DentalChartFindingResponse = { id: 5, blockId: 1, type: "GEMINACION", subtype: "", location: { locationKind: "TOOTH", toothA: 15 } };
+    render(<Odontogram findings={[geminacion]} catalog={CATALOG} />);
+
+    // El recuadro de sigla no debe llevar el texto crudo del tipo.
+    expect(screen.queryByText("GEMINACION")).not.toBeInTheDocument();
+    // El círculo alrededor del número sí debe existir.
+    const numberButton = screen.getByRole("button", { name: "Pieza 15, 1 hallazgo(s) de pieza" });
+    expect(numberButton.querySelector("ellipse")).not.toBeNull();
   });
 
   /**
