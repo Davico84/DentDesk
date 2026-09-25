@@ -1,4 +1,4 @@
-import type { KeyboardEvent, ReactNode } from "react";
+import { useEffect, useState, type KeyboardEvent, type ReactNode } from "react";
 import type { DentalChartFindingResponse, DentalFindingCatalogEntryResponse } from "@/modules/core/services/generated/model";
 import { teethInQuadrant, type ToothSurfaceCode } from "@/modules/core/utils/fdiTeeth";
 import type { FindingFormValues } from "@/modules/dental-chart/schemas/dentalChart";
@@ -16,6 +16,7 @@ const INK_2 = "#4A4F57"; // texto secundario — 8.2:1
 const INK_3 = "#6B7079"; // FDI sin hallazgo, rótulos — 5.0:1
 const OUTLINE = "#8C929B"; // bordes de superficie — 3.1:1
 const DIVIDER = "#D5D8DC"; // recuadro vacío, líneas guía
+const SELECTION = "#7C3AED"; // resalte de UI transitorio (modo rango) — no es un color clínico/normativo
 
 const FONT_BODY = '"Atkinson Hyperlegible Next", system-ui, sans-serif';
 const FONT_MONO = '"Atkinson Hyperlegible Mono", ui-monospace, monospace';
@@ -119,19 +120,43 @@ export function Odontogram({
   findings,
   catalog,
   interactive = true,
+  rangeMode = false,
   onSelectLocation,
 }: {
   findings: DentalChartFindingResponse[];
   catalog: DentalFindingCatalogEntryResponse[] | undefined;
   /** `false` en un odontograma SELLADO: sigue siendo enfocable/legible, pero no ofrece registrar. */
   interactive?: boolean;
-  /** Click en pieza/superficie/arco: dispara {@link import("./FindingDialog").FindingDialog} en
-   *  el llamador, con esa localización ya fija — no hay resaltado propio acá porque el modal se
-   *  abre en el acto, sin un estado intermedio "seleccionado pero sin acción" que resaltar. */
+  /** El llamador activa un botón "Rango" fuera de este componente; con `true`, clickear una pieza
+   *  ya no abre el modal directo — ancla el inicio del rango (resaltado con {@link SELECTION}) y
+   *  espera un segundo click, en la misma fila, para cerrarlo. A diferencia del resto de alcances,
+   *  este SÍ necesita un estado intermedio visible porque son dos clicks, no uno. */
+  rangeMode?: boolean;
+  /** Click en pieza/superficie/arco/rango/entre-piezas: dispara
+   *  {@link import("./FindingDialog").FindingDialog} en el llamador, con esa localización ya fija
+   *  — no hay resaltado propio para un click único porque el modal se abre en el acto, sin un
+   *  estado intermedio que resaltar (la excepción es `rangeMode`, ver arriba). */
   onSelectLocation?: (location: LocationUpdate) => void;
 }) {
   const colorOf = (f: DentalChartFindingResponse) => findingColor(f, catalog);
   const siglaOfFinding = (f: DentalChartFindingResponse) => siglaOf(f, catalog);
+  const [rangeStart, setRangeStart] = useState<number | null>(null);
+  // Ajuste de estado derivado durante el render (no en un efecto): si el llamador apaga
+  // rangeMode a mitad de selección, el ancla no debe sobrevivir a la próxima vez que lo prenda.
+  const [prevRangeMode, setPrevRangeMode] = useState(rangeMode);
+  if (rangeMode !== prevRangeMode) {
+    setPrevRangeMode(rangeMode);
+    if (!rangeMode) setRangeStart(null);
+  }
+
+  useEffect(() => {
+    if (!rangeMode || rangeStart == null) return;
+    function onKeyDown(e: globalThis.KeyboardEvent) {
+      if (e.key === "Escape") setRangeStart(null);
+    }
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [rangeMode, rangeStart]);
 
   const toothFindings = new Map<number, DentalChartFindingResponse[]>();
   const surfaceFindings = new Map<string, DentalChartFindingResponse[]>();
@@ -162,15 +187,39 @@ export function Odontogram({
 
   function selectTooth(fdi: number) {
     if (!interactive || !onSelectLocation) return;
+    if (rangeMode) {
+      if (rangeStart == null) {
+        setRangeStart(fdi);
+        return;
+      }
+      // El rango exige dos piezas de la MISMA fila (norma: prótesis/aparato sobre piezas
+      // contiguas). Si el segundo click no forma un rango válido con el ancla, no es un error —
+      // re-ancla ahí mismo, para no dejar al user en un callejón sin salida.
+      const row = ROWS.find((r) => r.teeth.includes(rangeStart) && r.teeth.includes(fdi));
+      if (!row || rangeStart === fdi) {
+        setRangeStart(fdi);
+        return;
+      }
+      const i1 = row.teeth.indexOf(rangeStart);
+      const i2 = row.teeth.indexOf(fdi);
+      const teeth = row.teeth.slice(Math.min(i1, i2), Math.max(i1, i2) + 1);
+      onSelectLocation({ locationKind: "TOOTH_RANGE", teeth });
+      setRangeStart(null);
+      return;
+    }
     onSelectLocation({ locationKind: "TOOTH", toothA: fdi });
   }
   function selectSurface(fdi: number, surface: ToothSurfaceCode) {
-    if (!interactive || !onSelectLocation) return;
+    if (!interactive || !onSelectLocation || rangeMode) return;
     onSelectLocation({ locationKind: "SURFACE", toothA: fdi, surface });
   }
   function selectArch(arch: "SUPERIOR" | "INFERIOR") {
-    if (!interactive || !onSelectLocation) return;
+    if (!interactive || !onSelectLocation || rangeMode) return;
     onSelectLocation({ locationKind: "ARCH", arch });
+  }
+  function selectBetween(toothA: number, toothB: number) {
+    if (!interactive || !onSelectLocation || rangeMode) return;
+    onSelectLocation({ locationKind: "BETWEEN_TEETH", toothA, toothB });
   }
 
   const rowHeights = ROWS.map((r) => SIGLA_H + ROW_GAP + NUM_H + ROW_GAP + r.size);
@@ -227,16 +276,34 @@ export function Odontogram({
           <line x1={colX(7) + CROWN_PERM + MIDLINE_GAP / 2} y1={rowsTop} x2={colX(7) + CROWN_PERM + MIDLINE_GAP / 2} y2={height - rowsTop} stroke={DIVIDER} strokeDasharray="2 3" />
           <line x1={0} y1={height / 2} x2={CHART_WIDTH} y2={height / 2} stroke={DIVIDER} />
 
-          {lane("SUPERIOR", 4, CHART_WIDTH, upperLaneFindings, toothCenters, colorOf, siglaOfFinding, interactive, selectArch)}
+          {lane("SUPERIOR", 4, CHART_WIDTH, upperLaneFindings, toothCenters, colorOf, siglaOfFinding, interactive && !rangeMode, selectArch)}
 
           {ROWS.map((row, i) =>
-            toothRow(row, ROW_COL_OFFSET[i], rowY[i], toothFindings, surfaceFindings, colorOf, siglaOfFinding, interactive, selectTooth, selectSurface),
+            toothRow(
+              row,
+              ROW_COL_OFFSET[i],
+              rowY[i],
+              toothFindings,
+              surfaceFindings,
+              colorOf,
+              siglaOfFinding,
+              interactive,
+              interactive && !rangeMode,
+              selectTooth,
+              selectSurface,
+              rangeStart,
+              selectBetween,
+            ),
           )}
 
-          {lane("INFERIOR", height - LANE_H + 4, CHART_WIDTH, lowerLaneFindings, toothCenters, colorOf, siglaOfFinding, interactive, selectArch)}
+          {lane("INFERIOR", height - LANE_H + 4, CHART_WIDTH, lowerLaneFindings, toothCenters, colorOf, siglaOfFinding, interactive && !rangeMode, selectArch)}
 
           {betweenFindings.map((f) => betweenMarker(f, toothCenters, colorOf, siglaOfFinding))}
         </svg>
+      </div>
+
+      <div aria-live="polite" className="sr-only">
+        {rangeMode ? (rangeStart == null ? "Modo rango activo. Selecciona la primera pieza del rango." : `Primera pieza del rango: ${rangeStart}. Selecciona la última pieza, en la misma fila. Escape para cancelar.`) : ""}
       </div>
 
       <div className="mt-4 flex flex-wrap items-start gap-x-8 gap-y-3 text-xs" style={{ color: INK_2 }}>
@@ -317,16 +384,45 @@ function toothRow(
   colorOf: (f: DentalChartFindingResponse) => string,
   siglaOfFinding: (f: DentalChartFindingResponse) => string,
   interactive: boolean,
+  /** Superficie y entre-piezas se desactivan en modo rango (un solo gesto a la vez) — la pieza
+   *  sigue activa (`interactive`) porque el click de pieza ES el gesto del rango. */
+  surfaceInteractive: boolean,
   selectTooth: (fdi: number) => void,
   selectSurface: (fdi: number, surface: ToothSurfaceCode) => void,
+  rangeStart: number | null,
+  selectBetween: (toothA: number, toothB: number) => void,
 ) {
   const size = row.size;
   const crownY = row.upper ? SIGLA_H + ROW_GAP + NUM_H + ROW_GAP : 0;
   const numY = row.upper ? SIGLA_H + ROW_GAP : size + ROW_GAP;
   const sigY = row.upper ? 0 : size + ROW_GAP + NUM_H + ROW_GAP;
+  const rowHeight = SIGLA_H + ROW_GAP + NUM_H + ROW_GAP + size;
 
   return (
     <g key={`row-${y}`}>
+      {row.teeth.slice(0, -1).map((fdiA, i) => {
+        const fdiB = row.teeth[i + 1];
+        const xA = colX(colOffset + i) + size;
+        const xB = colX(colOffset + i + 1);
+        return (
+          <g key={`gap-${fdiA}-${fdiB}`} transform={`translate(0, ${y})`}>
+            <rect
+              x={xA}
+              y={0}
+              width={xB - xA}
+              height={rowHeight}
+              fill="transparent"
+              role="button"
+              tabIndex={0}
+              aria-label={`Entre las piezas ${fdiA} y ${fdiB}`}
+              onClick={() => selectBetween(fdiA, fdiB)}
+              onKeyDown={(e) => activateOnEnterOrSpace(e, () => selectBetween(fdiA, fdiB))}
+              className={surfaceInteractive ? "cursor-pointer focus:outline-none" : "focus:outline-none"}
+            />
+            <circle cx={(xA + xB) / 2} cy={rowHeight / 2} r={2.5} fill={DIVIDER} pointerEvents="none" />
+          </g>
+        );
+      })}
       {row.teeth.map((fdi, i) => {
         const x = colX(colOffset + i);
         const { slots, ring } = crownSlots(fdi, size);
@@ -344,6 +440,9 @@ function toothRow(
 
         return (
           <g key={fdi} transform={`translate(${x}, ${y})`}>
+            {rangeStart === fdi ? (
+              <rect x={-2} y={-2} width={size + 4} height={rowHeight + 4} rx={6} fill="none" stroke={SELECTION} strokeWidth={2} strokeDasharray="4 3" pointerEvents="none" />
+            ) : null}
             <rect
               x={0}
               y={sigY}
@@ -417,7 +516,7 @@ function toothRow(
                     aria-label={`Pieza ${fdi}, superficie ${SURFACE_LABEL[slot.surface]}${list.length > 0 ? `: ${list.length} hallazgo(s)` : ", sin hallazgos"}`}
                     onClick={() => selectSurface(fdi, slot.surface)}
                     onKeyDown={(e) => activateOnEnterOrSpace(e, () => selectSurface(fdi, slot.surface))}
-                    className={interactive ? "cursor-pointer focus:outline-none" : "focus:outline-none"}
+                    className={surfaceInteractive ? "cursor-pointer focus:outline-none" : "focus:outline-none"}
                     points={slot.points}
                     fill={fill}
                     stroke={OUTLINE}

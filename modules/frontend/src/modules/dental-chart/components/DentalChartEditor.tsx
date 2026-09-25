@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { ClipboardEdit, Loader2, NotebookPen } from "lucide-react";
+import { ArrowLeftRight, ClipboardEdit, Loader2, NotebookPen } from "lucide-react";
 import { Button } from "@/modules/core/ui/button";
 import { FormSection, TextareaField } from "@/modules/core/ui/form-field";
 import {
@@ -19,7 +19,6 @@ import {
 } from "@/modules/dental-chart/hooks/useDentalChartApi";
 import type { DentalChartFindingResponse } from "@/modules/core/services/generated/model";
 import { Odontogram } from "./Odontogram";
-import { FindingForm } from "./FindingForm";
 import { FindingList } from "./FindingList";
 import { FindingDialog, type ClickedLocation } from "./FindingDialog";
 import { DentalChartStatusBadge } from "./DentalChartStatusBadge";
@@ -30,10 +29,12 @@ export function DentalChartEditor({ patientId }: { patientId: number }) {
   const { data: catalog } = useDentalFindingCatalog();
   const setSpecifications = useSetSpecifications(patientId);
   const setObservations = useSetObservations(patientId);
-  // Clickear una pieza/superficie/arco abre el modal ahí mismo (sin perder de vista el gráfico) en
-  // vez de precargar un formulario lejano. El formulario "suelto" de abajo se conserva solo para
-  // rango y entre-piezas, que no son clickeables todavía en el propio gráfico.
+  // Clickear una pieza/superficie/arco/entre-piezas abre el modal ahí mismo (sin perder de vista
+  // el gráfico) en vez de precargar un formulario lejano. Rango es el único que exige dos clicks
+  // (dos piezas), por eso necesita un modo explícito — mientras está activo, el odontograma
+  // resalta la primera pieza elegida y espera la segunda en la misma fila (Escape cancela).
   const [dialogLocation, setDialogLocation] = useState<ClickedLocation | null>(null);
+  const [rangeMode, setRangeMode] = useState(false);
 
   const sealed = block?.status === "SEALED";
   const missing = missingDentalChartFields(block);
@@ -58,11 +59,31 @@ export function DentalChartEditor({ patientId }: { patientId: number }) {
         <DentalChartStatusBadge status={block?.status} />
       </div>
 
+      {!sealed ? (
+        <div>
+          <Button
+            type="button"
+            size="sm"
+            variant={rangeMode ? "default" : "outline"}
+            aria-pressed={rangeMode}
+            onClick={() => setRangeMode((v) => !v)}
+          >
+            <ArrowLeftRight className="mr-2 size-4" />
+            {rangeMode ? "Cancelar rango" : "Registrar rango"}
+          </Button>
+        </div>
+      ) : null}
+
       <Odontogram
         findings={findings}
         catalog={catalog}
         interactive={!sealed}
-        onSelectLocation={(location) => setDialogLocation(location as ClickedLocation)}
+        rangeMode={rangeMode}
+        onSelectLocation={(location) => {
+          const l = location as ClickedLocation;
+          if (l.locationKind === "TOOTH_RANGE") setRangeMode(false);
+          setDialogLocation(l);
+        }}
       />
 
       <fieldset disabled={sealed} className="flex flex-col gap-6">
@@ -117,14 +138,10 @@ export function DentalChartEditor({ patientId }: { patientId: number }) {
         <section className="rounded-2xl border bg-card p-5 shadow-sm">
           <h3 className="mb-1 text-sm font-semibold">Hallazgos</h3>
           <p className="mb-4 text-xs text-muted-foreground">
-            Pieza, superficie y arco se registran clickeando el odontograma. Acá abajo solo lo que no es clickeable todavía: rango y entre-piezas.
+            Pieza, superficie, arco y entre-piezas se registran clickeando el odontograma. Rango necesita dos clicks — activá "Registrar rango"
+            arriba, elegí la primera pieza y después la última.
           </p>
           <FindingList patientId={patientId} findings={findings} catalog={catalog} editable={!sealed} />
-          {!sealed ? (
-            <div className="mt-4 border-t pt-4">
-              <FindingForm patientId={patientId} catalog={catalog} />
-            </div>
-          ) : null}
         </section>
       </fieldset>
 
@@ -153,7 +170,9 @@ export function DentalChartEditor({ patientId }: { patientId: number }) {
 }
 
 function locationKey(location: ClickedLocation): string {
-  return `${location.locationKind}:${location.toothA ?? ""}:${location.surface ?? ""}:${location.arch ?? ""}`;
+  const between = [location.toothA, location.toothB].sort((a, b) => (a ?? 0) - (b ?? 0)).join(",");
+  const range = [...(location.teeth ?? [])].sort((a, b) => a - b).join(",");
+  return `${location.locationKind}:${location.toothA ?? ""}:${location.surface ?? ""}:${location.arch ?? ""}:${between}:${range}`;
 }
 
 function findingsAt(findings: DentalChartFindingResponse[], location: ClickedLocation): DentalChartFindingResponse[] {
@@ -163,6 +182,15 @@ function findingsAt(findings: DentalChartFindingResponse[], location: ClickedLoc
     if (location.locationKind === "TOOTH") return l.toothA === location.toothA;
     if (location.locationKind === "SURFACE") return l.toothA === location.toothA && l.surface === location.surface;
     if (location.locationKind === "ARCH") return l.arch === location.arch;
+    if (location.locationKind === "BETWEEN_TEETH") {
+      const wanted = new Set([location.toothA, location.toothB]);
+      return wanted.has(l.toothA) && wanted.has(l.toothB) && l.toothA !== l.toothB;
+    }
+    if (location.locationKind === "TOOTH_RANGE") {
+      const wanted = new Set(location.teeth ?? []);
+      const actual = l.teeth ?? [];
+      return actual.length === wanted.size && actual.every((t) => wanted.has(t));
+    }
     return false;
   });
 }

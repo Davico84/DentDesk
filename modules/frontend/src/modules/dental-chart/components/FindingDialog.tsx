@@ -9,8 +9,10 @@ import { useRemoveFinding } from "@/modules/dental-chart/hooks/useDentalChartApi
 import { FindingDialogForm } from "./FindingDialogForm";
 
 export type ClickedLocation = {
-  locationKind: "TOOTH" | "SURFACE" | "ARCH";
+  locationKind: "TOOTH" | "SURFACE" | "ARCH" | "BETWEEN_TEETH" | "TOOTH_RANGE";
   toothA?: number;
+  toothB?: number;
+  teeth?: number[];
   surface?: FindingFormValues["location"]["surface"];
   arch?: FindingFormValues["location"]["arch"];
 };
@@ -118,6 +120,10 @@ function locationLabel(location: ClickedLocation): string {
       return `Pieza ${location.toothA}, superficie ${surfaceLabels[location.surface ?? ""] ?? location.surface}`;
     case "ARCH":
       return `Arco ${location.arch === "SUPERIOR" ? "superior" : "inferior"}`;
+    case "BETWEEN_TEETH":
+      return `Entre las piezas ${location.toothA} y ${location.toothB}`;
+    case "TOOTH_RANGE":
+      return `Rango: piezas ${(location.teeth ?? []).join(", ")}`;
     default:
       return "";
   }

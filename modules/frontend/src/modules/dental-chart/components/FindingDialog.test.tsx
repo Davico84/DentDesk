@@ -11,6 +11,8 @@ const CATALOG: DentalFindingCatalogEntryResponse[] = [
   { type: "LESION_CARIES", subtype: "CD", acronym: "CD", scope: "SURFACE", colorBehavior: "SIEMPRE_ROJO", requiresGrade: false, requiresSpecification: false },
   { type: "SELLANTE", subtype: "", acronym: "S", scope: "SURFACE", colorBehavior: "SEGUN_ESTADO", requiresGrade: false, requiresSpecification: false },
   { type: "MOVILIDAD_PATOLOGICA", subtype: "", acronym: "M", scope: "TOOTH", colorBehavior: "SIEMPRE_ROJO", requiresGrade: true, requiresSpecification: true },
+  { type: "DIASTEMA", subtype: "", acronym: undefined, scope: "BETWEEN_TEETH", colorBehavior: "SIEMPRE_AZUL", requiresGrade: false, requiresSpecification: false },
+  { type: "PROTESIS_PARCIAL_FIJA", subtype: "", acronym: undefined, scope: "TOOTH_RANGE", colorBehavior: "SEGUN_ESTADO", requiresGrade: false, requiresSpecification: false },
 ];
 
 const EXISTING: DentalChartFindingResponse = {
@@ -125,5 +127,66 @@ describe("FindingDialog", () => {
       condition: "GOOD",
       location: { locationKind: "SURFACE", toothA: 36, surface: "OCLUSAL" },
     });
+  });
+
+  /**
+   * 5.8b: entre-piezas y rango también abren el modal directo, con la localización fija — antes
+   * eran los únicos dos alcances sin click propio en el gráfico.
+   */
+  it("entre-piezas: abre directo al formulario y manda ambos FDI fijos", async () => {
+    let received: unknown = null;
+    server.use(
+      http.post("*/patients/1/dental-chart/findings", async ({ request }) => {
+        received = await request.json();
+        return HttpResponse.json({ finding: { id: 9 }, denticionWarning: false }, { status: 201 });
+      }),
+    );
+    const user = userEvent.setup();
+    renderWithProviders(
+      <FindingDialog
+        open
+        onOpenChange={() => {}}
+        patientId={1}
+        catalog={CATALOG}
+        location={{ locationKind: "BETWEEN_TEETH", toothA: 11, toothB: 21 }}
+        existingFindings={[]}
+      />,
+    );
+
+    expect(await screen.findByText("Entre las piezas 11 y 21")).toBeInTheDocument();
+    await user.selectOptions(screen.getByLabelText(/tipo de hallazgo/i), "DIASTEMA");
+    await user.click(screen.getByRole("button", { name: /^agregar hallazgo$/i }));
+
+    await waitFor(() => expect(received).not.toBeNull());
+    expect(received).toMatchObject({ type: "DIASTEMA", location: { locationKind: "BETWEEN_TEETH", toothA: 11, toothB: 21 } });
+  });
+
+  it("rango: abre directo al formulario y manda las piezas fijas", async () => {
+    let received: unknown = null;
+    server.use(
+      http.post("*/patients/1/dental-chart/findings", async ({ request }) => {
+        received = await request.json();
+        return HttpResponse.json({ finding: { id: 10 }, denticionWarning: false }, { status: 201 });
+      }),
+    );
+    const user = userEvent.setup();
+    renderWithProviders(
+      <FindingDialog
+        open
+        onOpenChange={() => {}}
+        patientId={1}
+        catalog={CATALOG}
+        location={{ locationKind: "TOOTH_RANGE", teeth: [14, 13, 12] }}
+        existingFindings={[]}
+      />,
+    );
+
+    expect(await screen.findByText("Rango: piezas 14, 13, 12")).toBeInTheDocument();
+    await user.selectOptions(screen.getByLabelText(/tipo de hallazgo/i), "PROTESIS_PARCIAL_FIJA");
+    await user.selectOptions(screen.getByLabelText(/estado de conservación/i), "GOOD");
+    await user.click(screen.getByRole("button", { name: /^agregar hallazgo$/i }));
+
+    await waitFor(() => expect(received).not.toBeNull());
+    expect(received).toMatchObject({ type: "PROTESIS_PARCIAL_FIJA", location: { locationKind: "TOOTH_RANGE", teeth: [14, 13, 12] } });
   });
 });

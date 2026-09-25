@@ -237,4 +237,71 @@ describe("Odontogram", () => {
     expect(archButton.querySelector("polyline")).not.toBeNull();
     expect(archButton.querySelector("rect")).toBeNull();
   });
+
+  /**
+   * 5.8b: entre-piezas ahora es clickeable directo en el gráfico (sin modo), en la franja entre
+   * dos piezas adyacentes reales — antes solo se podía registrar desde el formulario suelto.
+   */
+  it("clic en la franja entre dos piezas adyacentes dispara BETWEEN_TEETH con ambos FDI", async () => {
+    const onSelect = vi.fn();
+    const user = userEvent.setup();
+    render(<Odontogram findings={[]} catalog={CATALOG} onSelectLocation={onSelect} />);
+
+    await user.click(screen.getByRole("button", { name: "Entre las piezas 11 y 21" }));
+
+    expect(onSelect).toHaveBeenCalledWith({ locationKind: "BETWEEN_TEETH", toothA: 11, toothB: 21 });
+  });
+
+  /**
+   * 5.8b: modo rango — primer click ancla (sin disparar onSelectLocation todavía), segundo click
+   * en la misma fila cierra el rango con las piezas contiguas entre ambos, inclusive.
+   */
+  it("modo rango: dos clicks en la misma fila arman el rango contiguo entre ambos", async () => {
+    const onSelect = vi.fn();
+    const user = userEvent.setup();
+    render(<Odontogram findings={[]} catalog={CATALOG} rangeMode onSelectLocation={onSelect} />);
+
+    await user.click(screen.getByRole("button", { name: "Pieza 14, sin hallazgos" }));
+    expect(onSelect).not.toHaveBeenCalled();
+
+    await user.click(screen.getByRole("button", { name: "Pieza 12, sin hallazgos" }));
+
+    expect(onSelect).toHaveBeenCalledWith({ locationKind: "TOOTH_RANGE", teeth: [14, 13, 12] });
+  });
+
+  it("modo rango: segundo click en otra fila re-ancla en vez de romper", async () => {
+    const onSelect = vi.fn();
+    const user = userEvent.setup();
+    render(<Odontogram findings={[]} catalog={CATALOG} rangeMode onSelectLocation={onSelect} />);
+
+    await user.click(screen.getByRole("button", { name: "Pieza 14, sin hallazgos" }));
+    await user.click(screen.getByRole("button", { name: "Pieza 44, sin hallazgos" })); // otra fila: re-ancla, no dispara
+    expect(onSelect).not.toHaveBeenCalled();
+
+    await user.click(screen.getByRole("button", { name: "Pieza 43, sin hallazgos" })); // ahora sí, misma fila que 44
+    expect(onSelect).toHaveBeenCalledWith({ locationKind: "TOOTH_RANGE", teeth: [44, 43] });
+  });
+
+  it("modo rango: Escape cancela el ancla sin disparar onSelectLocation", async () => {
+    const onSelect = vi.fn();
+    const user = userEvent.setup();
+    render(<Odontogram findings={[]} catalog={CATALOG} rangeMode onSelectLocation={onSelect} />);
+
+    await user.click(screen.getByRole("button", { name: "Pieza 14, sin hallazgos" }));
+    await user.keyboard("{Escape}");
+    await user.click(screen.getByRole("button", { name: "Pieza 12, sin hallazgos" })); // vuelve a anclar, no cierra rango
+
+    expect(onSelect).not.toHaveBeenCalled();
+  });
+
+  it("modo rango: superficie y arco no disparan selección (un solo gesto a la vez)", async () => {
+    const onSelect = vi.fn();
+    const user = userEvent.setup();
+    render(<Odontogram findings={[]} catalog={CATALOG} rangeMode onSelectLocation={onSelect} />);
+
+    await user.click(screen.getByRole("button", { name: /pieza 26, superficie oclusal/i }));
+    await user.click(screen.getByRole("button", { name: /arco superior/i }));
+
+    expect(onSelect).not.toHaveBeenCalled();
+  });
 });
