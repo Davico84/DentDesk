@@ -99,4 +99,17 @@ describe("FindingForm", () => {
     expect(body.location.locationKind).toBe("TOOTH");
     expect(body.location.surface).toBeUndefined();
   });
+
+  /**
+   * El user pidió que el select de subtipo muestre el nombre completo entre paréntesis, no solo
+   * la sigla (verificado contra el PDF oficial: "CD" por sí solo no dice qué es).
+   */
+  it("el subtipo se lista con la sigla y el nombre completo entre paréntesis", async () => {
+    renderWithProviders(<FindingForm patientId={1} catalog={CATALOG} />);
+
+    await userEvent.setup().selectOptions(screen.getByLabelText(/tipo de hallazgo/i), "LESION_CARIES");
+
+    const option = screen.getByRole("option", { name: "CD (Lesión de caries a nivel de la dentina)" });
+    expect(option).toBeInTheDocument();
+  });
 });

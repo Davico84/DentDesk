@@ -15,7 +15,7 @@ import {
   toFindingRequest,
   type FindingFormValues,
 } from "@/modules/dental-chart/schemas/dentalChart";
-import { findingTypeLabel } from "@/modules/dental-chart/schemas/findingTypeLabels";
+import { findingTypeLabel, subtypeOptionLabel } from "@/modules/dental-chart/schemas/findingTypeLabels";
 import { useAddFinding, useUpdateFinding } from "@/modules/dental-chart/hooks/useDentalChartApi";
 import type { ClickedLocation } from "./FindingDialog";
 
@@ -84,7 +84,11 @@ export function FindingDialogForm({
     return [...types].map((t) => ({ value: t, label: findingTypeLabel(t) }));
   }, [catalog, location.locationKind]);
   const subtypeOptions: SelectOption[] = useMemo(
-    () => subtypesFor(catalog, type).map((e) => ({ value: e.subtype ?? "", label: e.acronym ?? e.subtype ?? "" })),
+    () =>
+      subtypesFor(catalog, type).map((e) => {
+        const code = e.subtype ?? "";
+        return { value: code, label: subtypeOptionLabel(type, code, e.acronym ?? code) };
+      }),
     [catalog, type],
   );
   const entry = catalogEntryFor(catalog, type, subtype);
