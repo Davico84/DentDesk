@@ -250,6 +250,14 @@ export function Odontogram({
   }
 
   const rowHeights = ROWS.map((r) => SIGLA_H + ROW_GAP + NUM_H + ROW_GAP + r.size);
+  // Rótulo "Permanente"/"Temporal" pegado a la corona de SU fila, como en el artefacto de diseño
+  // — no centrado en toda la fila (bug real: en las filas superiores, con sigla+número ANTES de la
+  // corona, quedaba flotando lejos de las piezas; en las inferiores, con la corona primero, casi
+  // las tocaba — misma alineación "arriba" daba dos resultados opuestos, el user lo notó como
+  // "sin simetría"). Las filas superiores dibujan sigla+número antes de la corona; las inferiores,
+  // la corona primero — el rótulo se ancla siempre un poco DENTRO de la corona, no en su borde.
+  const UPPER_LABEL_PAD = SIGLA_H + ROW_GAP + NUM_H + ROW_GAP + 12;
+  const LOWER_LABEL_PAD = 12;
 
   // Posición horizontal de cada pieza — no depende de en qué fila (Y) cae, así que se puede
   // calcular ANTES del layout vertical, para saber cuántos carriles necesita cada franja de rango
@@ -350,12 +358,12 @@ export function Odontogram({
         <div className="flex shrink-0 flex-col text-right text-[11px] font-bold uppercase tracking-wide" style={{ width: 88 }}>
           <div style={{ height: LANE_H }} />
           <div style={{ height: rangeStripHeights[0] }} />
-          <div style={{ height: rowHeights[0], color: INK, display: "flex", alignItems: "flex-start", justifyContent: "flex-end" }}>Permanente</div>
+          <div style={{ height: rowHeights[0], paddingTop: UPPER_LABEL_PAD, color: INK, display: "flex", justifyContent: "flex-end" }}>Permanente</div>
           <div style={{ height: rangeStripHeights[1] }} />
-          <div style={{ height: rowHeights[1], color: INK_2, display: "flex", alignItems: "flex-start", justifyContent: "flex-end" }}>Temporal</div>
-          <div style={{ height: rowHeights[2], color: INK_2, display: "flex", alignItems: "flex-start", justifyContent: "flex-end" }}>Temporal</div>
+          <div style={{ height: rowHeights[1], paddingTop: UPPER_LABEL_PAD, color: INK_2, display: "flex", justifyContent: "flex-end" }}>Temporal</div>
+          <div style={{ height: rowHeights[2], paddingTop: LOWER_LABEL_PAD, color: INK_2, display: "flex", justifyContent: "flex-end" }}>Temporal</div>
           <div style={{ height: rangeStripHeights[2] }} />
-          <div style={{ height: rowHeights[3], color: INK, display: "flex", alignItems: "flex-start", justifyContent: "flex-end" }}>Permanente</div>
+          <div style={{ height: rowHeights[3], paddingTop: LOWER_LABEL_PAD, color: INK, display: "flex", justifyContent: "flex-end" }}>Permanente</div>
           <div style={{ height: rangeStripHeights[3] }} />
           <div style={{ height: LANE_H }} />
         </div>
