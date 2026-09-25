@@ -275,10 +275,13 @@ function siglaOf(f: DentalChartFindingResponse, catalog: DentalFindingCatalogEnt
 }
 
 /** Tipos verificados contra el PDF oficial cuyo símbolo NO es sigla+anillo de corona genérico.
- *  ⚠️ Parcial a propósito: de los 17 tipos sin sigla, solo GEMINACIÓN (6.1.12) está confirmado
- *  acá. Los otros 16 (fractura dental, extruida/intruida, prótesis..., aparatos...) todavía caen
- *  en el símbolo genérico — no tienen glifo propio implementado, tarea pendiente registrada. */
+ *  ⚠️ Parcial a propósito: de los 17 tipos sin sigla, GEMINACIÓN (6.1.12) y ESPIGO-MUÑÓN (6.1.8)
+ *  están confirmados. Los otros 15 (fractura dental, extruida/intruida, prótesis..., aparatos...)
+ *  todavía caen en el símbolo genérico — no tienen glifo propio implementado, tarea pendiente
+ *  registrada (memoria: "Odontograma: 17 tipos sin sigla, falta el glifo normativo"). */
 const NUMBER_CIRCLE_TYPES = new Set(["GEMINACION"]);
+/** 6.1.8: "línea vertical en la raíz unida a un cuadrado en la corona", color según estado. */
+const ESPIGO_MUNON_TYPE = "ESPIGO_MUNON";
 
 function toothRow(
   row: Row,
@@ -307,7 +310,8 @@ function toothRow(
         const hasAny = toothList.length > 0 || surfacesOnTooth.length > 0;
         const siglaEntries = uniqueSiglas([...toothList, ...surfacesOnTooth], colorOf, siglaOfFinding);
         const numberCircle = toothList.find((f) => NUMBER_CIRCLE_TYPES.has(f.type ?? ""));
-        const ringFindings = toothList.filter((f) => !NUMBER_CIRCLE_TYPES.has(f.type ?? ""));
+        const espigoMunon = toothList.find((f) => f.type === ESPIGO_MUNON_TYPE);
+        const ringFindings = toothList.filter((f) => !NUMBER_CIRCLE_TYPES.has(f.type ?? "") && f.type !== ESPIGO_MUNON_TYPE);
         const ringColor = ringFindings.length > 0 ? colorOf(ringFindings[ringFindings.length - 1]) : undefined;
 
         return (
@@ -393,6 +397,30 @@ function toothRow(
               })}
               {ringColor ? (
                 <rect x={ring.x} y={ring.y} width={ring.wh} height={ring.wh} rx={4} fill="none" stroke={ringColor} strokeWidth={2.5} pointerEvents="none" />
+              ) : null}
+              {espigoMunon ? (
+                // 6.1.8: línea vertical en la raíz unida a un cuadrado en la corona. La "raíz" es
+                // el borde de la corona más cercano al número/sigla (el lado de afuera de la boca
+                // en este layout) — arriba en filas superiores, abajo en filas inferiores.
+                <g pointerEvents="none">
+                  <line
+                    x1={size / 2}
+                    y1={row.upper ? 0 : size}
+                    x2={size / 2}
+                    y2={row.upper ? 9 : size - 9}
+                    stroke={colorOf(espigoMunon)}
+                    strokeWidth={2}
+                  />
+                  <rect
+                    x={size / 2 - 4}
+                    y={row.upper ? 6 : size - 14}
+                    width={8}
+                    height={8}
+                    fill="none"
+                    stroke={colorOf(espigoMunon)}
+                    strokeWidth={1.5}
+                  />
+                </g>
               ) : null}
             </g>
           </g>

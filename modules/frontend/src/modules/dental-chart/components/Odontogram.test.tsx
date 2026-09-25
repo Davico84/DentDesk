@@ -11,6 +11,7 @@ const CATALOG: DentalFindingCatalogEntryResponse[] = [
   { type: "EDENTULO_TOTAL", subtype: "", acronym: undefined, scope: "ARCH", colorBehavior: "SIEMPRE_AZUL", requiresGrade: false, requiresSpecification: false },
   { type: "PIEZA_SUPERNUMERARIA", subtype: "", acronym: "S", scope: "BETWEEN_TEETH", colorBehavior: "SIEMPRE_AZUL", requiresGrade: false, requiresSpecification: false },
   { type: "GEMINACION", subtype: "", acronym: undefined, scope: "TOOTH", colorBehavior: "SIEMPRE_AZUL", requiresGrade: false, requiresSpecification: false },
+  { type: "ESPIGO_MUNON", subtype: "", acronym: undefined, scope: "TOOTH", colorBehavior: "SEGUN_ESTADO", requiresGrade: false, requiresSpecification: false },
 ];
 
 const FINDINGS: DentalChartFindingResponse[] = [
@@ -60,6 +61,23 @@ describe("Odontogram", () => {
     // El círculo alrededor del número sí debe existir.
     const numberButton = screen.getByRole("button", { name: "Pieza 15, 1 hallazgo(s) de pieza" });
     expect(numberButton.querySelector("ellipse")).not.toBeNull();
+  });
+
+  /**
+   * Regresión: ESPIGO-MUÑÓN (sin sigla oficial) caía en el mismo anillo genérico que CORONA,
+   * MOVILIDAD, etc. — el user lo encontró probando en vivo ("veo el círculo sobre toda la pieza
+   * que se confunde con otros hallazgos"). Verificado contra el PDF oficial (6.1.8): "línea
+   * vertical en la raíz unida a un cuadrado en la corona", no un anillo.
+   */
+  it("espigo-muñón dibuja línea+cuadrado, no el anillo genérico de corona", () => {
+    const espigoMunon: DentalChartFindingResponse = { id: 6, blockId: 1, type: "ESPIGO_MUNON", subtype: "", condition: "GOOD", location: { locationKind: "TOOTH", toothA: 16 } };
+    render(<Odontogram findings={[espigoMunon]} catalog={CATALOG} />);
+
+    const numberButton = screen.getByRole("button", { name: "Pieza 16, 1 hallazgo(s) de pieza" });
+    const crownGroup = numberButton.parentElement!.querySelector("g > polygon")!.closest("g")!;
+    expect(crownGroup.querySelector("rect[rx='4']")).toBeNull(); // sin anillo genérico
+    expect(crownGroup.querySelector("line")).not.toBeNull(); // línea de la raíz
+    expect(crownGroup.querySelectorAll("rect")).toHaveLength(1); // el cuadrado del espigo-muñón
   });
 
   /**
