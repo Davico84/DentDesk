@@ -18,6 +18,8 @@ const CATALOG: DentalFindingCatalogEntryResponse[] = [
   { type: "FRACTURA_DENTAL", subtype: "", acronym: undefined, scope: "TOOTH", colorBehavior: "SIEMPRE_ROJO", requiresGrade: false, requiresSpecification: false },
   { type: "DIASTEMA", subtype: "", acronym: undefined, scope: "BETWEEN_TEETH", colorBehavior: "SIEMPRE_AZUL", requiresGrade: false, requiresSpecification: false },
   { type: "APARATO_ORTODONTICO_REMOVIBLE", subtype: "", acronym: undefined, scope: "ARCH", colorBehavior: "SIEMPRE_AZUL", requiresGrade: false, requiresSpecification: false },
+  { type: "APARATO_ORTODONTICO_FIJO", subtype: "", acronym: undefined, scope: "TOOTH_RANGE", colorBehavior: "SEGUN_ESTADO", requiresGrade: false, requiresSpecification: false },
+  { type: "PROTESIS_PARCIAL_REMOVIBLE", subtype: "", acronym: undefined, scope: "TOOTH_RANGE", colorBehavior: "SEGUN_ESTADO", requiresGrade: false, requiresSpecification: false },
 ];
 
 const FINDINGS: DentalChartFindingResponse[] = [
@@ -329,5 +331,48 @@ describe("Odontogram", () => {
     // El carril externo superior mide LANE_H=56; la fila permanente termina en 170 y la franja de
     // la fila temporal está justo después (170-198) — bien lejos del carril externo.
     expect(y).toBeGreaterThan(100);
+  });
+
+  /**
+   * Regresión: con DOS rangos concurrentes en la misma fila temporal (caso real del user: aparato
+   * fijo 54-52 + prótesis parcial removible 61-64, ambos en la fila 1), el segundo se apilaba casi
+   * pegado al borde de la corona de la fila vecina — "está pegada al código de un hallazgo",
+   * "sobre la línea gris" (probado en vivo). Ambos marcadores deben quedar con margen real
+   * respecto al borde inferior de la corona permanente (y=170) y al recuadro de sigla de la fila
+   * temporal (y=218).
+   */
+  it("dos rangos concurrentes en la misma fila temporal no quedan pegados a la fila vecina", () => {
+    const fijo: DentalChartFindingResponse = {
+      id: 21,
+      blockId: 1,
+      type: "APARATO_ORTODONTICO_FIJO",
+      subtype: "",
+      condition: "GOOD",
+      location: { locationKind: "TOOTH_RANGE", teeth: [54, 53, 52] },
+    };
+    const removible: DentalChartFindingResponse = {
+      id: 22,
+      blockId: 1,
+      type: "PROTESIS_PARCIAL_REMOVIBLE",
+      subtype: "",
+      condition: "GOOD",
+      location: { locationKind: "TOOTH_RANGE", teeth: [61, 62, 63, 64] },
+    };
+    render(<Odontogram findings={[fijo, removible]} catalog={CATALOG} />);
+
+    const markers = [
+      screen.getByRole("img", { name: /rango de piezas 54, 53, 52/i }),
+      screen.getByRole("img", { name: /rango de piezas 61, 62, 63, 64/i }),
+    ];
+    const ys = markers.map((m) => Number((m.querySelector("line") as SVGLineElement).getAttribute("y1")));
+
+    // Fila permanente termina en y=170 (borde de la corona), fila temporal empieza en y=218
+    // (recuadro de sigla) — ningún marcador debe caer a menos de 10px de ninguno de los dos.
+    for (const y of ys) {
+      expect(y).toBeGreaterThan(180);
+      expect(y).toBeLessThan(208);
+    }
+    // Y no deben coincidir entre sí (apilados, no superpuestos).
+    expect(ys[0]).not.toBe(ys[1]);
   });
 });

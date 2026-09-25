@@ -34,7 +34,14 @@ const LANE_H = 56;
 // lo encontró registrando un aparato fijo en 54-52 y viéndolo aparecer pegado a la fila permanente
 // (bug real, probado en vivo). Las filas 0 y 3 (permanentes) SÍ son adyacentes al carril externo
 // de arco/rango, así que sus rangos siguen ahí — solo las temporales (1 y 2) necesitan su propia.
-const RANGE_STRIP_H = 28;
+//
+// ⚠️ 28px alcanzaba para UN rango, pero dos rangos concurrentes en la misma fila temporal (caso
+// real: 54-52 y 61-64 a la vez) apilaban el segundo casi pegado al borde de la corona vecina —
+// el user lo encontró probando en vivo ("está pegada al código de un hallazgo", "sobre la línea
+// gris"). Más alto + más separación entre apilados (RANGE_STACK_STEP) para que 2-3 rangos
+// concurrentes en la misma franja no se toquen entre sí ni con la fila de al lado.
+const RANGE_STRIP_H = 48;
+const RANGE_STACK_STEP = 16;
 
 type LocationUpdate = Partial<FindingFormValues["location"]> & {
   locationKind: FindingFormValues["location"]["locationKind"];
@@ -294,7 +301,7 @@ export function Odontogram({
           {lane("SUPERIOR", 4, CHART_WIDTH, [...upperLaneFindings, ...rangesByRow[0]], toothCenters, colorOf, siglaOfFinding, interactive && !rangeMode, selectArch)}
 
           {rangesByRow[1].length > 0
-            ? rangeMarkers(rangesByRow[1], (i) => innerTopStripBottom - 8 - i * 14, toothCenters, colorOf, siglaOfFinding)
+            ? rangeMarkers(rangesByRow[1], (i) => innerTopStripBottom - 16 - i * RANGE_STACK_STEP, toothCenters, colorOf, siglaOfFinding)
             : null}
 
           {ROWS.map((row, i) =>
@@ -316,7 +323,7 @@ export function Odontogram({
           )}
 
           {rangesByRow[2].length > 0
-            ? rangeMarkers(rangesByRow[2], (i) => innerBottomStripTop + 8 + i * 14, toothCenters, colorOf, siglaOfFinding)
+            ? rangeMarkers(rangesByRow[2], (i) => innerBottomStripTop + 16 + i * RANGE_STACK_STEP, toothCenters, colorOf, siglaOfFinding)
             : null}
 
           {lane("INFERIOR", height - LANE_H + 4, CHART_WIDTH, [...lowerLaneFindings, ...rangesByRow[3]], toothCenters, colorOf, siglaOfFinding, interactive && !rangeMode, selectArch)}
