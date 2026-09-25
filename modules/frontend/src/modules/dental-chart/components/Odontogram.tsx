@@ -2,14 +2,14 @@ import type { KeyboardEvent, ReactNode } from "react";
 import type { DentalChartFindingResponse, DentalFindingCatalogEntryResponse } from "@/modules/core/services/generated/model";
 import { teethInQuadrant, type ToothSurfaceCode } from "@/modules/core/utils/fdiTeeth";
 import type { FindingFormValues } from "@/modules/dental-chart/schemas/dentalChart";
+import { RED, BLUE, findingColor } from "@/modules/dental-chart/utils/findingColor";
 
 // ⚠️ Colores NORMATIVOS, no del tema (design.md D10, ADR-0013 D5): NTS 188 fija rojo/azul exactos
 // y el odontograma se renderiza siempre sobre fondo blanco con texto oscuro fijo, aunque la app
 // esté en modo oscuro — es un documento legal, lo mostrado debe ser idéntico a lo auditado. Única
 // excepción admitida a la regla de `frontend-guard` de no hardcodear colores: TODA la paleta (y la
-// tipografía, ver `index.html`) de este componente vive acá, nombrada, no dispersa.
-const RED = "#FF0000"; // por hacer / patológico — 4.0:1, texto solo en ≥19px bold
-const BLUE = "#0000FF"; // realizado / buen estado — 8.6:1
+// tipografía, ver `index.html`) de este componente vive acá, nombrada, no dispersa — salvo
+// RED/BLUE, compartidos con `FindingList` vía `utils/findingColor.ts`.
 const PAPER = "#FFFFFF";
 const INK = "#16181D"; // texto principal, foco, selección — 17.8:1
 const INK_2 = "#4A4F57"; // texto secundario — 8.2:1
@@ -259,13 +259,6 @@ function pushTo<K>(map: Map<K, DentalChartFindingResponse[]>, key: K, f: DentalC
   const list = map.get(key) ?? [];
   list.push(f);
   map.set(key, list);
-}
-
-function findingColor(f: DentalChartFindingResponse, catalog: DentalFindingCatalogEntryResponse[] | undefined): string {
-  const entry = catalog?.find((e) => e.type === f.type && (e.subtype ?? "") === (f.subtype ?? ""));
-  if (entry?.colorBehavior === "SIEMPRE_ROJO") return RED;
-  if (entry?.colorBehavior === "SIEMPRE_AZUL") return BLUE;
-  return f.condition === "POOR" ? RED : BLUE;
 }
 
 /**
