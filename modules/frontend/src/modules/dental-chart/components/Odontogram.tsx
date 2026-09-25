@@ -355,15 +355,15 @@ export function Odontogram({
         <span>Izquierda del paciente →</span>
       </div>
       <div className="flex">
-        <div className="flex shrink-0 flex-col text-right text-[11px] font-bold uppercase tracking-wide" style={{ width: 88 }}>
+        <div className="flex shrink-0 flex-col text-[11px] font-bold uppercase tracking-wide" style={{ width: 88 }}>
           <div style={{ height: LANE_H }} />
           <div style={{ height: rangeStripHeights[0] }} />
-          <div style={{ height: rowHeights[0], paddingTop: UPPER_LABEL_PAD, color: INK, display: "flex", justifyContent: "flex-end" }}>Permanente</div>
+          <div style={{ height: rowHeights[0], paddingTop: UPPER_LABEL_PAD, color: INK, display: "flex", justifyContent: "flex-start" }}>Permanente</div>
           <div style={{ height: rangeStripHeights[1] }} />
-          <div style={{ height: rowHeights[1], paddingTop: UPPER_LABEL_PAD, color: INK_2, display: "flex", justifyContent: "flex-end" }}>Temporal</div>
-          <div style={{ height: rowHeights[2], paddingTop: LOWER_LABEL_PAD, color: INK_2, display: "flex", justifyContent: "flex-end" }}>Temporal</div>
+          <div style={{ height: rowHeights[1], paddingTop: UPPER_LABEL_PAD, color: INK_2, display: "flex", justifyContent: "flex-start" }}>Temporal</div>
+          <div style={{ height: rowHeights[2], paddingTop: LOWER_LABEL_PAD, color: INK_2, display: "flex", justifyContent: "flex-start" }}>Temporal</div>
           <div style={{ height: rangeStripHeights[2] }} />
-          <div style={{ height: rowHeights[3], paddingTop: LOWER_LABEL_PAD, color: INK, display: "flex", justifyContent: "flex-end" }}>Permanente</div>
+          <div style={{ height: rowHeights[3], paddingTop: LOWER_LABEL_PAD, color: INK, display: "flex", justifyContent: "flex-start" }}>Permanente</div>
           <div style={{ height: rangeStripHeights[3] }} />
           <div style={{ height: LANE_H }} />
         </div>
