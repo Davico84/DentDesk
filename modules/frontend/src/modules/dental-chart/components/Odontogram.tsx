@@ -335,21 +335,17 @@ export function Odontogram({
         <span>Izquierda del paciente →</span>
       </div>
       <div className="flex">
-        <div
-          className="flex shrink-0 flex-col text-right text-[11px] font-bold uppercase tracking-wide"
-          style={{ width: 88 }}
-          title={'Arco: hallazgo sobre TODA la arcada (edéntulo, prótesis completa...). Rango: 2+ piezas contiguas (prótesis parcial, aparato fijo) — activá "Registrar rango" arriba del odontograma y elegí la primera y la última pieza.'}
-        >
-          <div style={{ height: LANE_H, color: INK_3, display: "flex", alignItems: "center", justifyContent: "flex-end" }}>Arco</div>
-          <div style={{ height: RANGE_STRIP_H, color: INK_3, fontSize: 9, display: "flex", alignItems: "center", justifyContent: "flex-end" }}>Rango</div>
+        <div className="flex shrink-0 flex-col text-right text-[11px] font-bold uppercase tracking-wide" style={{ width: 88 }}>
+          <div style={{ height: LANE_H }} />
+          <div style={{ height: RANGE_STRIP_H }} />
           <div style={{ height: rowHeights[0], color: INK, display: "flex", alignItems: "center", justifyContent: "flex-end" }}>Permanente</div>
-          <div style={{ height: RANGE_STRIP_H, color: INK_3, fontSize: 9, display: "flex", alignItems: "center", justifyContent: "flex-end" }}>Rango</div>
+          <div style={{ height: RANGE_STRIP_H }} />
           <div style={{ height: rowHeights[1], color: INK_2, display: "flex", alignItems: "center", justifyContent: "flex-end" }}>Temporal</div>
           <div style={{ height: rowHeights[2], color: INK_2, display: "flex", alignItems: "center", justifyContent: "flex-end" }}>Temporal</div>
-          <div style={{ height: RANGE_STRIP_H, color: INK_3, fontSize: 9, display: "flex", alignItems: "center", justifyContent: "flex-end" }}>Rango</div>
+          <div style={{ height: RANGE_STRIP_H }} />
           <div style={{ height: rowHeights[3], color: INK, display: "flex", alignItems: "center", justifyContent: "flex-end" }}>Permanente</div>
-          <div style={{ height: RANGE_STRIP_H, color: INK_3, fontSize: 9, display: "flex", alignItems: "center", justifyContent: "flex-end" }}>Rango</div>
-          <div style={{ height: LANE_H, color: INK_3, display: "flex", alignItems: "center", justifyContent: "flex-end" }}>Arco</div>
+          <div style={{ height: RANGE_STRIP_H }} />
+          <div style={{ height: LANE_H }} />
         </div>
 
         <svg
@@ -824,32 +820,59 @@ function lane(
 
 /**
  * Marcadores de rango, posicionados con el centro real de sus piezas pilares (primera y última
- * del array) — nunca en un carril genérico. `trackYFor(i)` decide la altura de apilado (varios
- * rangos concurrentes en la misma franja): crece hacia la fila que describe o hacia afuera de
- * ella según el llamador, porque un carril externo (junto a fila permanente) y una franja interna
- * (junto a fila temporal) apilan en sentidos opuestos.
+ * del array) — nunca en un carril genérico. `trackYFor(lane)` decide la altura de un carril de
+ * apilado: crece hacia la fila que describe o hacia afuera de ella según el llamador, porque un
+ * carril externo (junto a fila permanente) y una franja interna (junto a fila temporal) apilan en
+ * sentidos opuestos.
+ *
+ * <p>⚠️ El carril NO es el índice en el array — es "lane packing" por solapamiento horizontal real
+ * (mismo algoritmo que un calendario con eventos concurrentes): dos rangos que no comparten ni
+ * tocan piezas (ej. 17-14 y 13-11, en la misma fila pero sin solapar) van al MISMO carril, a la
+ * misma altura — apilarlos sin necesidad confundía al user probando en vivo ("¿por qué quedaron a
+ * distinta altura si no se tocan?"). Solo sube de carril cuando dos rangos SÍ se solapan en X.
  */
 function rangeMarkers(
   rangeFindings: DentalChartFindingResponse[],
-  trackYFor: (i: number) => number,
+  trackYFor: (lane: number) => number,
   toothCenters: Map<number, { cx: number; cy: number }>,
   colorOf: (f: DentalChartFindingResponse) => string,
   siglaOfFinding: (f: DentalChartFindingResponse) => string,
 ): ReactNode {
+  const items = rangeFindings.map((f) => {
+    const teeth = f.location?.teeth ?? [];
+    const first = teeth[0] != null ? toothCenters.get(teeth[0]) : undefined;
+    const last = teeth[teeth.length - 1] != null ? toothCenters.get(teeth[teeth.length - 1]) : undefined;
+    const x1 = Math.min(first?.cx ?? 8, last?.cx ?? 118);
+    const x2 = Math.max(first?.cx ?? 8, last?.cx ?? 118);
+    return { f, teeth, x1, x2 };
+  });
+
+  // Empaquetado de carriles: ordenados por x1, cada uno entra al primer carril cuyo último rango
+  // termina con margen antes de que este empiece (GAP evita que queden pegados aunque no se
+  // solapen técnicamente — piezas contiguas de rangos distintos, ej. 14 y 13).
+  const GAP = 24;
+  const laneEndX: number[] = [];
+  const laneOf = new Map<number | undefined, number>();
+  for (const it of [...items].sort((a, b) => a.x1 - b.x1)) {
+    let lane = laneEndX.findIndex((end) => end + GAP <= it.x1);
+    if (lane === -1) {
+      lane = laneEndX.length;
+      laneEndX.push(it.x2);
+    } else {
+      laneEndX[lane] = it.x2;
+    }
+    laneOf.set(it.f.id, lane);
+  }
+
   return (
     <>
-      {rangeFindings.map((f, i) => {
-        const teeth = f.location?.teeth ?? [];
+      {items.map(({ f, teeth, x1, x2 }) => {
         const label = `Rango de piezas ${teeth.join(", ")}: ${siglaOfFinding(f)}`;
-        const trackY = trackYFor(i);
-        const first = teeth[0] != null ? toothCenters.get(teeth[0]) : undefined;
-        const last = teeth[teeth.length - 1] != null ? toothCenters.get(teeth[teeth.length - 1]) : undefined;
-        const x1 = first?.cx ?? 8;
-        const x2 = last?.cx ?? 118;
+        const trackY = trackYFor(laneOf.get(f.id) ?? 0);
         return (
           <g key={f.id} role="img" aria-label={label}>
-            {rangeGlyph(RANGE_GLYPH[f.type ?? ""], Math.min(x1, x2), Math.max(x1, x2), trackY, colorOf(f))}
-            <text x={Math.min(x1, x2)} y={trackY - 4} fontFamily={FONT_MONO} fontSize={10} fontWeight={700} fill={colorOf(f)}>
+            {rangeGlyph(RANGE_GLYPH[f.type ?? ""], x1, x2, trackY, colorOf(f))}
+            <text x={x1} y={trackY - 4} fontFamily={FONT_MONO} fontSize={10} fontWeight={700} fill={colorOf(f)}>
               {siglaOfFinding(f)}
             </text>
           </g>

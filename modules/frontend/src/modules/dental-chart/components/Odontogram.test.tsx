@@ -334,14 +334,14 @@ describe("Odontogram", () => {
   });
 
   /**
-   * Regresión: con DOS rangos concurrentes en la misma fila temporal (caso real del user: aparato
-   * fijo 54-52 + prótesis parcial removible 61-64, ambos en la fila 1), el segundo se apilaba casi
+   * Regresión: un rango en la fila temporal (caso real del user: aparato fijo 54-52) quedaba casi
    * pegado al borde de la corona de la fila vecina — "está pegada al código de un hallazgo",
-   * "sobre la línea gris" (probado en vivo). Ambos marcadores deben quedar con margen real
-   * respecto al borde inferior de la corona permanente (y=242) y al recuadro de sigla de la fila
-   * temporal (y=314).
+   * "sobre la línea gris" (probado en vivo). El marcador debe quedar con margen real respecto al
+   * borde inferior de la corona permanente (y=242) y al recuadro de sigla de la fila temporal
+   * (y=314). Como 54-52 y 61-64 no se solapan en X (piezas de lados distintos), comparten carril
+   * — no es un caso de apilado, ver el test de lane-packing más abajo para eso.
    */
-  it("dos rangos concurrentes en la misma fila temporal no quedan pegados a la fila vecina", () => {
+  it("dos rangos que no se solapan en la misma fila temporal no quedan pegados a la fila vecina", () => {
     const fijo: DentalChartFindingResponse = {
       id: 21,
       blockId: 1,
@@ -364,25 +364,26 @@ describe("Odontogram", () => {
       screen.getByRole("img", { name: /rango de piezas 54, 53, 52/i }),
       screen.getByRole("img", { name: /rango de piezas 61, 62, 63, 64/i }),
     ];
-    const ys = markers.map((m) => Number((m.querySelector("line") as SVGLineElement).getAttribute("y1")));
+    const ys = markers.map((m) => Number(m.querySelector("text")!.getAttribute("y")));
 
     // Fila permanente termina en y=242 (borde de la corona), fila temporal empieza en y=314
     // (recuadro de sigla) — ningún marcador debe caer a menos de 8px de ninguno de los dos.
     for (const y of ys) {
-      expect(y).toBeGreaterThan(250);
-      expect(y).toBeLessThan(306);
+      expect(y).toBeGreaterThan(246);
+      expect(y).toBeLessThan(302);
     }
-    // Y no deben coincidir entre sí (apilados, no superpuestos).
-    expect(ys[0]).not.toBe(ys[1]);
+    // Sin solaparse en X, comparten el mismo carril.
+    expect(ys[0]).toBe(ys[1]);
   });
 
   /**
-   * Regresión: con TRES rangos concurrentes en la fila PERMANENTE (caso real del user: aparato
-   * fijo 17-14 + prótesis parcial fija 13-11 + prótesis parcial removible 21-24, las 3 a la vez)
-   * — el mismo problema que con dos en fila temporal, pero acá en la franja adyacente al carril
-   * de arco: 48px alcanzaba para 2 pero no para 3, el tercero quedaba exactamente en el borde.
+   * Regresión: con TRES rangos en la fila PERMANENTE que NO se solapan entre sí en X (caso real
+   * del user: aparato fijo 17-14 + prótesis parcial fija 13-11 + prótesis parcial removible
+   * 21-24 — piezas distintas, sin tocarse), deben quedar los 3 a la MISMA altura, no apilados —
+   * apilar sin necesidad confundía al user probando en vivo ("¿por qué a distinta altura si no
+   * se tocan?"). Apilar es solo para cuando SÍ se solapan en X (ver siguiente test).
    */
-  it("tres rangos concurrentes en la fila permanente no quedan pegados al carril de arco ni a la corona", () => {
+  it("tres rangos que no se solapan en X quedan a la misma altura, no apilados", () => {
     const findings: DentalChartFindingResponse[] = [
       { id: 30, blockId: 1, type: "APARATO_ORTODONTICO_FIJO", subtype: "", condition: "GOOD", location: { locationKind: "TOOTH_RANGE", teeth: [17, 16, 15, 14] } },
       { id: 31, blockId: 1, type: "PROTESIS_PARCIAL_FIJA", subtype: "", condition: "GOOD", location: { locationKind: "TOOTH_RANGE", teeth: [13, 12, 11] } },
@@ -395,16 +396,38 @@ describe("Odontogram", () => {
       screen.getByRole("img", { name: /rango de piezas 13, 12, 11/i }),
       screen.getByRole("img", { name: /rango de piezas 21, 22, 23, 24/i }),
     ];
-    const ys = markers.map((m) => Number((m.querySelector("line") as SVGLineElement).getAttribute("y1")));
+    // La sigla (<text>) siempre se posiciona en trackY-4, sin el offset propio de cada glifo (ej.
+    // prótesis parcial removible dibuja 2 líneas a ±2px del centro) — es el proxy fiable del carril.
+    const ys = markers.map((m) => Number(m.querySelector("text")!.getAttribute("y")));
 
     // La franja de la fila permanente superior va de y=56 (fin del carril de arco) a y=128
     // (inicio de la corona) — ningún marcador debe caer a menos de 8px de ninguno de los dos bordes.
     for (const y of ys) {
-      expect(y).toBeGreaterThan(64);
-      expect(y).toBeLessThan(120);
+      expect(y).toBeGreaterThan(60);
+      expect(y).toBeLessThan(116);
     }
-    // Los 3 deben quedar en alturas distintas (apilados, no superpuestos entre sí).
-    expect(new Set(ys).size).toBe(3);
+    // Sin solaparse en X, comparten el mismo carril: misma altura para los 3.
+    expect(new Set(ys).size).toBe(1);
+  });
+
+  /**
+   * Complemento del test anterior: dos rangos que SÍ se solapan en X (mismas piezas) deben
+   * apilarse en carriles distintos — el empaquetado por solapamiento, no por índice.
+   */
+  it("dos rangos que sí se solapan en X se apilan en carriles distintos", () => {
+    const findings: DentalChartFindingResponse[] = [
+      { id: 33, blockId: 1, type: "APARATO_ORTODONTICO_FIJO", subtype: "", condition: "GOOD", location: { locationKind: "TOOTH_RANGE", teeth: [17, 16, 15, 14] } },
+      { id: 34, blockId: 1, type: "PROTESIS_PARCIAL_FIJA", subtype: "", condition: "GOOD", location: { locationKind: "TOOTH_RANGE", teeth: [16, 15] } },
+    ];
+    render(<Odontogram findings={findings} catalog={CATALOG} />);
+
+    const markers = [
+      screen.getByRole("img", { name: /^rango de piezas 17, 16, 15, 14:/i }),
+      screen.getByRole("img", { name: /^rango de piezas 16, 15:/i }),
+    ];
+    const ys = markers.map((m) => Number(m.querySelector("text")!.getAttribute("y")));
+
+    expect(new Set(ys).size).toBe(2);
   });
 
   /**
