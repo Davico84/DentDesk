@@ -20,6 +20,7 @@ import {
 import type { DentalChartFindingResponse } from "@/modules/core/services/generated/model";
 import { Odontogram } from "./Odontogram";
 import { FindingList } from "./FindingList";
+import { FindingsSummary } from "./FindingsSummary";
 import { FindingDialog, type ClickedLocation } from "./FindingDialog";
 import { DentalChartStatusBadge } from "./DentalChartStatusBadge";
 
@@ -51,12 +52,15 @@ export function DentalChartEditor({ patientId }: { patientId: number }) {
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
+      <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h2 className="text-lg font-semibold">Odontograma</h2>
+          <div className="flex items-center gap-2">
+            <h2 className="text-lg font-semibold">Odontograma</h2>
+            <DentalChartStatusBadge status={block?.status} />
+          </div>
           <p className="text-sm text-muted-foreground">Examinado el {block?.examinedOn}</p>
         </div>
-        <DentalChartStatusBadge status={block?.status} />
+        <FindingsSummary findings={findings} catalog={catalog} />
       </div>
 
       {!sealed ? (
@@ -91,6 +95,15 @@ export function DentalChartEditor({ patientId }: { patientId: number }) {
           setDialogLocation(l);
         }}
       />
+
+      <section className="rounded-2xl border bg-card p-5 shadow-sm">
+        <h3 className="mb-1 text-sm font-semibold">Hallazgos registrados</h3>
+        <p className="mb-4 text-xs text-muted-foreground">
+          Pieza, superficie, arco y entre-piezas se registran clickeando el odontograma. Rango necesita dos clicks — activá "Registrar rango"
+          arriba, elegí la primera pieza y después la última.
+        </p>
+        <FindingList patientId={patientId} findings={findings} catalog={catalog} editable={!sealed} />
+      </section>
 
       <fieldset disabled={sealed} className="flex flex-col gap-6">
         <FormSection title="Especificaciones" description="Lo que el catálogo no puede dibujar (5.14): material de una corona, clasificación de una movilidad, fluorosis." icon={<ClipboardEdit className="size-4" />}>
@@ -140,15 +153,6 @@ export function DentalChartEditor({ patientId }: { patientId: number }) {
             </div>
           </form>
         </FormSection>
-
-        <section className="rounded-2xl border bg-card p-5 shadow-sm">
-          <h3 className="mb-1 text-sm font-semibold">Hallazgos</h3>
-          <p className="mb-4 text-xs text-muted-foreground">
-            Pieza, superficie, arco y entre-piezas se registran clickeando el odontograma. Rango necesita dos clicks — activá "Registrar rango"
-            arriba, elegí la primera pieza y después la última.
-          </p>
-          <FindingList patientId={patientId} findings={findings} catalog={catalog} editable={!sealed} />
-        </section>
       </fieldset>
 
       {!sealed && missing.length > 0 ? (
