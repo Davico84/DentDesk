@@ -127,8 +127,8 @@ describe("Odontogram", () => {
     const bar = archButton.querySelector("rect:not([data-hit-area])")!;
     const barBottom = Number(bar.getAttribute("y")) + Number(bar.getAttribute("height"));
 
-    // El carril de arco mide LANE_H (44px) — la barra debe quedar bien antes de que termine.
-    expect(barBottom).toBeLessThan(44);
+    // El carril de arco mide LANE_H (24px) — la barra debe quedar bien antes de que termine.
+    expect(barBottom).toBeLessThan(24);
   });
 
   it("los arcos son focoseables incluso sin hallazgos", () => {
@@ -337,8 +337,8 @@ describe("Odontogram", () => {
    * Regresión: un rango en la fila temporal (caso real del user: aparato fijo 54-52) quedaba casi
    * pegado al borde de la corona de la fila vecina — "está pegada al código de un hallazgo",
    * "sobre la línea gris" (probado en vivo). El marcador debe quedar con margen real respecto al
-   * borde inferior de la corona permanente (y=166, sin rangos en esa fila la franja mide el mínimo)
-   * y al recuadro de sigla de la fila temporal (y=198). Como 54-52 y 61-64 no se solapan en X
+   * borde inferior de la corona permanente (y=142, sin rangos en esa fila la franja mide el mínimo)
+   * y al recuadro de sigla de la fila temporal (y=174). Como 54-52 y 61-64 no se solapan en X
    * (piezas de lados distintos), comparten carril — no es un caso de apilado, ver el test de
    * lane-packing más abajo para eso.
    */
@@ -367,11 +367,11 @@ describe("Odontogram", () => {
     ];
     const ys = markers.map((m) => Number(m.querySelector("text")!.getAttribute("y")));
 
-    // Fila permanente termina en y=166 (borde de la corona), fila temporal empieza en y=198
+    // Fila permanente termina en y=142 (borde de la corona), fila temporal empieza en y=174
     // (recuadro de sigla) — ningún marcador debe caer a menos de 4px de ninguno de los dos.
     for (const y of ys) {
-      expect(y).toBeGreaterThan(170);
-      expect(y).toBeLessThan(194);
+      expect(y).toBeGreaterThan(146);
+      expect(y).toBeLessThan(170);
     }
     // Sin solaparse en X, comparten el mismo carril.
     expect(ys[0]).toBe(ys[1]);
@@ -402,10 +402,10 @@ describe("Odontogram", () => {
     const ys = markers.map((m) => Number(m.querySelector("text")!.getAttribute("y")));
 
     // Sin solaparse, los 3 comparten un solo carril — la franja mide lo justo para uno (32px):
-    // de y=44 (fin del carril de arco) a y=76 (inicio de la corona).
+    // de y=24 (fin del carril de arco) a y=56 (inicio de la corona).
     for (const y of ys) {
-      expect(y).toBeGreaterThan(48);
-      expect(y).toBeLessThan(72);
+      expect(y).toBeGreaterThan(28);
+      expect(y).toBeLessThan(52);
     }
     // Sin solaparse en X, comparten el mismo carril: misma altura para los 3.
     expect(new Set(ys).size).toBe(1);
@@ -466,7 +466,7 @@ describe("Odontogram", () => {
     const archButton = screen.getByRole("button", { name: /arco superior[:,]/i });
     const hitArea = archButton.querySelector("rect[data-hit-area]")!;
 
-    expect(Number(hitArea.getAttribute("height"))).toBe(44);
+    expect(Number(hitArea.getAttribute("height"))).toBe(24);
     expect(Number(hitArea.getAttribute("y"))).toBe(0);
   });
 
