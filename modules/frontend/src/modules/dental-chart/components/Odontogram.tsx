@@ -31,19 +31,20 @@ const NUM_H = 18;
 const ROW_GAP = 4;
 const CROWN_PERM = 56;
 const CROWN_TEMP = 44;
-const LANE_H = 56;
-// ⚠️ Franja para el rango de las filas temporales (índice 1 y 2 de ROWS): sin esto, un rango con
-// piezas temporales caía en el carril externo de ARRIBA de todo, lejos de su fila real — el user
-// lo encontró registrando un aparato fijo en 54-52 y viéndolo aparecer pegado a la fila permanente
-// (bug real, probado en vivo). Las filas 0 y 3 (permanentes) SÍ son adyacentes al carril externo
-// de arco/rango, así que sus rangos siguen ahí — solo las temporales (1 y 2) necesitan su propia.
+const LANE_H = 56; // alto del carril de ARCO (bar/botón) — nunca comparte espacio con rangos
+// ⚠️ CADA fila (las 4) tiene su propia franja de rango, pegada a ella — nunca el carril de arco.
+// Primera versión (solo filas 1/2, temporales) hacía compartir el carril de arco con las filas 0/3
+// (permanentes) — con 2-3 rangos concurrentes en la misma fila (caso real: aparato fijo + prótesis
+// parcial fija + prótesis parcial removible, las 3 en la fila permanente superior a la vez), el
+// tercero quedaba pegado a la corona o al propio carril de arco (bug real, probado en vivo,
+// "pegada al código de un hallazgo", "sobre la línea gris" — dos veces, primero en fila temporal,
+// después en fila permanente: el problema era genérico, no exclusivo de una fila). Unificado: las
+// 4 filas usan el mismo patrón, el carril de arco queda libre solo para el bar/botón de arco.
 //
-// ⚠️ 28px alcanzaba para UN rango, pero dos rangos concurrentes en la misma fila temporal (caso
-// real: 54-52 y 61-64 a la vez) apilaban el segundo casi pegado al borde de la corona vecina —
-// el user lo encontró probando en vivo ("está pegada al código de un hallazgo", "sobre la línea
-// gris"). Más alto + más separación entre apilados (RANGE_STACK_STEP) para que 2-3 rangos
-// concurrentes en la misma franja no se toquen entre sí ni con la fila de al lado.
-const RANGE_STRIP_H = 48;
+// ⚠️ 48px alcanzaba para 2 apilados con margen, pero NO para 3 (caso real: los 3 tipos de arriba,
+// los tres a la vez) — el tercero terminaba exactamente en el borde de la franja, sin margen. 72px
+// deja ~10px de aire en ambos bordes hasta con 3 concurrentes.
+const RANGE_STRIP_H = 72;
 const RANGE_STACK_STEP = 16;
 
 type LocationUpdate = Partial<FindingFormValues["location"]> & {
@@ -249,21 +250,27 @@ export function Odontogram({
   }
 
   const rowHeights = ROWS.map((r) => SIGLA_H + ROW_GAP + NUM_H + ROW_GAP + r.size);
-  const rowsTop = LANE_H;
+  // Carril de arco (LANE_H) → franja de rango de la fila 0 → fila 0 → franja de la fila 1 → fila 1
+  // → fila 2 (pegada a la fila 1, sin franja: es la línea media entre denticiones) → franja de la
+  // fila 2 → fila 3 → franja de la fila 3 → carril de arco. Las 4 filas tienen su propia franja,
+  // ninguna comparte espacio con el carril de arco (ver comentario de RANGE_STRIP_H).
+  const rowsTop = LANE_H + RANGE_STRIP_H;
   const rowY: number[] = [];
   {
     let y = rowsTop;
     for (let i = 0; i < rowHeights.length; i++) {
-      if (i === 1 || i === 3) y += RANGE_STRIP_H; // franja de rango de la fila temporal que sigue
+      if (i === 1 || i === 3) y += RANGE_STRIP_H;
       rowY.push(y);
       y += rowHeights[i];
     }
   }
-  const height = rowY[3] + rowHeights[3] + LANE_H;
-  // Los rangos de las filas temporales (1 y 2) van en la franja que las separa de su vecina
-  // permanente — no del carril externo, que queda demasiado lejos.
-  const innerTopStripBottom = rowY[1]; // borde pegado a la fila 1 (temporal superior)
-  const innerBottomStripTop = rowY[2] + rowHeights[2]; // borde pegado a la fila 2 (temporal inferior)
+  const height = rowY[3] + rowHeights[3] + RANGE_STRIP_H + LANE_H;
+  const rangeStrips = [
+    { top: rowY[0] - RANGE_STRIP_H, bottom: rowY[0] }, // fila 0 (permanente superior)
+    { top: rowY[0] + rowHeights[0], bottom: rowY[1] }, // fila 1 (temporal superior)
+    { top: rowY[2] + rowHeights[2], bottom: rowY[3] }, // fila 2 (temporal inferior)
+    { top: rowY[3] + rowHeights[3], bottom: rowY[3] + rowHeights[3] + RANGE_STRIP_H }, // fila 3 (permanente inferior)
+  ];
 
   // Centro real de cada pieza (columna × fila), para ubicar entre-piezas y los pilares de un
   // rango exactamente donde corresponde — no en un carril genérico desconectado de las piezas.
@@ -333,14 +340,16 @@ export function Odontogram({
           style={{ width: 88 }}
           title={'Arco: hallazgo sobre TODA la arcada (edéntulo, prótesis completa...). Rango: 2+ piezas contiguas (prótesis parcial, aparato fijo) — activá "Registrar rango" arriba del odontograma y elegí la primera y la última pieza.'}
         >
-          <div style={{ height: LANE_H, color: INK_3, display: "flex", alignItems: "center", justifyContent: "flex-end" }}>Rango · arco</div>
+          <div style={{ height: LANE_H, color: INK_3, display: "flex", alignItems: "center", justifyContent: "flex-end" }}>Arco</div>
+          <div style={{ height: RANGE_STRIP_H, color: INK_3, fontSize: 9, display: "flex", alignItems: "center", justifyContent: "flex-end" }}>Rango</div>
           <div style={{ height: rowHeights[0], color: INK, display: "flex", alignItems: "center", justifyContent: "flex-end" }}>Permanente</div>
           <div style={{ height: RANGE_STRIP_H, color: INK_3, fontSize: 9, display: "flex", alignItems: "center", justifyContent: "flex-end" }}>Rango</div>
           <div style={{ height: rowHeights[1], color: INK_2, display: "flex", alignItems: "center", justifyContent: "flex-end" }}>Temporal</div>
           <div style={{ height: rowHeights[2], color: INK_2, display: "flex", alignItems: "center", justifyContent: "flex-end" }}>Temporal</div>
           <div style={{ height: RANGE_STRIP_H, color: INK_3, fontSize: 9, display: "flex", alignItems: "center", justifyContent: "flex-end" }}>Rango</div>
           <div style={{ height: rowHeights[3], color: INK, display: "flex", alignItems: "center", justifyContent: "flex-end" }}>Permanente</div>
-          <div style={{ height: LANE_H, color: INK_3, display: "flex", alignItems: "center", justifyContent: "flex-end" }}>Rango · arco</div>
+          <div style={{ height: RANGE_STRIP_H, color: INK_3, fontSize: 9, display: "flex", alignItems: "center", justifyContent: "flex-end" }}>Rango</div>
+          <div style={{ height: LANE_H, color: INK_3, display: "flex", alignItems: "center", justifyContent: "flex-end" }}>Arco</div>
         </div>
 
         <svg
@@ -351,13 +360,17 @@ export function Odontogram({
           height={height}
           style={{ background: PAPER, color: INK }}
         >
-          <line x1={colX(7) + CROWN_PERM + MIDLINE_GAP / 2} y1={rowsTop} x2={colX(7) + CROWN_PERM + MIDLINE_GAP / 2} y2={height - rowsTop} stroke={DIVIDER} strokeDasharray="2 3" />
+          <line x1={colX(7) + CROWN_PERM + MIDLINE_GAP / 2} y1={LANE_H} x2={colX(7) + CROWN_PERM + MIDLINE_GAP / 2} y2={height - LANE_H} stroke={DIVIDER} strokeDasharray="2 3" />
           <line x1={0} y1={rowY[2]} x2={CHART_WIDTH} y2={rowY[2]} stroke={DIVIDER} />
 
-          {lane("SUPERIOR", 4, CHART_WIDTH, [...upperLaneFindings, ...rangesByRow[0]], toothCenters, colorOf, siglaOfFinding, interactive && !rangeMode, selectArch)}
+          {lane("SUPERIOR", 4, CHART_WIDTH, upperLaneFindings, colorOf, siglaOfFinding, interactive && !rangeMode, selectArch)}
+
+          {rangesByRow[0].length > 0
+            ? rangeMarkers(rangesByRow[0], (i) => rangeStrips[0].bottom - 16 - i * RANGE_STACK_STEP, toothCenters, colorOf, siglaOfFinding)
+            : null}
 
           {rangesByRow[1].length > 0
-            ? rangeMarkers(rangesByRow[1], (i) => innerTopStripBottom - 16 - i * RANGE_STACK_STEP, toothCenters, colorOf, siglaOfFinding)
+            ? rangeMarkers(rangesByRow[1], (i) => rangeStrips[1].bottom - 16 - i * RANGE_STACK_STEP, toothCenters, colorOf, siglaOfFinding)
             : null}
 
           {ROWS.map((row, i) =>
@@ -379,10 +392,14 @@ export function Odontogram({
           )}
 
           {rangesByRow[2].length > 0
-            ? rangeMarkers(rangesByRow[2], (i) => innerBottomStripTop + 16 + i * RANGE_STACK_STEP, toothCenters, colorOf, siglaOfFinding)
+            ? rangeMarkers(rangesByRow[2], (i) => rangeStrips[2].top + 16 + i * RANGE_STACK_STEP, toothCenters, colorOf, siglaOfFinding)
             : null}
 
-          {lane("INFERIOR", height - LANE_H + 4, CHART_WIDTH, [...lowerLaneFindings, ...rangesByRow[3]], toothCenters, colorOf, siglaOfFinding, interactive && !rangeMode, selectArch)}
+          {rangesByRow[3].length > 0
+            ? rangeMarkers(rangesByRow[3], (i) => rangeStrips[3].top + 16 + i * RANGE_STACK_STEP, toothCenters, colorOf, siglaOfFinding)
+            : null}
+
+          {lane("INFERIOR", height - LANE_H + 4, CHART_WIDTH, lowerLaneFindings, colorOf, siglaOfFinding, interactive && !rangeMode, selectArch)}
 
           {betweenFindings.map((f) => betweenMarker(f, toothCenters, colorOf, siglaOfFinding))}
         </svg>
@@ -761,50 +778,46 @@ const RANGE_GLYPH: Record<string, RangeGlyphKind> = {
 };
 
 /**
- * El carril de un arco: arco completo y rango, cada tipo con su propio glifo (auditoría completa
- * 2026-09-25) — un aparato removible NO se ve igual que una prótesis completa, aunque ambos sean
- * de arco. Entre-piezas queda fuera de este carril (ver `betweenMarker`).
+ * El carril de ARCO: solo el bar/botón de arco completo, cada tipo con su propio glifo (auditoría
+ * completa 2026-09-25) — un aparato removible NO se ve igual que una prótesis completa, aunque
+ * ambos sean de arco. Rango y entre-piezas quedan fuera de este carril (ver `rangeMarkers` y
+ * `betweenMarker`) — compartir el carril de arco con rangos apilados terminaba pegando el tercero
+ * a la corona o al propio bar de arco (bug real, probado en vivo, dos veces: primero en franja
+ * temporal, después acá mismo con 3 rangos concurrentes en la fila permanente).
  */
 function lane(
   arch: "SUPERIOR" | "INFERIOR",
   y: number,
   width: number,
-  findings: DentalChartFindingResponse[],
-  toothCenters: Map<number, { cx: number; cy: number }>,
+  archFindings: DentalChartFindingResponse[],
   colorOf: (f: DentalChartFindingResponse) => string,
   siglaOfFinding: (f: DentalChartFindingResponse) => string,
   interactive: boolean,
   selectArch: (arch: "SUPERIOR" | "INFERIOR") => void,
 ) {
-  const archFindings = findings.filter((f) => f.location?.locationKind === "ARCH");
-  const rangeFindings = findings.filter((f) => f.location?.locationKind === "TOOTH_RANGE");
   const lastArch = archFindings[archFindings.length - 1];
   // La barra de SUPERIOR quedaba pegada (a veces solapada) con la primera fila de piezas — el
   // user lo notó probando en vivo. Más margen antes de la fila (INFERIOR ya tenía suficiente).
   const baseline = arch === "SUPERIOR" ? y + LANE_H - 14 : y + 6;
 
   return (
-    <g key={arch}>
-      <g
-        role="button"
-        tabIndex={0}
-        aria-label={`Arco ${arch.toLowerCase()}${archFindings.length > 0 ? `: ${archFindings.map(siglaOfFinding).join(", ")}` : ", sin hallazgos de arco completo"}`}
-        onClick={() => selectArch(arch)}
-        onKeyDown={(e) => activateOnEnterOrSpace(e, () => selectArch(arch))}
-        className={interactive ? "cursor-pointer focus:outline-none" : "focus:outline-none"}
-      >
-        {/* ⚠️ El objetivo de click real es TODA la franja (LANE_H), no la línea/glifo visual —
-            de 2-3px de grosor, prácticamente imposible de acertar con el mouse (bug real: el
-            user no encontraba cómo registrar un hallazgo de arco, probando en vivo). */}
-        <rect data-hit-area="true" x={0} y={y - 4} width={width} height={LANE_H} fill="transparent" />
-        {lastArch ? (
-          archGlyph(ARCH_GLYPH[lastArch.type ?? ""], 8, width - 8, baseline, colorOf(lastArch))
-        ) : (
-          <rect x={8} y={baseline - 1} width={width - 16} height={2} fill={DIVIDER} />
-        )}
-      </g>
-
-      {rangeMarkers(rangeFindings, (i) => (arch === "SUPERIOR" ? y + 6 + i * 14 : y + LANE_H - 20 - i * 14), toothCenters, colorOf, siglaOfFinding)}
+    <g
+      role="button"
+      tabIndex={0}
+      aria-label={`Arco ${arch.toLowerCase()}${archFindings.length > 0 ? `: ${archFindings.map(siglaOfFinding).join(", ")}` : ", sin hallazgos de arco completo"}`}
+      onClick={() => selectArch(arch)}
+      onKeyDown={(e) => activateOnEnterOrSpace(e, () => selectArch(arch))}
+      className={interactive ? "cursor-pointer focus:outline-none" : "focus:outline-none"}
+    >
+      {/* ⚠️ El objetivo de click real es TODA la franja (LANE_H), no la línea/glifo visual — de
+          2-3px de grosor, prácticamente imposible de acertar con el mouse (bug real: el user no
+          encontraba cómo registrar un hallazgo de arco, probando en vivo). */}
+      <rect data-hit-area="true" x={0} y={y - 4} width={width} height={LANE_H} fill="transparent" />
+      {lastArch ? (
+        archGlyph(ARCH_GLYPH[lastArch.type ?? ""], 8, width - 8, baseline, colorOf(lastArch))
+      ) : (
+        <rect x={8} y={baseline - 1} width={width - 16} height={2} fill={DIVIDER} />
+      )}
     </g>
   );
 }

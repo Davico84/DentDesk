@@ -127,7 +127,7 @@ describe("Odontogram", () => {
     const bar = archButton.querySelector("rect:not([data-hit-area])")!;
     const barBottom = Number(bar.getAttribute("y")) + Number(bar.getAttribute("height"));
 
-    // LANE_H = 56: la primera fila empieza ahí — la barra debe terminar antes, con margen.
+    // LANE_H = 56: el carril de arco termina ahí — la barra debe quedar bien antes, con margen.
     expect(barBottom).toBeLessThan(56);
   });
 
@@ -328,8 +328,8 @@ describe("Odontogram", () => {
     const line = marker.querySelector("line")!;
     const y = Number(line.getAttribute("y1"));
 
-    // El carril externo superior mide LANE_H=56; la fila permanente termina en 170 y la franja de
-    // la fila temporal está justo después (170-198) — bien lejos del carril externo.
+    // El carril externo de arco mide LANE_H=56 (y<56) — el marcador debe caer bien después, en la
+    // franja propia de su fila (temporal superior), no ahí.
     expect(y).toBeGreaterThan(100);
   });
 
@@ -338,8 +338,8 @@ describe("Odontogram", () => {
    * fijo 54-52 + prótesis parcial removible 61-64, ambos en la fila 1), el segundo se apilaba casi
    * pegado al borde de la corona de la fila vecina — "está pegada al código de un hallazgo",
    * "sobre la línea gris" (probado en vivo). Ambos marcadores deben quedar con margen real
-   * respecto al borde inferior de la corona permanente (y=170) y al recuadro de sigla de la fila
-   * temporal (y=218).
+   * respecto al borde inferior de la corona permanente (y=242) y al recuadro de sigla de la fila
+   * temporal (y=314).
    */
   it("dos rangos concurrentes en la misma fila temporal no quedan pegados a la fila vecina", () => {
     const fijo: DentalChartFindingResponse = {
@@ -366,14 +366,45 @@ describe("Odontogram", () => {
     ];
     const ys = markers.map((m) => Number((m.querySelector("line") as SVGLineElement).getAttribute("y1")));
 
-    // Fila permanente termina en y=170 (borde de la corona), fila temporal empieza en y=218
-    // (recuadro de sigla) — ningún marcador debe caer a menos de 10px de ninguno de los dos.
+    // Fila permanente termina en y=242 (borde de la corona), fila temporal empieza en y=314
+    // (recuadro de sigla) — ningún marcador debe caer a menos de 8px de ninguno de los dos.
     for (const y of ys) {
-      expect(y).toBeGreaterThan(180);
-      expect(y).toBeLessThan(208);
+      expect(y).toBeGreaterThan(250);
+      expect(y).toBeLessThan(306);
     }
     // Y no deben coincidir entre sí (apilados, no superpuestos).
     expect(ys[0]).not.toBe(ys[1]);
+  });
+
+  /**
+   * Regresión: con TRES rangos concurrentes en la fila PERMANENTE (caso real del user: aparato
+   * fijo 17-14 + prótesis parcial fija 13-11 + prótesis parcial removible 21-24, las 3 a la vez)
+   * — el mismo problema que con dos en fila temporal, pero acá en la franja adyacente al carril
+   * de arco: 48px alcanzaba para 2 pero no para 3, el tercero quedaba exactamente en el borde.
+   */
+  it("tres rangos concurrentes en la fila permanente no quedan pegados al carril de arco ni a la corona", () => {
+    const findings: DentalChartFindingResponse[] = [
+      { id: 30, blockId: 1, type: "APARATO_ORTODONTICO_FIJO", subtype: "", condition: "GOOD", location: { locationKind: "TOOTH_RANGE", teeth: [17, 16, 15, 14] } },
+      { id: 31, blockId: 1, type: "PROTESIS_PARCIAL_FIJA", subtype: "", condition: "GOOD", location: { locationKind: "TOOTH_RANGE", teeth: [13, 12, 11] } },
+      { id: 32, blockId: 1, type: "PROTESIS_PARCIAL_REMOVIBLE", subtype: "", condition: "GOOD", location: { locationKind: "TOOTH_RANGE", teeth: [21, 22, 23, 24] } },
+    ];
+    render(<Odontogram findings={findings} catalog={CATALOG} />);
+
+    const markers = [
+      screen.getByRole("img", { name: /rango de piezas 17, 16, 15, 14/i }),
+      screen.getByRole("img", { name: /rango de piezas 13, 12, 11/i }),
+      screen.getByRole("img", { name: /rango de piezas 21, 22, 23, 24/i }),
+    ];
+    const ys = markers.map((m) => Number((m.querySelector("line") as SVGLineElement).getAttribute("y1")));
+
+    // La franja de la fila permanente superior va de y=56 (fin del carril de arco) a y=128
+    // (inicio de la corona) — ningún marcador debe caer a menos de 8px de ninguno de los dos bordes.
+    for (const y of ys) {
+      expect(y).toBeGreaterThan(64);
+      expect(y).toBeLessThan(120);
+    }
+    // Los 3 deben quedar en alturas distintas (apilados, no superpuestos entre sí).
+    expect(new Set(ys).size).toBe(3);
   });
 
   /**
