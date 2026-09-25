@@ -1,8 +1,11 @@
 import { useEffect, useState, type KeyboardEvent, type ReactNode } from "react";
+import { ArrowLeftRight } from "lucide-react";
+import { Button } from "@/modules/core/ui/button";
 import type { DentalChartFindingResponse, DentalFindingCatalogEntryResponse } from "@/modules/core/services/generated/model";
 import { teethInQuadrant, type ToothSurfaceCode } from "@/modules/core/utils/fdiTeeth";
 import type { FindingFormValues } from "@/modules/dental-chart/schemas/dentalChart";
 import { RED, BLUE, findingColor } from "@/modules/dental-chart/utils/findingColor";
+import { FindingsSummary } from "./FindingsSummary";
 
 // ⚠️ Colores NORMATIVOS, no del tema (design.md D10, ADR-0013 D5): NTS 188 fija rojo/azul exactos
 // y el odontograma se renderiza siempre sobre fondo blanco con texto oscuro fijo, aunque la app
@@ -134,17 +137,25 @@ export function Odontogram({
   catalog,
   interactive = true,
   rangeMode = false,
+  onToggleRangeMode,
   onSelectLocation,
 }: {
   findings: DentalChartFindingResponse[];
   catalog: DentalFindingCatalogEntryResponse[] | undefined;
   /** `false` en un odontograma SELLADO: sigue siendo enfocable/legible, pero no ofrece registrar. */
   interactive?: boolean;
-  /** El llamador activa un botón "Rango" fuera de este componente; con `true`, clickear una pieza
-   *  ya no abre el modal directo — ancla el inicio del rango (resaltado con {@link SELECTION}) y
-   *  espera un segundo click, en la misma fila, para cerrarlo. A diferencia del resto de alcances,
-   *  este SÍ necesita un estado intermedio visible porque son dos clicks, no uno. */
+  /** El estado de "modo rango" vive en el llamador (junto con `onToggleRangeMode`, no acá) porque
+   *  sobrevive a un remount de este componente si algún día hiciera falta — acá solo se lee. Con
+   *  `true`, clickear una pieza ya no abre el modal directo — ancla el inicio del rango (resaltado
+   *  con {@link SELECTION}) y espera un segundo click, en la misma fila, para cerrarlo. A
+   *  diferencia del resto de alcances, este SÍ necesita un estado intermedio visible porque son
+   *  dos clicks, no uno. */
   rangeMode?: boolean;
+  /** Toolbar propia (botón "Registrar rango" + "Arco superior/inferior"), visible solo si
+   *  `interactive` — el user pidió que dejara de sentirse "ajena" al odontograma, viviendo afuera
+   *  en la pantalla que lo aloja. Sin este callback, el botón de rango no se muestra (no tiene
+   *  sentido sin poder togglear el estado que el llamador posee). */
+  onToggleRangeMode?: () => void;
   /** Click en pieza/superficie/arco/rango/entre-piezas: dispara
    *  {@link import("./FindingDialog").FindingDialog} en el llamador, con esa localización ya fija
    *  — no hay resaltado propio para un click único porque el modal se abre en el acto, sin un
@@ -267,6 +278,51 @@ export function Odontogram({
 
   return (
     <div className="w-full overflow-x-auto rounded-2xl border p-4" style={{ background: PAPER, fontFamily: FONT_BODY }}>
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+        {interactive ? (
+          <div className="flex flex-wrap items-center gap-2">
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              disabled={rangeMode}
+              title="Hallazgo sobre TODA la arcada superior: edéntulo total, prótesis completa, aparato ortodóntico removible."
+              onClick={() => selectArch("SUPERIOR")}
+            >
+              Arco superior
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              disabled={rangeMode}
+              title="Hallazgo sobre TODA la arcada inferior: edéntulo total, prótesis completa, aparato ortodóntico removible."
+              onClick={() => selectArch("INFERIOR")}
+            >
+              Arco inferior
+            </Button>
+            {onToggleRangeMode ? (
+              <Button
+                type="button"
+                size="sm"
+                variant={rangeMode ? "default" : "outline"}
+                aria-pressed={rangeMode}
+                title="Para hallazgos sobre varias piezas contiguas: prótesis parcial, aparato ortodóntico fijo."
+                onClick={onToggleRangeMode}
+              >
+                <ArrowLeftRight className="mr-2 size-4" />
+                {rangeMode ? "Cancelar rango" : "Registrar rango"}
+              </Button>
+            ) : null}
+          </div>
+        ) : null}
+        <FindingsSummary findings={findings} catalog={catalog} />
+      </div>
+      {interactive && rangeMode ? (
+        <p className="mb-3 text-xs" style={{ color: INK_2 }}>
+          Elegí la primera pieza del tramo y después la última, en la misma fila.
+        </p>
+      ) : null}
       <div className="mb-2 flex justify-between px-14 text-xs" style={{ color: INK_2 }}>
         <span>← Derecha del paciente</span>
         <span>Izquierda del paciente →</span>

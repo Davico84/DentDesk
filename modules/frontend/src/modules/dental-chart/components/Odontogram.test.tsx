@@ -123,7 +123,7 @@ describe("Odontogram", () => {
    */
   it("la barra del carril superior no toca la primera fila de piezas", () => {
     render(<Odontogram findings={[]} catalog={CATALOG} />);
-    const archButton = screen.getByRole("button", { name: /arco superior/i });
+    const archButton = screen.getByRole("button", { name: /arco superior[:,]/i });
     const bar = archButton.querySelector("rect:not([data-hit-area])")!;
     const barBottom = Number(bar.getAttribute("y")) + Number(bar.getAttribute("height"));
 
@@ -134,7 +134,7 @@ describe("Odontogram", () => {
   it("los arcos son focoseables incluso sin hallazgos", () => {
     render(<Odontogram findings={[]} catalog={CATALOG} />);
     expect(screen.getByRole("button", { name: /arco superior.*sin hallazgos de arco completo/i })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /arco inferior/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /arco inferior[:,]/i })).toBeInTheDocument();
   });
 
   it("clic en una pieza dispara onSelectLocation con TOOTH cuando es interactivo", async () => {
@@ -235,7 +235,7 @@ describe("Odontogram", () => {
     const aparato: DentalChartFindingResponse = { id: 15, blockId: 1, type: "APARATO_ORTODONTICO_REMOVIBLE", subtype: "", location: { locationKind: "ARCH", arch: "INFERIOR" } };
     render(<Odontogram findings={[aparato]} catalog={CATALOG} />);
 
-    const archButton = screen.getByRole("button", { name: /arco inferior/i });
+    const archButton = screen.getByRole("button", { name: /arco inferior[:,]/i });
     expect(archButton.querySelector("polyline")).not.toBeNull();
     expect(archButton.querySelector("rect:not([data-hit-area])")).toBeNull();
   });
@@ -302,7 +302,7 @@ describe("Odontogram", () => {
     render(<Odontogram findings={[]} catalog={CATALOG} rangeMode onSelectLocation={onSelect} />);
 
     await user.click(screen.getByRole("button", { name: /pieza 26, superficie oclusal/i }));
-    await user.click(screen.getByRole("button", { name: /arco superior/i }));
+    await user.click(screen.getByRole("button", { name: /arco superior[:,]/i }));
 
     expect(onSelect).not.toHaveBeenCalled();
   });
@@ -383,10 +383,48 @@ describe("Odontogram", () => {
    */
   it("el botón de arco es clickeable en toda la franja, no solo sobre la línea fina", () => {
     render(<Odontogram findings={[]} catalog={CATALOG} />);
-    const archButton = screen.getByRole("button", { name: /arco superior/i });
+    const archButton = screen.getByRole("button", { name: /arco superior[:,]/i });
     const hitArea = archButton.querySelector("rect[data-hit-area]")!;
 
     expect(Number(hitArea.getAttribute("height"))).toBe(56);
     expect(Number(hitArea.getAttribute("y"))).toBe(0);
+  });
+
+  /**
+   * El user pidió que el botón de arco no se sienta "ajeno" al odontograma (como el resumen de
+   * hallazgos) — ambos viven ahora DENTRO del borde del componente, no en la pantalla que lo
+   * aloja. Un click en el botón de texto debe disparar lo mismo que clickear la franja del SVG.
+   */
+  it("el botón de texto \"Arco superior\" (toolbar propia) dispara lo mismo que la franja del SVG", async () => {
+    const onSelect = vi.fn();
+    const user = userEvent.setup();
+    render(<Odontogram findings={[]} catalog={CATALOG} onSelectLocation={onSelect} />);
+
+    await user.click(screen.getByRole("button", { name: "Arco superior" }));
+
+    expect(onSelect).toHaveBeenCalledWith({ locationKind: "ARCH", arch: "SUPERIOR" });
+  });
+
+  it("sin onToggleRangeMode, no muestra el botón de rango (no tendría con qué togglear)", () => {
+    render(<Odontogram findings={[]} catalog={CATALOG} />);
+    expect(screen.queryByRole("button", { name: /registrar rango/i })).not.toBeInTheDocument();
+  });
+
+  it("con onToggleRangeMode, el botón de rango lo llama al clickear", async () => {
+    const onToggle = vi.fn();
+    const user = userEvent.setup();
+    render(<Odontogram findings={[]} catalog={CATALOG} onToggleRangeMode={onToggle} />);
+
+    await user.click(screen.getByRole("button", { name: /registrar rango/i }));
+
+    expect(onToggle).toHaveBeenCalledOnce();
+  });
+
+  it("no interactivo (sellado): la toolbar de botones no se muestra, pero el resumen sí", () => {
+    render(<Odontogram findings={[]} catalog={CATALOG} interactive={false} onToggleRangeMode={vi.fn()} />);
+
+    expect(screen.queryByRole("button", { name: "Arco superior" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /registrar rango/i })).not.toBeInTheDocument();
+    expect(screen.getByText("hallazgos")).toBeInTheDocument();
   });
 });

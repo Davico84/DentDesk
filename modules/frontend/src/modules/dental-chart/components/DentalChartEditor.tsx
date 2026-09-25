@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { ArrowLeftRight, ClipboardEdit, Loader2, NotebookPen } from "lucide-react";
+import { ClipboardEdit, Loader2, NotebookPen } from "lucide-react";
 import { Button } from "@/modules/core/ui/button";
 import { FormSection, TextareaField } from "@/modules/core/ui/form-field";
 import {
@@ -20,7 +20,6 @@ import {
 import type { DentalChartFindingResponse } from "@/modules/core/services/generated/model";
 import { Odontogram } from "./Odontogram";
 import { FindingList } from "./FindingList";
-import { FindingsSummary } from "./FindingsSummary";
 import { FindingDialog, type ClickedLocation } from "./FindingDialog";
 import { DentalChartStatusBadge } from "./DentalChartStatusBadge";
 
@@ -52,43 +51,20 @@ export function DentalChartEditor({ patientId }: { patientId: number }) {
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <div className="flex items-center gap-2">
-            <h2 className="text-lg font-semibold">Odontograma</h2>
-            <DentalChartStatusBadge status={block?.status} />
-          </div>
-          <p className="text-sm text-muted-foreground">Examinado el {block?.examinedOn}</p>
+      <div>
+        <div className="flex items-center gap-2">
+          <h2 className="text-lg font-semibold">Odontograma</h2>
+          <DentalChartStatusBadge status={block?.status} />
         </div>
-        <FindingsSummary findings={findings} catalog={catalog} />
+        <p className="text-sm text-muted-foreground">Examinado el {block?.examinedOn}</p>
       </div>
-
-      {!sealed ? (
-        <div className="flex flex-wrap items-center gap-2">
-          <Button
-            type="button"
-            size="sm"
-            variant={rangeMode ? "default" : "outline"}
-            aria-pressed={rangeMode}
-            title="Para hallazgos sobre varias piezas contiguas: prótesis parcial, aparato ortodóntico fijo."
-            onClick={() => setRangeMode((v) => !v)}
-          >
-            <ArrowLeftRight className="mr-2 size-4" />
-            {rangeMode ? "Cancelar rango" : "Registrar rango"}
-          </Button>
-          <p className="text-xs text-muted-foreground">
-            {rangeMode
-              ? "Elegí la primera pieza del tramo y después la última, en la misma fila."
-              : "Para prótesis parciales y aparatos que abarcan varias piezas contiguas (ej. 14 a 12)."}
-          </p>
-        </div>
-      ) : null}
 
       <Odontogram
         findings={findings}
         catalog={catalog}
         interactive={!sealed}
         rangeMode={rangeMode}
+        onToggleRangeMode={() => setRangeMode((v) => !v)}
         onSelectLocation={(location) => {
           const l = location as ClickedLocation;
           if (l.locationKind === "TOOTH_RANGE") setRangeMode(false);
