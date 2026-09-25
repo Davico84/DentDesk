@@ -9,12 +9,14 @@ const CATALOG: DentalFindingCatalogEntryResponse[] = [
   { type: "CORONA", subtype: "CM", acronym: "CM", scope: "TOOTH", colorBehavior: "SEGUN_ESTADO", requiresGrade: false, requiresSpecification: true },
   { type: "PROTESIS_PARCIAL_FIJA", subtype: "", acronym: undefined, scope: "TOOTH_RANGE", colorBehavior: "SEGUN_ESTADO", requiresGrade: false, requiresSpecification: false },
   { type: "EDENTULO_TOTAL", subtype: "", acronym: undefined, scope: "ARCH", colorBehavior: "SIEMPRE_AZUL", requiresGrade: false, requiresSpecification: false },
+  { type: "PIEZA_SUPERNUMERARIA", subtype: "", acronym: "S", scope: "BETWEEN_TEETH", colorBehavior: "SIEMPRE_AZUL", requiresGrade: false, requiresSpecification: false },
 ];
 
 const FINDINGS: DentalChartFindingResponse[] = [
   { id: 1, blockId: 1, type: "LESION_CARIES", subtype: "CD", location: { locationKind: "SURFACE", toothA: 26, surface: "OCLUSAL" } },
   { id: 2, blockId: 1, type: "CORONA", subtype: "CM", condition: "GOOD", location: { locationKind: "TOOTH", toothA: 36 } },
   { id: 3, blockId: 1, type: "PROTESIS_PARCIAL_FIJA", subtype: "", condition: "GOOD", location: { locationKind: "TOOTH_RANGE", teeth: [14, 13, 12] } },
+  { id: 4, blockId: 1, type: "PIEZA_SUPERNUMERARIA", subtype: "", location: { locationKind: "BETWEEN_TEETH", toothA: 11, toothB: 21 } },
 ];
 
 describe("Odontogram", () => {
@@ -40,6 +42,26 @@ describe("Odontogram", () => {
   it("un rango se anuncia como un solo elemento, no uno por pieza", () => {
     render(<Odontogram findings={FINDINGS} catalog={CATALOG} />);
     expect(screen.getByRole("img", { name: /rango de piezas 14, 13, 12/i })).toBeInTheDocument();
+  });
+
+  /**
+   * Regresión: el marcador de entre-piezas quedaba mezclado con el carril de arco/rango, sin
+   * posición real (el user lo encontró probando en vivo: un círculo genérico arriba de la
+   * grilla, no entre las piezas 11 y 21). Debe estar pegado a las piezas reales que conecta, no
+   * en el carril externo (fuera del rango vertical de los carriles superior/inferior).
+   */
+  it("un entre-piezas se dibuja pegado a las dos piezas reales, no en el carril de arco/rango", () => {
+    const { container } = render(<Odontogram findings={FINDINGS} catalog={CATALOG} />);
+    const marker = screen.getByRole("img", { name: /entre las piezas 11 y 21: s/i });
+    const circle = marker.querySelector("circle");
+    expect(circle).not.toBeNull();
+
+    const svg = container.querySelector("svg")!;
+    const svgHeight = Number(svg.getAttribute("height"));
+    const cy = Number(circle!.getAttribute("cy"));
+    // LANE_H = 56: ni en el carril superior (cy < 56) ni en el inferior (cy > height - 56).
+    expect(cy).toBeGreaterThan(56);
+    expect(cy).toBeLessThan(svgHeight - 56);
   });
 
   it("los arcos son focoseables incluso sin hallazgos", () => {

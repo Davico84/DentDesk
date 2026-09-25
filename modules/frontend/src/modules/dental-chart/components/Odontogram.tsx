@@ -131,6 +131,7 @@ export function Odontogram({
   const surfaceFindings = new Map<string, DentalChartFindingResponse[]>();
   const upperLaneFindings: DentalChartFindingResponse[] = [];
   const lowerLaneFindings: DentalChartFindingResponse[] = [];
+  const betweenFindings: DentalChartFindingResponse[] = [];
 
   const upperTeeth = new Set(ROWS.filter((r) => r.upper).flatMap((r) => r.teeth));
 
@@ -143,7 +144,10 @@ export function Odontogram({
     } else if (kind === "ARCH") {
       (f.location?.arch === "SUPERIOR" ? upperLaneFindings : lowerLaneFindings).push(f);
     } else if (kind === "BETWEEN_TEETH") {
-      (upperTeeth.has(f.location?.toothA ?? 0) ? upperLaneFindings : lowerLaneFindings).push(f);
+      // A diferencia de arco/rango, entre-piezas NO va al carril externo: se dibuja pegado a las
+      // dos piezas reales que conecta (bug encontrado por el user probando en vivo — quedaba
+      // genérico arriba de la grilla, desconectado de dónde está de verdad).
+      betweenFindings.push(f);
     } else if (kind === "TOOTH_RANGE") {
       const firstTooth = f.location?.teeth?.[0] ?? 0;
       (upperTeeth.has(firstTooth) ? upperLaneFindings : lowerLaneFindings).push(f);
@@ -174,6 +178,17 @@ export function Odontogram({
     }
   }
   const height = rowsTop + rowHeights.reduce((a, b) => a + b, 0) + LANE_H;
+
+  // Centro real de cada pieza (columna × fila), para poder ubicar el marcador de entre-piezas
+  // exactamente donde corresponde — no en el carril externo de arco/rango.
+  const toothCenters = new Map<number, { cx: number; cy: number }>();
+  ROWS.forEach((row, i) => {
+    const crownYOffset = row.upper ? SIGLA_H + ROW_GAP + NUM_H + ROW_GAP : 0;
+    row.teeth.forEach((fdi, k) => {
+      const x = colX(ROW_COL_OFFSET[i] + k);
+      toothCenters.set(fdi, { cx: x + row.size / 2, cy: rowY[i] + crownYOffset + row.size / 2 });
+    });
+  });
 
   return (
     <div className="w-full overflow-x-auto rounded-2xl border p-4" style={{ background: PAPER, fontFamily: FONT_BODY }}>
@@ -213,6 +228,8 @@ export function Odontogram({
           )}
 
           {lane("INFERIOR", height - LANE_H + 4, CHART_WIDTH, lowerLaneFindings, colorOf, siglaOfFinding, interactive, selectArch)}
+
+          {betweenFindings.map((f) => betweenMarker(f, toothCenters, colorOf, siglaOfFinding))}
         </svg>
       </div>
 
@@ -423,11 +440,10 @@ function lane(
       </g>
 
       {otherFindings.map((f, i) => {
-        const teeth = f.location?.teeth;
-        const label =
-          f.location?.locationKind === "TOOTH_RANGE"
-            ? `Rango de piezas ${(teeth ?? []).join(", ")}: ${siglaOfFinding(f)}`
-            : `Entre las piezas ${f.location?.toothA} y ${f.location?.toothB}: ${siglaOfFinding(f)}`;
+        // Solo llegan hallazgos de RANGO acá — entre-piezas se dibuja aparte, pegado a las piezas
+        // reales que conecta (ver `betweenMarker`), no en este carril externo.
+        const teeth = f.location?.teeth ?? [];
+        const label = `Rango de piezas ${teeth.join(", ")}: ${siglaOfFinding(f)}`;
         const trackY = arch === "SUPERIOR" ? y + 4 + i * 16 : y + LANE_H - 20 - i * 16;
         return (
           <g key={f.id} role="img" aria-label={label} transform={`translate(8, ${trackY})`}>
@@ -438,6 +454,35 @@ function lane(
           </g>
         );
       })}
+    </g>
+  );
+}
+
+/**
+ * Entre-piezas (diastema 6.1.6 · fusión 6.1.11 · supernumeraria 6.1.26 · transposición 6.1.38):
+ * un círculo con la sigla encerrada, entre los ápices de las dos piezas adyacentes — así lo dibuja
+ * la propia norma (verificado contra el PDF oficial, no un análisis derivado). Se posiciona con el
+ * centro real de cada pieza, no con un carril genérico.
+ */
+function betweenMarker(
+  f: DentalChartFindingResponse,
+  toothCenters: Map<number, { cx: number; cy: number }>,
+  colorOf: (f: DentalChartFindingResponse) => string,
+  siglaOfFinding: (f: DentalChartFindingResponse) => string,
+) {
+  const a = f.location?.toothA != null ? toothCenters.get(f.location.toothA) : undefined;
+  const b = f.location?.toothB != null ? toothCenters.get(f.location.toothB) : undefined;
+  if (!a || !b) return null;
+  const cx = (a.cx + b.cx) / 2;
+  const cy = (a.cy + b.cy) / 2;
+  const color = colorOf(f);
+  const sigla = siglaOfFinding(f);
+  return (
+    <g key={f.id} role="img" aria-label={`Entre las piezas ${f.location?.toothA} y ${f.location?.toothB}: ${sigla}`}>
+      <circle cx={cx} cy={cy} r={10} fill={PAPER} stroke={color} strokeWidth={2} />
+      <text x={cx} y={cy + 4} textAnchor="middle" fontFamily={FONT_MONO} fontSize={11} fontWeight={700} fill={color}>
+        {sigla}
+      </text>
     </g>
   );
 }
