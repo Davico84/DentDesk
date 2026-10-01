@@ -5,33 +5,26 @@ import type { DentalChartFindingResponse, DentalFindingCatalogEntryResponse } fr
 import { teethInQuadrant, type ToothSurfaceCode } from "@/modules/core/utils/fdiTeeth";
 import type { FindingFormValues } from "@/modules/dental-chart/schemas/dentalChart";
 import { RED, BLUE, findingColor } from "@/modules/dental-chart/utils/findingColor";
+import { HintTooltip } from "@/modules/core/components/HintTooltip";
 import { FindingsSummary } from "./FindingsSummary";
-
-// ⚠️ Colores NORMATIVOS, no del tema (design.md D10, ADR-0013 D5): NTS 188 fija rojo/azul exactos
-// y el odontograma se renderiza siempre sobre fondo blanco con texto oscuro fijo, aunque la app
-// esté en modo oscuro — es un documento legal, lo mostrado debe ser idéntico a lo auditado. Única
-// excepción admitida a la regla de `frontend-guard` de no hardcodear colores: TODA la paleta (y la
-// tipografía, ver `index.html`) de este componente vive acá, nombrada, no dispersa — salvo
-// RED/BLUE, compartidos con `FindingList` vía `utils/findingColor.ts`.
-const PAPER = "#FFFFFF";
-const INK = "#16181D"; // texto principal, foco, selección — 17.8:1
-const INK_2 = "#4A4F57"; // texto secundario — 8.2:1
-const INK_3 = "#6B7079"; // FDI sin hallazgo, rótulos — 5.0:1
-const OUTLINE = "#8C929B"; // bordes de superficie — 3.1:1
-const DIVIDER = "#D5D8DC"; // recuadro vacío, líneas guía
-const SELECTION = "#7C3AED"; // resalte de UI transitorio (modo rango) — no es un color clínico/normativo
-
-const FONT_BODY = '"Atkinson Hyperlegible Next", system-ui, sans-serif';
-const FONT_MONO = '"Atkinson Hyperlegible Mono", ui-monospace, monospace';
+import { RangeModeHint } from "./RangeModeHint";
+import {
+  PAPER, INK, INK_2, INK_3, OUTLINE, DIVIDER, SELECTION, FONT_BODY, FONT_MONO,
+} from "@/modules/dental-chart/utils/chartPalette";
 
 const PITCH = 68;
 const MIDLINE_GAP = 20;
-const SIGLA_H = 32;
-const NUM_H = 18;
-const ROW_GAP = 4;
+// Alto: solo márgenes y separaciones verticales se recortaron (dos pasadas de −10% a pedido del
+// user, 496→416 sin rangos). Coronas, ancho y tamaños de letra NO: es un documento legal, tiene que
+// seguir legible. Esto es el piso: SIGLA_H más bajo ya pega dos siglas apiladas (sellante + caries
+// en la misma pieza, ADR-0017 D7); LANE_H más bajo corta el zig-zag de arco (±4 de su línea).
+const SIGLA_H = 28; // dos siglas apiladas a ±7 del centro, ~3px de aire entre ellas
+const SIGLA_STACK_OFFSET = 7;
+const NUM_H = 15;
+const ROW_GAP = 1;
 const CROWN_PERM = 56;
 const CROWN_TEMP = 44;
-const LANE_H = 24; // alto del carril de ARCO (bar/botón) — nunca comparte espacio con rangos
+const LANE_H = 16; // alto del carril de ARCO (bar/botón) — nunca comparte espacio con rangos
 // ⚠️ CADA fila (las 4) tiene su propia franja de rango, pegada a ella — nunca el carril de arco.
 // Primera versión (solo filas 1/2, temporales) hacía compartir el carril de arco con las filas 0/3
 // (permanentes) — con 2-3 rangos concurrentes en la misma fila (caso real: aparato fijo + prótesis
@@ -304,53 +297,55 @@ export function Odontogram({
   });
 
   return (
-    <div className="w-full overflow-x-auto rounded-2xl border p-4" style={{ background: PAPER, fontFamily: FONT_BODY }}>
-      <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+    <div className="w-full overflow-x-auto rounded-2xl border px-4 py-3" style={{ background: PAPER, fontFamily: FONT_BODY }}>
+      <div className="mb-2 flex flex-wrap items-center justify-between gap-3">
         {interactive ? (
           <div className="flex flex-wrap items-center gap-2">
-            <Button
-              type="button"
-              size="sm"
-              variant="outline"
-              disabled={rangeMode}
-              title="Hallazgo sobre TODA la arcada superior: edéntulo total, prótesis completa, aparato ortodóntico removible."
-              onClick={() => selectArch("SUPERIOR")}
-            >
-              Arco superior
-            </Button>
-            <Button
-              type="button"
-              size="sm"
-              variant="outline"
-              disabled={rangeMode}
-              title="Hallazgo sobre TODA la arcada inferior: edéntulo total, prótesis completa, aparato ortodóntico removible."
-              onClick={() => selectArch("INFERIOR")}
-            >
-              Arco inferior
-            </Button>
+            {(["SUPERIOR", "INFERIOR"] as const).map((arch) => {
+              const label = arch === "SUPERIOR" ? "Arco superior" : "Arco inferior";
+              const arcada = arch === "SUPERIOR" ? "superior" : "inferior";
+              return (
+                <HintTooltip
+                  key={arch}
+                  triggerDisabled={rangeMode}
+                  content={
+                    rangeMode
+                      ? "No disponible mientras registras un rango. Termina o cancela el rango primero."
+                      : `Registra un hallazgo que abarca toda la arcada ${arcada}: edéntulo total, prótesis completa o aparato ortodóntico removible.`
+                  }
+                >
+                  <Button type="button" size="sm" variant="outline" disabled={rangeMode} onClick={() => selectArch(arch)}>
+                    {label}
+                  </Button>
+                </HintTooltip>
+              );
+            })}
             {onToggleRangeMode ? (
-              <Button
-                type="button"
-                size="sm"
-                variant={rangeMode ? "default" : "outline"}
-                aria-pressed={rangeMode}
-                title="Para hallazgos sobre varias piezas contiguas: prótesis parcial, aparato ortodóntico fijo."
-                onClick={onToggleRangeMode}
+              <HintTooltip
+                content={
+                  rangeMode
+                    ? "Sale del modo rango sin registrar nada."
+                    : "Para hallazgos sobre varias piezas contiguas de una misma fila (prótesis parcial fija, aparato ortodóntico fijo). Después eliges la primera y la última pieza."
+                }
               >
-                <ArrowLeftRight className="mr-2 size-4" />
-                {rangeMode ? "Cancelar rango" : "Registrar rango"}
-              </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant={rangeMode ? "default" : "outline"}
+                  aria-pressed={rangeMode}
+                  onClick={onToggleRangeMode}
+                >
+                  <ArrowLeftRight className="mr-2 size-4" />
+                  {rangeMode ? "Cancelar rango" : "Registrar rango"}
+                </Button>
+              </HintTooltip>
             ) : null}
           </div>
         ) : null}
         <FindingsSummary findings={findings} catalog={catalog} />
       </div>
-      {interactive && rangeMode ? (
-        <p className="mb-3 text-xs" style={{ color: INK_2 }}>
-          Elegí la primera pieza del tramo y después la última, en la misma fila.
-        </p>
-      ) : null}
-      <div className="mb-2 flex justify-between px-14 text-xs" style={{ color: INK_2 }}>
+      {interactive && rangeMode ? <RangeModeHint rangeStart={rangeStart} /> : null}
+      <div className="mb-1 flex justify-between px-14 text-xs" style={{ color: INK_2 }}>
         <span>← Derecha del paciente</span>
         <span>Izquierda del paciente →</span>
       </div>
@@ -425,7 +420,7 @@ export function Odontogram({
         {rangeMode ? (rangeStart == null ? "Modo rango activo. Selecciona la primera pieza del rango." : `Primera pieza del rango: ${rangeStart}. Selecciona la última pieza, en la misma fila. Escape para cancelar.`) : ""}
       </div>
 
-      <div className="mt-4 flex flex-wrap items-start gap-x-8 gap-y-3 text-xs" style={{ color: INK_2 }}>
+      <div className="mt-3 flex flex-wrap items-start gap-x-8 gap-y-2 text-xs" style={{ color: INK_2 }}>
         <span className="flex items-center gap-1.5">
           <span aria-hidden="true" className="inline-block size-3" style={{ background: RED }} />
           Rojo: por hacer / patológico
@@ -576,7 +571,7 @@ function toothRow(
               <text
                 key={si}
                 x={size / 2}
-                y={sigY + SIGLA_H / 2 - (siglaEntries.length > 1 ? 8 - si * 16 : 0) + 5}
+                y={sigY + SIGLA_H / 2 - (siglaEntries.length > 1 ? SIGLA_STACK_OFFSET - si * 2 * SIGLA_STACK_OFFSET : 0) + 5}
                 textAnchor="middle"
                 fontFamily={FONT_MONO}
                 fontWeight={700}
@@ -876,7 +871,8 @@ function packRangeLanes(rangeFindings: DentalChartFindingResponse[], cxOf: (fdi:
 /** Sin rangos, casi nada (un separador visual mínimo); con 1+, lo justo para ese tantos carriles
  *  apilados — nunca un tamaño fijo que sobre o falte según el caso real (ver `packRangeLanes`). */
 function rangeStripHeight(laneCount: number): number {
-  return laneCount === 0 ? 4 : 32 + (laneCount - 1) * RANGE_STACK_STEP;
+  // 28 = marcador a 16 del borde + sigla encima (trackY − 4, ~8 de alto): lo justo, sin aire extra.
+  return laneCount === 0 ? 1 : 28 + (laneCount - 1) * RANGE_STACK_STEP;
 }
 
 /**

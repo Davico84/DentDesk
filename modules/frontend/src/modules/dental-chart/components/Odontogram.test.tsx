@@ -367,11 +367,11 @@ describe("Odontogram", () => {
     ];
     const ys = markers.map((m) => Number(m.querySelector("text")!.getAttribute("y")));
 
-    // Fila permanente termina en y=142 (borde de la corona), fila temporal empieza en y=174
+    // Fila permanente termina en y=118 (borde de la corona), fila temporal empieza en y=146
     // (recuadro de sigla) — ningún marcador debe caer a menos de 4px de ninguno de los dos.
     for (const y of ys) {
-      expect(y).toBeGreaterThan(146);
-      expect(y).toBeLessThan(170);
+      expect(y).toBeGreaterThan(122);
+      expect(y).toBeLessThan(142);
     }
     // Sin solaparse en X, comparten el mismo carril.
     expect(ys[0]).toBe(ys[1]);
@@ -401,11 +401,11 @@ describe("Odontogram", () => {
     // prótesis parcial removible dibuja 2 líneas a ±2px del centro) — es el proxy fiable del carril.
     const ys = markers.map((m) => Number(m.querySelector("text")!.getAttribute("y")));
 
-    // Sin solaparse, los 3 comparten un solo carril — la franja mide lo justo para uno (32px):
-    // de y=24 (fin del carril de arco) a y=56 (inicio de la corona).
+    // Sin solaparse, los 3 comparten un solo carril — la franja mide lo justo para uno (28px):
+    // de y=16 (fin del carril de arco) a y=44 (inicio del recuadro de sigla).
     for (const y of ys) {
-      expect(y).toBeGreaterThan(28);
-      expect(y).toBeLessThan(52);
+      expect(y).toBeGreaterThan(20);
+      expect(y).toBeLessThan(40);
     }
     // Sin solaparse en X, comparten el mismo carril: misma altura para los 3.
     expect(new Set(ys).size).toBe(1);
@@ -466,7 +466,7 @@ describe("Odontogram", () => {
     const archButton = screen.getByRole("button", { name: /arco superior[:,]/i });
     const hitArea = archButton.querySelector("rect[data-hit-area]")!;
 
-    expect(Number(hitArea.getAttribute("height"))).toBe(24);
+    expect(Number(hitArea.getAttribute("height"))).toBe(16);
     expect(Number(hitArea.getAttribute("y"))).toBe(0);
   });
 
@@ -506,5 +506,46 @@ describe("Odontogram", () => {
     expect(screen.queryByRole("button", { name: "Arco superior" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /registrar rango/i })).not.toBeInTheDocument();
     expect(screen.getByText("hallazgos")).toBeInTheDocument();
+  });
+
+  it("sin modo rango no muestra el aviso de rango", () => {
+    render(<Odontogram findings={[]} catalog={CATALOG} onToggleRangeMode={vi.fn()} />);
+    expect(screen.queryByText("Registrando un rango de piezas")).not.toBeInTheDocument();
+  });
+
+  it("modo rango: el aviso guía paso a paso — tras la primera pieza la marca hecha y resalta el paso 2", async () => {
+    const user = userEvent.setup();
+    render(<Odontogram findings={[]} catalog={CATALOG} rangeMode onSelectLocation={vi.fn()} onToggleRangeMode={vi.fn()} />);
+
+    expect(screen.getByText("Registrando un rango de piezas")).toBeInTheDocument();
+    const firstStep = screen.getByText("Haz click en la primera pieza del tramo.").closest("li");
+    expect(firstStep).toHaveAttribute("aria-current", "step");
+
+    await user.click(screen.getByRole("button", { name: "Pieza 14, sin hallazgos" }));
+
+    expect(screen.getByText(/Primera pieza:/).closest("li")).not.toHaveAttribute("aria-current");
+    expect(screen.getByText("Haz click en la última pieza, en la misma fila.").closest("li")).toHaveAttribute("aria-current", "step");
+  });
+
+  it("el botón \"Registrar rango\" explica para qué sirve en un tooltip, no con el title nativo", async () => {
+    const user = userEvent.setup();
+    render(<Odontogram findings={[]} catalog={CATALOG} onToggleRangeMode={vi.fn()} />);
+    const button = screen.getByRole("button", { name: /registrar rango/i });
+    expect(button).not.toHaveAttribute("title");
+
+    await user.hover(button);
+
+    expect(await screen.findByRole("tooltip")).toHaveTextContent(/varias piezas contiguas/);
+  });
+
+  it("en modo rango, el botón de arco deshabilitado sigue explicando por qué en su tooltip", async () => {
+    const user = userEvent.setup();
+    render(<Odontogram findings={[]} catalog={CATALOG} rangeMode onSelectLocation={vi.fn()} onToggleRangeMode={vi.fn()} />);
+    const button = screen.getByRole("button", { name: "Arco superior" });
+    expect(button).toBeDisabled();
+
+    await user.hover(button.parentElement!); // el wrapper: un botón deshabilitado no recibe hover
+
+    expect(await screen.findByRole("tooltip")).toHaveTextContent(/No disponible mientras registras un rango/);
   });
 });
