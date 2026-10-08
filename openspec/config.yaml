@@ -72,6 +72,7 @@ rules:
   specs:
     - Cada "### Requirement:" debe tener al menos un "#### Scenario:" con WHEN/THEN.
     - Cubrir camino feliz + errores + casos borde en los scenarios.
+    - "El texto de cada requirement (entre \"### Requirement:\" y su primer \"#### Scenario:\") no supera 500 caracteres: ejemplos y casos borde van a los scenarios; si no cabe, partirlo en varios requirements, cada uno con SHALL/MUST y al menos un scenario."
   tasks:
     - Separar tareas de backend y frontend cuando la capacidad toque ambos.
     - "Incluir la escritura de tests derivados de los Scenario (back = test slices; front = Vitest/MSW, e2e Playwright si aplica)."
