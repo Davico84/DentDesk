@@ -47,8 +47,7 @@ Mientras la Historia Clínica esté en `DRAFT`, el sistema SHALL permitir guarda
 - **THEN** el sistema rechaza la edición porque la información inicial quedó sellada
 
 ### Requirement: Diagnóstico con código CIE10 y ubicación
-
-Cada diagnóstico de la Historia Clínica SHALL referenciar un código **CIE10** existente en el catálogo oficial MINSA y SHALL llevar una **ubicación**: `GENERAL` o `PIEZA`. Cuando la ubicación es `PIEZA`, SHALL indicar el diente por un **número FDI válido** (perteneciente al conjunto real de piezas: permanentes 11–18, 21–28, 31–38, 41–48; temporales 51–55, 61–65, 71–75, 81–85), no por un rango numérico laxo. Cuando la ubicación es `GENERAL`, NO SHALL aceptar número FDI. Cada diagnóstico SHALL llevar además un **tipo de diagnóstico** obligatorio, según la norma MINSA HIS: `PRESUNTIVO` (P), `DEFINITIVO` (D) o `REPETIDO` (R). El sistema SHALL registrar automáticamente, por cada diagnóstico y de forma **inmutable**, la **fecha/hora** de registro (reloj del servidor) y el **usuario que lo registra** (el profesional; el vínculo formal a la colegiatura COP llega con `staff`). Los diagnósticos solo pueden **agregarse, modificarse o eliminarse mientras la Historia esté en `DRAFT`**. La búsqueda de códigos SHALL respetar la jerarquía de 4 niveles (capítulo → grupo → categoría → subcategoría), sin aplanarla a una lista única.
+Cada diagnóstico SHALL referenciar un código **CIE10** existente en el catálogo oficial MINSA y SHALL llevar un **tipo de diagnóstico** obligatorio según la norma MINSA HIS: `PRESUNTIVO` (P), `DEFINITIVO` (D) o `REPETIDO` (R). El sistema SHALL registrar automáticamente y de forma **inmutable** la fecha/hora de registro (reloj del servidor) y el usuario que lo registra. Los diagnósticos SHALL poder agregarse, modificarse o eliminarse solo mientras la Historia esté en `DRAFT`.
 
 #### Scenario: Agregar un diagnóstico general
 - **WHEN** un usuario agrega, a una Historia en `DRAFT`, un diagnóstico con un código CIE10 válido, ubicación `GENERAL` y tipo (`P`/`D`/`R`)
@@ -58,13 +57,20 @@ Cada diagnóstico de la Historia Clínica SHALL referenciar un código **CIE10**
 - **WHEN** un usuario intenta registrar un diagnóstico sin indicar el tipo `PRESUNTIVO`/`DEFINITIVO`/`REPETIDO`
 - **THEN** el sistema rechaza la operación porque el tipo es obligatorio (norma MINSA HIS)
 
-#### Scenario: Agregar un diagnóstico ubicado en una pieza
-- **WHEN** un usuario agrega, a una Historia en `DRAFT`, un diagnóstico con ubicación `PIEZA` y un número FDI válido
-- **THEN** el sistema lo registra con la pieza indicada
-
 #### Scenario: Rechazar un código CIE10 inexistente
 - **WHEN** un usuario intenta registrar un diagnóstico con un código que no está en el catálogo CIE10
 - **THEN** el sistema rechaza la operación
+
+#### Scenario: Rechazar cambios de diagnóstico en una Historia sellada
+- **WHEN** un usuario intenta agregar, modificar o eliminar un diagnóstico de una Historia en estado `COMPLETED`
+- **THEN** el sistema rechaza la operación en el servidor
+
+### Requirement: Ubicación del diagnóstico por pieza FDI
+Cada diagnóstico SHALL llevar una **ubicación**: `GENERAL` o `PIEZA`. Con `PIEZA`, SHALL indicar el diente por un **número FDI válido** del conjunto real de piezas (permanentes 11–18, 21–28, 31–38, 41–48; temporales 51–55, 61–65, 71–75, 81–85), no por un rango numérico laxo. Con `GENERAL`, NO SHALL aceptar número FDI.
+
+#### Scenario: Agregar un diagnóstico ubicado en una pieza
+- **WHEN** un usuario agrega, a una Historia en `DRAFT`, un diagnóstico con ubicación `PIEZA` y un número FDI válido
+- **THEN** el sistema lo registra con la pieza indicada
 
 #### Scenario: Rechazar ubicación PIEZA sin número FDI
 - **WHEN** un usuario intenta registrar un diagnóstico con ubicación `PIEZA` pero sin número FDI
@@ -78,17 +84,15 @@ Cada diagnóstico de la Historia Clínica SHALL referenciar un código **CIE10**
 - **WHEN** un usuario intenta registrar un diagnóstico con ubicación `GENERAL` y a la vez un número FDI
 - **THEN** el sistema rechaza la operación porque `GENERAL` no admite pieza
 
-#### Scenario: Rechazar cambios de diagnóstico en una Historia sellada
-- **WHEN** un usuario intenta agregar, modificar o eliminar un diagnóstico de una Historia en estado `COMPLETED`
-- **THEN** el sistema rechaza la operación en el servidor
+### Requirement: Búsqueda jerárquica de códigos CIE10
+La búsqueda de códigos CIE10 SHALL respetar la jerarquía de 4 niveles (capítulo → grupo → categoría → subcategoría), sin aplanarla a una lista única.
 
 #### Scenario: Buscar un código navegando la jerarquía
 - **WHEN** un usuario busca un diagnóstico
 - **THEN** el sistema devuelve los códigos con su ruta jerárquica (capítulo → grupo → categoría → subcategoría), no como lista plana
 
 ### Requirement: Sellado a COMPLETED con checklist mínimo afirmativo
-
-La transición de `DRAFT` a `COMPLETED` SHALL ser una acción manual y explícita que valida un **checklist mínimo** de completitud clínica antes de sellar, y SHALL ser **unidireccional**: una Historia `COMPLETED` no vuelve a `DRAFT` ni se vuelve a sellar. En las secciones donde "ninguno" es información clínica válida (**alergias, medicación, antecedentes familiares**), un campo vacío NO SHALL contar como revisado: la ausencia debe registrarse de forma **afirmativa** ("sin alergias conocidas" / "no toma medicación" / "sin antecedentes familiares"), distinta de "no llenado". El mismo patrón (revisado + detalle opcional) aplica por igual a esas secciones.
+La transición de `DRAFT` a `COMPLETED` SHALL ser una acción manual y explícita que valida un **checklist mínimo** de completitud clínica antes de sellar, y SHALL ser **unidireccional**: una Historia `COMPLETED` no vuelve a `DRAFT` ni se vuelve a sellar. En alergias, medicación y antecedentes familiares, donde "ninguno" es información clínica válida, un campo vacío NO SHALL contar como revisado: la ausencia SHALL registrarse de forma **afirmativa**, distinta de "no llenado".
 
 #### Scenario: Completar cuando el checklist está satisfecho
 - **WHEN** un usuario solicita marcar como `COMPLETED` una Historia Clínica cuyo checklist mínimo está cubierto

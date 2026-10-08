@@ -29,7 +29,7 @@ El sistema SHALL aplicar la marca visual de la organización activa (color de ma
 - **AND** no conserva ningún rastro visual de la organización anterior
 
 ### Requirement: Legibilidad garantizada (contraste)
-El sistema SHALL garantizar que cada preset del catálogo de marca cumple contraste legible (WCAG AA) para el texto sobre ese color **antes** de estar disponible para elegir — la legibilidad se garantiza por construcción del catálogo, no por una advertencia reactiva ante cualquier color. El sistema SHALL además elegir los colores de texto sobre el color de marca (`-foreground`) de modo que se mantenga el contraste, como defensa adicional; el sistema NUNCA SHALL presentar texto ilegible por diseño.
+El sistema SHALL garantizar que cada preset del catálogo de marca cumple contraste legible (WCAG AA) para el texto sobre ese color **antes** de estar disponible para elegir: la legibilidad se garantiza por construcción del catálogo, no por una advertencia reactiva. El sistema SHALL además elegir los colores de texto sobre el color de marca (`-foreground`) de modo que se mantenga el contraste, como defensa adicional; el sistema NUNCA SHALL presentar texto ilegible por diseño.
 
 #### Scenario: Color de marca oscuro
 - **WHEN** una organización usa un preset de marca oscuro
