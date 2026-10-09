@@ -145,6 +145,25 @@ class ConsultationNoteServiceIT extends AbstractConsultationNoteIT {
             .nextAppointmentOn()).isEqualTo(attentionDay.plusDays(7));
     }
 
+    @Test
+    void the_attention_day_for_the_next_appointment_is_the_clinic_day_not_the_utc_day() throws Exception {
+        // Clínica en UTC+14: a las 20:00 UTC ya es el día siguiente en la clínica. La próxima cita
+        // "mañana en UTC" es el mismo día de la atención para la clínica, y se rechaza.
+        try (Connection owner = ownerConnection(); Statement s = owner.createStatement()) {
+            s.execute("INSERT INTO organization_settings (organization_id, timezone) VALUES (" + org
+                + ", 'Pacific/Kiritimati') ON CONFLICT (organization_id) DO UPDATE SET timezone = EXCLUDED.timezone");
+        }
+        Long patientId = aPatientWithSealedHistory();
+        Instant attendedAt = Instant.now().minus(2, ChronoUnit.DAYS).truncatedTo(ChronoUnit.DAYS).plus(20, ChronoUnit.HOURS);
+        Long noteId = noteService.open(patientId, attendedAt).id();
+        LocalDate utcDay = attendedAt.atZone(ZoneId.of("UTC")).toLocalDate();
+
+        assertThatThrownBy(() -> noteService.update(patientId, noteId, withNextAppointment(attendedAt, utcDay.plusDays(1))))
+            .isInstanceOf(InvalidNextAppointmentException.class);
+        assertThat(noteService.update(patientId, noteId, withNextAppointment(attendedAt, utcDay.plusDays(2)))
+            .nextAppointmentOn()).isEqualTo(utcDay.plusDays(2));
+    }
+
     private static ConsultationNoteData withNextAppointment(Instant attendedAt, LocalDate next) {
         return new ConsultationNoteData(attendedAt, "Control", null, null, null, null, null, null, null, null, next);
     }

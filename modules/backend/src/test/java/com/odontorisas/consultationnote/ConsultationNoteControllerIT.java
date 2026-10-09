@@ -202,8 +202,17 @@ class ConsultationNoteControllerIT extends AbstractIntegrationTest {
         // Corrección sin motivo.
         call(post(notes + "/" + sealed + "/corrections"), "{\"field\":\"REASON\",\"correctedText\":\"x\"}")
             .andExpect(status().isBadRequest());
-        // Alta sin categoría.
+        // Alta sin categoría, sin descripción o con descripción en blanco.
         call(post(notes + "/" + open + "/background-entries"), "{\"kind\":\"ALTA\",\"description\":\"Látex\"}")
+            .andExpect(status().isBadRequest());
+        call(post(notes + "/" + open + "/background-entries"), "{\"kind\":\"ALTA\",\"category\":\"MEDICACION\"}")
+            .andExpect(status().isBadRequest());
+        call(post(notes + "/" + open + "/background-entries"),
+            "{\"kind\":\"ALTA\",\"category\":\"MEDICACION\",\"description\":\"  \"}")
+            .andExpect(status().isBadRequest());
+        // Categoría fuera de las tres.
+        call(post(notes + "/" + open + "/background-entries"),
+            "{\"kind\":\"ALTA\",\"category\":\"HABITOS\",\"description\":\"Fuma\"}")
             .andExpect(status().isBadRequest());
         // Apertura sin fecha de atención.
         call(post("/patients/" + createPatient() + "/consultation-notes"), "{}").andExpect(status().isBadRequest());

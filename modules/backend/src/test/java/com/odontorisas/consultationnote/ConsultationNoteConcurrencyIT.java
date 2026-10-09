@@ -1,7 +1,12 @@
 package com.odontorisas.consultationnote;
 
+import com.odontorisas.common.BackgroundCategory;
+import com.odontorisas.common.BackgroundEntryKind;
 import com.odontorisas.common.ConsultationNoteStatus;
 import com.odontorisas.common.TipoDiagnostico;
+import com.odontorisas.service.consultationnote.BackgroundEntryData;
+import com.odontorisas.service.consultationnote.BackgroundEntryNotActiveException;
+import com.odontorisas.service.consultationnote.ClinicalBackgroundService;
 import com.odontorisas.service.consultationnote.ConsultationNoteAlreadyOpenException;
 import com.odontorisas.service.consultationnote.ConsultationNoteData;
 import com.odontorisas.service.consultationnote.ConsultationNoteSealedException;
@@ -38,6 +43,39 @@ class ConsultationNoteConcurrencyIT extends AbstractConsultationNoteIT {
 
     @Autowired
     private PlatformTransactionManager transactionManager;
+    @Autowired
+    private ClinicalBackgroundService backgroundService;
+
+    /** Corre {@code task} en {@code threads} hilos liberados a la vez; devuelve lo que lanzó cada uno ({@code null} = bien). */
+    private List<Throwable> concurrently(int threads, Callable<?> task) throws Exception {
+        CountDownLatch start = new CountDownLatch(1);
+        ExecutorService pool = Executors.newFixedThreadPool(threads);
+        try {
+            List<Future<Throwable>> results = new ArrayList<>();
+            for (int i = 0; i < threads; i++) {
+                results.add(pool.submit(() -> {
+                    asUser(someUser);
+                    try {
+                        start.await();
+                        task.call();
+                        return null;
+                    } catch (Throwable e) {
+                        return e;
+                    } finally {
+                        clearContext();
+                    }
+                }));
+            }
+            start.countDown();
+            List<Throwable> outcomes = new ArrayList<>();
+            for (Future<Throwable> r : results) {
+                outcomes.add(r.get(30, TimeUnit.SECONDS));
+            }
+            return outcomes;
+        } finally {
+            pool.shutdownNow();
+        }
+    }
 
     // --- scenario: Apertura concurrente de notas ---
 
@@ -152,5 +190,29 @@ class ConsultationNoteConcurrencyIT extends AbstractConsultationNoteIT {
 
         assertThat(result).isInstanceOf(ConsultationNoteSealedException.class);
         assertThat(noteService.get(patientId, noteId).diagnoses()).extracting(d -> d.cie10Code()).containsExactly("K02");
+    }
+
+    // --- scenario: Rechazar la baja de un asiento que no está vigente (bajo concurrencia) ---
+
+    @Test
+    void two_concurrent_closings_of_the_same_entry_leave_one_and_reject_the_other_as_not_active() throws Exception {
+        Long patientId = aPatientWithSealedHistory();
+        Instant before = hoursAgo(5);
+        Long sealedNoteId = noteService.open(patientId, before).id();
+        Long altaId = backgroundService.add(patientId, sealedNoteId,
+            new BackgroundEntryData(BackgroundEntryKind.ALTA, BackgroundCategory.MEDICACION, "Warfarina", null)).id();
+        noteService.update(patientId, sealedNoteId, complete(before));
+        noteDiagnosisService.add(patientId, sealedNoteId, diagnosis("K02", TipoDiagnostico.DEFINITIVO));
+        noteService.seal(patientId, sealedNoteId);
+        Long openNoteId = noteService.open(patientId, hoursAgo(1)).id();
+        BackgroundEntryData baja = new BackgroundEntryData(BackgroundEntryKind.BAJA, null, null, altaId);
+
+        List<Throwable> outcomes = concurrently(2, () -> backgroundService.add(patientId, openNoteId, baja));
+
+        assertThat(outcomes.stream().filter(e -> e == null)).hasSize(1);
+        assertThat(outcomes.stream().filter(e -> e != null))
+            .singleElement().isInstanceOf(BackgroundEntryNotActiveException.class);
+        asUser(someUser);
+        assertThat(noteService.get(patientId, openNoteId).backgroundEntries()).hasSize(1);
     }
 }

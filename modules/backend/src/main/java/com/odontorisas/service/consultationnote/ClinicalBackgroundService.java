@@ -13,6 +13,7 @@ import com.odontorisas.persistence.repository.ConsultationNoteRepository;
 import com.odontorisas.persistence.repository.HistoriaClinicaRepository;
 import com.odontorisas.persistence.repository.PatientRepository;
 import com.odontorisas.service.patient.PatientNotFoundException;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -47,6 +48,12 @@ public class ClinicalBackgroundService {
         this.patientRepository = patientRepository;
     }
 
+    /**
+     * Registra un asiento en la nota abierta. Dos bajas del mismo alta se serializan por el bloqueo
+     * de la nota (un paciente tiene una sola abierta); si igual se cruzaran, el índice
+     * {@code ux_clinical_background_entry_closes} decide y la perdedora recibe el mismo rechazo de
+     * negocio que una baja secuencial, no un conflicto genérico.
+     */
     public BackgroundEntryView add(Long patientId, Long noteId, BackgroundEntryData data) {
         ConsultationNoteService.lockOpenNote(noteRepository, patientId, noteId);
         ClinicalBackgroundEntry.ClinicalBackgroundEntryBuilder entry = ClinicalBackgroundEntry.builder()
@@ -60,7 +67,11 @@ public class ClinicalBackgroundService {
         } else {
             entry.category(data.category());
         }
-        return BackgroundEntryView.from(entryRepository.save(entry.build()));
+        try {
+            return BackgroundEntryView.from(entryRepository.saveAndFlush(entry.build()));
+        } catch (DataIntegrityViolationException alreadyClosedConcurrently) {
+            throw new BackgroundEntryNotActiveException();
+        }
     }
 
     public void remove(Long patientId, Long noteId, Long entryId) {
