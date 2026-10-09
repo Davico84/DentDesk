@@ -404,7 +404,7 @@ Tras tocar la API: regenera `contracts/openapi.json` **y** el cliente del fronte
 - **Spring Security + JWT** (`com.auth0:java-jwt`). Configuración en `infra.security`.
 - Contraseñas con hashing fuerte (BCrypt). **Nunca** en texto plano ni en logs.
 - Autorización por rol (`ADMIN`/`USER`) con seguridad a nivel de método (`@PreAuthorize`) y/o `SecurityFilterChain`.
-- **Sin secretos en el código ni en git**: viven en `application-dev-secrets.yml` / variables de entorno (ignorados), con `*.example` versionado.
+- **Sin secretos en el código ni en git**: viven en `secrets.properties` / variables de entorno (ignorados), con `secrets.properties.example` versionado (§12).
 - Validar y sanear toda entrada; los DTOs + Bean Validation son la primera barrera.
 
 ### 11.1 Actuator — superficie expuesta
@@ -441,12 +441,40 @@ en despliegue).
   silencio pese a que el código "dice" `*`. El día que haga falta, lista los headers explícitos en
   vez de depurar a ciegas.
 
+### 11.3 Secreto de firma de los tokens (`JWT_SECRET`)
+
+`app.security.jwt.secret` (`${JWT_SECRET}`, sin default) firma los access tokens con HMAC-256. Si
+falta, Spring **no falla solo**: deja el placeholder sin resolver y el secreto valdría el literal
+`${JWT_SECRET}`, que es público, así que cualquiera podría firmar un token de `ADMIN`. Por eso **la
+app no arranca** si el secreto es inseguro (`JwtSecretRules`, capacidad `authentication`):
+
+- **Reglas, en orden:** ausente, vacío o en blanco; con un placeholder sin resolver (`${…}`); igual
+  al valor de `secrets.properties.example` (comparado sin espacios alrededor); o de **menos de 32
+  bytes** en UTF-8, el mínimo para HMAC-256. El secreto **no se recorta**: el HMAC firma con el valor
+  tal cual.
+- **La validación vive en el constructor de `TokenService`**, no en el binding de `SecurityProperties`:
+  un fallo de binding lo describe el `BindFailureAnalyzer` de Boot con "Value: …" e **imprimiría el
+  secreto** en el log de arranque. Ningún mensaje de `JwtSecretRules` incluye el valor (lo fijan
+  `JwtSecretRulesTest`, `JwtSecretStartupTest` y `JwtSecretStartupOutputTest`, este último sobre la
+  salida real del arranque).
+- **Para que la garantía siga valiendo:** **nunca** loguees `SecurityProperties` ni su record `Jwt`,
+  porque su `toString()` incluye el secreto. Y no envuelvas la excepción con contexto que lo agregue.
+- **Tests:** `AbstractIntegrationTest` registra `TEST_JWT_SECRET` sobre la propiedad final con
+  `@DynamicPropertySource`, que gana a `secrets.properties`, a `JWT_SECRET` y a las `-D…`
+  (`JwtSecretHermeticityIT`). **No** fijes `app.security.jwt.secret` con `@TestPropertySource` ni
+  con `properties =` de `@SpringBootTest`: esas sí le ganan. Nunca imprimas un secreto en un test:
+  compáralo por hash.
+
 ---
 
 ## 12. Configuración
 
 - **Configuración única** (sin perfiles `dev/qa/pro`). Un solo `application.yml` con placeholders `${VAR}` para **todos** los valores configurables.
 - **Todo externalizado como secreto**: los valores se inyectan por variables de entorno; en local se cargan de `secrets.properties` (ignorado por git) vía `spring.config.import=optional:file:./secrets.properties`. Se versiona solo `secrets.properties.example`.
+- **`JWT_SECRET` es obligatorio en todo entorno**: al menos 32 bytes aleatorios (`openssl rand -base64 48`). Sin él la app no arranca (§11.3).
+  - **Rotarlo invalida los access tokens emitidos** (dejan de verificar), pero **no cierra las sesiones**: el refresh token es opaco, se guarda hasheado en BD y no depende del secreto, así que el frontend renueva el access token de forma transparente.
+  - Si la rotación busca expulsar a todos (por ejemplo, un secreto filtrado), hay que **revocar también los refresh tokens** (borrar `refresh_tokens`).
+  - Con **varias réplicas**, todas deben compartir el mismo secreto: una réplica con otro rechazaría los tokens de las demás.
 - **Nunca** hardcodear ni versionar URLs, credenciales ni parámetros de entorno sensibles.
 - Tipar la configuración con `@ConfigurationProperties` (evitar `@Value` disperso).
 
