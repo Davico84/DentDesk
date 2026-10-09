@@ -185,3 +185,56 @@ describe("PatientFormScreen (alta)", () => {
     ).toBeInTheDocument();
   });
 });
+
+describe("PatientFormScreen (edición) — anamnesis congelada", () => {
+  const PATIENT = {
+    id: 1,
+    fullName: "Ada Lovelace",
+    birthDate: "1990-01-01",
+    phone: "+51987654321",
+    status: "ACTIVE",
+    allergies: ["Látex"],
+    conditions: [],
+    currentMedication: [],
+  };
+
+  function renderEdit(patient: Record<string, unknown>) {
+    server.use(http.get("*/patients/1", () => HttpResponse.json(patient)));
+    return renderWithProviders(
+      <Routes>
+        <Route path="/patients/:id/edit" element={<PatientFormScreen />} />
+        <Route path="/patients/:id" element={<p>detalle</p>} />
+      </Routes>,
+      { initialEntries: ["/patients/1/edit"] },
+    );
+  }
+
+  it("con Historia Clínica la anamnesis se lee y no se edita, y el guardado la manda sin cambios", async () => {
+    let received: { allergies?: string[] } | null = null;
+    server.use(
+      http.put("*/patients/1", async ({ request }) => {
+        received = (await request.json()) as { allergies?: string[] };
+        return HttpResponse.json({ ...PATIENT, anamnesisFrozen: true });
+      }),
+    );
+    const user = userEvent.setup();
+    renderEdit({ ...PATIENT, anamnesisFrozen: true });
+
+    await user.click(await screen.findByRole("button", { name: /anamnesis/i }));
+    expect(screen.getByText(/los antecedentes nuevos se registran en la consulta/i)).toBeInTheDocument();
+    expect(screen.getByText("Látex")).toBeInTheDocument();
+    expect(screen.queryByLabelText(/^alergias$/i)).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: /guardar cambios/i }));
+    await waitFor(() => expect(received).not.toBeNull());
+    expect(received!.allergies).toEqual(["Látex"]);
+  });
+
+  it("sin Historia Clínica la anamnesis sigue editable", async () => {
+    const user = userEvent.setup();
+    renderEdit({ ...PATIENT, anamnesisFrozen: false });
+
+    await user.click(await screen.findByRole("button", { name: /anamnesis/i }));
+    expect(screen.getByLabelText(/^alergias$/i)).toBeInTheDocument();
+  });
+});

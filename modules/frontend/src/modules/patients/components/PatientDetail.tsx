@@ -1,11 +1,11 @@
 import { useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { ArrowLeft, ClipboardList, Pencil, Smile, Users } from "lucide-react";
+import { ArrowLeft, ClipboardList, NotebookPen, Pencil, Smile, Users } from "lucide-react";
 import { Button } from "@/modules/core/ui/button";
 import { buttonVariants } from "@/modules/core/ui/button-variants";
 import { ConfirmDialog } from "@/modules/core/ui/confirm-dialog";
 import { InfoCard, InfoRow } from "@/modules/core/components/InfoCard";
-import { PATHS, clinicalHistoryPath, dentalChartPath, patientEditPath } from "@/routes/paths";
+import { PATHS, clinicalHistoryPath, consultationNotesPath, dentalChartPath, patientEditPath } from "@/routes/paths";
 import {
   useDeactivatePatient,
   usePatient,
@@ -66,6 +66,10 @@ export function PatientDetail() {
             <ClipboardList className="mr-2 size-4" />
             Historia Clínica
           </Link>
+          <Link to={consultationNotesPath(id)} className={buttonVariants({ variant: "outline", size: "lg" })}>
+            <NotebookPen className="mr-2 size-4" />
+            Consultas
+          </Link>
           <Link to={dentalChartPath(id)} className={buttonVariants({ variant: "outline", size: "lg" })}>
             <Smile className="mr-2 size-4" />
             Odontograma
@@ -124,10 +128,19 @@ export function PatientDetail() {
         <InfoRow label="Parentesco" value={patient.emergencyContactRelationship} />
       </InfoCard>
 
-      <InfoCard title="Anamnesis">
+      <InfoCard title={patient.anamnesisFrozen ? "Anamnesis al dar de alta" : "Anamnesis"}>
         <InfoRow label="Alergias" value={joinOrDash(patient.allergies)} />
         <InfoRow label="Condiciones" value={joinOrDash(patient.conditions)} />
         <InfoRow label="Medicación actual" value={joinOrDash(patient.currentMedication)} />
+        {patient.anamnesisFrozen ? (
+          <p className="text-xs text-muted-foreground">
+            Registrada al dar de alta, sin autoría clínica. Ya no se edita: lo nuevo se registra en la{" "}
+            <Link to={consultationNotesPath(id)} className="text-primary underline-offset-4 hover:underline">
+              consulta
+            </Link>
+            .
+          </p>
+        ) : null}
       </InfoCard>
 
       {/*

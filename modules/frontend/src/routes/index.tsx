@@ -7,6 +7,7 @@ import { PatientFormScreen } from "@/screens/patients/PatientFormScreen";
 import { PatientDetailScreen } from "@/screens/patients/PatientDetailScreen";
 import { ClinicalHistoryScreen } from "@/screens/clinical-history/ClinicalHistoryScreen";
 import { DentalChartScreen } from "@/screens/dental-chart/DentalChartScreen";
+import { ConsultationNotesScreen } from "@/screens/consultation-notes/ConsultationNotesScreen";
 import { LoginScreen } from "@/screens/auth/LoginScreen";
 import { RegisterScreen } from "@/screens/auth/RegisterScreen";
 import { RequireAuth } from "@/modules/core/auth/RequireAuth";
@@ -41,6 +42,7 @@ export const router = createBrowserRouter([
           { path: PATHS.PATIENT_EDIT, element: <PatientFormScreen /> },
           { path: PATHS.CLINICAL_HISTORY, element: <ClinicalHistoryScreen /> },
           { path: PATHS.DENTAL_CHART, element: <DentalChartScreen /> },
+          { path: PATHS.CONSULTATION_NOTES, element: <ConsultationNotesScreen /> },
         ],
       },
       {

@@ -16,8 +16,10 @@ import {
   type ClinicalHistoryValues,
 } from "@/modules/clinical-history/schemas/clinicalHistory";
 import {
+  useAddDiagnosis,
   useClinicalHistory,
   useCompleteClinicalHistory,
+  useRemoveDiagnosis,
   useUpdateClinicalHistory,
 } from "@/modules/clinical-history/hooks/useClinicalHistoryApi";
 import { ChecklistProgress } from "./ChecklistProgress";
@@ -33,6 +35,8 @@ export function ClinicalHistoryEditor({ patientId }: { patientId: number }) {
   const { data: dentalChart } = useDentalChart(patientId);
   const updateHistory = useUpdateClinicalHistory(patientId);
   const completeHistory = useCompleteClinicalHistory(patientId);
+  const addDiagnosis = useAddDiagnosis(patientId);
+  const removeDiagnosis = useRemoveDiagnosis(patientId);
   const [confirmingComplete, setConfirmingComplete] = useState(false);
 
   const {
@@ -122,10 +126,17 @@ export function ClinicalHistoryEditor({ patientId }: { patientId: number }) {
 
         <section className="rounded-2xl border bg-card p-5 shadow-sm">
           <h3 className="mb-4 text-sm font-semibold">Diagnóstico (CIE10)</h3>
-          <DiagnosisList patientId={patientId} diagnoses={history?.diagnosticos ?? []} editable={!completed} />
+          <DiagnosisList
+            diagnoses={history?.diagnosticos ?? []}
+            onRemove={completed ? undefined : (id) => removeDiagnosis.mutate(id)}
+            removing={removeDiagnosis.isPending}
+          />
           {!completed ? (
             <div className="mt-4 border-t pt-4">
-              <DiagnosisForm patientId={patientId} />
+              <DiagnosisForm
+                pending={addDiagnosis.isPending}
+                onAdd={(request, onSuccess) => addDiagnosis.mutate(request, { onSuccess })}
+              />
             </div>
           ) : null}
         </section>

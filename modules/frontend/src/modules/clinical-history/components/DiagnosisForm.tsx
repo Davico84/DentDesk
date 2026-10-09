@@ -4,21 +4,28 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { Plus, Loader2 } from "lucide-react";
 import { Button } from "@/modules/core/ui/button";
 import { FormField, SelectField } from "@/modules/core/ui/form-field";
-import { DiagnosisRequestUbicacion } from "@/modules/core/services/generated/model";
+import { DiagnosisRequestUbicacion, type DiagnosisRequest } from "@/modules/core/services/generated/model";
 import {
   diagnosisSchema,
   diagnosisDefaults,
   toDiagnosisRequest,
   type DiagnosisValues,
 } from "@/modules/clinical-history/schemas/diagnosis";
-import { useAddDiagnosis } from "@/modules/clinical-history/hooks/useClinicalHistoryApi";
 import { Cie10SearchField } from "./Cie10SearchField";
 import { ubicacionOptions, tipoDiagnosticoOptions } from "./diagnosisOptions";
 
-/** Agrega un diagnóstico a la Historia en DRAFT (spec: diagnóstico CIE10). */
-export function DiagnosisForm({ patientId }: { patientId: number }) {
+/**
+ * Agrega un diagnóstico CIE10 (spec: diagnóstico CIE10). No sabe a qué documento: la Historia en
+ * DRAFT o una nota de consulta abierta le pasan su propia mutación (`update-clinical-history`).
+ */
+export function DiagnosisForm({
+  onAdd,
+  pending,
+}: {
+  onAdd: (request: DiagnosisRequest, onSuccess: () => void) => void;
+  pending: boolean;
+}) {
   const [cie10Description, setCie10Description] = useState<string>();
-  const addDiagnosis = useAddDiagnosis(patientId);
 
   const {
     register,
@@ -37,11 +44,9 @@ export function DiagnosisForm({ patientId }: { patientId: number }) {
   const cie10Code = useWatch({ control, name: "cie10Code" });
 
   const onSubmit = (values: DiagnosisValues) => {
-    addDiagnosis.mutate(toDiagnosisRequest(values), {
-      onSuccess: () => {
-        reset(diagnosisDefaults());
-        setCie10Description(undefined);
-      },
+    onAdd(toDiagnosisRequest(values), () => {
+      reset(diagnosisDefaults());
+      setCie10Description(undefined);
     });
   };
 
@@ -93,8 +98,8 @@ export function DiagnosisForm({ patientId }: { patientId: number }) {
       />
 
       <div className="sm:col-span-2">
-        <Button type="submit" disabled={addDiagnosis.isPending} size="sm" className="rounded-xl">
-          {addDiagnosis.isPending ? <Loader2 className="mr-2 size-4 animate-spin" /> : <Plus className="mr-2 size-4" />}
+        <Button type="submit" disabled={pending} size="sm" className="rounded-xl">
+          {pending ? <Loader2 className="mr-2 size-4 animate-spin" /> : <Plus className="mr-2 size-4" />}
           Agregar diagnóstico
         </Button>
       </div>

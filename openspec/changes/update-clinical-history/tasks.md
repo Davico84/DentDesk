@@ -41,14 +41,14 @@
 
 ## 6. Frontend
 
-- [ ] 6.1 `pnpm` codegen orval; esquemas Zod de nota, diagnóstico de nota, corrección y asiento con paridad Bean Validation (`docs/coding-style.md` §7), incluida la regla de próxima cita
-- [ ] 6.2 Hooks React Query de notas, diagnósticos, correcciones, antecedentes y vigentes (invalidaciones al sellar)
-- [ ] 6.3 Pantalla de notas de consulta del paciente: lista cronológica, nota abierta arriba con acciones sellar/descartar, editor por campos con checklist de faltantes, lectura de la sellada con sus correcciones bajo el campo corregido; ruta junto a la de la Historia
-- [ ] 6.4 Diálogo de corrección (campo, texto, motivo), visible solo para quien selló y solo sobre campos no vacíos
-- [ ] 6.5 Panel de antecedentes: altas/bajas dentro de la nota abierta y vista de vigentes con origen y fecha (`FICHA` con su etiqueta)
-- [ ] 6.6 `PatientForm`/`PatientDetail`: anamnesis en solo lectura con aviso cuando está congelada
-- [ ] 6.7 Tests Vitest/MSW por pantalla y componente (abrir, guardar, sellar con faltantes, descartar vacía, corrección, vigentes, anamnesis congelada)
-- [ ] 6.8 `pnpm validate` verde
+- [x] 6.1 `pnpm` codegen orval; esquemas Zod de nota, diagnóstico de nota, corrección y asiento con paridad Bean Validation (`docs/coding-style.md` §7), incluida la regla de próxima cita
+- [x] 6.2 Hooks React Query de notas, diagnósticos, correcciones, antecedentes y vigentes (invalidaciones al sellar)
+- [x] 6.3 Pantalla de notas de consulta del paciente: lista cronológica, nota abierta arriba con acciones sellar/descartar, editor por campos con checklist de faltantes, lectura de la sellada con sus correcciones bajo el campo corregido; ruta junto a la de la Historia
+- [x] 6.4 Diálogo de corrección (campo, texto, motivo), visible solo para quien selló y solo sobre campos no vacíos
+- [x] 6.5 Panel de antecedentes: altas/bajas dentro de la nota abierta y vista de vigentes con origen y fecha (`FICHA` con su etiqueta)
+- [x] 6.6 `PatientForm`/`PatientDetail`: anamnesis en solo lectura con aviso cuando está congelada
+- [x] 6.7 Tests Vitest/MSW por pantalla y componente (abrir, guardar, sellar con faltantes, descartar vacía, corrección, vigentes, anamnesis congelada)
+- [x] 6.8 `pnpm validate` verde
 
 ## 7. Cierre
 
