@@ -174,7 +174,7 @@ inventado.
 - **AND** el aislamiento no depende de que el filtro se haya escrito
 
 ### Requirement: Contacto telefónico del paciente
-El sistema SHALL permitir que **varios pacientes de la misma clínica compartan el mismo número** de teléfono, sin bloquear el registro; cuando el número ya esté asociado a otros pacientes de la clínica, SHALL mostrar un **aviso no bloqueante** que deja continuar. El sistema SHALL exigir un **contacto de emergencia** (nombre, teléfono y relación) **únicamente** cuando el paciente **no** registre un teléfono propio; si el paciente tiene teléfono propio, el contacto de emergencia SHALL seguir siendo opcional. La detección de número compartido SHALL acotarse a la **clínica activa** (no cruza organizaciones).
+El sistema SHALL permitir que **varios pacientes de la misma clínica compartan el mismo número** de teléfono, sin bloquear el registro; si el número ya está asociado a otros pacientes de la **clínica activa** (sin cruzar organizaciones), SHALL mostrar un **aviso no bloqueante**. El sistema SHALL exigir un **contacto de emergencia** (nombre, teléfono y relación) **solo** cuando el paciente **no** registre un teléfono propio; con teléfono propio, SHALL seguir siendo opcional.
 
 #### Scenario: Dos pacientes comparten el mismo teléfono
 - **WHEN** se registra a un paciente con un teléfono que **ya está asociado a otro paciente de la misma clínica**
@@ -211,7 +211,7 @@ El sistema SHALL permitir que **varios pacientes de la misma clínica compartan 
 - **AND** no aplica el cambio
 
 ### Requirement: Ofrecer la ficha existente ante un documento duplicado
-Cuando el alta o la edición de un paciente choca con un documento que **ya existe en la clínica activa**, el sistema SHALL rechazar el duplicado (como ya hace) y además SHALL **identificar la ficha existente** para que el cliente pueda ofrecer abrirla. La información expuesta SHALL limitarse a lo necesario para enlazar a esa ficha, sin volcar datos innecesarios. Esto SHALL respetar el aislamiento: la ficha en conflicto pertenece **siempre** a la clínica activa (la unicidad del documento es por clínica).
+Cuando el alta o la edición de un paciente choca con un documento que **ya existe en la clínica activa**, el sistema SHALL rechazar el duplicado y además SHALL **identificar la ficha existente** para que el cliente pueda ofrecer abrirla. La información expuesta SHALL limitarse a lo necesario para enlazar a esa ficha. Esto SHALL respetar el aislamiento: la ficha en conflicto pertenece **siempre** a la clínica activa (la unicidad del documento es por clínica).
 
 #### Scenario: El conflicto de documento identifica la ficha existente
 - **WHEN** se intenta registrar a un paciente con un documento que ya tiene otro paciente de la clínica activa
