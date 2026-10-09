@@ -2,7 +2,7 @@
 
 ### Requirement: Información inicial sellada tras COMPLETED
 
-Una vez en `COMPLETED`, la información inicial de la Historia Clínica SHALL quedar sellada. La **API SHALL rechazar en el servidor** cualquier operación que intente modificarla, **independientemente del cliente**, aunque la petición llegue directo al endpoint. Una escritura concurrente con el sellado NO SHALL reabrir la Historia ni modificarla después de sellada. Permanece legible en todo momento. La corrección posterior de un dato queda fuera de esta capacidad (enmienda auditable, fase posterior).
+Una vez en `COMPLETED`, la información inicial de la Historia Clínica SHALL quedar sellada, legible en todo momento. La **API SHALL rechazar en el servidor** toda modificación, **independientemente del cliente**, aunque la petición llegue directo al endpoint. Una escritura concurrente con el sellado NO SHALL reabrir la Historia ni modificarla después de sellada. La corrección posterior de un dato queda fuera de esta capacidad (enmienda auditable, fase posterior).
 
 #### Scenario: La Historia sellada permanece legible
 - **WHEN** un usuario abre una Historia Clínica en estado `COMPLETED`
@@ -17,7 +17,7 @@ Una vez en `COMPLETED`, la información inicial de la Historia Clínica SHALL qu
 - **THEN** el sistema rechaza el guardado porque la Historia quedó sellada
 - **AND** la Historia permanece en `COMPLETED`, sin perder el sellado
 
-#### Scenario: Un diagnóstico no entra en una Historia que se está sellando
-- **WHEN** un usuario agrega un diagnóstico a una Historia en `DRAFT` mientras otra operación la está sellando
-- **THEN** el sistema rechaza el diagnóstico porque la Historia quedó sellada
-- **AND** la Historia sellada no contiene diagnósticos posteriores a su sellado
+#### Scenario: Los diagnósticos de una Historia que se está sellando no cambian
+- **WHEN** un usuario agrega, edita o elimina un diagnóstico de una Historia en `DRAFT` mientras otra operación la está sellando
+- **THEN** el sistema rechaza la operación porque la Historia quedó sellada
+- **AND** la Historia sellada conserva sus diagnósticos tal como estaban al sellarse

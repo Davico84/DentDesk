@@ -10,10 +10,11 @@ Las dos rompen el requirement *Información inicial sellada tras COMPLETED*: un 
 ## What Changes
 
 - Toda escritura de la información inicial (guardado incremental de la Historia y alta, edición y baja de diagnósticos) **bloquea la Historia** (`SELECT ... FOR UPDATE`) **antes** de comprobar que siga en `DRAFT`. Es el mismo patrón que `DentalChartService.lockOpenBlock` y reutiliza `HistoriaClinicaRepository.lockByPatientId`, que ya existe (lo agregó `add-dental-chart` para el sellado).
-- El requirement *Información inicial sellada tras COMPLETED* suma dos scenarios: una escritura concurrente con el sellado no reabre la Historia ni deja un diagnóstico en una Historia sellada.
-- Tests con hilos reales contra PostgreSQL, deterministas: el sellado mantiene su transacción abierta mientras la otra escritura lo intenta.
+- El requirement *Información inicial sellada tras COMPLETED* suma dos scenarios: una escritura concurrente con el sellado no reabre la Historia, ni agrega, edita o elimina diagnósticos de una Historia sellada.
+- Tests con hilos reales contra PostgreSQL, deterministas: el sellado ya tiene el bloqueo cuando arranca la otra escritura. Un test por ruta de escritura, más dos guardados concurrentes en `DRAFT` y un sellado que falla y libera el bloqueo.
+- `create` queda fuera: crea una fila nueva y no puede reabrir una sellada; su unicidad la garantiza la base.
 
-No cambia el contrato HTTP ni el frontend: la escritura que pierde la carrera recibe el mismo rechazo que hoy recibe una escritura sobre una Historia sellada.
+No cambia el esquema OpenAPI ni el frontend. Sí cambia el resultado de la carrera, que hoy es inválido: la escritura que hoy podía devolver `200` y reabrir la Historia pasa a recibir el mismo `409` que cualquier escritura sobre una Historia sellada.
 
 ## Non-goals
 
