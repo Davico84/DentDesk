@@ -29,8 +29,13 @@ public class TokenService {
     private final SecureRandom secureRandom = new SecureRandom();
 
     public TokenService(SecurityProperties props) {
+        // Sin ninguna propiedad app.security.jwt.* el binder deja jwt() en null: se valida igual
+        // (mensaje "obligatorio") en vez de fallar con un NullPointerException. Se valida acá y no
+        // en el binding para que el error nunca imprima el secreto (ver JwtSecretRules).
+        String secret = props.jwt() == null ? null : props.jwt().secret();
+        JwtSecretRules.validate(secret);
         this.props = props;
-        this.algorithm = Algorithm.HMAC256(props.jwt().secret());
+        this.algorithm = Algorithm.HMAC256(secret);
     }
 
     /**
