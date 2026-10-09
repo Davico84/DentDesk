@@ -7,6 +7,7 @@ import com.odontorisas.presentation.dto.DiagnosisRequest;
 import com.odontorisas.presentation.dto.DiagnosisResponse;
 import com.odontorisas.presentation.dto.EnablementResponse;
 import com.odontorisas.presentation.dto.ValidationProblem;
+import com.odontorisas.service.admission.CloseAdmissionService;
 import com.odontorisas.service.clinicalhistory.ClinicalHistoryDiagnosisService;
 import com.odontorisas.service.clinicalhistory.ClinicalHistoryData;
 import com.odontorisas.service.clinicalhistory.ClinicalHistoryService;
@@ -45,13 +46,16 @@ public class ClinicalHistoryController {
     private final ClinicalHistoryService clinicalHistoryService;
     private final ClinicalHistoryDiagnosisService diagnosisService;
     private final PatientService patientService;
+    private final CloseAdmissionService closeAdmissionService;
 
     public ClinicalHistoryController(ClinicalHistoryService clinicalHistoryService,
                                       ClinicalHistoryDiagnosisService diagnosisService,
-                                      PatientService patientService) {
+                                      PatientService patientService,
+                                      CloseAdmissionService closeAdmissionService) {
         this.clinicalHistoryService = clinicalHistoryService;
         this.diagnosisService = diagnosisService;
         this.patientService = patientService;
+        this.closeAdmissionService = closeAdmissionService;
     }
 
     @PostMapping
@@ -92,17 +96,23 @@ public class ClinicalHistoryController {
         return toResponse(clinicalHistoryService.update(patientId, toData(request)), patientId);
     }
 
+    /**
+     * Sella la Historia Clínica <b>y</b> el odontograma inicial, en una sola operación (ADR-0012
+     * D5, `add-dental-chart`): la Historia ya no se sella sola. La ruta se conserva; la semántica
+     * cambia — delega en {@link CloseAdmissionService} en vez de llamar a {@code
+     * clinicalHistoryService.complete(...)} directo (design.md D4).
+     */
     @PostMapping("/complete")
     @ApiResponses({
-        @ApiResponse(responseCode = "200", description = "Historia sellada a COMPLETED.",
+        @ApiResponse(responseCode = "200", description = "Historia y odontograma sellados atómicamente.",
             content = @Content(schema = @Schema(implementation = ClinicalHistoryResponse.class))),
-        @ApiResponse(responseCode = "400", description = "Falta un ítem del checklist mínimo.",
+        @ApiResponse(responseCode = "400", description = "Falta un ítem del checklist mínimo, de cualquiera de los dos documentos.",
             content = @Content(mediaType = "application/problem+json", schema = @Schema(implementation = ApiProblem.class))),
-        @ApiResponse(responseCode = "409", description = "La Historia ya está COMPLETED (transición inválida).",
+        @ApiResponse(responseCode = "409", description = "La Historia o el odontograma ya están sellados (transición inválida).",
             content = @Content(mediaType = "application/problem+json", schema = @Schema(implementation = ApiProblem.class)))
     })
     public ClinicalHistoryResponse complete(@PathVariable Long patientId) {
-        return toResponse(clinicalHistoryService.complete(patientId), patientId);
+        return toResponse(closeAdmissionService.close(patientId).clinicalHistory(), patientId);
     }
 
     @GetMapping("/enablement")

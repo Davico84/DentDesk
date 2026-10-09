@@ -47,8 +47,7 @@ Mientras la Historia Clínica esté en `DRAFT`, el sistema SHALL permitir guarda
 - **THEN** el sistema rechaza la edición porque la información inicial quedó sellada
 
 ### Requirement: Diagnóstico con código CIE10 y ubicación
-
-Cada diagnóstico de la Historia Clínica SHALL referenciar un código **CIE10** existente en el catálogo oficial MINSA y SHALL llevar una **ubicación**: `GENERAL` o `PIEZA`. Cuando la ubicación es `PIEZA`, SHALL indicar el diente por un **número FDI válido** (perteneciente al conjunto real de piezas: permanentes 11–18, 21–28, 31–38, 41–48; temporales 51–55, 61–65, 71–75, 81–85), no por un rango numérico laxo. Cuando la ubicación es `GENERAL`, NO SHALL aceptar número FDI. Cada diagnóstico SHALL llevar además un **tipo de diagnóstico** obligatorio, según la norma MINSA HIS: `PRESUNTIVO` (P), `DEFINITIVO` (D) o `REPETIDO` (R). El sistema SHALL registrar automáticamente, por cada diagnóstico y de forma **inmutable**, la **fecha/hora** de registro (reloj del servidor) y el **usuario que lo registra** (el profesional; el vínculo formal a la colegiatura COP llega con `staff`). Los diagnósticos solo pueden **agregarse, modificarse o eliminarse mientras la Historia esté en `DRAFT`**. La búsqueda de códigos SHALL respetar la jerarquía de 4 niveles (capítulo → grupo → categoría → subcategoría), sin aplanarla a una lista única.
+Cada diagnóstico SHALL referenciar un código **CIE10** existente en el catálogo oficial MINSA y SHALL llevar un **tipo de diagnóstico** obligatorio según la norma MINSA HIS: `PRESUNTIVO` (P), `DEFINITIVO` (D) o `REPETIDO` (R). El sistema SHALL registrar automáticamente y de forma **inmutable** la fecha/hora de registro (reloj del servidor) y el usuario que lo registra. Los diagnósticos SHALL poder agregarse, modificarse o eliminarse solo mientras la Historia esté en `DRAFT`.
 
 #### Scenario: Agregar un diagnóstico general
 - **WHEN** un usuario agrega, a una Historia en `DRAFT`, un diagnóstico con un código CIE10 válido, ubicación `GENERAL` y tipo (`P`/`D`/`R`)
@@ -58,13 +57,20 @@ Cada diagnóstico de la Historia Clínica SHALL referenciar un código **CIE10**
 - **WHEN** un usuario intenta registrar un diagnóstico sin indicar el tipo `PRESUNTIVO`/`DEFINITIVO`/`REPETIDO`
 - **THEN** el sistema rechaza la operación porque el tipo es obligatorio (norma MINSA HIS)
 
-#### Scenario: Agregar un diagnóstico ubicado en una pieza
-- **WHEN** un usuario agrega, a una Historia en `DRAFT`, un diagnóstico con ubicación `PIEZA` y un número FDI válido
-- **THEN** el sistema lo registra con la pieza indicada
-
 #### Scenario: Rechazar un código CIE10 inexistente
 - **WHEN** un usuario intenta registrar un diagnóstico con un código que no está en el catálogo CIE10
 - **THEN** el sistema rechaza la operación
+
+#### Scenario: Rechazar cambios de diagnóstico en una Historia sellada
+- **WHEN** un usuario intenta agregar, modificar o eliminar un diagnóstico de una Historia en estado `COMPLETED`
+- **THEN** el sistema rechaza la operación en el servidor
+
+### Requirement: Ubicación del diagnóstico por pieza FDI
+Cada diagnóstico SHALL llevar una **ubicación**: `GENERAL` o `PIEZA`. Con `PIEZA`, SHALL indicar el diente por un **número FDI válido** del conjunto real de piezas (permanentes 11–18, 21–28, 31–38, 41–48; temporales 51–55, 61–65, 71–75, 81–85), no por un rango numérico laxo. Con `GENERAL`, NO SHALL aceptar número FDI.
+
+#### Scenario: Agregar un diagnóstico ubicado en una pieza
+- **WHEN** un usuario agrega, a una Historia en `DRAFT`, un diagnóstico con ubicación `PIEZA` y un número FDI válido
+- **THEN** el sistema lo registra con la pieza indicada
 
 #### Scenario: Rechazar ubicación PIEZA sin número FDI
 - **WHEN** un usuario intenta registrar un diagnóstico con ubicación `PIEZA` pero sin número FDI
@@ -78,25 +84,31 @@ Cada diagnóstico de la Historia Clínica SHALL referenciar un código **CIE10**
 - **WHEN** un usuario intenta registrar un diagnóstico con ubicación `GENERAL` y a la vez un número FDI
 - **THEN** el sistema rechaza la operación porque `GENERAL` no admite pieza
 
-#### Scenario: Rechazar cambios de diagnóstico en una Historia sellada
-- **WHEN** un usuario intenta agregar, modificar o eliminar un diagnóstico de una Historia en estado `COMPLETED`
-- **THEN** el sistema rechaza la operación en el servidor
+### Requirement: Búsqueda jerárquica de códigos CIE10
+La búsqueda de códigos CIE10 SHALL respetar la jerarquía de 4 niveles (capítulo → grupo → categoría → subcategoría), sin aplanarla a una lista única.
 
 #### Scenario: Buscar un código navegando la jerarquía
 - **WHEN** un usuario busca un diagnóstico
 - **THEN** el sistema devuelve los códigos con su ruta jerárquica (capítulo → grupo → categoría → subcategoría), no como lista plana
 
 ### Requirement: Sellado a COMPLETED con checklist mínimo afirmativo
-
-La transición de `DRAFT` a `COMPLETED` SHALL ser una acción manual y explícita que valida un **checklist mínimo** de completitud clínica antes de sellar, y SHALL ser **unidireccional**: una Historia `COMPLETED` no vuelve a `DRAFT` ni se vuelve a sellar. En las secciones donde "ninguno" es información clínica válida (**alergias, medicación, antecedentes familiares**), un campo vacío NO SHALL contar como revisado: la ausencia debe registrarse de forma **afirmativa** ("sin alergias conocidas" / "no toma medicación" / "sin antecedentes familiares"), distinta de "no llenado". El mismo patrón (revisado + detalle opcional) aplica por igual a esas secciones.
+La transición de `DRAFT` a `COMPLETED` SHALL ser manual, explícita y **unidireccional** (sin volver a `DRAFT` ni resellar), y SHALL validar un **checklist mínimo**. En alergias, medicación y antecedentes familiares un campo vacío NO SHALL contar como revisado: la ausencia SHALL registrarse de forma **afirmativa**. El checklist SHALL exigir el **odontograma inicial** del paciente y ambos documentos SHALL sellarse de forma **atómica**: si falla el odontograma, la Historia SHALL seguir en `DRAFT`.
 
 #### Scenario: Completar cuando el checklist está satisfecho
-- **WHEN** un usuario solicita marcar como `COMPLETED` una Historia Clínica cuyo checklist mínimo está cubierto
-- **THEN** el sistema la sella en estado `COMPLETED`
+- **WHEN** un usuario solicita marcar como `COMPLETED` una Historia Clínica cuyo checklist mínimo está cubierto y cuyo paciente tiene el odontograma inicial registrado
+- **THEN** el sistema sella la Historia en estado `COMPLETED` **y** el odontograma inicial, en una sola operación
 
 #### Scenario: Rechazar el sellado con un ítem crítico faltante
 - **WHEN** un usuario intenta marcar `COMPLETED` una Historia Clínica a la que le falta un ítem del checklist mínimo
 - **THEN** el sistema rechaza la transición e indica qué ítems faltan
+
+#### Scenario: Rechazar el sellado sin odontograma inicial
+- **WHEN** un usuario intenta marcar `COMPLETED` una Historia Clínica cuyo paciente no tiene odontograma inicial registrado
+- **THEN** el sistema rechaza la transición e indica que falta el odontograma
+
+#### Scenario: Un fallo al sellar el odontograma deja la Historia en DRAFT
+- **WHEN** el sellado del odontograma inicial falla durante la operación de completar la Historia Clínica
+- **THEN** el sistema deja la Historia en `DRAFT` y el odontograma sin sellar, sin aplicar ninguno de los dos cambios
 
 #### Scenario: Un campo de alergias vacío no equivale a "sin hallazgos"
 - **WHEN** un usuario deja el campo de alergias vacío (sin afirmar "sin alergias conocidas") e intenta completar
@@ -110,9 +122,13 @@ La transición de `DRAFT` a `COMPLETED` SHALL ser una acción manual y explícit
 - **WHEN** un usuario intenta cambiar una Historia de `COMPLETED` a `DRAFT`, o volver a ejecutar el sellado sobre una ya `COMPLETED`
 - **THEN** el sistema rechaza la operación y conserva el estado `COMPLETED`
 
+#### Scenario: Las Historias selladas antes de esta regla no se ven afectadas
+- **WHEN** se consulta una Historia Clínica que fue sellada antes de que el odontograma fuera obligatorio
+- **THEN** el sistema la muestra como `COMPLETED` sin exigirle un odontograma retroactivamente
+
 ### Requirement: Información inicial sellada tras COMPLETED
 
-Una vez en `COMPLETED`, la información inicial de la Historia Clínica SHALL quedar sellada. La **API SHALL rechazar en el servidor** cualquier operación que intente modificar esa información, **independientemente del cliente** — aunque la petición se envíe directamente al endpoint, sin pasar por la interfaz (no basta con un bloqueo visual). Permanece legible en todo momento. La corrección posterior de un dato queda fuera de esta capacidad (enmienda auditable, fase posterior).
+Una vez en `COMPLETED`, la información inicial de la Historia Clínica SHALL quedar sellada, legible en todo momento. La **API SHALL rechazar en el servidor** toda modificación, **independientemente del cliente**, aunque la petición llegue directo al endpoint. Una escritura concurrente con el sellado NO SHALL reabrir la Historia ni modificarla después de sellada. La corrección posterior de un dato queda fuera de esta capacidad (enmienda auditable, fase posterior).
 
 #### Scenario: La Historia sellada permanece legible
 - **WHEN** un usuario abre una Historia Clínica en estado `COMPLETED`
@@ -121,6 +137,16 @@ Una vez en `COMPLETED`, la información inicial de la Historia Clínica SHALL qu
 #### Scenario: Rechazar la edición de la información sellada aun por API directa
 - **WHEN** se envía directamente a la API una petición para modificar el diagnóstico, los antecedentes u otra sección inicial de una Historia `COMPLETED` (sin pasar por la UI)
 - **THEN** el servidor rechaza la modificación
+
+#### Scenario: Guardar la Historia mientras otra operación la sella no la reabre
+- **WHEN** un usuario guarda la información inicial de una Historia en `DRAFT` mientras otra operación la está sellando
+- **THEN** el sistema rechaza el guardado porque la Historia quedó sellada
+- **AND** la Historia permanece en `COMPLETED`, sin perder el sellado
+
+#### Scenario: Los diagnósticos de una Historia que se está sellando no cambian
+- **WHEN** un usuario agrega, edita o elimina un diagnóstico de una Historia en `DRAFT` mientras otra operación la está sellando
+- **THEN** el sistema rechaza la operación porque la Historia quedó sellada
+- **AND** la Historia sellada conserva sus diagnósticos tal como estaban al sellarse
 
 ### Requirement: Estado consultable para habilitar tratamientos
 

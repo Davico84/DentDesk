@@ -17,8 +17,19 @@ final class ClinicalHistoryChecklist {
     private ClinicalHistoryChecklist() {
     }
 
-    /** Campos que faltan para poder sellar; vacío si el checklist está satisfecho. */
-    static List<String> missingFields(HistoriaClinica h, long diagnosisCount) {
+    /**
+     * Campos que faltan para poder sellar; vacío si el checklist está satisfecho.
+     *
+     * @param hasInitialDentalChart {@code true} si el paciente tiene un odontograma inicial
+     *                              (cualquier estado). El sellado de <b>ambos</b> documentos es
+     *                              atómico (ADR-0012 D5, `add-dental-chart`): la Historia ya no se
+     *                              sella sola. La completitud propia del odontograma
+     *                              (especificaciones y observaciones revisadas) la exige su
+     *                              propio checklist en {@code DentalChartChecklist} — este ítem
+     *                              solo comprueba que exista, sin conocer el tipo de dental-chart
+     *                              (design.md D4: ningún servicio conoce al otro).
+     */
+    static List<String> missingFields(HistoriaClinica h, long diagnosisCount, boolean hasInitialDentalChart) {
         List<String> missing = new ArrayList<>();
         if (isBlank(h.getMotivoConsulta())) {
             missing.add("motivoConsulta");
@@ -43,6 +54,9 @@ final class ClinicalHistoryChecklist {
         }
         if (isBlank(h.getPronostico())) {
             missing.add("pronostico");
+        }
+        if (!hasInitialDentalChart) {
+            missing.add("dentalChart");
         }
         return missing;
     }

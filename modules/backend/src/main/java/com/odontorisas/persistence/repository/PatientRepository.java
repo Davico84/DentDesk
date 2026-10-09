@@ -1,8 +1,12 @@
 package com.odontorisas.persistence.repository;
 
 import com.odontorisas.persistence.entity.Patient;
+import jakarta.persistence.LockModeType;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
+import org.springframework.data.jpa.repository.Lock;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 import java.util.Optional;
 
@@ -27,4 +31,10 @@ public interface PatientRepository extends JpaRepository<Patient, Long>, JpaSpec
 
     /** Igual, para la edición: cuenta los <b>otros</b> pacientes (excluye al propio {@code id}, D1). */
     long countByPhoneAndIdNot(String phone, Long id);
+
+    /** {@code SELECT ... FOR UPDATE}: primer eslabón del orden de bloqueo del cierre de admisión
+     *  (paciente → historia → odontograma, design.md D4 de `add-dental-chart`). */
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select p from Patient p where p.id = :id")
+    Optional<Patient> lockById(@Param("id") Long id);
 }
