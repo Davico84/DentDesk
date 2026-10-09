@@ -1,6 +1,6 @@
 ## Why
 
-La Historia Clínica de Dentdesk hoy es solo el **documento inicial**: se sella en la admisión y después no hay dónde registrar la consulta siguiente. Un paciente que vuelve a los tres meses —o a los dos años— no tiene nota de atención, ni diagnóstico nuevo, ni forma de dejar constancia de una alergia que antes no tenía. La norma exige que toda atención quede registrada y que la historia sea un **libro de actas**: lo escrito no se modifica, lo nuevo se agrega como **registro nuevo** (NTS 139 §5.3.3 i; DS 009-2017-SA arts. 46 y 47 c).
+La Historia Clínica de Dentdesk hoy es solo el **documento inicial**: se sella en la admisión y después no hay dónde registrar la consulta siguiente. Un paciente que vuelve a los tres meses —o a los dos años— no tiene nota de atención, ni diagnóstico nuevo, ni forma de dejar constancia de una alergia que antes no tenía. La norma exige que toda atención quede registrada y que la historia sea un **libro de actas**: lo escrito no se modifica, lo nuevo se agrega como **registro nuevo** (NTS 139 §5.3.3 j; DS 009-2017-SA arts. 46 y 47 c).
 
 Es el **corte A** de la fase 2 (orden acordado: A nota de consulta → B odontograma de evolución → C odontograma de inicio/final de plan, con `treatment-plans`). Va primero porque B y C se apoyan en él: el odontograma de evolución se cierra **junto con** la nota del día (`ADR-0012` D5).
 

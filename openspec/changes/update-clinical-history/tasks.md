@@ -2,10 +2,10 @@
 
 ## 1. Documentación normativa (antes del código)
 
-- [ ] 1.1 `docs/adr/0020-nota-de-consulta.md`: D1–D7 del design con su fundamento en el texto oficial (NTS 139 §4.2.9, §4.2.10, §5.2.1 (1) 1.1 d y 1.2, §5.2.1 (3), §5.2.2 (12), §5.3.3 i; DS 009-2017-SA arts. 46 y 47; RM 265-2018), las cinco dimensiones de `docs/adr/README.md` y las alternativas descartadas (SOAP, cierre diario, tabla única de diagnósticos)
-- [ ] 1.2 Normas subidas (design D12): renombrar y registrar en `docs/compliance/normas/README.md` DS 009-2017-SA, RM 576-2011 (solo la resolución, sin la Directiva 183), Ley 27269 y RM 265-2018; **preguntar al usuario** si se versionan NTS 139 y Código del COP; eliminar la copia duplicada de la RM 265 en `docs/compliance/`
-- [ ] 1.3 Línea de corrección en la cabecera de `ADR-0017` (D3) y `ADR-0018` (D2, D3) apuntando a `ADR-0020` (design D11)
-- [ ] 1.4 `docs/compliance/regulatory-matrix.md`: reescribir las filas "Evolución estructurada en SOAP" y "Enmienda como asiento nuevo vinculado"; filas nuevas para contenido de la nota, diagnóstico R, corrección art. 47 c, antecedentes nuevos (§4.2.10, art. 46); corregir la fila "Odontograma inicial y final" (solo 12.1) y "Cierre transaccional… del día"; agregar DS 009-2017-SA y RM 265-2018 a "Normas de referencia"
+- [x] 1.1 `docs/adr/0020-nota-de-consulta.md`: D1–D7 del design con su fundamento en el texto oficial (NTS 139 §4.2.9, §4.2.10, §5.2.1 (1) 1.1 d y 1.2, §5.2.1 (3), §5.2.2 (12), §5.3.3 j; DS 009-2017-SA arts. 46 y 47; RM 265-2018), las cinco dimensiones de `docs/adr/README.md` y las alternativas descartadas (SOAP, cierre diario, tabla única de diagnósticos)
+- [x] 1.2 Normas subidas (design D12): renombrar y registrar en `docs/compliance/normas/README.md` DS 009-2017-SA, RM 576-2011 (solo la resolución, sin la Directiva 183), Ley 27269 y RM 265-2018; **preguntar al usuario** si se versionan NTS 139 y Código del COP; eliminar la copia duplicada de la RM 265 en `docs/compliance/`
+- [x] 1.3 Línea de corrección en la cabecera de `ADR-0017` (D3) y `ADR-0018` (D2, D3) apuntando a `ADR-0020` (design D11)
+- [x] 1.4 `docs/compliance/regulatory-matrix.md`: reescribir las filas "Evolución estructurada en SOAP" y "Enmienda como asiento nuevo vinculado"; filas nuevas para contenido de la nota, diagnóstico R, corrección art. 47 c, antecedentes nuevos (§4.2.10, art. 46); corregir la fila "Odontograma inicial y final" (solo 12.1) y "Cierre transaccional… del día"; agregar DS 009-2017-SA y RM 265-2018 a "Normas de referencia"
 
 ## 2. Backend — esquema
 
