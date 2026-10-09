@@ -254,9 +254,9 @@ export const useSortingStore = createSelectors(useSortingStoreBase);
 > [!IMPORTANT]
 > **Nunca uses el atributo nativo `title`** en un elemento interactivo: cuando exista un componente `Tooltip` en `core/ui`, úsalo. Mantén siempre `aria-label` (el tooltip no lo sustituye).
 
-**Estado actual de `modules/core/ui/`** (lo que HAY hoy): `button` (+ `button-variants`), `card`, `input`, `icon-input`, `password-input`, `label`, `logo`, `theme-toggle`, `form-field` (`FormField`/`SelectField`/`FormSection`, genéricos sobre react-hook-form), `dialog` (shadcn/Radix) y `confirm-dialog`.
+**Estado actual de `modules/core/ui/`** (lo que HAY hoy): `button` (+ `button-variants`), `card`, `input`, `icon-input`, `password-input`, `label`, `logo`, `theme-toggle`, `form-field` (`FormField`/`SelectField`/`FormSection`, genéricos sobre react-hook-form), `dialog` (shadcn/Radix), `confirm-dialog` y `tooltip` (shadcn/Radix). Para un tooltip de ayuda sobre un control usa **`HintTooltip`** (`core/components`): trae su propio `TooltipProvider` y, con `triggerDisabled`, envuelve un botón deshabilitado para que el tooltip se siga abriendo (un `disabled` no recibe hover) — justo cuando más falta explicar por qué no está disponible.
 
-**Por incorporar** (aún NO existen; añádelos con `pnpm dlx shadcn@latest add <componente>` desde el registro oficial, la **primera vez que una pantalla los necesite**): `sheet`, `popover`, `dropdown-menu`, `select`, `tooltip`, `table`, `badge`.
+**Por incorporar** (aún NO existen; añádelos con `pnpm dlx shadcn@latest add <componente>` desde el registro oficial, la **primera vez que una pantalla los necesite**): `sheet`, `popover`, `dropdown-menu`, `select`, `table`, `badge`.
 
 > **`@base-ui/react` (headless, del stack §1) tampoco está instalado.** El único primitivo headless
 > hoy es `@radix-ui/react-dialog` (vía shadcn). Instala `@base-ui/react` recién cuando un componente

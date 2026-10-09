@@ -140,7 +140,7 @@ Cada tipo SHALL declarar **uno** de tres comportamientos de color, no almacenado
 - **THEN** el sistema registra ambos hallazgos, porque un implante no implica ni reemplaza la ausencia
 
 ### Requirement: Grado y especificación obligatorios según el tipo
-Los tipos que lo requieran SHALL llevar además un **grado** (la movilidad dental) y SHALL **obligar a registrar la entrada correspondiente en las especificaciones**.
+Los tipos que lo requieran SHALL llevar además un **grado** (la movilidad dental). Los tipos que la norma obliga a detallar (corona, corona temporal, fluorosis) SHALL **exigir texto en las especificaciones** antes de sellar: con uno de ellos registrado, dejarlas revisadas y vacías no alcanza.
 
 #### Scenario: Registrar una condición que exige grado
 - **WHEN** un usuario registra una movilidad dental indicando su grado
@@ -155,7 +155,7 @@ Los tipos que lo requieran SHALL llevar además un **grado** (la movilidad denta
 - **THEN** el sistema rechaza la operación
 
 #### Scenario: Rechazar el sellado si un tipo que exige especificación no la tiene
-- **WHEN** se intenta sellar un odontograma con una movilidad registrada pero sin la clasificación anotada en especificaciones
+- **WHEN** se intenta sellar un odontograma con una corona registrada y las especificaciones vacías (sin el color del metal)
 - **THEN** el sistema rechaza el sellado indicando qué falta
 
 ### Requirement: Integridad del hallazgo y de su localización
@@ -231,7 +231,7 @@ Un odontograma sellado SHALL rechazar toda modificación, **incluidas las de sus
 - **THEN** una prevalece y la otra es rechazada, sin bloqueo mutuo entre ambas
 
 ### Requirement: Especificaciones y observaciones del odontograma
-El odontograma SHALL incluir **dos** secciones de texto distintas que no se sustituyen: **especificaciones**, el detalle de hallazgos del catálogo que no cabe en el gráfico (clasificación de una movilidad, material de una corona temporal, color del metal de una corona), y **observaciones**, los hallazgos clínicos que la nomenclatura no contempla. Ambas SHALL estar registradas antes de sellar el odontograma; registrar que no hay nada que anotar es válido, dejarlas sin revisar no.
+El odontograma SHALL incluir **dos** secciones de texto distintas que no se sustituyen: **especificaciones**, el detalle de hallazgos del catálogo que no cabe en el gráfico (color del metal de una corona, material de una corona temporal, clasificación de una fluorosis), y **observaciones**, los hallazgos clínicos que la nomenclatura no contempla. Ambas SHALL estar registradas antes de sellar el odontograma; registrar que no hay nada que anotar es válido, dejarlas sin revisar no.
 
 #### Scenario: Registrar las especificaciones
 - **WHEN** un usuario registra las especificaciones de un odontograma abierto

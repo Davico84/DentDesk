@@ -62,9 +62,14 @@ export function toRequest(values: ClinicalHistoryValues): ClinicalHistoryRequest
  * Los mismos nombres que devuelve el backend en `missingFields` (design.md D4,
  * `ClinicalHistoryChecklist`) — se recalcula en el cliente solo para **guiar** al odontólogo
  * (deshabilitar "Completar" y mostrar qué falta); el servidor sigue siendo la autoridad que de
- * verdad bloquea el sellado.
+ * verdad bloquea el sellado. `hasInitialDentalChart` gana con `add-dental-chart` (design.md D4/D5
+ * de ese change): la Historia ya no se sella sola, necesita un odontograma inicial creado.
  */
-export function missingChecklistFields(values: ClinicalHistoryValues, diagnosisCount: number): string[] {
+export function missingChecklistFields(
+  values: ClinicalHistoryValues,
+  diagnosisCount: number,
+  hasInitialDentalChart: boolean,
+): string[] {
   const missing: string[] = [];
   if (!values.motivoConsulta.trim()) missing.push("motivoConsulta");
   if (!values.antecedentesPersonales.trim()) missing.push("antecedentesPersonales");
@@ -74,6 +79,7 @@ export function missingChecklistFields(values: ClinicalHistoryValues, diagnosisC
   if (!values.examenClinico.trim()) missing.push("examenClinico");
   if (diagnosisCount < 1) missing.push("diagnosticos");
   if (!values.pronostico.trim()) missing.push("pronostico");
+  if (!hasInitialDentalChart) missing.push("dentalChart");
   return missing;
 }
 
@@ -87,4 +93,5 @@ export const CHECKLIST_LABELS: Record<string, string> = {
   examenClinico: "Examen clínico",
   diagnosticos: "Al menos un diagnóstico",
   pronostico: "Pronóstico",
+  dentalChart: "Odontograma inicial",
 };

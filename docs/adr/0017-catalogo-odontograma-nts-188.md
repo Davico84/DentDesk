@@ -104,7 +104,7 @@ La **sigla es dato normativo** del subtipo (o del tipo, si no tiene): debe impri
 
 `ADR-0012` modeló **uno solo**. Son dos, y la diferencia importa:
 
-- **Especificaciones** detalla lo que **sí** está en el catálogo pero no cabe dibujado: el color del metal de una corona (6.1.3), el material de una corona temporal (6.1.4), la clasificación de fluorosis (6.1.5), la clasificación de movilidad.
+- **Especificaciones** detalla lo que **sí** está en el catálogo pero no cabe dibujado: el color del metal de una corona (6.1.3), el material de una corona temporal (6.1.4), la clasificación de fluorosis (6.1.5). ⚠️ **Corregido (2026-10-08):** esta línea incluía además *"la clasificación de movilidad"*, sin numeral que la respaldara. Al verificar el catálogo contra el texto oficial (tarea 0.7 de `add-dental-chart`, comentario de `V16`), 6.1.19 pone el grado de la movilidad **en la sigla** (`M1`/`M2`/`M3`), no en especificaciones. Solo esos tres tipos exigen especificación al sellar.
 - **Observaciones** es la **vía normativa para lo que el catálogo no contempla**. Es el escape formal que la propia norma provee, y el lugar correcto para hallazgos sin sigla oficial.
 
 El Anexo confirma dos áreas de texto separadas.

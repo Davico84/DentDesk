@@ -1,9 +1,13 @@
 import { useState } from "react";
+import { Link } from "react-router-dom";
 import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { CircleAlert, ClipboardList, HeartPulse, Loader2, Stethoscope } from "lucide-react";
+import { CircleAlert, ClipboardList, HeartPulse, Loader2, Smile, Stethoscope } from "lucide-react";
 import { Button } from "@/modules/core/ui/button";
+import { buttonVariants } from "@/modules/core/ui/button-variants";
 import { FormSection, TextareaField } from "@/modules/core/ui/form-field";
+import { dentalChartPath } from "@/routes/paths";
+import { useDentalChart } from "@/modules/dental-chart/hooks/useDentalChartApi";
 import {
   clinicalHistorySchema,
   toDefaults,
@@ -26,6 +30,7 @@ import { RevisadoField } from "./RevisadoField";
 /** Edición de la Historia Clínica ya creada (DRAFT editable, COMPLETED de solo lectura). */
 export function ClinicalHistoryEditor({ patientId }: { patientId: number }) {
   const { data: history } = useClinicalHistory(patientId);
+  const { data: dentalChart } = useDentalChart(patientId);
   const updateHistory = useUpdateClinicalHistory(patientId);
   const completeHistory = useCompleteClinicalHistory(patientId);
   const [confirmingComplete, setConfirmingComplete] = useState(false);
@@ -44,7 +49,8 @@ export function ClinicalHistoryEditor({ patientId }: { patientId: number }) {
   const values = useWatch({ control });
   const completed = history?.status === "COMPLETED";
   const diagnosisCount = history?.diagnosticos?.length ?? 0;
-  const missing = missingChecklistFields(values as ClinicalHistoryValues, diagnosisCount);
+  const hasInitialDentalChart = dentalChart != null;
+  const missing = missingChecklistFields(values as ClinicalHistoryValues, diagnosisCount, hasInitialDentalChart);
 
   const onSubmit = (formValues: ClinicalHistoryValues) => {
     updateHistory.mutate(toRequest(formValues));
@@ -124,6 +130,22 @@ export function ClinicalHistoryEditor({ patientId }: { patientId: number }) {
           ) : null}
         </section>
       </fieldset>
+
+      {/*
+        add-dental-chart (design.md D4/D5b): el sellado ya no depende solo de esta pantalla, así
+        que sin esto el odontólogo chocaría con un rechazo del servidor sin entender por qué.
+      */}
+      {!completed && !hasInitialDentalChart ? (
+        <div className="flex items-center justify-between gap-3 rounded-2xl border bg-accent px-4 py-3 text-sm text-accent-foreground">
+          <span className="flex items-center gap-2">
+            <Smile className="size-4 shrink-0" />
+            Falta el odontograma inicial: también es requisito para completar la admisión.
+          </span>
+          <Link to={dentalChartPath(patientId)} className={buttonVariants({ variant: "outline", size: "sm" })}>
+            Ir al odontograma
+          </Link>
+        </div>
+      ) : null}
 
       {!completed ? (
         <div className="flex flex-col items-end gap-1.5">
