@@ -188,23 +188,34 @@ Cita agendada.
 > **`dental-chart`** es el **estado** de la boca (el odontograma) y **`treatments`** son las **acciones** que lo cambian. Juntas necesitaban una "y" y cargaban con cinco entidades: mala granularidad.
 > `treatments` **depende de** `dental-chart` (al completarse un tratamiento, actualiza el estado).
 
-### `dental-chart` → **Tooth + ToothCondition** (el odontograma: el ESTADO)
+### `dental-chart` → **DentalChartBlock + DentalChartFinding** (el odontograma: el ESTADO) *(odontograma inicial; construida)*
 
-> 🔄 **Stub revisado por [`ADR-0012`](adr/0012-odontograma-libro-de-asientos.md) (2026-07-30) — no seguir el modelo de abajo tal cual.** El modelado en profundidad contra la norma peruana invalidó tres piezas: el `status` (`EXISTING`/`PLANNED`/`DONE`) mete intención y acción en el aggregate de estado, la FK `→ Treatment` invierte la dependencia declarada en `vision.md §2`, y `Tooth` como tabla es redundante (ya existe como código, `FdiTooth`, construido con `add-clinical-history`). El modelo acordado es un **libro de asientos** con el **bloque diario** como Aggregate Root. Esta sección **se consolida al archivar `add-dental-chart`** (gobernanza, `docs/vision.md §4`); hasta entonces, la fuente de verdad del modelo es el ADR.
+El estado dental según **NTS 188** (RM 559-2022), anexo obligatorio de la historia clínica. Notación **FDI/ISO 3950**, denticiones **permanente y temporal**. Modelado como **libro de asientos** ([`ADR-0012`](adr/0012-odontograma-libro-de-asientos.md)) con el catálogo verificado contra el texto oficial ([`ADR-0017`](adr/0017-catalogo-odontograma-nts-188.md)). Sin tabla `Tooth`: las piezas y sus superficies aplicables viven en código (`FdiTooth`).
 
-El estado dental pieza a pieza y **por superficie**. Notación **FDI/ISO 3950**, denticiones **permanente y temporal**.
+**DentalChartBlock** *(Aggregate Root: un odontograma fechado)*
+- `patient` (FK compuesta por tenant), `type` (`INITIAL`; la evolución llega en la fase 2), `status` (`OPEN` | `SEALED`), `examinedOn` (fecha del evento clínico, NTS 188 5.10/5.11 — no la de creación de la fila), `sealedAt`.
+- **`specifications` + `specificationsReviewed`** (5.14: lo que **sí** está en el catálogo pero no cabe dibujado) y **`observations` + `observationsReviewed`** (5.15: lo que la nomenclatura **no** contempla). Dos campos distintos, con el mismo patrón revisado/detalle que la Historia: "revisado y sin nada que anotar" es un dato válido.
+- **Uno inicial por paciente/clínica** (índices únicos parciales).
+- **Sellado** `OPEN → SEALED`: unidireccional y **atómico con la `HistoriaClinica`** (`CloseAdmissionService`, `ADR-0012` D5): ninguno de los dos queda sellado sin el otro. El checklist exige especificaciones y observaciones revisadas y, si algún hallazgo es de un tipo que la norma obliga a detallar (corona 6.1.3, corona temporal 6.1.4, fluorosis 6.1.5), **texto** en especificaciones. La movilidad no: su grado va en la sigla (6.1.19). No hay un mínimo de hallazgos: una boca sana es un registro válido.
+- **Inmutable una vez sellado**, en dos capas: el servicio bloquea el bloque (`FOR UPDATE`) y comprueba `OPEN` antes de toda escritura; los triggers de `V20` impiden a nivel de dato reabrirlo, resellarlo o tocar sus hallazgos.
 
-**Tooth** (referencia; catálogo de piezas, no por paciente)
-- `fdi` (código FDI: permanente 11–48; temporal 51–85), `dentition` (`PERMANENT` | `TEMPORARY`), `quadrant` (1–8), `position` (1–8), `arch` (superior/inferior)
-- Superficies aplicables (según anterior/posterior)
+**DentalChartFinding** *(un hallazgo)*
+- `block` (FK compuesta por tenant), `type` + `subtype` (FK al catálogo), `condition` (`GOOD` | `POOR`, solo en los tipos *según el estado*), `grade` (1–3, solo la movilidad).
+- **Localización en cinco formas** (`locationKind`): `SURFACE` (pieza + superficie aplicable), `TOOTH`, `BETWEEN_TEETH` (diastema, supernumerario; orden canónico `toothA < toothB`), `TOOTH_RANGE` (prótesis parcial, ortodoncia fija: **un solo** hallazgo) y `ARCH` (superior/inferior). Columnas `toothA`/`toothB`/`surface`/`arch` con un `CHECK` de emparejamiento a prueba de NULL.
+- Unicidad de tipo+subtipo por localización: índices parciales por variante; el rango se valida en el servicio con el bloque bloqueado.
+- Aviso **no bloqueante** de dentición ↔ edad (pieza temporal en un adulto).
 
-**ToothCondition** (el estado del odontograma, por paciente y superficie)
-- `patient` (FK), `fdi` (pieza), `surface` (`M` mesial · `D` distal · `V` vestibular · `P`/`L` palatino/lingual · `O`/`I` oclusal/incisal; **null** = condición de pieza completa, p. ej. ausente/implante)
-- `type` (caries, obturación, corona, endodoncia, extracción/ausente, fractura, sellante, implante, …)
-- `status` (`EXISTING` hallazgo · `PLANNED` planificado · `DONE` realizado)
-- `treatment` (FK opcional → Treatment que lo generó), `notedAt`
+**DentalChartFindingTooth** *(las piezas de un rango)*
+- `finding` (FK compuesta por tenant), `position`, `tooth`. Al menos dos piezas y sin repetir (validado en el servicio).
 
-> 🎨 **Código de color del odontograma — ✅ resuelto en [`ADR-0012` D2](adr/0012-odontograma-libro-de-asientos.md).** La pregunta que estaba abierta acá (*"¿`EXISTING` comparte color con `PLANNED`?"*) **partía de una premisa falsa**: asumía que el color mapea al `status`. Mapea a la **naturaleza clínica del tipo** de condición — **rojo** = requiere intervención · **azul** = no hay patología activa. Al sacar el `status` del modelo, la pregunta se disuelve. El color variable de supernumerario y giroversión resultó ser **contagio** desde otro hallazgo de la misma pieza: una regla de renderizado, no un dato a guardar.
+**DentalFindingCatalog** *(catálogo global, dato de referencia sin aislamiento por clínica; cargado por la migración `V16`)*
+- PK `(type, subtype)` — los **38 tipos** de NTS 188 con sus subtipos —, `officialAcronym` (la sigla **no es única**: `M` y `S` colisionan, por eso la clave es tipo+subtipo), `scope`, `colorBehavior` (`SIEMPRE_AZUL` | `SIEMPRE_ROJO` | `SEGUN_ESTADO`), `requiresGrade`, `requiresSpecification`, numeral oficial.
+
+> 🎨 **Color** ([`ADR-0017`](adr/0017-catalogo-odontograma-nts-188.md) D1): depende **solo del propio hallazgo** —su tipo y, si aplica, su estado—, nunca de otros de la misma pieza (la regla de "contagio" de `ADR-0012` D2 no existe en la norma). Rojo `#FF0000` / azul `#0000FF` normativos, siempre sobre **fondo blanco**, aunque la app esté en modo oscuro: es un documento legal.
+>
+> 🔒 **Aislamiento**: las tres tablas de negocio llevan `organization_id` propio con `FORCE ROW LEVEL SECURITY` (la RLS no se hereda por FK) y **FK compuestas** `(organization_id, parent_id)`, para que un hijo no pueda apuntar a un padre de otra clínica.
+>
+> **Pendiente (fase 2, junto con `update-clinical-history`)**: odontograma de **evolución** (bloques nuevos por evento, comparación entre fechas) y el odontograma **final** que pide NTS 139.
 
 ### `treatments` → **Treatment + DentalNote + Consent** (las ACCIONES)
 
@@ -212,7 +223,7 @@ Lo que el odontólogo *hace*, con su coste y su consentimiento. Al completarse, 
 
 **Treatment** (procedimiento realizado o planificado)
 - `patient` (FK), `appointment` (FK, opcional), `dentist` (FK → User), `fdi` (opcional: pieza afectada), `surfaces` (superficies afectadas; opcional), `procedureType`, `status` (`PLANNED`/`IN_PROGRESS`/`DONE`), `date`, `cost`
-- Al completarse, actualiza las `ToothCondition` correspondientes.
+- Al completarse, registra el cambio de estado en `dental-chart` como un **asiento nuevo** (odontograma de evolución, fase 2): el odontograma inicial sellado no se toca.
 
 **DentalNote** (notas clínicas)
 - `patient` (FK), `tooth`/`fdi` (opcional: nota sobre una pieza), `treatment` (FK opcional), `text`, `author` (FK → User), `createdAt`
@@ -224,7 +235,7 @@ Lo que el odontólogo *hace*, con su coste y su consentimiento. Al completarse, 
 > **Dentición por edad.** La dentición visible en el odontograma se deriva de `Patient.birthDate`:
 > - Menores: **temporal** (51–85) o **mixta** (temporal + permanente en erupción).
 > - Adultos: **permanente** (11–48).
-> `ToothCondition` es por `fdi`, así que la dentición mixta se soporta de forma natural. Se puede exponer un `dentitionStage` (`TEMPORARY`/`MIXED`/`PERMANENT`) derivado de la edad y ajustable manualmente.
+> Los hallazgos de `dental-chart` son por pieza FDI y el odontograma dibuja siempre ambas denticiones, así que la dentición mixta se soporta de forma natural (con un aviso no bloqueante si la pieza no corresponde a la edad). Se puede exponer un `dentitionStage` (`TEMPORARY`/`MIXED`/`PERMANENT`) derivado de la edad y ajustable manualmente.
 
 ### `images` → **Image**
 Imagen clínica (radiografía/foto) almacenada en S3.
@@ -251,7 +262,7 @@ La **ficha dental** es una **vista/pantalla** del frontend (no una entidad nueva
 | Bloque de la ficha | Fuente (entidades) | Capacidad |
 |---|---|---|
 | Cabecera del paciente | `Patient` | `patients` |
-| **Odontograma** interactivo (FDI, por superficie, permanente+temporal) | `Tooth` + `ToothCondition` | **`dental-chart`** |
+| **Odontograma** interactivo (FDI, cinco formas de localización, permanente+temporal) | `DentalChartBlock` + `DentalChartFinding` (+ `DentalChartFindingTooth`) | **`dental-chart`** |
 | Registro de **tratamientos** (por pieza/superficie) | `Treatment` | `treatments` |
 | **Notas dentales** | `DentalNote` | `treatments` |
 | **Pagos** del paciente / por tratamiento | `Invoice` + `InvoiceLine → Treatment` | `patient-billing` |
@@ -286,9 +297,10 @@ erDiagram
     Appointment ||--o| Treatment : "origina"
     Patient ||--o{ Image : "tiene"
     Treatment ||--o{ Image : "documenta"
-    Patient ||--o{ ToothCondition : "odontograma"
-    Tooth ||--o{ ToothCondition : "estado en"
-    Treatment ||--o{ ToothCondition : "genera"
+    Patient ||--o| DentalChartBlock : "odontograma inicial"
+    DentalChartBlock ||--o{ DentalChartFinding : "registra"
+    DentalChartFinding ||--o{ DentalChartFindingTooth : "abarca (rango)"
+    DentalFindingCatalog ||--o{ DentalChartFinding : "clasifica"
     Patient ||--o{ DentalNote : "tiene"
     Treatment ||--o{ DentalNote : "documenta"
     Treatment ||--o| Consent : "requiere"
@@ -399,20 +411,48 @@ erDiagram
         String status
         Decimal cost
     }
-    Tooth {
-        String fdi PK
-        String dentition
-        Int quadrant
-        Int position
-    }
-    ToothCondition {
+    DentalChartBlock {
         Long id PK
-        Long patientId FK
-        String fdi FK
-        String surface
+        Long organizationId FK
+        Long patientId FK "UK por type INITIAL"
         String type
         String status
-        Long treatmentId FK
+        Date examinedOn
+        DateTime sealedAt
+        String specifications
+        Boolean specificationsReviewed
+        String observations
+        Boolean observationsReviewed
+    }
+    DentalChartFinding {
+        Long id PK
+        Long organizationId FK
+        Long blockId FK
+        String type FK
+        String subtype FK
+        String condition
+        Int grade
+        String locationKind
+        Int toothA
+        Int toothB
+        String surface
+        String arch
+    }
+    DentalChartFindingTooth {
+        Long id PK
+        Long organizationId FK
+        Long findingId FK
+        Int position
+        Int tooth
+    }
+    DentalFindingCatalog {
+        String type PK
+        String subtype PK
+        String officialAcronym
+        String scope
+        String colorBehavior
+        Boolean requiresGrade
+        Boolean requiresSpecification
     }
     DentalNote {
         Long id PK

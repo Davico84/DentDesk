@@ -121,7 +121,7 @@ Proposal, design, spec y tasks se escribieron **antes** de tener el texto oficia
 
 ## 6. Gobernanza y cierre
 
-- [ ] 6.1 Al archivar: reemplazar el stub `Tooth` + `ToothCondition` de `docs/domain.md` por el modelo real (odontograma, hallazgo, localización de cinco formas, catálogo tipo+subtipo) y actualizar el ER
-- [ ] 6.2 Al archivar: completar en `docs/compliance/regulatory-matrix.md` las filas del odontograma — de `pendiente` al requirement/scenario concreto, y su estado a ✅. El § ya cita el texto oficial; **no rebajarlo a un documento derivado** (`docs/adr/README.md`, dimensión 1)
-- [ ] 6.3 Al archivar: marcar `dental-chart` como construida y enlazar su `spec.md` en `docs/vision.md`; anotar que la fase 2 (evolución) va junto con `update-clinical-history`
-- [ ] 6.4 `mvn verify` (back) y `pnpm validate` (front) en verde; `openspec validate add-dental-chart --strict`
+- [x] 6.1 Al archivar: reemplazar el stub `Tooth` + `ToothCondition` de `docs/domain.md` por el modelo real (odontograma, hallazgo, localización de cinco formas, catálogo tipo+subtipo) y actualizar el ER
+- [x] 6.2 Al archivar: completar en `docs/compliance/regulatory-matrix.md` las filas del odontograma — de `pendiente` al requirement/scenario concreto, y su estado a ✅. El § ya cita el texto oficial; **no rebajarlo a un documento derivado** (`docs/adr/README.md`, dimensión 1)
+- [x] 6.3 Al archivar: marcar `dental-chart` como construida y enlazar su `spec.md` en `docs/vision.md`; anotar que la fase 2 (evolución) va junto con `update-clinical-history`
+- [x] 6.4 `mvn verify` (back) y `pnpm validate` (front) en verde; `openspec validate add-dental-chart --strict`
