@@ -194,8 +194,8 @@ describe("PatientFormScreen (edición) — anamnesis congelada", () => {
     phone: "+51987654321",
     status: "ACTIVE",
     allergies: ["Látex"],
-    conditions: [],
-    currentMedication: [],
+    conditions: ["Diabetes"],
+    currentMedication: ["Metformina", "Losartán"],
   };
 
   function renderEdit(patient: Record<string, unknown>) {
@@ -210,10 +210,10 @@ describe("PatientFormScreen (edición) — anamnesis congelada", () => {
   }
 
   it("con Historia Clínica la anamnesis se lee y no se edita, y el guardado la manda sin cambios", async () => {
-    let received: { allergies?: string[] } | null = null;
+    let received: { allergies?: string[]; conditions?: string[]; currentMedication?: string[] } | null = null;
     server.use(
       http.put("*/patients/1", async ({ request }) => {
-        received = (await request.json()) as { allergies?: string[] };
+        received = (await request.json()) as typeof received;
         return HttpResponse.json({ ...PATIENT, anamnesisFrozen: true });
       }),
     );
@@ -227,7 +227,10 @@ describe("PatientFormScreen (edición) — anamnesis congelada", () => {
 
     await user.click(screen.getByRole("button", { name: /guardar cambios/i }));
     await waitFor(() => expect(received).not.toBeNull());
+    // Las tres listas viajan exactamente como estaban, en el mismo orden: el servidor no ve cambios.
     expect(received!.allergies).toEqual(["Látex"]);
+    expect(received!.conditions).toEqual(["Diabetes"]);
+    expect(received!.currentMedication).toEqual(["Metformina", "Losartán"]);
   });
 
   it("sin Historia Clínica la anamnesis sigue editable", async () => {

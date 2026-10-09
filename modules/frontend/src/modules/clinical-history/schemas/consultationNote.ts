@@ -16,10 +16,25 @@ import { BackgroundEntryRequestCategory, CorrectionRequestField } from "@/module
  * El contenido es opcional en el borrador: lo obligatorio (motivo, examen, tratamiento y al menos un
  * diagnóstico) se exige al **sellar** — {@link missingNoteFields}, espejo del checklist del servidor.
  *
- * Las fechas se manejan en la hora local del navegador (`datetime-local` / `date`); el servidor
- * valida con la zona de la clínica. Para una clínica en Perú, ambas coinciden.
+ * La hora de atención se escribe en la hora local del navegador (`datetime-local`) y viaja como
+ * instante. El **día** de la atención, contra el que se compara la próxima cita, se calcula en la
+ * zona de la clínica — igual que el servidor —, no en la del navegador.
  */
 const text = z.string();
+
+/**
+ * Zona horaria de la clínica. Espejo de `OrganizationSettings.DEFAULT_TIMEZONE`: hoy ninguna clínica
+ * puede cambiarla (no hay endpoint) y la API no la expone. Si eso cambia, debe llegar del servidor.
+ */
+export const CLINIC_TIMEZONE = "America/Lima";
+
+/** Día calendario (`YYYY-MM-DD`) de un instante en la zona de la clínica. */
+export function clinicDay(instant: Date): string {
+  return new Intl.DateTimeFormat("en-CA", { timeZone: CLINIC_TIMEZONE }).format(instant);
+}
+
+/** Margen para el reloj del equipo: una atención "de ahora" puede llegar unos segundos adelantada. */
+export const CLOCK_SKEW_MS = 60_000;
 
 export const consultationNoteSchema = z
   .object({
@@ -42,10 +57,10 @@ export const consultationNoteSchema = z
       ctx.addIssue({ code: "custom", path: ["attendedAt"], message: "Fecha y hora inválidas." });
       return;
     }
-    if (attended.getTime() > Date.now() + 60_000) {
+    if (attended.getTime() > Date.now() + CLOCK_SKEW_MS) {
       ctx.addIssue({ code: "custom", path: ["attendedAt"], message: "La atención no puede ser futura." });
     }
-    if (values.nextAppointmentOn && values.nextAppointmentOn <= values.attendedAt.slice(0, 10)) {
+    if (values.nextAppointmentOn && values.nextAppointmentOn <= clinicDay(attended)) {
       ctx.addIssue({
         code: "custom",
         path: ["nextAppointmentOn"],

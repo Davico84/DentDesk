@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
   backgroundAltaSchema,
+  clinicDay,
   consultationNoteSchema,
   correctionSchema,
   missingNoteFields,
@@ -40,6 +41,19 @@ describe("consultationNoteSchema", () => {
     expect(sameDay.success).toBe(false);
     expect(before.success).toBe(false);
     expect(after.success).toBe(true);
+  });
+
+  it("compara la próxima cita con el día de la clínica, no con el del navegador", () => {
+    // 03:00 UTC del 10 de septiembre es todavía el 9 en Lima: el día de la atención para la clínica es el 9.
+    const attendedAt = toLocalDateTimeInput("2026-09-10T03:00:00Z");
+    expect(clinicDay(new Date("2026-09-10T03:00:00Z"))).toBe("2026-09-09");
+    expect(consultationNoteSchema.safeParse({ ...base, attendedAt, nextAppointmentOn: "2026-09-09" }).success).toBe(false);
+    expect(consultationNoteSchema.safeParse({ ...base, attendedAt, nextAppointmentOn: "2026-09-10" }).success).toBe(true);
+  });
+
+  it("acepta una atención con el margen de un minuto del reloj y rechaza más allá", () => {
+    expect(consultationNoteSchema.safeParse({ ...base, attendedAt: localInput(0) }).success).toBe(true);
+    expect(consultationNoteSchema.safeParse({ ...base, attendedAt: localInput(5 * 60_000) }).success).toBe(false);
   });
 
   it("los campos vacíos viajan como undefined y la fecha como instante ISO", () => {

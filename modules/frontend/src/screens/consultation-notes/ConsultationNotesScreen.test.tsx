@@ -124,8 +124,9 @@ describe("ConsultationNotesScreen — nota abierta", () => {
     expect(screen.queryByRole("button", { name: /descartar/i })).not.toBeInTheDocument();
   });
 
-  it("sella una nota completa tras confirmar", async () => {
+  it("sella una nota completa tras confirmar y refresca los antecedentes vigentes", async () => {
     let sealed = false;
+    let backgroundReads = 0;
     server.use(
       http.post("*/patients/1/consultation-notes/10/seal", () => {
         sealed = true;
@@ -134,11 +135,21 @@ describe("ConsultationNotesScreen — nota abierta", () => {
     );
     const user = userEvent.setup();
     renderScreen({ notes: [OPEN_COMPLETE] });
+    // Después de renderScreen: este handler cuenta las lecturas y gana sobre el de renderScreen.
+    server.use(
+      http.get("*/patients/1/clinical-background", () => {
+        backgroundReads += 1;
+        return HttpResponse.json({ items: [] });
+      }),
+    );
 
     await user.click(await screen.findByRole("button", { name: /sellar nota/i }));
+    const readsBeforeSeal = backgroundReads;
     await user.click(within(screen.getByRole("dialog")).getByRole("button", { name: /^sellar$/i }));
 
     await waitFor(() => expect(sealed).toBe(true));
+    // Los asientos de la nota pasan a ser vigentes al sellarla: la vista tiene que volver a pedirse.
+    await waitFor(() => expect(backgroundReads).toBeGreaterThan(readsBeforeSeal));
   });
 
   it("guarda el avance con lo escrito", async () => {
