@@ -6,10 +6,7 @@
 ## MODIFIED Requirements
 
 ### Requirement: Sellado a COMPLETED con checklist mínimo afirmativo
-
-La transición de `DRAFT` a `COMPLETED` SHALL ser una acción manual y explícita que valida un **checklist mínimo** de completitud clínica antes de sellar, y SHALL ser **unidireccional**: una Historia `COMPLETED` no vuelve a `DRAFT` ni se vuelve a sellar. En las secciones donde "ninguno" es información clínica válida (**alergias, medicación, antecedentes familiares**), un campo vacío NO SHALL contar como revisado: la ausencia debe registrarse de forma **afirmativa** ("sin alergias conocidas" / "no toma medicación" / "sin antecedentes familiares"), distinta de "no llenado". El mismo patrón (revisado + detalle opcional) aplica por igual a esas secciones.
-
-El checklist SHALL exigir además que el paciente tenga su **odontograma inicial** registrado, porque es anexo obligatorio de la historia clínica. El sellado de ambos documentos SHALL ocurrir de forma **atómica**: la Historia Clínica ya NO SHALL sellarse por sí sola. Si el sellado del odontograma falla, la Historia SHALL permanecer en `DRAFT` — ninguno de los dos puede quedar sellado sin el otro, ni modificarse después de forma independiente.
+La transición de `DRAFT` a `COMPLETED` SHALL ser manual, explícita y **unidireccional** (sin volver a `DRAFT` ni resellar), y SHALL validar un **checklist mínimo**. En alergias, medicación y antecedentes familiares un campo vacío NO SHALL contar como revisado: la ausencia SHALL registrarse de forma **afirmativa**. El checklist SHALL exigir el **odontograma inicial** del paciente y ambos documentos SHALL sellarse de forma **atómica**: si falla el odontograma, la Historia SHALL seguir en `DRAFT`.
 
 #### Scenario: Completar cuando el checklist está satisfecho
 - **WHEN** un usuario solicita marcar como `COMPLETED` una Historia Clínica cuyo checklist mínimo está cubierto y cuyo paciente tiene el odontograma inicial registrado

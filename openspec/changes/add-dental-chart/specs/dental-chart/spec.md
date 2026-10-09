@@ -29,8 +29,7 @@ El sistema SHALL permitir crear **un solo** odontograma inicial por paciente den
 - **THEN** el sistema responde como si no existiera
 
 ### Requirement: Registro de hallazgos con localización precisa
-
-Cada hallazgo del odontograma SHALL indicar **qué** condición es y **dónde** está. La localización SHALL tomar una de **cinco** formas: la **superficie** de una pieza, la **pieza completa**, el **espacio entre dos piezas** (para condiciones que no pertenecen a ninguna pieza, como el diastema o el supernumerario), un **rango de piezas** (una prótesis parcial o un aparato de ortodoncia fijo comprometen varias piezas y son **un solo** hallazgo, no uno por pieza) y un **arco completo** (superior o inferior, para el edentulismo total y la prótesis completa). La forma de localización SHALL corresponder al alcance del tipo de condición: un tipo de superficie NO SHALL aceptar una localización de pieza completa, ni a la inversa. Las piezas SHALL pertenecer al conjunto real de la notación FDI, y la superficie SHALL ser una de las aplicables a esa pieza. Mientras el odontograma esté abierto, los hallazgos SHALL poder corregirse o eliminarse.
+Cada hallazgo SHALL indicar **qué** condición es y **dónde** está, con una de **cinco** localizaciones: la **superficie** de una pieza, la **pieza completa**, el **espacio entre dos piezas** (diastema, supernumerario), un **rango de piezas** (prótesis parcial, ortodoncia fija: **un solo** hallazgo) o un **arco completo** (edentulismo total, prótesis completa). La localización SHALL corresponder al alcance del tipo: un tipo de superficie NO SHALL aceptar una pieza completa, ni a la inversa.
 
 #### Scenario: Registrar un hallazgo en la superficie de una pieza
 - **WHEN** un usuario registra una condición de alcance de superficie sobre una pieza válida y una de sus superficies aplicables
@@ -52,14 +51,6 @@ Cada hallazgo del odontograma SHALL indicar **qué** condición es y **dónde** 
 - **WHEN** un usuario registra una prótesis completa superior
 - **THEN** el sistema la registra como **un solo** hallazgo sobre el arco superior, sin expandirla en un hallazgo por pieza
 
-#### Scenario: Rechazar una pieza inexistente
-- **WHEN** un usuario intenta registrar un hallazgo sobre un número que no corresponde a ninguna pieza real (por ejemplo `19`, `29`, `99`)
-- **THEN** el sistema rechaza la operación
-
-#### Scenario: Rechazar una superficie no aplicable a la pieza
-- **WHEN** un usuario intenta registrar un hallazgo en una superficie que esa pieza no tiene (por ejemplo, una superficie oclusal en un incisivo)
-- **THEN** el sistema rechaza la operación
-
 #### Scenario: Rechazar una localización incoherente con el alcance del tipo
 - **WHEN** un usuario intenta registrar una condición de pieza completa indicando una superficie, o una condición de superficie sin indicarla
 - **THEN** el sistema rechaza la operación señalando el campo incorrecto
@@ -68,31 +59,34 @@ Cada hallazgo del odontograma SHALL indicar **qué** condición es y **dónde** 
 - **WHEN** un usuario intenta registrar una condición de alcance de rango indicando una única pieza
 - **THEN** el sistema rechaza la operación, porque un rango comprende varias piezas
 
+#### Scenario: El mismo espacio entre piezas no se duplica por el orden
+- **WHEN** un usuario registra un hallazgo entre las piezas `11` y `21`, y luego intenta registrar el mismo tipo entre `21` y `11`
+- **THEN** el sistema lo reconoce como la misma localización y rechaza el duplicado
+
+### Requirement: Piezas y superficies válidas según FDI
+Las piezas de un hallazgo SHALL pertenecer al conjunto real de la notación FDI, y la superficie SHALL ser una de las aplicables a esa pieza.
+
+#### Scenario: Rechazar una pieza inexistente
+- **WHEN** un usuario intenta registrar un hallazgo sobre un número que no corresponde a ninguna pieza real (por ejemplo `19`, `29`, `99`)
+- **THEN** el sistema rechaza la operación
+
+#### Scenario: Rechazar una superficie no aplicable a la pieza
+- **WHEN** un usuario intenta registrar un hallazgo en una superficie que esa pieza no tiene (por ejemplo, una superficie oclusal en un incisivo)
+- **THEN** el sistema rechaza la operación
+
 #### Scenario: Rechazar hallazgos de superficie en una pieza ausente
 - **WHEN** un usuario intenta registrar una condición sobre la superficie de una pieza ya marcada como ausente
 - **THEN** el sistema rechaza la operación por contradicción
 
-#### Scenario: El mismo espacio entre piezas no se duplica por el orden
-- **WHEN** un usuario registra un hallazgo entre las piezas `11` y `21`, y luego intenta registrar el mismo tipo entre `21` y `11`
-- **THEN** el sistema lo reconoce como la misma localización y rechaza el duplicado
+### Requirement: Corrección de hallazgos con el odontograma abierto
+Mientras el odontograma esté abierto, los hallazgos SHALL poder corregirse o eliminarse.
 
 #### Scenario: Corregir un hallazgo mientras el odontograma está abierto
 - **WHEN** un usuario elimina o corrige un hallazgo de un odontograma que aún no fue sellado
 - **THEN** el sistema aplica el cambio
 
 ### Requirement: Catálogo cerrado de condiciones, alineado a la norma vigente
-
-Los tipos de condición registrables SHALL formar un **conjunto cerrado**, alineado al catálogo de la norma vigente del odontograma. Un tipo SHALL poder tener **subtipos** —variantes por material, profundidad o causa que comparten alcance y comportamiento— y el sistema SHALL exigir el subtipo en los tipos que lo tienen y rechazarlo en los que no. Cada tipo y subtipo SHALL llevar su **sigla oficial** como dato normativo, que el sistema SHALL exponer sin alterar.
-
-Cada tipo SHALL declarar **uno** de tres comportamientos de color, que determinan su representación sin almacenarse como color:
-
-- **siempre azul** — característica sin estado que evaluar (macrodoncia, diastema, giroversión, pieza ausente);
-- **siempre rojo** — patología **o tratamiento temporal** (caries, fractura, movilidad, corona temporal);
-- **según el estado del hallazgo** — restauraciones y aparatos, que pueden estar en buen o mal estado (corona definitiva, sellante, implante, prótesis, ortodoncia).
-
-Los hallazgos de comportamiento *según el estado* SHALL registrarlo, y el sistema SHALL rechazarlo en los demás. Los tipos que lo requieran SHALL llevar además un **grado** (la movilidad dental) y SHALL **obligar a registrar la entrada correspondiente en las especificaciones**.
-
-El color de un hallazgo SHALL depender **únicamente de sí mismo** —su tipo y, si aplica, su estado—, nunca de otros hallazgos de la misma pieza.
+Los tipos de condición registrables SHALL formar un **conjunto cerrado**, alineado al catálogo de la norma vigente del odontograma. Un tipo SHALL poder tener **subtipos** (variantes por material, profundidad o causa con el mismo alcance y comportamiento), y el sistema SHALL exigir el subtipo en los tipos que lo tienen y rechazarlo en los que no. Cada tipo y subtipo SHALL llevar su **sigla oficial** como dato normativo, que el sistema SHALL exponer sin alterar.
 
 #### Scenario: Rechazar un tipo de condición fuera del catálogo
 - **WHEN** un usuario intenta registrar un hallazgo con un tipo de condición que no pertenece al catálogo
@@ -109,6 +103,13 @@ El color de un hallazgo SHALL depender **únicamente de sí mismo** —su tipo y
 #### Scenario: Rechazar un subtipo que no pertenece al tipo
 - **WHEN** un usuario intenta registrar una corona indicando un subtipo de otro tipo de condición
 - **THEN** el sistema rechaza la operación, aunque ese subtipo exista en el catálogo
+
+#### Scenario: Avisar cuando la pieza no corresponde a la edad del paciente
+- **WHEN** un usuario registra un hallazgo sobre una pieza temporal en un paciente adulto (o permanente en un lactante)
+- **THEN** el sistema **registra el hallazgo** y devuelve un aviso de incoherencia con la edad, sin bloquear la operación
+
+### Requirement: Color del hallazgo según el comportamiento de su tipo
+Cada tipo SHALL declarar **uno** de tres comportamientos de color, no almacenados como color: **siempre azul** (característica sin estado), **siempre rojo** (patología o tratamiento temporal) o **según el estado** (restauraciones y aparatos, en buen o mal estado). Los hallazgos *según el estado* SHALL registrarlo, y el sistema SHALL rechazarlo en los demás. El color SHALL depender **únicamente** del propio hallazgo —su tipo y, si aplica, su estado—, nunca de otros hallazgos de la misma pieza.
 
 #### Scenario: Registrar una restauración en buen estado
 - **WHEN** un usuario registra un sellante indicando que está en buen estado
@@ -138,6 +139,9 @@ El color de un hallazgo SHALL depender **únicamente de sí mismo** —su tipo y
 - **WHEN** un usuario registra un implante en una pieza ya marcada como ausente
 - **THEN** el sistema registra ambos hallazgos, porque un implante no implica ni reemplaza la ausencia
 
+### Requirement: Grado y especificación obligatorios según el tipo
+Los tipos que lo requieran SHALL llevar además un **grado** (la movilidad dental) y SHALL **obligar a registrar la entrada correspondiente en las especificaciones**.
+
 #### Scenario: Registrar una condición que exige grado
 - **WHEN** un usuario registra una movilidad dental indicando su grado
 - **THEN** el sistema la registra con ese grado
@@ -153,10 +157,6 @@ El color de un hallazgo SHALL depender **únicamente de sí mismo** —su tipo y
 #### Scenario: Rechazar el sellado si un tipo que exige especificación no la tiene
 - **WHEN** se intenta sellar un odontograma con una movilidad registrada pero sin la clasificación anotada en especificaciones
 - **THEN** el sistema rechaza el sellado indicando qué falta
-
-#### Scenario: Avisar cuando la pieza no corresponde a la edad del paciente
-- **WHEN** un usuario registra un hallazgo sobre una pieza temporal en un paciente adulto (o permanente en un lactante)
-- **THEN** el sistema **registra el hallazgo** y devuelve un aviso de incoherencia con la edad, sin bloquear la operación
 
 ### Requirement: Integridad del hallazgo y de su localización
 
@@ -231,13 +231,7 @@ Un odontograma sellado SHALL rechazar toda modificación, **incluidas las de sus
 - **THEN** una prevalece y la otra es rechazada, sin bloqueo mutuo entre ambas
 
 ### Requirement: Especificaciones y observaciones del odontograma
-
-El odontograma SHALL incluir **dos** secciones de texto distintas, con propósitos que no se sustituyen:
-
-- **Especificaciones** — el detalle de hallazgos que **sí** están en el catálogo pero no cabe representado gráficamente: la clasificación de una movilidad, el material de una corona temporal, el color del metal de una corona.
-- **Observaciones** — los hallazgos clínicos que la nomenclatura del odontograma **no contempla**. Es la vía prevista para lo que no tiene sigla oficial.
-
-Ambas SHALL estar registradas antes de poder sellar el odontograma; registrar que no hay nada que anotar es una afirmación válida, dejarlas sin revisar no lo es.
+El odontograma SHALL incluir **dos** secciones de texto distintas que no se sustituyen: **especificaciones**, el detalle de hallazgos del catálogo que no cabe en el gráfico (clasificación de una movilidad, material de una corona temporal, color del metal de una corona), y **observaciones**, los hallazgos clínicos que la nomenclatura no contempla. Ambas SHALL estar registradas antes de sellar el odontograma; registrar que no hay nada que anotar es válido, dejarlas sin revisar no.
 
 #### Scenario: Registrar las especificaciones
 - **WHEN** un usuario registra las especificaciones de un odontograma abierto
@@ -264,8 +258,7 @@ Ambas SHALL estar registradas antes de poder sellar el odontograma; registrar qu
 - **THEN** el sistema rechaza el sellado, porque una sección no cubre a la otra
 
 ### Requirement: Odontograma sellado e inmutable
-
-Una vez sellado, el odontograma SHALL quedar en solo lectura de forma **unidireccional**: no vuelve a estado abierto ni se vuelve a sellar. La **API SHALL rechazar en el servidor** cualquier operación que intente modificar sus hallazgos, sus especificaciones o sus observaciones, **independientemente del cliente** — aunque la petición se envíe directamente al endpoint, sin pasar por la interfaz. Permanece legible en todo momento. Un odontograma sin hallazgos SHALL poder sellarse: una boca sana es un registro clínico válido.
+Una vez sellado, el odontograma SHALL quedar en solo lectura de forma **unidireccional**: no vuelve a abrirse ni se vuelve a sellar, y permanece legible. La **API SHALL rechazar en el servidor** toda modificación de sus hallazgos, especificaciones u observaciones, **independientemente del cliente**, aunque la petición llegue directo al endpoint. Un odontograma sin hallazgos SHALL poder sellarse: una boca sana es un registro clínico válido.
 
 #### Scenario: El odontograma sellado permanece legible
 - **WHEN** un usuario abre un odontograma ya sellado

@@ -73,6 +73,15 @@ Proposal, design, spec y tasks se escribieron **antes** de tener el texto oficia
 - [x] 2.6 Aviso **no bloqueante** de incoherencia dentición↔edad: registra el hallazgo y devuelve la advertencia (INV-15 — una pieza temporal retenida en un adulto es rara pero real; bloquearla impediría registrar un caso legítimo)
 - [x] 2.7 Tests de servicio, uno por Scenario: crear, segundo rechazado, **creación concurrente con hilos reales** contra PostgreSQL (patrón de `ClinicalHistoryServiceIT`), hallazgo por superficie / pieza / entre piezas / **rango** / **arco**, pieza inexistente, superficie no aplicable, localización incoherente con el alcance, **rango de una sola pieza rechazado**, pieza ausente con superficie, duplicado por orden invertido, corrección con el odontograma abierto, grado exigido/prohibido, **subtipo exigido/prohibido y ajeno al tipo**, **restauración en buen vs. mal estado (mismo tipo, comportamiento distinto)**, estado exigido/prohibido según el comportamiento, **sellante y caries coexistiendo en la misma pieza**, **giroversión que no cambia por una caries vecina**, **implante que coexiste con la ausencia**, aviso por edad
 
+### 2.8 Tests que la revisión externa dejó al descubierto
+
+- [ ] 2.8a Test de **concurrencia con hilos reales** del sellado coordinado, verificando que **no hay deadlock**: el orden de bloqueo es paciente → historia → odontograma en **toda** ruta (design.md D4). Un test secuencial no lo detecta
+- [x] 2.8b Test de **duplicado concurrente de hallazgos** — no solo de creación de bloque, que es lo único que había (design.md D3)
+- [x] 2.8c Test de **RLS de la tabla hija por separado**: son **tres** tablas de negocio nuevas, no dos. La RLS no se hereda por FK
+- [ ] 2.8d Test de que un hallazgo **no puede apuntar a un bloque de otra organización**, aun declarando su propio `organization_id` (design.md D1)
+- [ ] 2.8e Test de que **`sealInitial()` no es invocable fuera del coordinador** — si lo fuera, caería la invariante de atomicidad de `ADR-0012` D5 (design.md D4)
+- [ ] 2.8f Test de que **agregar un hallazgo mientras otra transacción sella** no deja el odontograma sellado con un hallazgo posterior a su fecha de sellado (design.md D9)
+
 ## 3. Sellado coordinado con la admisión (backend) — **toca una capacidad construida**
 
 - [x] 3.1 Operación de sellado del odontograma en `dental-chart`: valida **especificaciones Y observaciones** registradas (por separado) **y las entradas que exigen tipos concretos** (movilidad ⇒ clasificación · corona ⇒ color del metal · fluorosis ⇒ clasificación, `ADR-0017` D6), sella (`sealed_at`, `status=SEALED`), transición **unidireccional**; permite sellar sin hallazgos (una boca sana es un registro válido) (spec: *Odontograma sellado e inmutable*) — las entradas que exigen grado/subtipo se validan en la creación del hallazgo (`ValidFindingLocation`, grupo 2), no se re-verifican al sellar: son inválidas por construcción, nunca llegan a persistirse
@@ -109,15 +118,6 @@ Proposal, design, spec y tasks se escribieron **antes** de tener el texto oficia
 
 - [x] 5.9a Auditoría de los 38 tipos del catálogo contra `nts-188-odontograma-rm-559-2022-ESCANEADA.pdf`: el anillo alrededor de la corona era tratado como símbolo genérico de "pieza con hallazgo" — la norma lo reserva solo a CORONA/CORONA_TEMPORAL (6.1.3/6.1.4). Cada tipo de arco/rango/entre-piezas tiene su propio símbolo, no uno compartido por alcance. Reescrito con dispatch por tipo (`TOOTH_GLYPH`/`ARCH_GLYPH`/`RANGE_GLYPH`/`BETWEEN_GLYPH`), 25 tests de regresión (commit `7babeae`)
 - [x] 5.9b Lista de hallazgos (`FindingList`) con el formato descriptivo del artefacto de diseño: tabla sigla/hallazgo/localización/estado, mismo color normativo que el odontograma (commit `f7fb608`)
-
-### 2.8 Tests que la revisión externa dejó al descubierto
-
-- [ ] 2.8a Test de **concurrencia con hilos reales** del sellado coordinado, verificando que **no hay deadlock**: el orden de bloqueo es paciente → historia → odontograma en **toda** ruta (design.md D4). Un test secuencial no lo detecta
-- [x] 2.8b Test de **duplicado concurrente de hallazgos** — no solo de creación de bloque, que es lo único que había (design.md D3)
-- [x] 2.8c Test de **RLS de la tabla hija por separado**: son **tres** tablas de negocio nuevas, no dos. La RLS no se hereda por FK
-- [ ] 2.8d Test de que un hallazgo **no puede apuntar a un bloque de otra organización**, aun declarando su propio `organization_id` (design.md D1)
-- [ ] 2.8e Test de que **`sealInitial()` no es invocable fuera del coordinador** — si lo fuera, caería la invariante de atomicidad de `ADR-0012` D5 (design.md D4)
-- [ ] 2.8f Test de que **agregar un hallazgo mientras otra transacción sella** no deja el odontograma sellado con un hallazgo posterior a su fecha de sellado (design.md D9)
 
 ## 6. Gobernanza y cierre
 
