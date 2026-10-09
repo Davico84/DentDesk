@@ -17,19 +17,19 @@
 
 ## 3. Backend — nota de consulta
 
-- [ ] 3.1 `ConsultationNoteService.open/get/list/update/discard/seal` con `lockOpenNote` (bloquear y después comprobar `ABIERTA`, `docs/backend.md` §8.3.1); gate Historia `COMPLETED`; conflicto por índice parcial traducido a `409`
-- [ ] 3.2 Validación de `attended_at` (≤ ahora, ≥ última sellada) al abrir, editar y sellar; próxima cita posterior a la fecha de atención
-- [ ] 3.3 Checklist de sellado (motivo, examen, tratamiento, ≥ 1 diagnóstico) que devuelve los faltantes
-- [ ] 3.4 Rechazar abrir una nota si el paciente está dado de baja (scenario *Rechazar la nota de un paciente dado de baja*)
-- [ ] 3.5 `ConsultationNoteServiceIT` — scenarios de *Nota de consulta posterior a la admisión*, *Contenido mínimo*, *Fecha y hora de la atención*, *Nota abierta editable y descartable solo vacía*, *Sellado irreversible de la nota* (uno por WHEN/THEN)
-- [ ] 3.6 `ConsultationNoteConcurrencyIT` — apertura concurrente (una sola nota) y escritura durante el sellado (rechazada, contenido intacto), con orden forzado por `pg_locks` como `ClinicalHistoryConcurrencyIT`
+- [x] 3.1 `ConsultationNoteService.open/get/list/update/discard/seal` con `lockOpenNote` (bloquear y después comprobar `ABIERTA`, `docs/backend.md` §8.3.1); gate Historia `COMPLETED`; conflicto por índice parcial traducido a `409`
+- [x] 3.2 Validación de `attended_at` (≤ ahora, ≥ última sellada) al abrir, editar y sellar; próxima cita posterior a la fecha de atención
+- [x] 3.3 Checklist de sellado (motivo, examen, tratamiento, ≥ 1 diagnóstico) que devuelve los faltantes
+- [x] 3.4 Rechazar abrir una nota si el paciente está dado de baja (scenario *Rechazar la nota de un paciente dado de baja*)
+- [x] 3.5 `ConsultationNoteServiceIT` — scenarios de *Nota de consulta posterior a la admisión*, *Contenido mínimo*, *Fecha y hora de la atención*, *Nota abierta editable y descartable solo vacía*, *Sellado irreversible de la nota* (uno por WHEN/THEN)
+- [x] 3.6 `ConsultationNoteConcurrencyIT` — apertura concurrente (una sola nota) y escritura durante el sellado (rechazada, contenido intacto), con orden forzado por `pg_locks` como `ClinicalHistoryConcurrencyIT`
 
 ## 4. Backend — diagnósticos, corrección y antecedentes
 
-- [ ] 4.1 `ConsultationNoteDiagnosisService.add/update/remove` reutilizando `DiagnosisRequest`/`ValidDiagnosisLocation`/catálogo CIE10, con la regla R (design D5)
-- [ ] 4.2 `ConsultationNoteCorrectionService.add`: solo nota sellada, solo `sealed_by`, campo no vacío en el original, motivo obligatorio
-- [ ] 4.3 `ClinicalBackgroundService`: alta/baja dentro de nota abierta (baja solo de alta vigente del mismo paciente y categoría) y vista de vigentes con los tres orígenes (design D8)
-- [ ] 4.4 ITs por scenario: *Diagnósticos de la nota de consulta*, *Diagnóstico repetitivo exige un registro previo*, *Corrección de un error material como registro nuevo*, *Antecedentes nuevos como asientos de alta y baja*, *Antecedentes vigentes del paciente*
+- [x] 4.1 `ConsultationNoteDiagnosisService.add/update/remove` reutilizando `DiagnosisRequest`/`ValidDiagnosisLocation`/catálogo CIE10, con la regla R (design D5)
+- [x] 4.2 `ConsultationNoteCorrectionService.add`: solo nota sellada, solo `sealed_by`, campo no vacío en el original, motivo obligatorio
+- [x] 4.3 `ClinicalBackgroundService`: alta/baja dentro de nota abierta (baja solo de alta vigente del mismo paciente y categoría) y vista de vigentes con los tres orígenes (design D8)
+- [x] 4.4 ITs por scenario: *Diagnósticos de la nota de consulta*, *Diagnóstico repetitivo exige un registro previo*, *Corrección de un error material como registro nuevo*, *Antecedentes nuevos como asientos de alta y baja*, *Antecedentes vigentes del paciente*
 
 ## 5. Backend — API y `patients`
 

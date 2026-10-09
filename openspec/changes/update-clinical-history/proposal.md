@@ -43,7 +43,7 @@ _(ninguna)_
 
 ## Impact
 
-- **Backend**: entidades y tablas nuevas `consultation_note`, `consultation_note_diagnosis`, `consultation_note_correction`, `clinical_background_entry` (RLS propia, FK compuestas por tenant, triggers de sello como `V20`). Servicios en `service/clinicalhistory/`. Endpoints nuevos bajo `/patients/{patientId}/consultation-notes` y `/patients/{patientId}/clinical-background`. `PatientService` rechaza cambios de anamnesis si existe Historia.
+- **Backend**: entidades y tablas nuevas `consultation_note`, `consultation_note_diagnosis`, `consultation_note_correction`, `clinical_background_entry` (RLS propia, FK compuestas por tenant, triggers de sello como `V20`). Servicios en `service/consultationnote/`. Endpoints nuevos bajo `/patients/{patientId}/consultation-notes` y `/patients/{patientId}/clinical-background`. `PatientService` rechaza cambios de anamnesis si existe Historia.
 - **Frontend**: pantalla de notas de consulta del paciente (lista cronológica, editor de la nota abierta, lectura de la sellada, corrección), panel de antecedentes vigentes, `PatientForm` con la anamnesis en solo lectura cuando hay Historia. Reutiliza `Cie10SearchField`.
 - **Contrato OpenAPI** y cliente orval regenerados.
 - **Docs**: `docs/adr/0020-*.md` (nuevo), notas de corrección en `ADR-0017` y `ADR-0018`, `docs/compliance/regulatory-matrix.md`, `docs/domain.md` (al archivar), `docs/vision.md`.
