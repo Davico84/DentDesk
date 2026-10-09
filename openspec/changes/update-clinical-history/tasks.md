@@ -9,11 +9,11 @@
 
 ## 2. Backend — esquema
 
-- [ ] 2.1 `V21__consultation_note.sql`: `consultation_note`, `consultation_note_diagnosis`, `consultation_note_correction`, `clinical_background_entry` con `organization_id`, RLS forzada, policy `organization_isolation`, FK compuestas por tenant, CHECK de coherencia sello (`status` ↔ `sealed_at`/`sealed_by`), CHECK ubicación/FDI emparejados, CHECK alta/baja (`description` y `closes_entry_id`), índices únicos parciales (una `ABIERTA` por paciente; una baja por alta)
-- [ ] 2.2 `V22__consultation_note_seal_guard.sql`: triggers SQLSTATE `55000` — nota `SELLADA` no se modifica ni se borra; diagnósticos y antecedentes de nota sellada no se insertan, modifican ni borran; `consultation_note_correction` sin `UPDATE`/`DELETE` nunca
-- [ ] 2.3 Entidades, enums (`ConsultationNoteStatus`, `NoteTextField`, `BackgroundCategory`, `BackgroundEntryKind`) y repositorios, incluido `lockById` (`FOR UPDATE`)
-- [ ] 2.4 `ConsultationNoteSealGuardIT`: cada trigger rechaza la escritura directa por SQL sobre una nota sellada; la corrección rechaza `UPDATE`/`DELETE`
-- [ ] 2.5 Agregar las tablas nuevas a los tests de aislamiento por tenant existentes (RLS) y a la regla ArchUnit de entidades con `@TenantId`
+- [x] 2.1 `V21__consultation_note.sql`: `consultation_note`, `consultation_note_diagnosis`, `consultation_note_correction`, `clinical_background_entry` con `organization_id`, RLS forzada, policy `organization_isolation`, FK compuestas por tenant, CHECK de coherencia sello (`status` ↔ `sealed_at`/`sealed_by`), CHECK ubicación/FDI emparejados, CHECK alta/baja (`description` y `closes_entry_id`), índices únicos parciales (una `ABIERTA` por paciente; una baja por alta)
+- [x] 2.2 `V22__consultation_note_seal_guard.sql`: triggers SQLSTATE `55000` — nota `SELLADA` no se modifica ni se borra; diagnósticos y antecedentes de nota sellada no se insertan, modifican ni borran; `consultation_note_correction` sin `UPDATE`/`DELETE` nunca
+- [x] 2.3 Entidades, enums (`ConsultationNoteStatus`, `NoteTextField`, `BackgroundCategory`, `BackgroundEntryKind`) y repositorios, incluido `lockById` (`FOR UPDATE`)
+- [x] 2.4 `ConsultationNoteSealGuardIT`: cada trigger rechaza la escritura directa por SQL sobre una nota sellada; la corrección rechaza `UPDATE`/`DELETE`
+- [x] 2.5 Agregar las tablas nuevas a los tests de aislamiento por tenant existentes (RLS) y a la regla ArchUnit de entidades con `@TenantId`
 
 ## 3. Backend — nota de consulta
 
