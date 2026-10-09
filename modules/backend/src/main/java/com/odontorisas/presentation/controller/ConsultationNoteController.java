@@ -79,7 +79,7 @@ public class ConsultationNoteController {
         @ApiResponse(responseCode = "409", description = "Historia no sellada, paciente dado de baja, o ya hay una nota abierta.",
             content = @Content(mediaType = PROBLEM, schema = @Schema(implementation = ApiProblem.class)))
     })
-    public ConsultationNoteResponse open(@PathVariable Long patientId,
+    public ConsultationNoteResponse openConsultationNote(@PathVariable Long patientId,
                                          @Valid @RequestBody OpenConsultationNoteRequest request) {
         return ConsultationNoteResponse.from(noteService.open(patientId, request.attendedAt()));
     }
@@ -91,7 +91,7 @@ public class ConsultationNoteController {
         @ApiResponse(responseCode = "404", description = "No existe el paciente en la clínica activa.",
             content = @Content(mediaType = PROBLEM, schema = @Schema(implementation = ApiProblem.class)))
     })
-    public List<ConsultationNoteResponse> list(@PathVariable Long patientId) {
+    public List<ConsultationNoteResponse> listConsultationNotes(@PathVariable Long patientId) {
         return noteService.list(patientId).stream().map(ConsultationNoteResponse::from).toList();
     }
 
@@ -102,7 +102,7 @@ public class ConsultationNoteController {
         @ApiResponse(responseCode = "404", description = "No existe la nota para ese paciente en la clínica activa.",
             content = @Content(mediaType = PROBLEM, schema = @Schema(implementation = ApiProblem.class)))
     })
-    public ConsultationNoteResponse get(@PathVariable Long patientId, @PathVariable Long noteId) {
+    public ConsultationNoteResponse getConsultationNote(@PathVariable Long patientId, @PathVariable Long noteId) {
         return ConsultationNoteResponse.from(noteService.get(patientId, noteId));
     }
 
@@ -117,7 +117,7 @@ public class ConsultationNoteController {
         @ApiResponse(responseCode = "409", description = "La nota está sellada.",
             content = @Content(mediaType = PROBLEM, schema = @Schema(implementation = ApiProblem.class)))
     })
-    public ConsultationNoteResponse update(@PathVariable Long patientId, @PathVariable Long noteId,
+    public ConsultationNoteResponse updateConsultationNote(@PathVariable Long patientId, @PathVariable Long noteId,
                                            @Valid @RequestBody ConsultationNoteRequest r) {
         return ConsultationNoteResponse.from(noteService.update(patientId, noteId, new ConsultationNoteData(
             r.attendedAt(), r.reason(), r.illnessDuration(), r.symptomsAndSigns(), r.previousTreatment(),
@@ -134,7 +134,7 @@ public class ConsultationNoteController {
         @ApiResponse(responseCode = "409", description = "La nota tiene contenido o está sellada.",
             content = @Content(mediaType = PROBLEM, schema = @Schema(implementation = ApiProblem.class)))
     })
-    public void discard(@PathVariable Long patientId, @PathVariable Long noteId) {
+    public void discardConsultationNote(@PathVariable Long patientId, @PathVariable Long noteId) {
         noteService.discard(patientId, noteId);
     }
 
@@ -149,7 +149,7 @@ public class ConsultationNoteController {
         @ApiResponse(responseCode = "409", description = "La nota ya está sellada.",
             content = @Content(mediaType = PROBLEM, schema = @Schema(implementation = ApiProblem.class)))
     })
-    public ConsultationNoteResponse seal(@PathVariable Long patientId, @PathVariable Long noteId) {
+    public ConsultationNoteResponse sealConsultationNote(@PathVariable Long patientId, @PathVariable Long noteId) {
         return ConsultationNoteResponse.from(noteService.seal(patientId, noteId));
     }
 
@@ -165,7 +165,7 @@ public class ConsultationNoteController {
         @ApiResponse(responseCode = "409", description = "La nota está sellada.",
             content = @Content(mediaType = PROBLEM, schema = @Schema(implementation = ApiProblem.class)))
     })
-    public NoteDiagnosisResponse addDiagnosis(@PathVariable Long patientId, @PathVariable Long noteId,
+    public NoteDiagnosisResponse addNoteDiagnosis(@PathVariable Long patientId, @PathVariable Long noteId,
                                               @Valid @RequestBody DiagnosisRequest request) {
         return NoteDiagnosisResponse.from(diagnosisService.add(patientId, noteId, toData(request)));
     }
@@ -181,7 +181,7 @@ public class ConsultationNoteController {
         @ApiResponse(responseCode = "409", description = "La nota está sellada.",
             content = @Content(mediaType = PROBLEM, schema = @Schema(implementation = ApiProblem.class)))
     })
-    public NoteDiagnosisResponse updateDiagnosis(@PathVariable Long patientId, @PathVariable Long noteId,
+    public NoteDiagnosisResponse updateNoteDiagnosis(@PathVariable Long patientId, @PathVariable Long noteId,
                                                  @PathVariable Long diagnosisId,
                                                  @Valid @RequestBody DiagnosisRequest request) {
         return NoteDiagnosisResponse.from(diagnosisService.update(patientId, noteId, diagnosisId, toData(request)));
@@ -196,7 +196,7 @@ public class ConsultationNoteController {
         @ApiResponse(responseCode = "409", description = "La nota está sellada.",
             content = @Content(mediaType = PROBLEM, schema = @Schema(implementation = ApiProblem.class)))
     })
-    public void removeDiagnosis(@PathVariable Long patientId, @PathVariable Long noteId,
+    public void removeNoteDiagnosis(@PathVariable Long patientId, @PathVariable Long noteId,
                                 @PathVariable Long diagnosisId) {
         diagnosisService.remove(patientId, noteId, diagnosisId);
     }
@@ -247,7 +247,7 @@ public class ConsultationNoteController {
         @ApiResponse(responseCode = "409", description = "La nota sigue abierta.",
             content = @Content(mediaType = PROBLEM, schema = @Schema(implementation = ApiProblem.class)))
     })
-    public CorrectionResponse addCorrection(@PathVariable Long patientId, @PathVariable Long noteId,
+    public CorrectionResponse addNoteCorrection(@PathVariable Long patientId, @PathVariable Long noteId,
                                             @Valid @RequestBody CorrectionRequest r) {
         return CorrectionResponse.from(correctionService.add(patientId, noteId,
             new CorrectionData(r.field(), r.correctedText(), r.reason())));
@@ -260,7 +260,7 @@ public class ConsultationNoteController {
         @ApiResponse(responseCode = "404", description = "No existe el paciente en la clínica activa.",
             content = @Content(mediaType = PROBLEM, schema = @Schema(implementation = ApiProblem.class)))
     })
-    public ActiveBackgroundResponse activeBackground(@PathVariable Long patientId) {
+    public ActiveBackgroundResponse getActiveBackground(@PathVariable Long patientId) {
         return ActiveBackgroundResponse.from(backgroundService.active(patientId));
     }
 

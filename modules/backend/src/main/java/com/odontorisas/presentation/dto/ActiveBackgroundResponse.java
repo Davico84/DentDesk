@@ -10,6 +10,7 @@ import java.util.List;
 /** Antecedentes vigentes del paciente, cada uno con su origen (design.md D8). */
 public record ActiveBackgroundResponse(List<Item> items) {
 
+    @Schema(name = "ActiveBackgroundItem")
     public record Item(
         BackgroundCategory category,
         @Schema(description = "HISTORIA | NOTA | FICHA. FICHA = registrado al dar de alta, sin autoría clínica.")
