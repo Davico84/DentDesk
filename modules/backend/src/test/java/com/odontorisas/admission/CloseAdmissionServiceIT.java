@@ -284,30 +284,6 @@ class CloseAdmissionServiceIT extends AbstractTenantAwareIntegrationTest {
 
     // --- tarea 2.8f: un hallazgo no se cuela en un odontograma que se está sellando (design.md D9) ---
 
-    /** Espera a que B termine o a que haya una transacción esperando un bloqueo ({@code pg_locks}). */
-    private void awaitAdditionBlockedOrFinished(CountDownLatch additionFinished) {
-        long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(20);
-        try (Connection owner = ownerConnection(); Statement s = owner.createStatement()) {
-            while (System.nanoTime() < deadline) {
-                if (additionFinished.getCount() == 0) {
-                    return;
-                }
-                try (var rs = s.executeQuery("SELECT count(*) FROM pg_locks WHERE NOT granted")) {
-                    rs.next();
-                    if (rs.getInt(1) > 0) {
-                        return;
-                    }
-                }
-                Thread.sleep(20);
-            }
-            throw new IllegalStateException("B ni terminó ni quedó esperando el bloqueo en 20 s");
-        } catch (SQLException e) {
-            throw new IllegalStateException(e);
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-        }
-    }
-
     /**
      * Determinista, no dependiente del azar de los hilos: el hilo A sella dentro de una transacción
      * que mantiene ABIERTA hasta que B termina o queda esperando su bloqueo. B intenta agregar un hallazgo en ese
@@ -333,7 +309,7 @@ class CloseAdmissionServiceIT extends AbstractTenantAwareIntegrationTest {
                         sealedButNotCommitted.countDown();
                         // Señal explícita, no un tiempo fijo: confirma cuando B quedó ESPERANDO el
                         // bloqueo de esta transacción (con D9) o cuando B ya terminó (sin D9).
-                        awaitAdditionBlockedOrFinished(additionFinished);
+                        awaitLockWaitOrFinished(additionFinished);
                     });
                 } finally {
                     IdentityContext.clear();

@@ -11,8 +11,9 @@ import java.util.List;
 
 /**
  * Diagnósticos CIE10 de la Historia Clínica (design.md D5/D11, ADR-0011). Solo se
- * agregan/modifican/eliminan mientras la Historia esté en {@code DRAFT} (design.md D1/D5) —
- * reutiliza el mismo candado que {@link ClinicalHistoryService}.
+ * agregan/modifican/eliminan mientras la Historia esté en {@code DRAFT} (design.md D1/D5), con la
+ * Historia bloqueada antes de comprobarlo ({@link ClinicalHistoryService#lockDraft}, update-clinical-history):
+ * un diagnóstico no puede entrar, cambiar ni salir de una Historia que se está sellando.
  */
 @Service
 @Transactional
@@ -32,8 +33,7 @@ public class ClinicalHistoryDiagnosisService {
 
     /** Agrega un diagnóstico; requiere Historia en {@code DRAFT} y código CIE10 existente. */
     public DiagnosisView add(Long patientId, DiagnosisData data) {
-        HistoriaClinica historia = findHistoriaOrThrow(patientId);
-        ClinicalHistoryService.requireDraft(historia);
+        HistoriaClinica historia = ClinicalHistoryService.lockDraft(historiaClinicaRepository, patientId);
         requireCie10CodeExists(data.cie10Code());
 
         ClinicalHistoryDiagnosis diagnosis = ClinicalHistoryDiagnosis.builder()
@@ -48,8 +48,7 @@ public class ClinicalHistoryDiagnosisService {
 
     /** Reemplaza los datos de un diagnóstico existente; requiere Historia en {@code DRAFT}. */
     public DiagnosisView update(Long patientId, Long diagnosisId, DiagnosisData data) {
-        HistoriaClinica historia = findHistoriaOrThrow(patientId);
-        ClinicalHistoryService.requireDraft(historia);
+        HistoriaClinica historia = ClinicalHistoryService.lockDraft(historiaClinicaRepository, patientId);
         requireCie10CodeExists(data.cie10Code());
 
         ClinicalHistoryDiagnosis diagnosis = findDiagnosisOrThrow(historia.getId(), diagnosisId);
@@ -62,8 +61,7 @@ public class ClinicalHistoryDiagnosisService {
 
     /** Elimina un diagnóstico; requiere Historia en {@code DRAFT}. */
     public void remove(Long patientId, Long diagnosisId) {
-        HistoriaClinica historia = findHistoriaOrThrow(patientId);
-        ClinicalHistoryService.requireDraft(historia);
+        HistoriaClinica historia = ClinicalHistoryService.lockDraft(historiaClinicaRepository, patientId);
         ClinicalHistoryDiagnosis diagnosis = findDiagnosisOrThrow(historia.getId(), diagnosisId);
         diagnosisRepository.delete(diagnosis);
     }
