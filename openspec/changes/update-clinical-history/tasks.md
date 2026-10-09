@@ -33,11 +33,11 @@
 
 ## 5. Backend — API y `patients`
 
-- [ ] 5.1 `ConsultationNoteController` bajo `/patients/{patientId}/consultation-notes` (CRUD de nota, `/{noteId}/seal`, `/{noteId}/diagnoses`, `/{noteId}/background-entries`, `/{noteId}/corrections`) y `GET /patients/{patientId}/clinical-background`; DTOs con Bean Validation; errores RFC 9457 con `detail` en español
-- [ ] 5.2 `ConsultationNoteControllerIT`: status reales, `404` para otra clínica, `409` en nota sellada aun por API directa
-- [ ] 5.3 `PatientService.update`: rechazar cambios de anamnesis si existe Historia (design D10); IT por cada scenario de *La anamnesis de la ficha se congela al existir la Historia Clínica*; `PatientResponse` expone si la anamnesis está congelada
-- [ ] 5.4 Regenerar el contrato OpenAPI y verificar `ContractDriftIT`
-- [ ] 5.5 `./mvnw -B verify` verde con `Skipped: 0`
+- [x] 5.1 `ConsultationNoteController` bajo `/patients/{patientId}/consultation-notes` (CRUD de nota, `/{noteId}/seal`, `/{noteId}/diagnoses`, `/{noteId}/background-entries`, `/{noteId}/corrections`) y `GET /patients/{patientId}/clinical-background`; DTOs con Bean Validation; errores RFC 9457 con `detail` en español
+- [x] 5.2 `ConsultationNoteControllerIT`: status reales, `404` para otra clínica, `409` en nota sellada aun por API directa
+- [x] 5.3 `PatientService.update`: rechazar cambios de anamnesis si existe Historia (design D10); IT por cada scenario de *La anamnesis de la ficha se congela al existir la Historia Clínica*; `PatientResponse` expone si la anamnesis está congelada
+- [x] 5.4 Regenerar el contrato OpenAPI y verificar `ContractDriftIT`
+- [x] 5.5 `./mvnw -B verify` verde con `Skipped: 0`
 
 ## 6. Frontend
 

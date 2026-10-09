@@ -2,6 +2,7 @@ package com.odontorisas.patient;
 
 import com.odontorisas.common.PatientStatus;
 import com.odontorisas.persistence.entity.Patient;
+import com.odontorisas.persistence.repository.HistoriaClinicaRepository;
 import com.odontorisas.persistence.repository.PatientRepository;
 import com.odontorisas.service.patient.DocumentAlreadyExistsException;
 import com.odontorisas.service.patient.PatientData;
@@ -36,6 +37,10 @@ class PatientServiceTest {
 
     @Mock
     PatientRepository patientRepository;
+
+    /** Mock sin stubs: existsByPatientId devuelve false = sin Historia, anamnesis editable. */
+    @Mock
+    HistoriaClinicaRepository historiaClinicaRepository;
 
     @InjectMocks
     PatientService patientService;

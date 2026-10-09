@@ -2,6 +2,7 @@ package com.odontorisas.service.patient;
 
 import com.odontorisas.common.PatientStatus;
 import com.odontorisas.persistence.entity.Patient;
+import com.odontorisas.persistence.repository.HistoriaClinicaRepository;
 import com.odontorisas.persistence.repository.PatientRepository;
 import com.odontorisas.persistence.specification.PatientSpecifications;
 import org.springframework.data.domain.Page;
@@ -29,9 +30,11 @@ import java.util.List;
 public class PatientService {
 
     private final PatientRepository patientRepository;
+    private final HistoriaClinicaRepository historiaClinicaRepository;
 
-    public PatientService(PatientRepository patientRepository) {
+    public PatientService(PatientRepository patientRepository, HistoriaClinicaRepository historiaClinicaRepository) {
         this.patientRepository = patientRepository;
+        this.historiaClinicaRepository = historiaClinicaRepository;
     }
 
     /** Alta en la clínica activa. El documento (si viene) no puede repetirse en la clínica. */
@@ -49,10 +52,17 @@ public class PatientService {
         return toView(find(id));
     }
 
-    /** Edición de la ficha. El documento no puede colisionar con el de otro paciente de la clínica. */
+    /**
+     * Edición de la ficha. El documento no puede colisionar con el de otro paciente de la clínica, y
+     * la anamnesis no cambia si el paciente ya tiene Historia Clínica (`update-clinical-history`
+     * design.md D10): enviarla sin cambios es válido, porque el formulario manda la ficha completa.
+     */
     public PatientView update(Long id, PatientData data) {
         Patient patient = find(id);
         requireDocumentFree(data.document(), id);
+        if (anamnesisChanged(data, patient) && historiaClinicaRepository.existsByPatientId(id)) {
+            throw new AnamnesisFrozenException();
+        }
         apply(data, patient);
         return toView(patientRepository.save(patient));
     }
@@ -102,9 +112,16 @@ public class PatientService {
             });
     }
 
-    /** Construye la vista con el aviso de teléfono compartido computado (update-patients D1). */
+    /** Construye la vista con el aviso de teléfono compartido (update-patients D1) y el congelamiento de la anamnesis. */
     private PatientView toView(Patient patient) {
-        return PatientView.from(patient, phoneSharedWithOthers(patient.getPhone(), patient.getId()));
+        return PatientView.from(patient, phoneSharedWithOthers(patient.getPhone(), patient.getId()),
+            patient.getId() != null && historiaClinicaRepository.existsByPatientId(patient.getId()));
+    }
+
+    private static boolean anamnesisChanged(PatientData d, Patient p) {
+        return !orEmpty(d.allergies()).equals(orEmpty(p.getAllergies()))
+            || !orEmpty(d.conditions()).equals(orEmpty(p.getConditions()))
+            || !orEmpty(d.currentMedication()).equals(orEmpty(p.getCurrentMedication()));
     }
 
     /** ¿El teléfono ya está en otros pacientes de la clínica? Excluye al propio paciente (D1). */
