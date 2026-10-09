@@ -6,7 +6,8 @@ import { RangeModeStep } from "./RangeModeStep";
  * Aviso visible del modo "Registrar rango": qué hacer y en qué paso va. Vive dentro del papel del
  * odontograma, así que usa su paleta fija (no tokens del tema), con el mismo violeta que resalta
  * la pieza ancla en el gráfico — el aviso y el resalte se leen como una sola cosa.
- * El anuncio para lectores de pantalla lo hace la región `aria-live` del odontograma.
+ * El anuncio para lectores de pantalla lo hace la región `aria-live` del odontograma (incluye que
+ * Esc descarta la primera pieza); salir del modo lo explica el tooltip de "Cancelar rango".
  */
 export function RangeModeHint({ rangeStart }: { rangeStart: number | null }) {
   const onSecondStep = rangeStart != null;
@@ -36,9 +37,6 @@ export function RangeModeHint({ rangeStart }: { rangeStart: number | null }) {
             Haz click en la última pieza, en la misma fila.
           </RangeModeStep>
         </ol>
-        {/* <p className="text-xs" style={{ color: INK_2 }}>
-          {onSecondStep ? "Esc descarta la primera pieza. " : ""}«Cancelar rango» sale sin registrar nada.
-        </p> */}
       </div>
     </div>
   );
