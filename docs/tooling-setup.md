@@ -154,3 +154,14 @@ node -e "console.log(require('crypto').randomBytes(48).toString('base64'))"
 Pega la salida como `JWT_SECRET=<salida>` en tu editor. **No** imprimas `secrets.properties` en la consola, ni pegues el secreto en chats, issues o PRs. Los tests no lo necesitan: usan su propio secreto (`AbstractIntegrationTest.TEST_JWT_SECRET`), que gana a tu archivo, al entorno y a las `-D`.
 
 Cambiar el secreto invalida los access tokens ya emitidos (tendrás que volver a iniciar sesión en local); ver `docs/backend.md` §12.
+
+**¿Ya arrancó el backend?** Cuando está listo para recibir peticiones escribe un bloque destacado en el log (`StartupReadyBanner`), fácil de ver en terminales integradas:
+
+```
+============================================================
+  >> Dentdesk API lista en http://localhost:8080
+    Swagger UI: http://localhost:8080/swagger-ui.html
+============================================================
+```
+
+Si no aparece, el arranque falló: busca el primer `Caused by:` del log (por ejemplo, un `JWT_SECRET` inválido).

@@ -19,6 +19,12 @@
 - [x] 2.6 Mutación: si el mensaje de `JwtSecretRules` incluyera el valor, fallan los tests de filtración (1.3-1.5); restaurar
 - [x] 2.7 `./mvnw -B verify` verde con `Skipped: 0` (Docker Desktop encendido)
 
+## 4. Aviso de backend listo (D5, agregado durante el apply a pedido del user)
+
+- [x] 4.1 `infra.config.StartupReadyBanner` (portado de HSO): `ApplicationReadyEvent`, bloque ASCII en una sola entrada de log, nombre `app.name` o Dentdesk, URL con puerto real y context-path, línea de Swagger según `springdoc.swagger-ui.enabled` (por defecto activo); sin puerto no escribe nada
+- [x] 4.2 `StartupReadyBannerTest`: un test por scenario de *Aviso de backend listo al arrancar* (URL real con context-path, Swagger activo y desactivado, sin secretos, sin servidor web no hay aviso) y que es solo ASCII
+- [x] 4.3 `docs/tooling-setup.md` §7: señal de arranque correcto = el aviso; si no aparece, buscar el primer `Caused by:`
+
 ## 3. Docs y cierre
 
 - [x] 3.1 `secrets.properties.example`: requisito de 32 bytes aleatorios y cómo generarlo (valor de ejemplo sin cambiar)

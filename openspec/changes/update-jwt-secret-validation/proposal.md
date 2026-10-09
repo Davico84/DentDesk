@@ -9,6 +9,7 @@ Verificado y corregido en el proyecto hermano HSO (change archivado `2026-09-30-
 - La aplicación **no arranca** si el secreto de firma de los tokens no es seguro: ausente o en blanco, con un placeholder sin resolver (`${…}`), igual al valor de ejemplo de `secrets.properties.example`, o de **menos de 32 bytes** (UTF-8), el mínimo para HMAC-256. El error nombra `app.security.jwt.secret` y **nunca incluye el valor**, tampoco en el log de arranque (la validación vive en `TokenService`, no en el binding: ver design D1).
 - Los tests de contexto completo usan un **secreto de test propio** (≥ 32 bytes) registrado sobre la propiedad final `app.security.jwt.secret` en `AbstractIntegrationTest`. Hoy se registra el placeholder `JWT_SECRET`, que una propiedad de sistema `-Dapp.security.jwt.secret` o la variable `APP_SECURITY_JWT_SECRET` pueden sobrescribir: los tests dependerían de la configuración de quien los ejecuta.
 - `secrets.properties.example` y `readme.md` indican el requisito (≥ 32 **bytes** aleatorios, `openssl rand -base64 48`) y que el valor de ejemplo ya no arranca.
+- **Agregado durante el apply, a pedido del user:** un **aviso de "backend listo"** en el log al terminar de arrancar, con el nombre del producto, la URL con el puerto real y la URL de Swagger UI. Es la señal positiva de que el arranque, incluido el secreto, pasó; hasta ahora solo había señal de error. Portado de `StartupReadyBanner` de HSO. Lee solo propiedades no sensibles, así que no puede filtrar secretos por construcción (design D5).
 
 ## Non-goals
 
@@ -24,6 +25,7 @@ Verificado y corregido en el proyecto hermano HSO (change archivado `2026-09-30-
 
 ### Modified Capabilities
 - `authentication`: ADDED "Secreto de firma de tokens obligatorio y robusto".
+- `project-foundation`: ADDED "Aviso de backend listo al arrancar".
 
 ## Impact
 

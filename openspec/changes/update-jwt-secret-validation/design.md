@@ -54,6 +54,13 @@ Las slices `@WebMvcTest` no crean `TokenService`: no necesitan secreto. Si una s
 - `docs/backend.md`: §11 nueva subsección con las reglas, por qué la validación está en `TokenService`, y dos reglas que mantienen la garantía (nunca loguear `SecurityProperties`/`Jwt` — su `toString()` incluye el secreto; nunca fijar `app.security.jwt.secret` con `@TestPropertySource`); corrige "`application-dev-secrets.yml`" (obsoleto) por `secrets.properties`. §12: `JWT_SECRET` obligatorio; **rotar invalida los access tokens emitidos pero no las sesiones** (el refresh token es opaco, se guarda hasheado y no depende del secreto: el frontend renueva el access de forma transparente); para expulsar a todos (secreto filtrado) hay que revocar también los refresh tokens (borrar `refresh_tokens`); con varias réplicas, todas con el mismo secreto.
 - `docs/tooling-setup.md`: cómo regenerar a mano un `secrets.properties` con secreto corto o de ejemplo — sustituir la línea por `JWT_SECRET=` + la salida de `openssl rand -base64 48` (sin `openssl` en Windows: `node -e "console.log(require('crypto').randomBytes(48).toString('base64'))"`). Sin abrir el archivo en la consola ni pegarlo en ningún sitio.
 
+### D5. Aviso de backend listo (agregado durante el apply)
+`infra.config.StartupReadyBanner`, portado de HSO: escucha `ApplicationReadyEvent` y escribe **una sola** entrada de log con un bloque delimitado, solo ASCII, porque la consola de Windows no usa UTF-8 por defecto.
+- **URL base:** `http://localhost:<local.server.port><context-path>`. Sin servidor web (tests sin puerto) no hay `local.server.port`, así que no escribe nada.
+- **Nombre:** `app.name`, si se define; si no, **Dentdesk** (es texto visible, así que va con el nombre del producto, CLAUDE.md).
+- **Swagger:** OdontoRisas no tiene un interruptor `SWAGGER_ENABLED` como HSO; Swagger UI está activo por defecto. El aviso lee `springdoc.swagger-ui.enabled` (por defecto `true`) y muestra la URL o "desactivado". No se agrega un interruptor nuevo: eso sería otro cambio.
+- **Sin secretos por construcción:** lee solo cuatro propiedades no sensibles. Un test lo fija con un secreto JWT y una contraseña de BD presentes en el entorno.
+
 ## Risks / Trade-offs
 
 - [Un despliegue sin `JWT_SECRET` válido deja de arrancar] → intencionado (hoy arranca con un secreto público).
