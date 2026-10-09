@@ -2,6 +2,7 @@ import { describe, it, expect, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { DentalChartFindingResponse, DentalFindingCatalogEntryResponse } from "@/modules/core/services/generated/model";
+import { BLUE, RED } from "@/modules/dental-chart/utils/findingColor";
 import { Odontogram } from "./Odontogram";
 
 const CATALOG: DentalFindingCatalogEntryResponse[] = [
@@ -20,6 +21,7 @@ const CATALOG: DentalFindingCatalogEntryResponse[] = [
   { type: "APARATO_ORTODONTICO_REMOVIBLE", subtype: "", acronym: undefined, scope: "ARCH", colorBehavior: "SIEMPRE_AZUL", requiresGrade: false, requiresSpecification: false },
   { type: "APARATO_ORTODONTICO_FIJO", subtype: "", acronym: undefined, scope: "TOOTH_RANGE", colorBehavior: "SEGUN_ESTADO", requiresGrade: false, requiresSpecification: false },
   { type: "PROTESIS_PARCIAL_REMOVIBLE", subtype: "", acronym: undefined, scope: "TOOTH_RANGE", colorBehavior: "SEGUN_ESTADO", requiresGrade: false, requiresSpecification: false },
+  { type: "GIROVERSION", subtype: "", acronym: undefined, scope: "TOOTH", colorBehavior: "SIEMPRE_AZUL", requiresGrade: false, requiresSpecification: false },
 ];
 
 const FINDINGS: DentalChartFindingResponse[] = [
@@ -547,5 +549,83 @@ describe("Odontogram", () => {
     await user.hover(button.parentElement!); // el wrapper: un botón deshabilitado no recibe hover
 
     expect(await screen.findByRole("tooltip")).toHaveTextContent(/No disponible mientras registras un rango/);
+  });
+
+  // --- 5.7: escenarios del spec que faltaban ---
+
+  it("navegación por teclado: Enter sobre una pieza y Espacio sobre una superficie registran como el clic", async () => {
+    const onSelect = vi.fn();
+    const user = userEvent.setup();
+    render(<Odontogram findings={[]} catalog={CATALOG} onSelectLocation={onSelect} />);
+
+    screen.getByRole("button", { name: "Pieza 36, sin hallazgos" }).focus();
+    await user.keyboard("{Enter}");
+    expect(onSelect).toHaveBeenLastCalledWith({ locationKind: "TOOTH", toothA: 36 });
+
+    screen.getByRole("button", { name: "Pieza 36, superficie oclusal, sin hallazgos" }).focus();
+    await user.keyboard(" ");
+    expect(onSelect).toHaveBeenLastCalledWith({ locationKind: "SURFACE", toothA: 36, surface: "OCLUSAL" });
+  });
+
+  it("navegación por teclado: Tab recorre las piezas (son elementos enfocables)", async () => {
+    const user = userEvent.setup();
+    render(<Odontogram findings={[]} catalog={CATALOG} onSelectLocation={vi.fn()} />);
+
+    // Orden real (DOM): toolbar → arco superior → los 15 espacios entre piezas de la fila →
+    // pieza 18 y sus 5 caras → pieza 17… Los espacios entre piezas van antes que las piezas.
+    const visited: string[] = [];
+    for (let i = 0; i < 25 && !visited.some((l) => /^Pieza \d+/.test(l)); i++) {
+      await user.tab();
+      visited.push(document.activeElement?.getAttribute("aria-label") ?? "");
+    }
+
+    expect(visited.some((l) => /^Pieza \d+/.test(l))).toBe(true);
+  });
+
+  it("solo ofrece las superficies aplicables: un incisivo tiene incisal y no oclusal; una molar al revés", () => {
+    render(<Odontogram findings={[]} catalog={CATALOG} onSelectLocation={vi.fn()} />);
+
+    expect(screen.getByRole("button", { name: "Pieza 11, superficie incisal, sin hallazgos" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /^Pieza 11, superficie oclusal/ })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Pieza 16, superficie oclusal, sin hallazgos" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /^Pieza 16, superficie incisal/ })).not.toBeInTheDocument();
+  });
+
+  it("una restauración en mal estado se pinta en rojo y la misma en buen estado en azul", () => {
+    const poor: DentalChartFindingResponse = { id: 50, blockId: 1, type: "CORONA", subtype: "CM", condition: "POOR", location: { locationKind: "TOOTH", toothA: 16 } };
+    const good: DentalChartFindingResponse = { id: 51, blockId: 1, type: "CORONA", subtype: "CM", condition: "GOOD", location: { locationKind: "TOOTH", toothA: 26 } };
+    const { container } = render(<Odontogram findings={[poor, good]} catalog={CATALOG} />);
+
+    // La sigla "CM" de cada pieza lleva el color de SU hallazgo.
+    const siglas = Array.from(container.querySelectorAll("text")).filter((t) => t.textContent === "CM");
+    expect(siglas.map((t) => t.getAttribute("fill")).sort()).toEqual([BLUE, RED].sort());
+  });
+
+  it("la giroversión sigue azul junto a una caries en la misma pieza (el color no se contagia)", () => {
+    const giroversion: DentalChartFindingResponse = { id: 52, blockId: 1, type: "GIROVERSION", subtype: "", location: { locationKind: "TOOTH", toothA: 21 } };
+    const caries: DentalChartFindingResponse = { id: 53, blockId: 1, type: "LESION_CARIES", subtype: "CD", location: { locationKind: "SURFACE", toothA: 21, surface: "INCISAL" } };
+    const { container } = render(<Odontogram findings={[giroversion, caries]} catalog={CATALOG} />);
+
+    // Flecha curva de la giroversión (6.1.13): azul.
+    const arrow = container.querySelector('path[d*="A 12 12"]');
+    expect(arrow?.getAttribute("stroke")).toBe(BLUE);
+    // La superficie con caries de la MISMA pieza: roja.
+    // (el botón de la superficie ES el polígono de la cara).
+    const cariesFace = screen.getByRole("button", { name: /^Pieza 21, superficie incisal: 1 hallazgo/ });
+    expect(cariesFace.getAttribute("fill")).toBe(RED);
+  });
+
+  it("conserva el fondo blanco del documento aunque la app esté en modo oscuro", () => {
+    document.documentElement.classList.add("dark");
+    try {
+      const { container } = render(<Odontogram findings={FINDINGS} catalog={CATALOG} />);
+      const paper = container.firstElementChild as HTMLElement;
+
+      // Valor fijo, no un token del tema (var(--…)) que cambiaría con la clase "dark".
+      expect(paper.style.background).toMatch(/^(#ffffff|rgb\(255, 255, 255\))$/i);
+      expect((container.querySelector("svg") as SVGElement).style.background).toMatch(/^(#ffffff|rgb\(255, 255, 255\))$/i);
+    } finally {
+      document.documentElement.classList.remove("dark");
+    }
   });
 });

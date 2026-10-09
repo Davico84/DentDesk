@@ -12,7 +12,7 @@ import {
   DentalChartLocationRequestLocationKind,
   DentalChartLocationRequestSurface,
 } from "@/modules/core/services/generated/model";
-import { isFdiValid } from "@/modules/core/utils/fdiTeeth";
+import { applicableSurfaces, isFdiValid } from "@/modules/core/utils/fdiTeeth";
 
 // --- crear el odontograma inicial ---
 
@@ -159,6 +159,19 @@ function validateLocation(
       requireValidTooth(location.toothA, ["location", "toothA"], ctx);
       if (location.surface === "") {
         ctx.addIssue({ code: "custom", path: ["location", "surface"], message: "La superficie es obligatoria." });
+      } else if (
+        location.toothA !== "" &&
+        isFdiValid(location.toothA) &&
+        !applicableSurfaces(location.toothA).includes(location.surface)
+      ) {
+        // Paridad con ValidFindingLocationValidator (INV-13): un incisivo no tiene oclusal, una
+        // molar no tiene incisal. El odontograma ya solo dibuja las aplicables; esto cubre al
+        // formulario como segunda barrera.
+        ctx.addIssue({
+          code: "custom",
+          path: ["location", "surface"],
+          message: `La superficie ${location.surface.toLowerCase()} no aplica a la pieza ${location.toothA}.`,
+        });
       }
       break;
     case "TOOTH":
