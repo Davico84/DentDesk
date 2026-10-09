@@ -9,8 +9,10 @@ import {
   missingDentalChartFields,
   textDefaults,
   toTextRequest,
+  typesRequiringSpecification,
   type DentalChartTextValues,
 } from "@/modules/dental-chart/schemas/dentalChart";
+import { findingTypeLabel } from "@/modules/dental-chart/schemas/findingTypeLabels";
 import {
   useDentalChart,
   useDentalFindingCatalog,
@@ -37,7 +39,8 @@ export function DentalChartEditor({ patientId }: { patientId: number }) {
   const [rangeMode, setRangeMode] = useState(false);
 
   const sealed = block?.status === "SEALED";
-  const missing = missingDentalChartFields(block);
+  const missing = missingDentalChartFields(block, catalog);
+  const requiredBy = typesRequiringSpecification(block, catalog).map(findingTypeLabel);
   const findings = block?.findings ?? [];
 
   const specForm = useForm<DentalChartTextValues>({
@@ -82,7 +85,7 @@ export function DentalChartEditor({ patientId }: { patientId: number }) {
       </section>
 
       <fieldset disabled={sealed} className="flex flex-col gap-6">
-        <FormSection title="Especificaciones" description="Lo que el catálogo no puede dibujar (5.14): material de una corona, clasificación de una movilidad, fluorosis." icon={<ClipboardEdit className="size-4" />}>
+        <FormSection title="Especificaciones" description="Lo que el catálogo no puede dibujar (5.14): color del metal de una corona, material de una corona temporal, clasificación de una fluorosis." icon={<ClipboardEdit className="size-4" />}>
           <form
             onSubmit={specForm.handleSubmit((v) => setSpecifications.mutate(toTextRequest(v)))}
             className="sm:col-span-2 flex flex-col gap-2"
@@ -95,7 +98,13 @@ export function DentalChartEditor({ patientId }: { patientId: number }) {
               error={specForm.formState.errors.text}
               rows={3}
               wide
-              hint={block?.specificationsReviewed ? "Revisado" : "Sin revisar — guarda aunque quede vacío para marcarlo como revisado."}
+              hint={
+                requiredBy.length > 0
+                  ? `Obligatorio: lo exige ${requiredBy.join(", ")}. Escribe el detalle (no basta con dejarlo vacío).`
+                  : block?.specificationsReviewed
+                    ? "Revisado"
+                    : "Sin revisar — guarda aunque quede vacío para marcarlo como revisado."
+              }
             />
             <div>
               <Button type="submit" size="sm" variant="outline" disabled={setSpecifications.isPending}>

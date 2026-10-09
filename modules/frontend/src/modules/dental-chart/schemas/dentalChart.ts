@@ -203,6 +203,29 @@ function validateLocation(
     default:
       break;
   }
+  requireAbsent(location, FIELDS_NOT_ALLOWED[scope] ?? [], ctx);
+}
+
+type LocationField = "toothA" | "toothB" | "surface" | "arch" | "teeth";
+
+/** Campos que cada forma de localización NO admite — el mismo reparto que los `requireAbsent` /
+ *  `requireEmpty` de `ValidFindingLocationValidator` (paridad, `docs/coding-style.md` §7). */
+const FIELDS_NOT_ALLOWED: Record<string, LocationField[]> = {
+  SURFACE: ["toothB", "arch", "teeth"],
+  TOOTH: ["toothB", "surface", "arch", "teeth"],
+  BETWEEN_TEETH: ["surface", "arch", "teeth"],
+  TOOTH_RANGE: ["toothA", "toothB", "surface", "arch"],
+  ARCH: ["toothA", "toothB", "surface", "teeth"],
+};
+
+function requireAbsent(location: FindingFormValues["location"], fields: LocationField[], ctx: z.RefinementCtx) {
+  for (const field of fields) {
+    const value = location[field];
+    const present = Array.isArray(value) ? value.length > 0 : value !== "";
+    if (present) {
+      ctx.addIssue({ code: "custom", path: ["location", field], message: "Este campo no aplica a esta forma de localización." });
+    }
+  }
 }
 
 function requireValidTooth(tooth: number | "", path: (string | number)[], ctx: z.RefinementCtx) {
@@ -235,14 +258,36 @@ export function toFindingRequest(values: FindingFormValues): DentalChartFindingR
  * cliente solo para **guiar** — el servidor sigue siendo la autoridad. Especificaciones y
  * observaciones son dos campos distintos, ninguno cubre al otro (ADR-0017 D6).
  */
-export function missingDentalChartFields(block: DentalChartResponse | undefined): string[] {
+export function missingDentalChartFields(
+  block: DentalChartResponse | undefined,
+  catalog: DentalFindingCatalogEntryResponse[] | undefined,
+): string[] {
   const missing: string[] = [];
   if (!block?.specificationsReviewed) missing.push("specificationsReviewed");
   if (!block?.observationsReviewed) missing.push("observationsReviewed");
+  if (typesRequiringSpecification(block, catalog).length > 0 && !block?.specifications?.trim()) {
+    missing.push("specifications");
+  }
   return missing;
+}
+
+/**
+ * Tipos de los hallazgos registrados que la norma obliga a detallar en especificaciones (corona
+ * 6.1.3, corona temporal 6.1.4, fluorosis 6.1.5 — `requiresSpecification` del catálogo). Con alguno
+ * presente, "revisado y vacío" ya no alcanza para sellar.
+ */
+export function typesRequiringSpecification(
+  block: DentalChartResponse | undefined,
+  catalog: DentalFindingCatalogEntryResponse[] | undefined,
+): string[] {
+  const types = (block?.findings ?? [])
+    .filter((f) => catalogEntryFor(catalog, f.type ?? "", f.subtype ?? "")?.requiresSpecification)
+    .map((f) => f.type ?? "");
+  return [...new Set(types)];
 }
 
 export const DENTAL_CHART_CHECKLIST_LABELS: Record<string, string> = {
   specificationsReviewed: "Especificaciones (marcar revisado)",
   observationsReviewed: "Observaciones (marcar revisado)",
+  specifications: "Especificaciones (las exige un hallazgo registrado: escribe el detalle)",
 };

@@ -17,6 +17,7 @@ import com.odontorisas.service.clinicalhistory.ClinicalHistoryDiagnosisService;
 import com.odontorisas.service.clinicalhistory.ClinicalHistoryService;
 import com.odontorisas.service.clinicalhistory.DiagnosisData;
 import com.odontorisas.service.clinicalhistory.HistoriaClinicaSealedException;
+import com.odontorisas.common.FindingCondition;
 import com.odontorisas.common.FindingType;
 import com.odontorisas.common.LocationKind;
 import com.odontorisas.service.dentalchart.DentalChartBlockSealedException;
@@ -216,6 +217,23 @@ class CloseAdmissionServiceIT extends AbstractTenantAwareIntegrationTest {
         return patientId;
     }
 
+    // --- spec: Rechazar el sellado si un tipo que exige especificación no la tiene ---
+
+    @Test
+    void a_crown_without_the_metal_colour_in_specifications_blocks_the_closing() {
+        Long patientId = aPatientReadyToClose("Corona sin especificacion"); // especificaciones revisadas y vacías
+        findingService.add(patientId, new DentalChartFindingData(FindingType.CORONA, "CM", FindingCondition.GOOD,
+            null, new FindingLocationData(LocationKind.TOOTH, 16, null, null, null, null)));
+
+        assertThatThrownBy(() -> closeAdmissionService.close(patientId))
+            .isInstanceOf(DentalChartChecklistIncompleteException.class)
+            .satisfies(e -> assertThat(((DentalChartChecklistIncompleteException) e).getMissingFields())
+                .containsExactly("specifications"));
+
+        dentalChartService.setSpecifications(patientId, "Pieza 16: corona metálica, color plateado");
+        assertThat(closeAdmissionService.close(patientId).dentalChart().status().name()).isEqualTo("SEALED");
+    }
+
     // --- tarea 2.8a: concurrencia con hilos reales, sin deadlock (design.md D4) ---
 
     @Test
@@ -266,9 +284,33 @@ class CloseAdmissionServiceIT extends AbstractTenantAwareIntegrationTest {
 
     // --- tarea 2.8f: un hallazgo no se cuela en un odontograma que se está sellando (design.md D9) ---
 
+    /** Espera a que B termine o a que haya una transacción esperando un bloqueo ({@code pg_locks}). */
+    private void awaitAdditionBlockedOrFinished(CountDownLatch additionFinished) {
+        long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(20);
+        try (Connection owner = ownerConnection(); Statement s = owner.createStatement()) {
+            while (System.nanoTime() < deadline) {
+                if (additionFinished.getCount() == 0) {
+                    return;
+                }
+                try (var rs = s.executeQuery("SELECT count(*) FROM pg_locks WHERE NOT granted")) {
+                    rs.next();
+                    if (rs.getInt(1) > 0) {
+                        return;
+                    }
+                }
+                Thread.sleep(20);
+            }
+            throw new IllegalStateException("B ni terminó ni quedó esperando el bloqueo en 20 s");
+        } catch (SQLException e) {
+            throw new IllegalStateException(e);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
+    }
+
     /**
      * Determinista, no dependiente del azar de los hilos: el hilo A sella dentro de una transacción
-     * que mantiene ABIERTA hasta que B termina (o hasta 3 s). B intenta agregar un hallazgo en ese
+     * que mantiene ABIERTA hasta que B termina o queda esperando su bloqueo. B intenta agregar un hallazgo en ese
      * hueco. Con el bloqueo de D9, B espera al bloque bloqueado por A, ve {@code SEALED} y se
      * rechaza. Sin él, B lee el bloque todavía {@code OPEN} (A no confirmó) e inserta: el
      * odontograma quedaría sellado con un hallazgo posterior a su fecha de sellado.
@@ -289,11 +331,9 @@ class CloseAdmissionServiceIT extends AbstractTenantAwareIntegrationTest {
                     tx.executeWithoutResult(status -> {
                         closeAdmissionService.close(patientId);
                         sealedButNotCommitted.countDown();
-                        try {
-                            additionFinished.await(3, TimeUnit.SECONDS); // con D9, B espera a este commit
-                        } catch (InterruptedException e) {
-                            Thread.currentThread().interrupt();
-                        }
+                        // Señal explícita, no un tiempo fijo: confirma cuando B quedó ESPERANDO el
+                        // bloqueo de esta transacción (con D9) o cuando B ya terminó (sin D9).
+                        awaitAdditionBlockedOrFinished(additionFinished);
                     });
                 } finally {
                     IdentityContext.clear();

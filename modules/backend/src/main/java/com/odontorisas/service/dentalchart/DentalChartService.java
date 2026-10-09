@@ -2,8 +2,10 @@ package com.odontorisas.service.dentalchart;
 
 import com.odontorisas.common.DentalChartBlockStatus;
 import com.odontorisas.common.DentalChartBlockType;
+import com.odontorisas.common.FindingType;
 import com.odontorisas.persistence.entity.DentalChartBlock;
 import com.odontorisas.persistence.repository.DentalChartBlockRepository;
+import com.odontorisas.persistence.repository.DentalChartFindingRepository;
 import com.odontorisas.persistence.repository.PatientRepository;
 import com.odontorisas.service.patient.PatientNotFoundException;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -26,12 +28,15 @@ import java.util.List;
 public class DentalChartService {
 
     private final DentalChartBlockRepository blockRepository;
+    private final DentalChartFindingRepository findingRepository;
     private final PatientRepository patientRepository;
     private final Clock clock;
 
-    public DentalChartService(DentalChartBlockRepository blockRepository, PatientRepository patientRepository,
-                               Clock clock) {
+    public DentalChartService(DentalChartBlockRepository blockRepository,
+                               DentalChartFindingRepository findingRepository,
+                               PatientRepository patientRepository, Clock clock) {
         this.blockRepository = blockRepository;
+        this.findingRepository = findingRepository;
         this.patientRepository = patientRepository;
         this.clock = clock;
     }
@@ -124,7 +129,11 @@ public class DentalChartService {
     public DentalChartBlockView sealInitial(Long patientId) {
         DentalChartBlock block = lockOpenBlock(blockRepository, patientId);
 
-        List<String> missing = DentalChartChecklist.missingFields(block);
+        // Con el bloque ya bloqueado: ningún hallazgo nuevo puede entrar entre esta lectura y el sellado.
+        List<FindingType> findingTypes = findingRepository.findByBlockId(block.getId()).stream()
+            .map(f -> FindingType.valueOf(f.getType()))
+            .toList();
+        List<String> missing = DentalChartChecklist.missingFields(block, findingTypes);
         if (!missing.isEmpty()) {
             throw new DentalChartChecklistIncompleteException(missing);
         }

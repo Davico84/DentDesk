@@ -234,4 +234,75 @@ class DentalChartControllerIT extends AbstractIntegrationTest {
             .andExpect(jsonPath("$[?(@.type=='MOVILIDAD_PATOLOGICA')].requiresGrade", hasItem(true)))
             .andExpect(jsonPath("$[?(@.type=='CORONA' && @.subtype=='CM')].scope", hasItem("TOOTH")));
     }
+
+    // --- scenarios que la revisión externa encontró sin test explícito ---
+
+    private void expectRejected(String token, long patientId, String body) throws Exception {
+        mockMvc.perform(post("/patients/" + patientId + "/dental-chart/findings")
+                .header("Authorization", "Bearer " + token)
+                .contentType(MediaType.APPLICATION_JSON).content(body))
+            .andExpect(status().isBadRequest());
+        mockMvc.perform(get("/patients/" + patientId + "/dental-chart").header("Authorization", "Bearer " + token))
+            .andExpect(jsonPath("$.findings.length()").value(0));
+    }
+
+    @Test
+    void rejects_a_condition_type_outside_the_catalog() throws Exception {
+        String token = registerAdmin("Clinica DC Fuera", "dc-fuera@clinica.test");
+        long patientId = createPatient(token, "Fuera de catalogo");
+        createBlock(token, patientId);
+
+        expectRejected(token, patientId, """
+            {"type":"RECESION_GINGIVAL","location":{"locationKind":"TOOTH","toothA":36}}
+            """);
+    }
+
+    @Test
+    void rejects_an_arch_that_is_neither_upper_nor_lower() throws Exception {
+        String token = registerAdmin("Clinica DC Arco", "dc-arco@clinica.test");
+        long patientId = createPatient(token, "Arco invalido");
+        createBlock(token, patientId);
+
+        expectRejected(token, patientId, """
+            {"type":"EDENTULO_TOTAL","location":{"locationKind":"ARCH","arch":"LATERAL"}}
+            """);
+    }
+
+    @Test
+    void rejects_range_teeth_on_a_finding_that_is_not_a_range() throws Exception {
+        String token = registerAdmin("Clinica DC Piezas", "dc-piezas@clinica.test");
+        long patientId = createPatient(token, "Piezas sueltas");
+        createBlock(token, patientId);
+
+        mockMvc.perform(post("/patients/" + patientId + "/dental-chart/findings")
+                .header("Authorization", "Bearer " + token)
+                .contentType(MediaType.APPLICATION_JSON).content("""
+                    {"type":"GIROVERSION","location":{"locationKind":"TOOTH","toothA":21,"teeth":[21,22]}}
+                    """))
+            .andExpect(status().isBadRequest())
+            .andExpect(jsonPath("$.type").value("/errors/validation-error"))
+            .andExpect(jsonPath("$.errors[*].field", hasItem("location.teeth")));
+    }
+
+    /** Spec "Registrar un hallazgo con su subtipo": la sigla oficial se expone por el catálogo
+     *  (tipo + subtipo es la clave; la sigla es atributo de salida, ADR-0017 D7 — no es única). */
+    @Test
+    void a_finding_with_subtype_exposes_its_official_acronym_through_the_catalog() throws Exception {
+        String token = registerAdmin("Clinica DC Sigla", "dc-sigla@clinica.test");
+        long patientId = createPatient(token, "Sigla");
+        createBlock(token, patientId);
+
+        mockMvc.perform(post("/patients/" + patientId + "/dental-chart/findings")
+                .header("Authorization", "Bearer " + token)
+                .contentType(MediaType.APPLICATION_JSON).content("""
+                    {"type":"LESION_CARIES","subtype":"CD","location":{"locationKind":"SURFACE","toothA":36,"surface":"OCLUSAL"}}
+                    """))
+            .andExpect(status().isCreated())
+            .andExpect(jsonPath("$.finding.type").value("LESION_CARIES"))
+            .andExpect(jsonPath("$.finding.subtype").value("CD"));
+
+        mockMvc.perform(get("/dental-chart/catalog").header("Authorization", "Bearer " + token))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$[?(@.type=='LESION_CARIES' && @.subtype=='CD')].acronym", hasItem("CD")));
+    }
 }
