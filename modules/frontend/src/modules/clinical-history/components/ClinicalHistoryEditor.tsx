@@ -7,7 +7,8 @@ import { Button } from "@/modules/core/ui/button";
 import { buttonVariants } from "@/modules/core/ui/button-variants";
 import { FormSection, TextareaField } from "@/modules/core/ui/form-field";
 import { dentalChartPath } from "@/routes/paths";
-import { useDentalChart } from "@/modules/dental-chart/hooks/useDentalChartApi";
+import { useDentalChart, useDentalFindingCatalog } from "@/modules/dental-chart/hooks/useDentalChartApi";
+import { missingDentalChartFields } from "@/modules/dental-chart/schemas/dentalChart";
 import {
   clinicalHistorySchema,
   toDefaults,
@@ -33,6 +34,7 @@ import { RevisadoField } from "./RevisadoField";
 export function ClinicalHistoryEditor({ patientId }: { patientId: number }) {
   const { data: history } = useClinicalHistory(patientId);
   const { data: dentalChart } = useDentalChart(patientId);
+  const { data: findingCatalog } = useDentalFindingCatalog();
   const updateHistory = useUpdateClinicalHistory(patientId);
   const completeHistory = useCompleteClinicalHistory(patientId);
   const addDiagnosis = useAddDiagnosis(patientId);
@@ -55,6 +57,9 @@ export function ClinicalHistoryEditor({ patientId }: { patientId: number }) {
   const diagnosisCount = history?.diagnosticos?.length ?? 0;
   const hasInitialDentalChart = dentalChart != null;
   const missing = missingChecklistFields(values as ClinicalHistoryValues, diagnosisCount, hasInitialDentalChart);
+  // El sellado cierra la admisión entera: el odontograma también tiene su checklist, y sin mostrarlo
+  // aquí el diálogo dejaba confirmar y el servidor rechazaba sin decir qué faltaba.
+  const dentalChartMissing = hasInitialDentalChart ? missingDentalChartFields(dentalChart, findingCatalog) : [];
 
   const onSubmit = (formValues: ClinicalHistoryValues) => {
     updateHistory.mutate(toRequest(formValues));
@@ -146,6 +151,18 @@ export function ClinicalHistoryEditor({ patientId }: { patientId: number }) {
         add-dental-chart (design.md D4/D5b): el sellado ya no depende solo de esta pantalla, así
         que sin esto el odontólogo chocaría con un rechazo del servidor sin entender por qué.
       */}
+      {!completed && hasInitialDentalChart && dentalChartMissing.length > 0 ? (
+        <div className="flex items-center justify-between gap-3 rounded-2xl border bg-accent px-4 py-3 text-sm text-accent-foreground">
+          <span className="flex items-center gap-2">
+            <Smile className="size-4 shrink-0" />
+            Al odontograma inicial le falta información para poder completar la admisión.
+          </span>
+          <Link to={dentalChartPath(patientId)} className={buttonVariants({ variant: "outline", size: "sm" })}>
+            Completar odontograma
+          </Link>
+        </div>
+      ) : null}
+
       {!completed && !hasInitialDentalChart ? (
         <div className="flex items-center justify-between gap-3 rounded-2xl border bg-accent px-4 py-3 text-sm text-accent-foreground">
           <span className="flex items-center gap-2">
@@ -176,6 +193,8 @@ export function ClinicalHistoryEditor({ patientId }: { patientId: number }) {
         open={confirmingComplete}
         onOpenChange={setConfirmingComplete}
         missingFields={missing}
+        dentalChartMissingFields={dentalChartMissing}
+        dentalChartHref={dentalChartPath(patientId)}
         pending={completeHistory.isPending}
         onConfirm={() => completeHistory.mutate(undefined, { onSuccess: () => setConfirmingComplete(false) })}
       />
