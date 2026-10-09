@@ -145,6 +145,18 @@ class DentalChartRlsIT extends AbstractTenantAwareIntegrationTest {
         return finding.getId();
     }
 
+    @Transactional
+    Long createPatient(String fullName) {
+        return patientRepository.save(Patient.builder()
+            .fullName(fullName)
+            .birthDate(LocalDate.of(1990, 1, 1))
+            .status(PatientStatus.ACTIVE)
+            .allergies(List.of())
+            .conditions(List.of())
+            .currentMedication(List.of())
+            .build()).getId();
+    }
+
     // --- dental_chart_block ---
 
     @Test
@@ -220,5 +232,74 @@ class DentalChartRlsIT extends AbstractTenantAwareIntegrationTest {
         assertThatThrownBy(() -> findingToothRepository.findAll())
             .as("una consulta de piezas de rango sin contexto debe FALLAR, no devolver vacío")
             .isInstanceOf(Exception.class);
+    }
+
+    // --- FK compuestas por tenant (tarea 2.8d, design.md D1) ---
+    //
+    // La RLS impide VER y ESCRIBIR filas de otra clínica; no impide que una fila sea internamente
+    // incoherente (declarar la organización A y apuntar a un padre de B). Eso lo ata la FK
+    // compuesta (organization_id, parent_id). Las inserciones van por la conexión OWNER, que es
+    // superusuario y se salta la RLS: así la ÚNICA barrera que queda es la FK — exactamente la
+    // propiedad que se prueba (las comprobaciones internas de FK de Postgres tampoco respetan la
+    // RLS). Cada caso lleva su control: la misma fila con la organización correcta SÍ entra, para
+    // que el rechazo no pueda venir de otra constraint.
+
+    private static void assertCompositeFkViolation(Throwable e, String constraint) {
+        assertThat(e).isInstanceOf(SQLException.class);
+        assertThat(((SQLException) e).getSQLState()).as("foreign_key_violation").isEqualTo("23503");
+        assertThat(e.getMessage()).contains(constraint);
+    }
+
+    private String insertToothFinding(long organizationId, long blockId, int tooth) {
+        return "INSERT INTO dental_chart_finding (organization_id, block_id, type, subtype, location_kind, "
+            + "tooth_a, created_by, updated_by) VALUES (" + organizationId + ", " + blockId
+            + ", 'GIROVERSION', '', 'TOOTH', " + tooth + ", " + someUser + ", " + someUser + ")";
+    }
+
+    @Test
+    void a_finding_cannot_point_to_a_block_of_another_clinic_even_declaring_its_own_organization()
+        throws SQLException {
+        asClinic(orgB);
+        Long blockB = createPatientAndBlock("Paciente de B");
+
+        try (Connection owner = ownerConnection(); Statement s = owner.createStatement()) {
+            s.execute(insertToothFinding(orgB, blockB, 11)); // control: misma organización, entra
+
+            assertThatThrownBy(() -> s.execute(insertToothFinding(orgA, blockB, 12)))
+                .satisfies(e -> assertCompositeFkViolation(e, "fk_dental_chart_finding_block"));
+        }
+    }
+
+    @Test
+    void a_range_tooth_cannot_point_to_a_finding_of_another_clinic() throws SQLException {
+        asClinic(orgB);
+        Long findingB = addRangeFinding(createPatientAndBlock("Rango de B"), 34, 35);
+
+        try (Connection owner = ownerConnection(); Statement s = owner.createStatement()) {
+            String insert = "INSERT INTO dental_chart_finding_tooth (organization_id, finding_id, position, "
+                + "tooth, created_by, updated_by) VALUES (%d, " + findingB + ", %d, %d, " + someUser + ", "
+                + someUser + ")";
+            s.execute(insert.formatted(orgB, 3, 36)); // control
+
+            assertThatThrownBy(() -> s.execute(insert.formatted(orgA, 4, 37)))
+                .satisfies(e -> assertCompositeFkViolation(e, "fk_dental_chart_finding_tooth_finding"));
+        }
+    }
+
+    @Test
+    void a_block_cannot_point_to_a_patient_of_another_clinic() throws SQLException {
+        asClinic(orgB);
+        Long patientB = createPatient("Paciente sin odontograma de B");
+
+        try (Connection owner = ownerConnection(); Statement s = owner.createStatement()) {
+            String insert = "INSERT INTO dental_chart_block (organization_id, patient_id, examined_on, "
+                + "created_by, updated_by) VALUES (%d, " + patientB + ", CURRENT_DATE, " + someUser + ", "
+                + someUser + ")";
+
+            assertThatThrownBy(() -> s.execute(insert.formatted(orgA)))
+                .satisfies(e -> assertCompositeFkViolation(e, "fk_dental_chart_block_patient"));
+
+            s.execute(insert.formatted(orgB)); // control: después, para no ocupar el único INITIAL del paciente
+        }
     }
 }
