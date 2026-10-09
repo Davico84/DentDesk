@@ -20,12 +20,22 @@ public interface DentalChartBlockRepository extends JpaRepository<DentalChartBlo
      *  parcial {@code ux_dental_chart_block_open}). */
     Optional<DentalChartBlock> findByPatientIdAndStatus(Long patientId, DentalChartBlockStatus status);
 
-    /** {@code SELECT ... FOR UPDATE}: serializa la creación de hallazgos de rango contra el mismo
-     *  bloque, para validar su cardinalidad y su unicidad con el hallazgo bloqueado — la única
-     *  variante de localización cuya unicidad no garantiza un índice (design.md D2/D3). Método
-     *  aparte de {@code findById} a propósito: bloquear en cada lectura simple degradaría la
-     *  concurrencia de todo lo demás que usa este repositorio. */
+    /** ¿Tiene el paciente un odontograma inicial? Sin cargar la entidad: así no queda en el
+     *  contexto de persistencia una copia que un {@link #lockInitialByPatientId} posterior en la
+     *  misma transacción devolvería sin refrescar. */
+    boolean existsByPatientId(Long patientId);
+
+    /**
+     * {@code SELECT ... FOR UPDATE} del odontograma inicial del paciente (único por el índice
+     * {@code ux_dental_chart_block_initial}). Toda escritura del bloque o de sus hallazgos pasa por
+     * acá antes de comprobar que siga {@code OPEN} (design.md D9): sin el bloqueo, una escritura que
+     * leyó {@code OPEN} se cuela mientras otra transacción sella — y como Hibernate actualiza todas
+     * las columnas, guardar el bloque con ese estado viejo lo reabriría. Tiene que ser la primera
+     * carga del bloque en la transacción: si ya estuviera en el contexto de persistencia, Hibernate
+     * devolvería esa instancia sin refrescar su estado.
+     */
     @Lock(LockModeType.PESSIMISTIC_WRITE)
-    @Query("select b from DentalChartBlock b where b.id = :id")
-    Optional<DentalChartBlock> lockById(@Param("id") Long id);
+    @Query("select b from DentalChartBlock b where b.patientId = :patientId "
+        + "and b.type = com.odontorisas.common.DentalChartBlockType.INITIAL")
+    Optional<DentalChartBlock> lockInitialByPatientId(@Param("patientId") Long patientId);
 }

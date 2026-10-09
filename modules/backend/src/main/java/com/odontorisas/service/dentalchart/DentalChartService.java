@@ -72,8 +72,7 @@ public class DentalChartService {
      * en ambos casos queda {@code specificationsReviewed = true} (design.md D5).
      */
     public DentalChartBlockView setSpecifications(Long patientId, String text) {
-        DentalChartBlock block = findByPatientOrThrow(patientId);
-        requireOpen(block);
+        DentalChartBlock block = lockOpenBlock(blockRepository, patientId);
         block.setSpecifications(text);
         block.setSpecificationsReviewed(true);
         return DentalChartBlockView.from(blockRepository.save(block));
@@ -84,8 +83,7 @@ public class DentalChartService {
      * sustituye a las especificaciones ni viceversa — son dos campos distintos (ADR-0017 D6).
      */
     public DentalChartBlockView setObservations(Long patientId, String text) {
-        DentalChartBlock block = findByPatientOrThrow(patientId);
-        requireOpen(block);
+        DentalChartBlock block = lockOpenBlock(blockRepository, patientId);
         block.setObservations(text);
         block.setObservationsReviewed(true);
         return DentalChartBlockView.from(blockRepository.save(block));
@@ -100,8 +98,10 @@ public class DentalChartService {
      */
     @Transactional(readOnly = true)
     public boolean existsForPatient(Long patientId) {
-        return blockRepository.findByPatientIdAndStatus(patientId, DentalChartBlockStatus.OPEN).isPresent()
-            || blockRepository.findByPatientIdAndStatus(patientId, DentalChartBlockStatus.SEALED).isPresent();
+        // Sin cargar el bloque: el coordinador llama a esto en la misma transacción que
+        // sealInitial(), y una copia ya cargada haría que el bloqueo de sealInitial devolviera
+        // un estado viejo (ver DentalChartBlockRepository#lockInitialByPatientId).
+        return blockRepository.existsByPatientId(patientId);
     }
 
     /**
@@ -114,14 +114,15 @@ public class DentalChartService {
      * <p>🔴 <b>Público a propósito, no package-private.</b> El coordinador (
      * {@code service.admission.CloseAdmissionService}) vive en otro paquete y es quien debe
      * invocarlo — design.md D4 lo describía como package-private antes de saber que el coordinador
-     * cruzaría paquetes; la visibilidad real la impone Java, así que la disciplina de "solo lo
-     * llama el coordinador" se sostiene por convención de capas (nadie más lo referencia) y por
-     * test, no por el compilador — mismo trato que {@code ClinicalHistoryService.complete(...)}
-     * desde que dejó de ser el único punto de entrada.
+     * cruzaría paquetes; la visibilidad real la impone Java, así que "solo lo llama el
+     * coordinador" lo sostiene una regla de ArchUnit ({@code AdmissionSealingArchitectureTest},
+     * tarea 2.8e), no el compilador.
+     *
+     * <p>Bloquea el bloque antes de validar ({@link #lockOpenBlock}): dentro del cierre de
+     * admisión es el tercer eslabón del orden paciente → historia → odontograma (design.md D4).
      */
     public DentalChartBlockView sealInitial(Long patientId) {
-        DentalChartBlock block = findByPatientOrThrow(patientId);
-        requireOpen(block);
+        DentalChartBlock block = lockOpenBlock(blockRepository, patientId);
 
         List<String> missing = DentalChartChecklist.missingFields(block);
         if (!missing.isEmpty()) {
@@ -149,6 +150,19 @@ public class DentalChartService {
         return blockRepository.findByPatientIdAndStatus(patientId, DentalChartBlockStatus.OPEN)
             .or(() -> blockRepository.findByPatientIdAndStatus(patientId, DentalChartBlockStatus.SEALED))
             .orElseThrow(DentalChartBlockNotFoundException::new);
+    }
+
+    /**
+     * Bloquea el odontograma ({@code SELECT ... FOR UPDATE}) y exige que siga {@code OPEN}: la
+     * puerta de toda escritura del bloque o de sus hallazgos (design.md D9). El orden importa —
+     * primero el bloqueo, después la comprobación — para que el estado leído sea el confirmado por
+     * cualquier sellado concurrente, no uno anterior.
+     */
+    static DentalChartBlock lockOpenBlock(DentalChartBlockRepository blockRepository, Long patientId) {
+        DentalChartBlock block = blockRepository.lockInitialByPatientId(patientId)
+            .orElseThrow(DentalChartBlockNotFoundException::new);
+        requireOpen(block);
+        return block;
     }
 
     /** Rechaza cualquier escritura si el odontograma ya está sellado (ADR-0012 D3). */

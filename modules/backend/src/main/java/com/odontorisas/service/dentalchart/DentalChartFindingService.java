@@ -189,11 +189,8 @@ public class DentalChartFindingService {
 
     private DentalChartFinding addRangeFinding(DentalChartBlock block, DentalChartFindingData data,
                                                 List<Integer> teeth) {
-        // Bloquea el bloque para serializar la creación de rangos: es la única variante cuya
-        // unicidad NO garantiza un índice de la base (design.md D2/D3).
-        DentalChartBlock locked = blockRepository.lockById(block.getId()).orElseThrow(DentalChartBlockNotFoundException::new);
-        DentalChartService.requireOpen(locked);
-
+        // El bloque ya llega bloqueado (findOpenBlockOrThrow): eso serializa también la creación
+        // de rangos, la única variante cuya unicidad NO garantiza un índice de la base (design.md D2/D3).
         requireRangeNotDuplicated(block.getId(), data, teeth, null);
 
         DentalChartFinding finding = DentalChartFinding.builder()
@@ -305,10 +302,10 @@ public class DentalChartFindingService {
         return finding;
     }
 
+    /** Para escribir: bloquea el odontograma antes de comprobar que siga abierto (design.md D9),
+     *  así un hallazgo no se cuela mientras otra transacción lo sella (tarea 2.8f). */
     private DentalChartBlock findOpenBlockOrThrow(Long patientId) {
-        DentalChartBlock block = findAnyBlockOrThrow(patientId);
-        DentalChartService.requireOpen(block);
-        return block;
+        return DentalChartService.lockOpenBlock(blockRepository, patientId);
     }
 
     private DentalChartBlock findAnyBlockOrThrow(Long patientId) {

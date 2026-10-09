@@ -103,7 +103,10 @@ public class ClinicalHistoryService {
      *                              mismo, no este checklist
      */
     public ClinicalHistoryView complete(Long patientId, boolean hasInitialDentalChart) {
-        HistoriaClinica historia = findByPatientOrThrow(patientId);
+        // FOR UPDATE antes de comprobar DRAFT: dos sellados concurrentes se serializan y el segundo
+        // ve COMPLETED en vez de volver a sellar (design.md D4 de add-dental-chart, tarea 2.8a).
+        HistoriaClinica historia = historiaClinicaRepository.lockByPatientId(patientId)
+            .orElseThrow(HistoriaClinicaNotFoundException::new);
         requireDraft(historia);
 
         long diagnosisCount = diagnosisRepository.countByHistoriaId(historia.getId());

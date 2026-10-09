@@ -17,14 +17,22 @@ import com.odontorisas.service.clinicalhistory.ClinicalHistoryDiagnosisService;
 import com.odontorisas.service.clinicalhistory.ClinicalHistoryService;
 import com.odontorisas.service.clinicalhistory.DiagnosisData;
 import com.odontorisas.service.clinicalhistory.HistoriaClinicaSealedException;
+import com.odontorisas.common.FindingType;
+import com.odontorisas.common.LocationKind;
+import com.odontorisas.service.dentalchart.DentalChartBlockSealedException;
 import com.odontorisas.service.dentalchart.DentalChartChecklistIncompleteException;
+import com.odontorisas.service.dentalchart.DentalChartFindingData;
+import com.odontorisas.service.dentalchart.DentalChartFindingService;
 import com.odontorisas.service.dentalchart.DentalChartService;
+import com.odontorisas.service.dentalchart.FindingLocationData;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import java.sql.Connection;
 import java.sql.SQLException;
@@ -32,6 +40,13 @@ import java.sql.Statement;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -58,6 +73,10 @@ class CloseAdmissionServiceIT extends AbstractTenantAwareIntegrationTest {
     private DentalChartService dentalChartService;
     @Autowired
     private PatientRepository patientRepository;
+    @Autowired
+    private DentalChartFindingService findingService;
+    @Autowired
+    private PlatformTransactionManager transactionManager;
 
     @BeforeEach
     void seed() throws SQLException {
@@ -187,5 +206,130 @@ class CloseAdmissionServiceIT extends AbstractTenantAwareIntegrationTest {
         var view = clinicalHistoryService.getByPatientId(patientId);
 
         assertThat(view.status()).isEqualTo(HistoriaClinicaStatus.COMPLETED);
+    }
+
+    private Long aPatientReadyToClose(String name) {
+        Long patientId = aPatientWithReadyClinicalHistory(name);
+        dentalChartService.createInitial(patientId, LocalDate.now());
+        dentalChartService.setSpecifications(patientId, null);
+        dentalChartService.setObservations(patientId, null);
+        return patientId;
+    }
+
+    // --- tarea 2.8a: concurrencia con hilos reales, sin deadlock (design.md D4) ---
+
+    @Test
+    void concurrent_closings_seal_exactly_once_without_deadlock() throws InterruptedException {
+        Long patientId = aPatientReadyToClose("Cierre concurrente");
+        int attempts = 8;
+        ExecutorService pool = Executors.newFixedThreadPool(attempts);
+        CountDownLatch ready = new CountDownLatch(attempts);
+        CountDownLatch start = new CountDownLatch(1);
+        AtomicInteger sealed = new AtomicInteger();
+        AtomicInteger rejectedAsAlreadySealed = new AtomicInteger();
+        List<Throwable> unexpected = new CopyOnWriteArrayList<>();
+
+        try {
+            for (int i = 0; i < attempts; i++) {
+                pool.submit(() -> {
+                    IdentityContext.set(someUser);
+                    OrganizationContext.set(org);
+                    ready.countDown();
+                    try {
+                        start.await();
+                        closeAdmissionService.close(patientId);
+                        sealed.incrementAndGet();
+                    } catch (HistoriaClinicaSealedException | DentalChartBlockSealedException e) {
+                        rejectedAsAlreadySealed.incrementAndGet();
+                    } catch (Throwable e) {
+                        // Un deadlock lo reporta Postgres matando una transacción (CannotAcquireLock /
+                        // PessimisticLockingFailure): cae acá, no en los rechazos esperados.
+                        unexpected.add(e);
+                    } finally {
+                        IdentityContext.clear();
+                        OrganizationContext.clear();
+                    }
+                });
+            }
+            ready.await();
+            start.countDown();
+            pool.shutdown();
+            assertThat(pool.awaitTermination(30, TimeUnit.SECONDS)).as("ningún cierre quedó colgado").isTrue();
+        } finally {
+            pool.shutdownNow();
+        }
+
+        assertThat(unexpected).as("ni deadlock ni otro error: solo un sellado y rechazos por ya sellado").isEmpty();
+        assertThat(sealed.get()).as("se sella una sola vez").isEqualTo(1);
+        assertThat(rejectedAsAlreadySealed.get()).isEqualTo(attempts - 1);
+    }
+
+    // --- tarea 2.8f: un hallazgo no se cuela en un odontograma que se está sellando (design.md D9) ---
+
+    /**
+     * Determinista, no dependiente del azar de los hilos: el hilo A sella dentro de una transacción
+     * que mantiene ABIERTA hasta que B termina (o hasta 3 s). B intenta agregar un hallazgo en ese
+     * hueco. Con el bloqueo de D9, B espera al bloque bloqueado por A, ve {@code SEALED} y se
+     * rechaza. Sin él, B lee el bloque todavía {@code OPEN} (A no confirmó) e inserta: el
+     * odontograma quedaría sellado con un hallazgo posterior a su fecha de sellado.
+     */
+    @Test
+    void a_finding_added_while_another_transaction_seals_is_rejected() throws Exception {
+        Long patientId = aPatientReadyToClose("Hallazgo durante el sellado");
+        TransactionTemplate tx = new TransactionTemplate(transactionManager);
+        CountDownLatch sealedButNotCommitted = new CountDownLatch(1);
+        CountDownLatch additionFinished = new CountDownLatch(1);
+        ExecutorService pool = Executors.newFixedThreadPool(2);
+
+        try {
+            Future<?> sealing = pool.submit(() -> {
+                IdentityContext.set(someUser);
+                OrganizationContext.set(org);
+                try {
+                    tx.executeWithoutResult(status -> {
+                        closeAdmissionService.close(patientId);
+                        sealedButNotCommitted.countDown();
+                        try {
+                            additionFinished.await(3, TimeUnit.SECONDS); // con D9, B espera a este commit
+                        } catch (InterruptedException e) {
+                            Thread.currentThread().interrupt();
+                        }
+                    });
+                } finally {
+                    IdentityContext.clear();
+                    OrganizationContext.clear();
+                }
+            });
+            Future<Throwable> addition = pool.submit(() -> {
+                IdentityContext.set(someUser);
+                OrganizationContext.set(org);
+                try {
+                    assertThat(sealedButNotCommitted.await(10, TimeUnit.SECONDS)).isTrue();
+                    findingService.add(patientId, new DentalChartFindingData(FindingType.GIROVERSION, null, null,
+                        null, new FindingLocationData(LocationKind.TOOTH, 21, null, null, null, null)));
+                    return null;
+                } catch (Throwable e) {
+                    return e;
+                } finally {
+                    additionFinished.countDown();
+                    IdentityContext.clear();
+                    OrganizationContext.clear();
+                }
+            });
+
+            sealing.get(30, TimeUnit.SECONDS);
+            assertThat(addition.get(30, TimeUnit.SECONDS))
+                .as("agregar un hallazgo a un odontograma que otra transacción está sellando se rechaza")
+                .isInstanceOf(DentalChartBlockSealedException.class);
+        } finally {
+            pool.shutdownNow();
+        }
+
+        try (Connection owner = ownerConnection(); Statement s = owner.createStatement();
+             var rs = s.executeQuery("SELECT count(*) FROM dental_chart_finding f JOIN dental_chart_block b "
+                 + "ON b.id = f.block_id WHERE b.patient_id = " + patientId)) {
+            rs.next();
+            assertThat(rs.getInt(1)).as("el odontograma sellado no tiene hallazgos posteriores").isZero();
+        }
     }
 }

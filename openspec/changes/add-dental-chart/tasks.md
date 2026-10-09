@@ -75,12 +75,12 @@ Proposal, design, spec y tasks se escribieron **antes** de tener el texto oficia
 
 ### 2.8 Tests que la revisión externa dejó al descubierto
 
-- [ ] 2.8a Test de **concurrencia con hilos reales** del sellado coordinado, verificando que **no hay deadlock**: el orden de bloqueo es paciente → historia → odontograma en **toda** ruta (design.md D4). Un test secuencial no lo detecta
+- [x] 2.8a Test de **concurrencia con hilos reales** del sellado coordinado, verificando que **no hay deadlock**: el orden de bloqueo es paciente → historia → odontograma en **toda** ruta (design.md D4). Un test secuencial no lo detecta — `CloseAdmissionServiceIT`: 8 cierres concurrentes. ⚠️ **Encontró un bug real**: sin bloqueos, los 8 sellaban (reescribiendo `completed_at`/`sealed_at`). Corregido con `FOR UPDATE` en el orden de D4 (`PatientRepository.lockById` → `HistoriaClinicaRepository.lockByPatientId` → `DentalChartBlockRepository.lockInitialByPatientId`)
 - [x] 2.8b Test de **duplicado concurrente de hallazgos** — no solo de creación de bloque, que es lo único que había (design.md D3)
 - [x] 2.8c Test de **RLS de la tabla hija por separado**: son **tres** tablas de negocio nuevas, no dos. La RLS no se hereda por FK
-- [ ] 2.8d Test de que un hallazgo **no puede apuntar a un bloque de otra organización**, aun declarando su propio `organization_id` (design.md D1)
-- [ ] 2.8e Test de que **`sealInitial()` no es invocable fuera del coordinador** — si lo fuera, caería la invariante de atomicidad de `ADR-0012` D5 (design.md D4)
-- [ ] 2.8f Test de que **agregar un hallazgo mientras otra transacción sella** no deja el odontograma sellado con un hallazgo posterior a su fecha de sellado (design.md D9)
+- [x] 2.8d Test de que un hallazgo **no puede apuntar a un bloque de otra organización**, aun declarando su propio `organization_id` (design.md D1) — `DentalChartRlsIT`, las **tres** FK compuestas (hallazgo→bloque, pieza→hallazgo, bloque→paciente), por la conexión owner que se salta la RLS, cada una con su caso de control
+- [x] 2.8e Test de que **`sealInitial()` no es invocable fuera del coordinador** — si lo fuera, caería la invariante de atomicidad de `ADR-0012` D5 (design.md D4) — `AdmissionSealingArchitectureTest` (ArchUnit), con guardas contra una regla vacía y contra una que no detecte un intruso
+- [x] 2.8f Test de que **agregar un hallazgo mientras otra transacción sella** no deja el odontograma sellado con un hallazgo posterior a su fecha de sellado (design.md D9) — `CloseAdmissionServiceIT`, determinista (el sellado mantiene su transacción abierta). ⚠️ **Encontró un bug real**: el hallazgo entraba. Corregido: toda escritura del bloque o de sus hallazgos pasa por `DentalChartService.lockOpenBlock` (bloquear y después comprobar `OPEN`); `existsForPatient` ya no carga la entidad, para que el bloqueo posterior no devuelva un estado viejo
 
 ## 3. Sellado coordinado con la admisión (backend) — **toca una capacidad construida**
 
