@@ -71,12 +71,12 @@ public class ClinicalHistoryService {
 
     /**
      * Guarda incremental en {@code DRAFT}: secciones incompletas se aceptan, no hay diálogo de
-     * confirmación ni bloqueo. No lee, copia ni modifica la anamnesis de {@code patients}
-     * (design.md D9) — esta operación solo toca la fila de {@code historia_clinica}.
+     * confirmación. No lee, copia ni modifica la anamnesis de {@code patients} (design.md D9) —
+     * esta operación solo toca la fila de {@code historia_clinica}. Bloquea la Historia antes de
+     * comprobar {@code DRAFT} ({@link #lockDraft}): un guardado que coincide con un sellado no la reabre.
      */
     public ClinicalHistoryView update(Long patientId, ClinicalHistoryData data) {
-        HistoriaClinica historia = findByPatientOrThrow(patientId);
-        requireDraft(historia);
+        HistoriaClinica historia = lockDraft(historiaClinicaRepository, patientId);
         apply(data, historia);
         return ClinicalHistoryView.from(historiaClinicaRepository.save(historia));
     }
@@ -103,11 +103,9 @@ public class ClinicalHistoryService {
      *                              mismo, no este checklist
      */
     public ClinicalHistoryView complete(Long patientId, boolean hasInitialDentalChart) {
-        // FOR UPDATE antes de comprobar DRAFT: dos sellados concurrentes se serializan y el segundo
-        // ve COMPLETED en vez de volver a sellar (design.md D4 de add-dental-chart, tarea 2.8a).
-        HistoriaClinica historia = historiaClinicaRepository.lockByPatientId(patientId)
-            .orElseThrow(HistoriaClinicaNotFoundException::new);
-        requireDraft(historia);
+        // Dos sellados concurrentes se serializan y el segundo ve COMPLETED en vez de volver a
+        // sellar (design.md D4 de add-dental-chart, tarea 2.8a).
+        HistoriaClinica historia = lockDraft(historiaClinicaRepository, patientId);
 
         long diagnosisCount = diagnosisRepository.countByHistoriaId(historia.getId());
         List<String> missing = ClinicalHistoryChecklist.missingFields(historia, diagnosisCount, hasInitialDentalChart);
@@ -146,6 +144,25 @@ public class ClinicalHistoryService {
     private HistoriaClinica findByPatientOrThrow(Long patientId) {
         return historiaClinicaRepository.findByPatientId(patientId)
             .orElseThrow(HistoriaClinicaNotFoundException::new);
+    }
+
+    /**
+     * La puerta de toda escritura de la información inicial (`update-clinical-history` design D1):
+     * bloquea la Historia ({@code SELECT ... FOR UPDATE}) y <b>después</b> exige {@code DRAFT}, para
+     * que el estado leído sea el ya confirmado por cualquier sellado concurrente. Sin el bloqueo, una
+     * escritura que leyó {@code DRAFT} se cuela durante el sellado — y como Hibernate guarda todas
+     * las columnas (sin {@code @Version}), guardar la Historia la <b>reabriría</b>.
+     *
+     * <p>⚠️ <b>Regla de uso:</b> tiene que ser la <b>primera</b> carga de la Historia en la
+     * transacción. Si quien llama ya la cargó antes (p. ej. una transacción más amplia que hizo
+     * {@code findByPatientId}), Hibernate devuelve esa instancia del contexto de persistencia sin
+     * refrescar su estado y el bloqueo deja de proteger.
+     */
+    static HistoriaClinica lockDraft(HistoriaClinicaRepository repository, Long patientId) {
+        HistoriaClinica historia = repository.lockByPatientId(patientId)
+            .orElseThrow(HistoriaClinicaNotFoundException::new);
+        requireDraft(historia);
+        return historia;
     }
 
     /** Rechaza cualquier escritura sobre información inicial si ya está sellada (design.md D1). */

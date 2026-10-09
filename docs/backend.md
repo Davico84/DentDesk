@@ -238,6 +238,28 @@ compartida por recepción/dentista) o cualquier entidad de facturación:
 - No lo añadas de forma especulativa a entidades sin edición concurrente real: es ruido y una
   fuente de `409` que nadie espera.
 
+### 8.3.1 Documentos sellables — bloquear **antes** de comprobar el estado
+
+Un documento que se sella (Historia Clínica `DRAFT → COMPLETED`, odontograma `OPEN → SEALED`)
+**no** se protege con `@Version`: sus escrituras incluyen filas de **otras** tablas (diagnósticos,
+hallazgos), que el versionado de la fila padre no ve. La regla, que pagó dos bugs reales (`add-dental-chart`
+2.8a/2.8f, `update-clinical-history`):
+
+- **Toda** escritura del documento o de sus hijos pasa por un helper que hace `SELECT ... FOR UPDATE`
+  y **después** comprueba el estado abierto: `ClinicalHistoryService.lockDraft`,
+  `DentalChartService.lockOpenBlock`. Leer, comprobar y guardar sin bloqueo deja un hueco: si el
+  sellado confirma en medio, como Hibernate escribe **todas** las columnas, guardar el documento con
+  el estado leído antes **lo reabre**.
+- **Primera carga:** el bloqueo tiene que ser la primera lectura de esa entidad en la transacción. Si
+  ya está en el contexto de persistencia, Hibernate devuelve la instancia vieja **sin refrescarla** y
+  el `FOR UPDATE` no protege nada. Por eso las consultas previas que solo preguntan si existe
+  (`existsByPatientId`) no cargan la entidad.
+- **Orden único** cuando una ruta toca varios: paciente → Historia → odontograma
+  (`CloseAdmissionService`). Distinto orden en dos rutas = deadlock intermitente.
+- Se prueba con **hilos reales** y orden forzado: un hilo toma el bloqueo, el otro arranca después y
+  el primero confirma cuando el segundo queda esperando (`AbstractIntegrationTest.awaitLockWaitOrFinished`,
+  que mira `pg_locks`). Primero contra el código sin fix, para ver el fallo.
+
 ---
 
 ## 8.4 Modelado de dominio — conjuntos cerrados y formatos
