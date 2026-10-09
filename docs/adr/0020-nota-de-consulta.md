@@ -50,7 +50,7 @@ Contenido mínimo: la **unión** de las listas de 1.1 d y 1.2, porque la norma n
 
 ### D2 — Ciclo `ABIERTA → SELLADA`, sin cierre diario
 
-Abierta es un borrador editable; sellada es inmutable. Una sola nota abierta por paciente, y las notas se registran en orden cronológico (**NTS 139 §5.3.1 (7)**, registro secuencial; misma regla de cronología que `ADR-0012` D7). Se puede **descartar solo si está vacía**: lo escrito en una atención es registro clínico aunque no se haya sellado. No hay cierre automático (ver Contexto).
+Abierta es un borrador editable; sellada es inmutable. Las notas se registran en orden cronológico: eso sí es norma (**NTS 139 §5.3.1 (7)**, registro secuencial). Que haya **una sola nota abierta por paciente** y que una abierta **bloquee** la siguiente **no lo dice la norma**: es una decisión de diseño para que el orden se cumpla por construcción (misma regla que `ADR-0012` D7, que la matriz también marca como inferida). Se puede **descartar solo si está vacía**: lo escrito en una atención es registro clínico aunque no se haya sellado. No hay cierre automático (ver Contexto).
 
 ### D3 — Dos tiempos: atención y escritura
 

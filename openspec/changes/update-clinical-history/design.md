@@ -63,7 +63,8 @@ Todos los textos son `TEXT` nulos. "Vacío" para descarte y omisión = nulo o so
 
 ### D4. Dos tiempos: cuándo se atendió y cuándo se escribió
 
-- `attended_at` (`TIMESTAMPTZ`): lo ingresa el usuario. Reglas: `≤ now()` (reloj del servidor) y `≥` el `attended_at` de la última nota **sellada** del paciente. Se valida al abrir, al editar y otra vez al sellar.
+- `attended_at` (`TIMESTAMPTZ`): lo ingresa el usuario. Reglas: `≤ now() + 1 min` (reloj del servidor; el minuto absorbe el desfase del reloj del navegador al registrar una atención "de ahora") y `≥` el `attended_at` de la última nota **sellada** del paciente. Se valida al abrir, al editar y otra vez al sellar.
+- **Próxima cita**: posterior al **día** de la atención en la **zona horaria de la clínica** (`organization_settings.timezone`), en servidor y cliente. La API no expone la zona y ninguna clínica puede cambiarla hoy, así que el cliente usa el mismo default (`America/Lima`); si la zona se vuelve configurable, tiene que llegar del servidor. Hallazgo de la revisión externa.
 - `created_at` / `created_by` / `updated_*`: automáticos, como en el resto del dominio.
 - **Por qué no usar `created_at` como fecha de atención**: el odontólogo escribe al final del día o al día siguiente. Una sola marca obliga a mentir en una de las dos preguntas. Las dos juntas además dejan auditar el retraso.
 
@@ -90,6 +91,7 @@ Todos los textos son `TEXT` nulos. "Vacío" para descarte y omisión = nulo o so
 
 - Mismo patrón que el odontograma (`ADR-0012` D3): el hecho clínico es el asiento, el estado vigente se **calcula**.
 - Una baja apunta a un **alta vigente**: de otra nota ya sellada, del mismo paciente y categoría, sin otra baja. Unicidad de la baja: índice único parcial sobre `closes_entry_id`.
+- **Dos bajas concurrentes del mismo alta** se serializan por el bloqueo de la nota abierta (un paciente tiene una sola) y la segunda ve la primera. Si igual se cruzaran, la violación del índice se traduce al mismo rechazo de negocio ("no vigente"), no a un `409` genérico.
 - Se agregan y quitan solo con la nota `ABIERTA`; al sellar quedan protegidos por trigger (como hallazgos de V20).
 - Categoría `ALERGIA_RAM` reúne alergias y **sospechas de reacción adversa** (NTS 139 §4.2.10): para alertar antes de prescribir, las dos son la misma señal. El reporte a farmacovigilancia que exige §4.2.10 queda fuera.
 - **Lo que no se puede dar de baja**: el texto de la Historia (`alergias_detalle`, etc.) y la anamnesis congelada de la ficha. No son ítems, son texto o listas sin autoría. La vista los muestra con su origen y su fecha, para que se lean como historia y no como estado actual. Si el odontólogo sabe que ya no aplican, lo deja escrito en el texto de la nota. Riesgo en Risks.

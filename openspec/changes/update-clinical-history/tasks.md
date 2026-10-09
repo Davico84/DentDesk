@@ -53,5 +53,5 @@
 ## 7. Cierre
 
 - [x] 7.1 `openspec validate update-clinical-history --strict`
-- [ ] 7.2 Revisión externa (Codex) antes del PR
+- [x] 7.2 Revisión externa (Codex) antes del PR
 - [ ] 7.3 Al archivar: Purpose de `clinical-history` con el texto de design (Open Questions), `docs/domain.md` (nota de consulta, asiento de antecedente, corrección; glosario y ER), `docs/vision.md` marcada como construida, matriz con los tests reales

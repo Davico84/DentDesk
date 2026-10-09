@@ -48,14 +48,14 @@ La nota SHALL registrar el contenido de las consultas siguientes de NTS 139 §5.
 
 ### Requirement: Fecha y hora de la atención
 
-Cada nota SHALL llevar la **fecha y hora de la atención**, ingresada por el usuario, que NO SHALL ser futura ni anterior a la atención de la última nota sellada del paciente. Además, el sistema SHALL registrar de forma automática e inmutable **cuándo se escribió** la nota y quién la escribió.
+Cada nota SHALL llevar la **fecha y hora de la atención**, ingresada por el usuario, que NO SHALL ser futura (con un margen de un minuto para el reloj del equipo) ni anterior a la atención de la última nota sellada del paciente. Además, el sistema SHALL registrar de forma automática e inmutable **cuándo se escribió** la nota y quién la escribió.
 
 #### Scenario: Registrar una atención de horas antes
 - **WHEN** un usuario abre una nota con fecha y hora de atención de esa misma mañana
 - **THEN** el sistema la registra con la hora ingresada y guarda aparte el momento real de escritura
 
 #### Scenario: Rechazar una atención en el futuro
-- **WHEN** un usuario indica una fecha y hora de atención posterior al momento actual
+- **WHEN** un usuario indica una fecha y hora de atención posterior al momento actual en más de un minuto
 - **THEN** el sistema rechaza el dato
 
 #### Scenario: Rechazar una atención anterior a la última sellada
