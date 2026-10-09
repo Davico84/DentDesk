@@ -47,7 +47,12 @@ export function PatientDetail() {
         <span className="text-sm text-muted-foreground">Pacientes</span>
       </div>
 
-      <header className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border bg-card p-5 shadow-sm">
+      {/*
+        Dos filas: la identidad arriba y las acciones abajo, cada grupo con flex-wrap. Con cinco
+        acciones en una sola fila sin envolver, la tarjeta desbordaba (update-clinical-history 6.9).
+        Documentos clínicos a la izquierda; acciones sobre la ficha a la derecha.
+      */}
+      <header className="flex flex-col gap-4 rounded-2xl border bg-card p-5 shadow-sm">
         <div className="flex items-center gap-4">
           <PatientAvatar fullName={patient.fullName!} muted={inactive} className="size-14 text-lg" />
           <div>
@@ -61,32 +66,36 @@ export function PatientDetail() {
             </div>
           </div>
         </div>
-        <div className="flex items-center gap-2">
-          <Link to={clinicalHistoryPath(id)} className={buttonVariants({ variant: "default", size: "lg" })}>
-            <ClipboardList className="mr-2 size-4" />
-            Historia Clínica
-          </Link>
-          <Link to={consultationNotesPath(id)} className={buttonVariants({ variant: "outline", size: "lg" })}>
-            <NotebookPen className="mr-2 size-4" />
-            Consultas
-          </Link>
-          <Link to={dentalChartPath(id)} className={buttonVariants({ variant: "outline", size: "lg" })}>
-            <Smile className="mr-2 size-4" />
-            Odontograma
-          </Link>
-          <Link to={patientEditPath(id)} className={buttonVariants({ variant: "outline", size: "lg" })}>
-            <Pencil className="mr-2 size-4" />
-            Editar
-          </Link>
-          {inactive ? (
-            <Button size="lg" disabled={reactivate.isPending} onClick={() => reactivate.mutate(id)}>
-              Reactivar
-            </Button>
-          ) : (
-            <Button variant="outline" size="lg" disabled={deactivate.isPending} onClick={() => setConfirmingBaja(true)}>
-              Dar de baja
-            </Button>
-          )}
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <nav aria-label="Documentos clínicos" className="flex flex-wrap items-center gap-2">
+            <Link to={clinicalHistoryPath(id)} className={buttonVariants({ variant: "default", size: "lg" })}>
+              <ClipboardList className="mr-2 size-4" />
+              Historia Clínica
+            </Link>
+            <Link to={consultationNotesPath(id)} className={buttonVariants({ variant: "outline", size: "lg" })}>
+              <NotebookPen className="mr-2 size-4" />
+              Consultas
+            </Link>
+            <Link to={dentalChartPath(id)} className={buttonVariants({ variant: "outline", size: "lg" })}>
+              <Smile className="mr-2 size-4" />
+              Odontograma
+            </Link>
+          </nav>
+          <div className="flex flex-wrap items-center gap-2">
+            <Link to={patientEditPath(id)} className={buttonVariants({ variant: "ghost", size: "lg" })}>
+              <Pencil className="mr-2 size-4" />
+              Editar
+            </Link>
+            {inactive ? (
+              <Button size="lg" disabled={reactivate.isPending} onClick={() => reactivate.mutate(id)}>
+                Reactivar
+              </Button>
+            ) : (
+              <Button variant="ghost" size="lg" disabled={deactivate.isPending} onClick={() => setConfirmingBaja(true)}>
+                Dar de baja
+              </Button>
+            )}
+          </div>
         </div>
       </header>
 

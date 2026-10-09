@@ -49,6 +49,7 @@
 - [x] 6.6 `PatientForm`/`PatientDetail`: anamnesis en solo lectura con aviso cuando está congelada
 - [x] 6.7 Tests Vitest/MSW por pantalla y componente (abrir, guardar, sellar con faltantes, descartar vacía, corrección, vigentes, anamnesis congelada)
 - [x] 6.8 `pnpm validate` verde
+- [x] 6.9 Ficha del paciente: la fila de acciones (Historia Clínica, Consultas, Odontograma, Editar, Dar de baja) desborda la tarjeta desde que se agregó "Consultas" — que envuelva o se reorganice en anchos chicos (revisión visual del usuario, 2026-10-09)
 
 ## 7. Cierre
 
