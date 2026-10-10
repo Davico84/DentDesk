@@ -20,7 +20,9 @@ const EXCEPTIONS: Record<string, string> = {
 
 // Un hex termina donde termina el hex: dentro de una clase arbitraria le sigue `_` (`#671a86_0%`),
 // que `\b` considera parte de la palabra y dejaría pasar.
-const LITERAL = /#[0-9a-fA-F]{3,8}(?![0-9a-fA-F])|\brgba?\(|\bhsla?\(/;
+// Funciones de color: también las modernas (oklch, lab…) y con espacio antes del paréntesis.
+// Los colores con nombre (`red`, `white`) no se buscan: chocan con clases legítimas (`text-white`).
+const LITERAL = /#[0-9a-fA-F]{3,8}(?![0-9a-fA-F])|\b(?:rgba?|hsla?|hwb|lab|lch|oklab|oklch|color)\s*\(/;
 
 function sourceFiles(dir: string): string[] {
   return readdirSync(dir, { recursive: true, withFileTypes: true })
