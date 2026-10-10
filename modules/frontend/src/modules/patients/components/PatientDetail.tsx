@@ -50,7 +50,8 @@ export function PatientDetail() {
       {/*
         Dos filas: la identidad arriba y las acciones abajo, cada grupo con flex-wrap. Con cinco
         acciones en una sola fila sin envolver, la tarjeta desbordaba (update-clinical-history 6.9).
-        Documentos clínicos a la izquierda; acciones sobre la ficha a la derecha.
+        Documentos clínicos a la izquierda; acciones sobre la ficha a la derecha. Los tres documentos
+        con el mismo estilo: la ficha es un punto de partida, no una navegación con uno "elegido".
       */}
       <header className="flex flex-col gap-4 rounded-2xl border bg-card p-5 shadow-sm">
         <div className="flex items-center gap-4">
@@ -68,7 +69,7 @@ export function PatientDetail() {
         </div>
         <div className="flex flex-wrap items-center justify-between gap-2">
           <nav aria-label="Documentos clínicos" className="flex flex-wrap items-center gap-2">
-            <Link to={clinicalHistoryPath(id)} className={buttonVariants({ variant: "default", size: "lg" })}>
+            <Link to={clinicalHistoryPath(id)} className={buttonVariants({ variant: "outline", size: "lg" })}>
               <ClipboardList className="mr-2 size-4" />
               Historia Clínica
             </Link>
