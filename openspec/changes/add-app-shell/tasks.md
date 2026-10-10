@@ -29,6 +29,6 @@
 
 - [x] 5.1 e2e Playwright (API mockeada): a 375, 768 y 1280 px, ninguna pantalla privada se desplaza de costado y la navegación es alcanzable; a 2560 px el marco mide 1920 px y queda centrado
 - [x] 5.2 Capturas antes/después de las pantallas existentes: el contenido no cambia salvo por el shell alrededor
-- [ ] 5.3 `pnpm validate` verde; `pnpm build`
+- [x] 5.3 `pnpm validate` verde; `pnpm build`
 - [x] 5.4 `docs/frontend.md` §1 (shell en la estructura) y §4.3 (el `AppLayout` existe: quitar "objetivo, aún no adoptado"; breakpoints reales), `docs/vision.md` §8
 - [x] 5.5 `openspec validate add-app-shell --strict`
