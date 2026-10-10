@@ -28,6 +28,7 @@ import { FormSection, FormField, SelectField, FormErrorSummary } from "@/modules
 import { InfoRow } from "@/modules/core/components/InfoCard";
 import { documentTypeOptions, sexOptions, guardianRelationshipOptions } from "./patientOptions";
 import { PhoneNumberField } from "./PhoneNumberField";
+import { PageContainer } from "@/modules/core/components/PageContainer";
 
 /**
  * Etiqueta de cada campo, en **un solo sitio**: la usan los campos y el resumen de errores. Si
@@ -126,7 +127,7 @@ export function PatientForm() {
   };
 
   return (
-    <main className="mx-auto flex min-h-screen w-full max-w-2xl flex-col gap-6 p-6">
+    <PageContainer>
       <header className="flex items-center gap-3">
         <Link to={backTo} aria-label="Volver" className={buttonVariants({ variant: "ghost", size: "icon" })}>
           <ArrowLeft className="size-4" />
@@ -301,7 +302,7 @@ export function PatientForm() {
           </div>
         </div>
       </form>
-    </main>
+    </PageContainer>
   );
 }
 

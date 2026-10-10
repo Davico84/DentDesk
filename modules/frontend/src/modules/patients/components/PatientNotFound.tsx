@@ -3,6 +3,7 @@ import { UserX } from "lucide-react";
 import { buttonVariants } from "@/modules/core/ui/button-variants";
 import { DataState } from "@/modules/core/components/DataState";
 import { PATHS } from "@/routes/paths";
+import { PageContainer } from "@/modules/core/components/PageContainer";
 
 /**
  * La ficha no existe en la clínica activa (o el enlace es de otra). Lleva **salida**: un "no
@@ -13,7 +14,7 @@ import { PATHS } from "@/routes/paths";
  */
 export function PatientNotFound() {
   return (
-    <main className="mx-auto flex min-h-screen w-full max-w-2xl flex-col items-center justify-center gap-4 p-6 text-center">
+    <PageContainer className="items-center justify-center text-center">
       <DataState
         icon={UserX}
         variant="muted"
@@ -25,6 +26,6 @@ export function PatientNotFound() {
           </Link>
         }
       />
-    </main>
+    </PageContainer>
   );
 }

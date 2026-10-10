@@ -18,6 +18,7 @@ import { PatientDetailSkeleton } from "./PatientDetailSkeleton";
 import { PatientNotFound } from "./PatientNotFound";
 import { ageLabel, documentLabel, joinOrDash } from "./patientDisplay";
 import { guardianRelationshipOptions, labelOf, sexOptions } from "./patientOptions";
+import { PageContainer } from "@/modules/core/components/PageContainer";
 
 /** Feature de la consulta de una ficha: datos, y acciones de edición/baja/reactivación. */
 export function PatientDetail() {
@@ -35,7 +36,7 @@ export function PatientDetail() {
   const inactive = patient.status === "INACTIVE";
 
   return (
-    <main className="mx-auto flex min-h-screen w-full max-w-2xl flex-col gap-6 p-6">
+    <PageContainer>
       <div className="flex items-center gap-2">
         <Link
           to={PATHS.PATIENTS}
@@ -167,6 +168,6 @@ export function PatientDetail() {
         pending={deactivate.isPending}
         onConfirm={() => deactivate.mutate(id, { onSuccess: () => setConfirmingBaja(false) })}
       />
-    </main>
+    </PageContainer>
   );
 }

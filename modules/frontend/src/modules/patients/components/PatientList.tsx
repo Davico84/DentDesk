@@ -11,6 +11,7 @@ import { PatientRow } from "./PatientRow";
 import { PatientListSkeleton } from "./PatientListSkeleton";
 import { PatientListEmpty } from "./PatientListEmpty";
 import { PatientListError } from "./PatientListError";
+import { PageContainer } from "@/modules/core/components/PageContainer";
 
 const PAGE_SIZE = 20;
 
@@ -48,7 +49,7 @@ export function PatientList() {
   const searching = debouncedQuery.trim().length > 0;
 
   return (
-    <main className="mx-auto flex min-h-screen w-full max-w-4xl flex-col gap-6 p-6">
+    <PageContainer>
       <header className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Pacientes</h1>
@@ -138,6 +139,6 @@ export function PatientList() {
           </div>
         </footer>
       ) : null}
-    </main>
+    </PageContainer>
   );
 }

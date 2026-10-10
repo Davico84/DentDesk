@@ -3,6 +3,7 @@ import { ArrowLeft } from "lucide-react";
 import { buttonVariants } from "@/modules/core/ui/button-variants";
 import { patientDetailPath } from "@/routes/paths";
 import { ConsultationNotes } from "@/modules/clinical-history/components/ConsultationNotes";
+import { PageContainer } from "@/modules/core/components/PageContainer";
 
 /**
  * Pantalla de las notas de consulta de un paciente: hoja de composición (docs/frontend.md §1, §4.6).
@@ -13,7 +14,7 @@ export function ConsultationNotesScreen() {
   const patientId = Number(params.id);
 
   return (
-    <main className="mx-auto flex min-h-screen w-full max-w-5xl flex-col gap-6 p-6">
+    <PageContainer>
       <div className="flex items-center gap-2">
         <Link
           to={patientDetailPath(patientId)}
@@ -26,6 +27,6 @@ export function ConsultationNotesScreen() {
       </div>
 
       <ConsultationNotes patientId={patientId} />
-    </main>
+    </PageContainer>
   );
 }
