@@ -124,3 +124,22 @@ test("a 2560 px el marco mide 1920 px y queda centrado, con la barra junto al co
   const navLeft = (await nav.boundingBox())!.x;
   expect(navLeft).toBeGreaterThanOrEqual(frame.left);
 });
+
+for (const width of [768, 1280]) {
+  test(`a ${width} px la barra de íconos no muestra barras de scroll`, async ({ page }) => {
+    // Escritorio: barra contraída por preferencia; tablet: siempre solo íconos.
+    await page.addInitScript(() =>
+      localStorage.setItem("odr-sidebar", JSON.stringify({ state: { collapsed: true }, version: 0 })),
+    );
+    await page.setViewportSize({ width, height: 900 });
+    await mockApi(page, { authed: true, preset: null });
+    await page.goto("/patients");
+    await expect(page.getByRole("navigation", { name: "Principal" })).toBeVisible();
+    const overflowing = await page.evaluate(() =>
+      [...document.querySelectorAll<HTMLElement>("aside *")]
+        .filter((el) => getComputedStyle(el).overflowX !== "visible" && el.scrollWidth > el.clientWidth)
+        .map((el) => el.className),
+    );
+    expect(overflowing).toEqual([]);
+  });
+}
