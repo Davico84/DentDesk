@@ -28,4 +28,5 @@
 ## 5. Docs y cierre
 
 - [x] 5.1 `docs/frontend.md` §4.5 (formato de color completo, `@theme inline`, tokens `brand-*`, lista de excepciones) y §4.5.1 (el tema de la clínica emite color completo); `docs/architecture.md` y `docs/adr/0001` (Tailwind 4)
+- [x] 5.3 Revisión externa (Codex): opacidad medida y documentada (máx. 1/255 por canal), prueba de que el `<style>` de la clínica queda último en el `<head>`, regex con funciones de color modernas, navegadores mínimos en `frontend.md`
 - [x] 5.2 `openspec validate update-tailwind-v4 --strict`

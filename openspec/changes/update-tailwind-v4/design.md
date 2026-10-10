@@ -74,7 +74,7 @@ Correr `npx @tailwindcss/upgrade` sobre un árbol limpio (renombra utilidades en
 
 - **Compilación real**: un test de Vitest en entorno `node` compila `globals.css` con `compile()` de `@tailwindcss/node` (devDependency, misma versión que `tailwindcss`) y pide candidatos (`bg-primary`, `bg-primary/10`, `text-muted-foreground`, `bg-brand-cta`, `dark:hidden`). Verifica que referencian `var(--token)` y que `dark:` genera un selector con `.dark`.
 - **Paridad claro/oscuro**: el mismo test extrae los tokens de `:root` y `.dark` y comprueba que cada token de color existe en los dos.
-- **Sin literales**: un test recorre `src/**/*.{ts,tsx}` (excluye `services/generated` y `*.test.*`) y falla ante `#rgb`/`#rrggbb`, `rgb(`, `hsl(`. La **lista de excepciones** va en el propio test, con el motivo de cada archivo: `dental-chart/utils/findingColor.ts` (NTS 188), `dental-chart/utils/chartPalette.ts` (papel fijo), `branding/presets.ts` (datos) y `core/theme/deriveTheme.ts` (genera los tokens del tema de cada clínica; agregado en el apply). El regex de hex no usa `` al final: dentro de una clase arbitraria al hex le sigue `_` (`#671a86_0%`), que `` toma como parte de la palabra. Si un archivo de la lista ya no tiene literales, el test falla y pide sacarlo.
+- **Sin literales**: un test recorre `src/**/*.{ts,tsx}` (excluye `services/generated` y `*.test.*`) y falla ante `#rgb`/`#rrggbb`, `rgb(`, `hsl(`. La **lista de excepciones** va en el propio test, con el motivo de cada archivo: `dental-chart/utils/findingColor.ts` (NTS 188), `dental-chart/utils/chartPalette.ts` (papel fijo), `branding/presets.ts` (datos) y `core/theme/deriveTheme.ts` (genera los tokens del tema de cada clínica; agregado en el apply). El regex de hex no usa `` al final: dentro de una clase arbitraria al hex le sigue `_` (`#671a86_0%`), que `` toma como parte de la palabra. Si un archivo de la lista ya no tiene literales, el test falla y pide sacarlo. El regex cubre también funciones de color modernas (`oklch`, `lab`, `hwb`, `color()`…) y espacio antes del paréntesis; no busca colores con nombre, que chocan con clases legítimas (`text-white`). *(Revisión externa.)*
 
 ### D8. Revisión visual
 
@@ -82,7 +82,7 @@ Login, registro, listado y ficha del paciente, Historia Clínica, odontograma, c
 
 ## Risks / Trade-offs
 
-- **Diferencias visuales sutiles** (sombras y radios reescalados, `color-mix` en vez de `hsl/α`) → revisión de D8 con capturas de antes y después.
+- **Diferencias visuales sutiles** (sombras y radios reescalados, `color-mix` en vez de `hsl/α`) → revisión de D8 con capturas de antes y después. *Medido al aplicar:* 84 pares idénticos con umbral 12; con umbral 0, diferencia máxima de **1/255 por canal** en 1878 píxeles (redondeo de `color-mix` en las pantallas con `bg-primary/5` y `/10`). *(Revisión externa.)*
 - **El upgrade tool reescribe de más o de menos** → árbol limpio y diff revisado archivo por archivo.
 - **Navegadores viejos** sin `@property`/`color-mix` → requisito de v4 aceptado.
 - **`@tailwindcss/node` es una API de bajo nivel** → solo se usa en tests; si cambia, el test falla de forma visible, no en silencio.
