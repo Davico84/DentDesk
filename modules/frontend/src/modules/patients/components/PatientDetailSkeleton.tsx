@@ -1,3 +1,5 @@
+import { PageContainer } from "@/modules/core/components/PageContainer";
+
 /**
  * Esqueleto de carga de la ficha. Espera con la FORMA de lo que va a llegar, en vez de un spinner:
  * se percibe más corta y el layout no "salta" al pintar.
@@ -8,7 +10,7 @@
 export function PatientDetailSkeleton() {
   const pulse = "animate-pulse rounded bg-muted motion-reduce:animate-none";
   return (
-    <main className="mx-auto flex min-h-screen w-full max-w-2xl flex-col gap-6 p-6" aria-busy="true">
+    <PageContainer aria-busy="true">
       <div className={`h-9 w-24 ${pulse}`} />
       <div className="flex items-center gap-4 rounded-2xl border bg-card p-5 shadow-sm">
         <div className={`size-14 shrink-0 rounded-full ${pulse}`} />
@@ -24,6 +26,6 @@ export function PatientDetailSkeleton() {
           <div className={`h-3 w-2/3 ${pulse}`} />
         </div>
       ))}
-    </main>
+    </PageContainer>
   );
 }

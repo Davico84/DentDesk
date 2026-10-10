@@ -60,7 +60,7 @@ class PatientControllerTest {
     private PatientView aView(Long id, String fullName) {
         return new PatientView(id, fullName, DocumentType.DNI, "10000001", LocalDate.of(1990, 1, 1),
             false, null, null, null, null, null, null, null, null, null, null, null,
-            List.of(), List.of(), List.of(), PatientStatus.ACTIVE, false);
+            List.of(), List.of(), List.of(), PatientStatus.ACTIVE, false, false);
     }
 
     @Test

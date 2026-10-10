@@ -13,23 +13,27 @@ Esta carpeta guarda el **texto oficial** de las normas que el proyecto cita, par
 | `Decreto-Supremo-016-2024-JUS-LPDerecho.pdf` | **D.S. N°016-2024-JUS**, reglamento **vigente** | ✅ **Título Preliminar con artículos en ROMANOS** (I–VII) + arts. **1–135** en arábigos, El Peruano 30.11.2024. ⚠️ Un barrido que solo busque `Artículo <número>` **se saltea el Título Preliminar**, donde viven el ámbito de aplicación y las definiciones | ✅ **VIGENTE** desde el **30.03.2025**. Deroga expresamente al D.S. 003-2013-JUS | ✅ **sí**, es la segunda fuente de [`ADR-0019`](../../adr/0019-proteccion-de-datos-ley-29733.md) |
 | `nts-188-odontograma-rm-559-2022-ESCANEADA.pdf` | **NTS N°188-MINSA/DGIESP-2022**, uso del Odontograma (RM N°559-2022/MINSA) | ⚠️ **24 páginas escaneadas, sin capa de texto** (`pdftotext` extrae 24 bytes). ✅ **Legible por extracción de imágenes** — ver *Cómo leer un PDF escaneado*. Contiene el catálogo **6.1.1–6.1.38** | ✅ **VIGENTE**. Deroga la NTS N°150 (RM N°595-2019) | ✅ **sí** — fuente de [`ADR-0017`](../../adr/0017-catalogo-odontograma-nts-188.md). ⚠️ **El catálogo necesita re-verificación completa entrada por entrada** |
 | `directiva-seguridad-anpdp-2013-ESCANEADA-SIN-TEXTO.pdf` | **Directiva de Seguridad de la Información Administrada por los Bancos de Datos Personales** (R.D. N°019-2013-JUS/DGPDP) | ⚠️ 38 páginas **escaneadas como imagen, sin capa de texto** — `pdftotext` extrae 38 bytes, uno por salto de página | ⚠️ de 2013, escrita sobre el reglamento derogado. El D.S. 016-2024-JUS subió las obligaciones de seguridad al propio texto reglamentario | 🔴 **NO**, por partida doble: ilegible y desplazada |
+| `nts-139-historia-clinica-rm-214-2018.pdf` | **NTS N°139-MINSA/2018/DGAIN**, Gestión de la Historia Clínica (RM N°214-2018/MINSA) | ✅ texto con capa de texto, completo con anexos. ⚠️ **No** trae incorporada su modificatoria (va aparte, abajo) | ✅ **VIGENTE**, modificada por la RM N°265-2018/MINSA | ✅ **sí** — fuente de [`ADR-0018`](../../adr/0018-cumplimiento-nts-139-y-cop.md) y [`ADR-0020`](../../adr/0020-nota-de-consulta.md). Versionada el 2026-10-09 (antes se citaba por fecha de consulta) |
+| `rm-265-2018-minsa-modifica-nts-139-ESCANEADA.pdf` | **RM N°265-2018/MINSA**, modifica la NTS N°139 | ⚠️ **escaneada (JBIG2)**: no sale por `pypdf` ni por extracción de imágenes sin `jbig2dec`. Leída por capturas de pantalla el 2026-10-09. 3 páginas: redefine *"Acto de Salud"* y agrega el §7.4 | ✅ **VIGENTE** | ✅ **sí** — [`ADR-0020`](../../adr/0020-nota-de-consulta.md) (no toca las fichas ni la nota) |
+| `ds-009-2017-sa-reglamento-ley-30024-renhice.pdf` | **D.S. N°009-2017-SA**, Reglamento de la Ley N°30024 (RENHICE) | ✅ capa de texto, completo | ✅ **VIGENTE** (no se encontró derogatoria; ⚠️ verificar contra fuente externa antes de una auditoría) | ✅ **sí** — arts. **32, 37, 46, 47** en [`ADR-0020`](../../adr/0020-nota-de-consulta.md) |
+| `rm-576-2011-minsa-aprueba-directiva-183-SIN-DIRECTIVA.pdf` | **RM N°576-2011/MINSA**, aprueba la Directiva N°183-MINSA/OGEI-V.01 | 🔴 **solo la resolución** (2 páginas de El Peruano), **sin el texto de la Directiva** | ⚠️ sin verificar | 🔴 **NO** para el contenido de la Directiva: lo único citable es que la aprobó |
+| `ley-27269-firmas-certificados-digitales-mod-ley-27310.pdf` | **Ley N°27269**, Firmas y Certificados Digitales | ✅ capa de texto, El Peruano 28.05.2000. ⚠️ El nombre de origen dice *"modificada por Ley 27310"*: **no se comprobó** que la modificatoria esté incorporada | ⚠️ vigente según su uso actual, sin verificar | ⚠️ con cautela — falta su reglamento (D.S. N°052-2008-PCM) |
+| `codigo-etica-deontologia-cop-2024.pdf` | **Código de Ética y Deontología del COP** (Resolución N°01-02.SOCN.COP.2024, 16.02.2024) | ✅ capa de texto, 104 artículos | ✅ **VIGENTE** | ✅ **sí** — fuente de [`ADR-0018`](../../adr/0018-cumplimiento-nts-139-y-cop.md). Versionado el 2026-10-09 |
 
 ## Qué falta
 
 | Norma | Por qué importa | Estado |
 |---|---|---|
 | **Modificatorias de la Ley N°29733** | El texto versionado es el original de 2011 | ⚠️ sin verificar |
-| **Ley N°27269** + D.S. N°052-2008-PCM — firma digital | Tras `ADR-0018` D4 es la **única** fuente de la firma digital: el COP no la menciona en ningún artículo | ⚠️ pendiente |
-| **NTS N°139-MINSA/2018/DGAIN** · **Código de Ética del COP (2024)** | Leídas y usadas en `ADR-0018`, **no versionadas** — ver *Qué se versiona* | ⚠️ citadas por fecha de consulta |
+| **D.S. N°052-2008-PCM** — reglamento de la Ley de Firmas Digitales | La ley sola no fija los requisitos técnicos de la firma | ⚠️ pendiente |
+| **Directiva N°183-MINSA/OGEI-V.01** (texto) | Aprobada por la RM 576-2011; solo está la resolución | ⚠️ pendiente |
+| **RM N°164-2025/MINSA** (Directiva 373, acreditación de SIHCE) | Condiciona el valor legal de la HC electrónica (NTS 139 §5.3.3 l) | ⚠️ pendiente |
 
 ## Qué se versiona y qué no
 
-| | Se versiona | No se versiona |
-|---|---|---|
-| **Qué** | Leyes, decretos supremos y directivas: documentos **chicos** (decenas o pocos cientos de KB) de **publicación oficial abierta** | Los PDF de las **NTS del MINSA** y el Código del COP: **cientos de páginas**, y el del COP es publicación de un colegio profesional |
-| **Cómo se cita lo no versionado** | por ruta en esta carpeta | norma + instrumento de aprobación + **fecha de consulta**, en la cabecera del ADR que la usó |
+**Desde el 2026-10-09 se versionan todos los textos oficiales que el proyecto cita**, NTS y Código del COP incluidos (decisión del usuario en `update-clinical-history`). La regla anterior —versionar solo leyes y decretos chicos, y citar las NTS por fecha de consulta— ya tenía una excepción (la NTS 188, 9 MB) y dejaba las citas de `ADR-0018` sin forma de re-verificarse desde el repo. El costo en peso (~15 MB en total) es menor que el de otra cita que nadie puede comprobar.
 
-⚠️ **Consecuencia asumida:** las citas de NTS 139, NTS 188 y el COP **siguen sin ser re-verificables desde el repo**. La carpeta reduce el problema, no lo elimina.
+Sigue sin versionarse lo que **no** es texto oficial: resúmenes, análisis derivados, transcripciones.
 
 ## Reglas
 

@@ -3,6 +3,7 @@ import { ArrowLeft } from "lucide-react";
 import { buttonVariants } from "@/modules/core/ui/button-variants";
 import { patientDetailPath } from "@/routes/paths";
 import { ClinicalHistoryForm } from "@/modules/clinical-history/components/ClinicalHistoryForm";
+import { PageContainer } from "@/modules/core/components/PageContainer";
 
 /**
  * Pantalla de la Historia Clínica de un paciente: hoja de composición (docs/frontend.md §1, §4.6).
@@ -13,7 +14,7 @@ export function ClinicalHistoryScreen() {
   const patientId = Number(params.id);
 
   return (
-    <main className="mx-auto flex min-h-screen w-full max-w-3xl flex-col gap-6 p-6">
+    <PageContainer>
       <div className="flex items-center gap-2">
         <Link
           to={patientDetailPath(patientId)}
@@ -26,6 +27,6 @@ export function ClinicalHistoryScreen() {
       </div>
 
       <ClinicalHistoryForm patientId={patientId} />
-    </main>
+    </PageContainer>
   );
 }

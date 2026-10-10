@@ -3,6 +3,7 @@ package com.odontorisas.presentation;
 import com.odontorisas.infra.config.TraceIdFilter;
 import com.odontorisas.service.BusinessException;
 import com.odontorisas.service.clinicalhistory.ChecklistIncompleteException;
+import com.odontorisas.service.consultationnote.ConsultationNoteChecklistIncompleteException;
 import com.odontorisas.service.dentalchart.DentalChartChecklistIncompleteException;
 import com.odontorisas.service.patient.DocumentAlreadyExistsException;
 import org.slf4j.Logger;
@@ -75,6 +76,14 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
     /** Checklist del odontograma incompleto (400) — mismo patrón que {@link #handleChecklistIncomplete}. */
     @ExceptionHandler(DentalChartChecklistIncompleteException.class)
     public ProblemDetail handleDentalChartChecklistIncomplete(DentalChartChecklistIncompleteException ex) {
+        ProblemDetail problem = ProblemDetails.of(ex.getStatus(), ex.getErrorType(), ex.getMessage());
+        problem.setProperty("missingFields", ex.getMissingFields());
+        return problem;
+    }
+
+    /** Contenido obligatorio de la nota de consulta incompleto (400) — mismo patrón que {@link #handleChecklistIncomplete}. */
+    @ExceptionHandler(ConsultationNoteChecklistIncompleteException.class)
+    public ProblemDetail handleConsultationNoteChecklistIncomplete(ConsultationNoteChecklistIncompleteException ex) {
         ProblemDetail problem = ProblemDetails.of(ex.getStatus(), ex.getErrorType(), ex.getMessage());
         problem.setProperty("missingFields", ex.getMissingFields());
         return problem;

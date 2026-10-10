@@ -14,4 +14,7 @@ public interface ClinicalHistoryDiagnosisRepository extends JpaRepository<Clinic
     List<ClinicalHistoryDiagnosis> findByHistoriaId(Long historiaId);
 
     long countByHistoriaId(Long historiaId);
+
+    /** ¿Se registró este código en la Historia? (regla del diagnóstico R de las notas, `update-clinical-history` design.md D5) */
+    boolean existsByHistoriaIdAndCie10Code(Long historiaId, String cie10Code);
 }

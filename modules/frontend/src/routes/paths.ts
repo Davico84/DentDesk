@@ -10,6 +10,7 @@ export const PATHS = {
   PATIENT_EDIT: "/patients/:id/edit",
   CLINICAL_HISTORY: "/patients/:id/clinical-history",
   DENTAL_CHART: "/patients/:id/dental-chart",
+  CONSULTATION_NOTES: "/patients/:id/consultations",
 } as const;
 
 /** Construye la ruta de detalle de un paciente. */
@@ -20,3 +21,5 @@ export const patientEditPath = (id: number) => `/patients/${id}/edit`;
 export const clinicalHistoryPath = (id: number) => `/patients/${id}/clinical-history`;
 /** Construye la ruta del odontograma de un paciente. */
 export const dentalChartPath = (id: number) => `/patients/${id}/dental-chart`;
+/** Construye la ruta de las notas de consulta de un paciente. */
+export const consultationNotesPath = (id: number) => `/patients/${id}/consultations`;

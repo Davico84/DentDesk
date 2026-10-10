@@ -6,8 +6,18 @@
  * OpenAPI spec version: v1
  */
 
+export * from './activeBackgroundItem';
+export * from './activeBackgroundItemCategory';
+export * from './activeBackgroundItemSource';
+export * from './activeBackgroundResponse';
 export * from './apiProblem';
 export * from './authResponse';
+export * from './backgroundEntryRequest';
+export * from './backgroundEntryRequestCategory';
+export * from './backgroundEntryRequestKind';
+export * from './backgroundEntryResponse';
+export * from './backgroundEntryResponseCategory';
+export * from './backgroundEntryResponseKind';
 export * from './brandingResponse';
 export * from './brandingResponseBrandPreset';
 export * from './cie10SearchResultResponse';
@@ -17,6 +27,13 @@ export * from './clinicalHistoryResponse';
 export * from './clinicalHistoryResponseSex';
 export * from './clinicalHistoryResponseSignosVitales';
 export * from './clinicalHistoryResponseStatus';
+export * from './consultationNoteRequest';
+export * from './consultationNoteResponse';
+export * from './consultationNoteResponseStatus';
+export * from './correctionRequest';
+export * from './correctionRequestField';
+export * from './correctionResponse';
+export * from './correctionResponseField';
 export * from './dentalChartCreateRequest';
 export * from './dentalChartFindingCreatedResponse';
 export * from './dentalChartFindingRequest';
@@ -56,6 +73,10 @@ export * from './diagnosisResponseUbicacion';
 export * from './enablementResponse';
 export * from './fieldError';
 export * from './loginRequest';
+export * from './noteDiagnosisResponse';
+export * from './noteDiagnosisResponseTipoDiagnostico';
+export * from './noteDiagnosisResponseUbicacion';
+export * from './openConsultationNoteRequest';
 export * from './pageResponsePatientSummaryResponse';
 export * from './pathSegmentResponse';
 export * from './patientRequest';

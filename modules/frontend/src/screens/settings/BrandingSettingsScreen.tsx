@@ -15,6 +15,7 @@ import { brandingSchema, toRequest, type BrandingValues } from "@/modules/brandi
 import { BRAND_PRESETS, findPreset } from "@/modules/branding/presets";
 import { applyServerFieldErrors } from "@/modules/core/utils/apiError";
 import { useBrandingQuery, useUpdateBranding } from "@/modules/branding/hooks/useBrandingApi";
+import { PageContainer } from "@/modules/core/components/PageContainer";
 
 /** Variables CSS (tokens claros) del tema derivado, para el contenedor de vista previa. */
 function previewVars(values: BrandingValues): CSSProperties | undefined {
@@ -55,7 +56,7 @@ export function BrandingSettingsScreen() {
     })?.contrastWarning ?? false;
 
   return (
-    <main className="mx-auto flex min-h-screen max-w-2xl flex-col gap-6 p-6">
+    <PageContainer>
       <div className="flex items-center gap-3">
         <Link to={PATHS.ROOT} aria-label="Volver" className={buttonVariants({ variant: "ghost", size: "icon" })}>
           <ArrowLeft className="size-4" />
@@ -150,6 +151,6 @@ export function BrandingSettingsScreen() {
           <span className="rounded-md bg-secondary px-3 py-1 text-secondary-foreground">Secundario</span>
         </CardContent>
       </Card>
-    </main>
+    </PageContainer>
   );
 }
