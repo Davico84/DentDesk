@@ -2,7 +2,7 @@
 
 Repo: `D:\proyectos\drivenSpec\OdontoRisas\Odontorisas`
 Paquete: **`@fission-ai/openspec`** · integra nativo con Claude Code.
-CLI de referencia en esta guía: **v1.5.0** (verifica con `openspec --version`).
+CLI de referencia en esta guía: **v1.14.1** (verifica con `openspec --version`). Es la misma versión que fija el CI; para cambiarla, ver §7b.
 
 > **Convención de terminal.** El entorno de este repo es **Windows + PowerShell**.
 > Los bloques marcados como `powershell` son los que debes usar en tu día a día.
@@ -27,24 +27,24 @@ git --version
 
 **Con pnpm (global):**
 ```powershell
-pnpm add -g @fission-ai/openspec@latest
+pnpm add -g @fission-ai/openspec@1.14.1
 ```
 > Si `openspec` no se reconoce tras instalar: corre `pnpm setup` una vez, **reinicia la terminal** y reintenta.
 > En PowerShell, comprueba que la carpeta global de pnpm está en el `PATH`: `pnpm bin -g`.
 
 **Sin instalar nada global (equivalente a npx):**
 ```powershell
-pnpm dlx @fission-ai/openspec@latest init
+pnpm dlx @fission-ai/openspec@1.14.1 init
 ```
 
 **Alternativa con npm:**
 ```powershell
-npm install -g @fission-ai/openspec@latest
+npm install -g @fission-ai/openspec@1.14.1
 ```
 
 **Verificación:**
 ```powershell
-openspec --version    # debe imprimir 1.5.0 (o superior)
+openspec --version    # debe imprimir 1.14.1 (la versión del CI)
 openspec --help       # lista de comandos disponibles
 ```
 
@@ -111,6 +111,7 @@ Los 5 slash commands que instala el init (Claude Code):
 ### Reglas clave
 - `specs/` refleja lo **YA construido**, no un backlog. En greenfield, cada capacidad nace como change.
 - Formato spec: `## Requirements` → `### Requirement:` (SHALL) → `#### Scenario:` (WHEN/THEN/AND). **Cada requirement ≥ 1 scenario.**
+- **Texto de cada requirement ≤ 500 caracteres** (lo que va entre `### Requirement:` y su primer `#### Scenario:`). Desde la v1.14 un texto más largo es aviso y `--strict` lo vuelve error. Si no cabe: los ejemplos y casos borde van a los scenarios, o se parte en varios requirements, cada uno con su SHALL/MUST y al menos un scenario.
 - El delta usa `## ADDED Requirements` (o `## MODIFIED` / `## REMOVED` Requirements).
 - `change-id` en **kebab-case liderado por verbo**: `add-...`, `update-...`, `remove-...`.
 - `design.md` es **opcional**: solo cuando hay una decisión técnica real que justificar.
@@ -251,7 +252,7 @@ jobs:
           node-version: 20
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - run: pnpm dlx @fission-ai/openspec@latest validate --all --strict   # en CI (no interactivo) usar --all
+      - run: pnpm dlx @fission-ai/openspec@1.14.1 validate --all --strict   # en CI (no interactivo) usar --all; versión fija, nunca @latest
       - run: pnpm validate
 ```
 
@@ -296,6 +297,17 @@ context: |
 #   proposal:
 #     - Incluir siempre una sección "Non-goals"
 ```
+
+### 7b. Actualizar la versión de OpenSpec
+
+La versión se fija en dos lugares que deben coincidir: el CI (`.github/workflows/openspec.yml`) y el CLI instalado en la PC (`pnpm add -g`, compartido por todos los proyectos de esa PC). **Nunca `@latest` en CI**: una versión nueva puede sumar avisos que `--strict` convierte en error sin que cambie ninguna spec (así pasó con la 1.14 y los requirements de más de 500 caracteres).
+
+1. Rama `chore/actualiza-openspec` desde `dev`.
+2. Diagnóstico sin instalar nada: `npx -y @fission-ai/openspec@<nueva> validate --all --strict`.
+3. Corregir lo que marque **sin cambiar comportamiento**: solo redacción de requirements (acortar o partir), con los scenarios **idénticos** (mismo texto; solo pueden pasar a otro requirement del mismo reparto). Comparar el conjunto de scenarios antes y después. Un requirement que un change activo modifica (`MODIFIED`) se acorta pero no se parte: al archivar, el delta lo reemplazaría y duplicaría los scenarios movidos.
+4. `npx -y @fission-ai/openspec@<nueva> update`: regenera `/opsx:*` y `.claude/skills/openspec-*`. Revisar el diff por si había cambios propios (se pierden al regenerar).
+5. Fijar `<nueva>` en el CI y en esta guía; validar con la versión nueva.
+6. PR a `dev`. Tras el merge: `pnpm add -g @fission-ai/openspec@<nueva>` en la PC.
 
 ---
 

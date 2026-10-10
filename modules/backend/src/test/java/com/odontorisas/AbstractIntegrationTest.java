@@ -5,6 +5,14 @@ import org.springframework.test.context.DynamicPropertySource;
 import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.sql.Statement;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
+
 /**
  * Base para tests de integración: levanta un PostgreSQL real (Testcontainers)
  * y provee los datos de conexión, garantizando paridad con producción.
@@ -23,6 +31,40 @@ public abstract class AbstractIntegrationTest {
 
     static {
         POSTGRES.start();
+    }
+
+    /** Conexión como superusuario/owner del contenedor (sembrar fixtures, DDL, o probar un CHECK). */
+    protected Connection ownerConnection() throws SQLException {
+        return DriverManager.getConnection(POSTGRES.getJdbcUrl(), POSTGRES.getUsername(), POSTGRES.getPassword());
+    }
+
+    /**
+     * Para tests de concurrencia deterministas: espera a que otra transacción quede ESPERANDO un
+     * bloqueo ({@code pg_locks} con {@code granted = false}) o a que {@code otherFinished} llegue a
+     * cero, lo que pase primero. Una señal real en vez de un tiempo fijo: con el bloqueo correcto la
+     * otra transacción espera; sin él, termina sin esperar (y el test debe fallar).
+     */
+    protected void awaitLockWaitOrFinished(CountDownLatch otherFinished) {
+        long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(20);
+        try (Connection owner = ownerConnection(); Statement s = owner.createStatement()) {
+            while (System.nanoTime() < deadline) {
+                if (otherFinished.getCount() == 0) {
+                    return;
+                }
+                try (ResultSet rs = s.executeQuery("SELECT count(*) FROM pg_locks WHERE NOT granted")) {
+                    rs.next();
+                    if (rs.getInt(1) > 0) {
+                        return;
+                    }
+                }
+                Thread.sleep(20);
+            }
+            throw new IllegalStateException("La otra transacción ni terminó ni quedó esperando un bloqueo en 20 s");
+        } catch (SQLException e) {
+            throw new IllegalStateException(e);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
     }
 
     @DynamicPropertySource

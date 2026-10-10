@@ -8,7 +8,7 @@ beforeEach(() => useBrandingStore.getState().clear());
 describe("OrgLogo", () => {
   it("muestra el logo del producto cuando la organización no tiene logo", () => {
     render(<OrgLogo />);
-    expect(screen.getAllByAltText("OdontoRisas").length).toBeGreaterThan(0);
+    expect(screen.getByRole("img", { name: "Dentdesk" })).toBeInTheDocument();
   });
 
   it("muestra el logo de la organización cuando está definido", () => {
@@ -24,6 +24,6 @@ describe("OrgLogo", () => {
     useBrandingStore.getState().setBranding("https://cdn.test/roto.png", false);
     render(<OrgLogo />);
     fireEvent.error(screen.getByAltText("Logo de la organización"));
-    expect(screen.getAllByAltText("OdontoRisas").length).toBeGreaterThan(0);
+    expect(screen.getByRole("img", { name: "Dentdesk" })).toBeInTheDocument();
   });
 });

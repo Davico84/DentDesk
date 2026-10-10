@@ -1,18 +1,12 @@
 import { create } from "zustand";
+import type { UserResponse, UserResponseRole } from "@/modules/core/services/generated/model";
+import { createSelectors } from "./createSelectors";
 
-/** Rol de acceso (espejo del backend). */
-export type Role = "ADMIN" | "USER";
+/** Rol de acceso: derivado del contrato (docs/frontend.md §2.3), no tecleado a mano. */
+export type Role = UserResponseRole;
 
-export interface SessionUser {
-  id: number;
-  email: string;
-  fullName: string;
-  role: Role;
-  /** Organización (clínica) activa de la sesión — el rol se interpreta dentro de ella. */
-  organizationId: number;
-  organizationName: string;
-  organizationSlug: string;
-}
+/** Usuario de la sesión: mismo shape que `UserResponse` — el login/refresh ya lo devuelven así. */
+export type SessionUser = UserResponse;
 
 /**
  * Estado de sesión. El access token vive **solo en memoria** (no se persiste):
@@ -31,7 +25,7 @@ interface SessionState {
   clear: () => void;
 }
 
-export const useSessionStore = create<SessionState>((set) => ({
+const useSessionStoreBase = create<SessionState>((set) => ({
   accessToken: null,
   user: null,
   status: "idle",
@@ -40,3 +34,5 @@ export const useSessionStore = create<SessionState>((set) => ({
   setStatus: (status) => set({ status }),
   clear: () => set({ accessToken: null, user: null, status: "unauthenticated" }),
 }));
+
+export const useSessionStore = createSelectors(useSessionStoreBase);

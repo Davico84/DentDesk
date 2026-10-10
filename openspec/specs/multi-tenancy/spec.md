@@ -29,6 +29,24 @@ El sistema SHALL garantizar que ninguna operación ejecutada en el contexto de u
 - **THEN** la operación falla
 - **AND** no devuelve datos de ninguna organización
 
+### Requirement: El aislamiento no depende de que el desarrollador lo recuerde
+El sistema SHALL establecer el contexto de organización **automáticamente** en toda transacción de una petición autenticada, sin que el código de negocio lo solicite: una capacidad de negocio nueva SHALL quedar aislada **sin escribir código de aislamiento**. El código de negocio NO SHALL poder fijar el contexto de tenant por su cuenta; la única vía SHALL ser el mecanismo automático, **defendido por la build**. Un olvido aquí no falla de forma visible: filtra datos de una clínica a otra.
+
+#### Scenario: Una entidad de negocio nueva queda aislada sin código propio
+- **WHEN** se añade al sistema una entidad de negocio que **no incluye ninguna llamada** para establecer el contexto de organización
+- **THEN** sus consultas quedan igualmente restringidas a la organización de la petición
+- **AND** una organización distinta no puede leer ni modificar sus datos
+
+#### Scenario: El código de negocio no puede fijar el contexto a mano
+- **WHEN** una clase de las capas de negocio o de presentación intenta establecer el contexto de tenant por su cuenta
+- **THEN** **la build falla**
+- **AND** el aislamiento no puede degradarse a "acordarse de llamar"
+
+#### Scenario: Los flujos previos a la sesión siguen funcionando
+- **WHEN** se ejecuta una operación en la que todavía no existe organización activa (el alta de una organización con su primer administrador)
+- **THEN** la operación se completa correctamente
+- **AND** el mecanismo automático no la bloquea por falta de contexto
+
 ### Requirement: Aislamiento de la pertenencia por identidad
 El sistema SHALL garantizar, a nivel de motor de base de datos, que un usuario solo pueda leer las membresías asociadas a su propia identidad. Esta garantía NO SHALL depender de que la capa de aplicación recuerde filtrar por el usuario.
 
@@ -43,7 +61,7 @@ El sistema SHALL garantizar, a nivel de motor de base de datos, que un usuario s
 - **AND** las membresías de otros usuarios permanecen inaccesibles
 
 ### Requirement: Identidad global separada de la pertenencia a la organización
-El sistema SHALL representar la identidad de una persona (`User`) una sola vez en toda la plataforma, con un correo único global, sin rol ni organización propios. La pertenencia de un usuario a una organización y su rol en ella SHALL modelarse como una membresía independiente. Un usuario SHALL poder tener membresías en varias organizaciones; el rol SHALL interpretarse siempre dentro de la organización de la membresía. La identidad y la membresía SHALL tener estados de ciclo de vida independientes.
+El sistema SHALL representar la identidad de una persona (`User`) una sola vez en la plataforma, con un correo único global y sin rol ni organización propios. La pertenencia de un usuario a una organización y su rol en ella SHALL modelarse como una membresía independiente. Un usuario SHALL poder tener membresías en varias organizaciones; el rol SHALL interpretarse siempre dentro de la organización de la membresía. La identidad y la membresía SHALL tener estados de ciclo de vida independientes.
 
 #### Scenario: Un correo identifica a una única persona
 - **WHEN** un visitante intenta registrarse con un correo que ya pertenece a una identidad existente
@@ -89,7 +107,7 @@ El sistema SHALL determinar la organización activa de una petición autenticada
 - **AND** en ningún momento observa datos de la organización A
 
 ### Requirement: Alta de organización con su primer administrador
-El sistema SHALL crear una organización, su configuración por defecto, la identidad de su primer usuario y la membresía que los une como una única operación atómica, iniciada por el registro autoservicio. La membresía creada SHALL tener rol de administrador. Si cualquier paso falla, el sistema SHALL no dejar ni organizaciones sin administrador, ni identidades sin membresía, ni membresías huérfanas. Cada organización SHALL tener un identificador legible (`slug`) único, derivado de su nombre e **inmutable** tras la creación.
+El sistema SHALL crear una organización, su configuración por defecto, la identidad de su primer usuario y la membresía que los une como una única operación atómica, iniciada por el registro autoservicio. La membresía creada SHALL tener rol de administrador. Si un paso falla, el sistema NO SHALL dejar organizaciones sin administrador, identidades sin membresía ni membresías huérfanas. Cada organización SHALL tener un identificador legible (`slug`) único, derivado de su nombre e **inmutable**.
 
 #### Scenario: Alta correcta de una organización
 - **WHEN** un visitante se registra aportando el nombre de la organización junto con su nombre completo, correo y contraseña válidos
@@ -117,3 +135,24 @@ El sistema SHALL crear una organización, su configuración por defecto, la iden
 - **WHEN** un visitante intenta registrarse sin nombre de organización o con un nombre que no cumple las validaciones mínimas
 - **THEN** el sistema responde con un error de validación
 - **AND** no crea ni la organización, ni la configuración, ni la identidad, ni la membresía
+
+### Requirement: Registro automático de autoría en entidades de negocio
+El sistema SHALL registrar, para toda entidad de negocio que lo declare, qué usuario la creó y qué usuario realizó su última modificación. El sistema SHALL establecer esa autoría **automáticamente** a partir del contexto de identidad de la transacción, sin que el código de negocio tenga que escribirla. Sin usuario en el contexto (una operación previa a la sesión, como el alta de la primera organización), el sistema SHALL completar la operación con normalidad y dejar la autoría sin asignar.
+
+#### Scenario: Se registra quién creó y quién modificó por última vez
+- **WHEN** un usuario autenticado crea o modifica una entidad de negocio que declara autoría
+- **THEN** el sistema registra su identidad como autor de la operación
+- **AND** una modificación posterior por otro usuario actualiza solo el autor de la última
+  modificación, sin alterar el autor de la creación original
+
+#### Scenario: Una entidad nueva registra autoría sin código propio
+- **WHEN** se añade al sistema una entidad de negocio que declara autoría pero **no incluye ninguna
+  llamada** para establecerla
+- **THEN** el sistema la rellena igualmente a partir del contexto de la transacción
+- **AND** el código de negocio no necesita leer ni propagar la identidad del usuario
+
+#### Scenario: Los flujos previos a la sesión siguen funcionando
+- **WHEN** se ejecuta una operación en la que todavía no existe un usuario en el contexto (el alta
+  de una organización con su primer administrador)
+- **THEN** la operación se completa correctamente
+- **AND** la autoría queda sin asignar, en vez de bloquear la operación

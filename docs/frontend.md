@@ -6,7 +6,13 @@ Dimensión **tecnológica** (reutilizable). Guía única del cliente: stack, arq
 
 ## 1. Stack y arquitectura de pantallas/módulos
 
-**Stack** (detalle y versiones en `docs/architecture.md §3`): React 19 · TypeScript · Vite. UI: Tailwind + shadcn/Radix + `@base-ui/react`, `lucide-react`, `framer-motion`, `sonner`, `recharts`. Datos de servidor: `@tanstack/react-query` + `axios`. Estado de cliente: Zustand. Formularios: `react-hook-form` + `zod`. Routing: `react-router-dom` v7 con `RouteGuard` central (roles `ADMIN`/`USER`/`ALL`). Realtime: `@stomp/stompjs` + `sockjs-client`. Gestor: pnpm.
+**Stack** (detalle y versiones en `docs/architecture.md §3`): React 19 · TypeScript · Vite. UI: Tailwind + shadcn/Radix, `lucide-react`, `framer-motion`, `sonner`. Datos de servidor: `@tanstack/react-query` + `axios`. Estado de cliente: Zustand. Formularios: `react-hook-form` + `zod`. Routing: `react-router-dom` v7 con guards centrales `RequireAuth`/`RequireGuest` (roles `ADMIN`/`USER`; sin `roles` = cualquier autenticado). Gestor: pnpm.
+
+> **Estado actual (objetivo, aún no adoptado):** `@base-ui/react` (§4.1), `recharts` (gráficas) y el
+> par realtime `@stomp/stompjs`/`sockjs-client` (`docs/vision.md §7`) figuran en el stack **cerrado**
+> (`docs/architecture.md §3`) pero **no están instalados todavía**: se agregan la primera vez que una
+> capacidad los necesite de verdad, no antes — mismo criterio que ya se aplicó con `framer-motion`
+> (§4.2, instalado cuando `patients` lo necesitó de verdad para animar el listado).
 
 **Estructura** (`modules/frontend/src/`):
 
@@ -16,16 +22,52 @@ src/
   screens/     # pantallas: orquestan una feature dentro de un layout (hojas de composición)
   modules/     # lógica encapsulada por dominio
     core/      # transversal (SIN deps a otros módulos):
-      #   ui/ (shadcn) · components/ · config/ (httpClient axios) · services/generated/ (orval) · utils/ · enum/
+      #   auth/ (guards RequireAuth/RequireGuest, roleHome) · components/ (DataState, InfoCard…)
+      #   config/ (httpClient axios) · hooks/ (useDebouncedValue…) · services/generated/ (orval)
+      #   theme/ (deriveTheme, ThemeManager — branding) · ui/ (shadcn) · utils/
     <cap>/     # un módulo por capacidad (hooks de dominio, components, types, schemas Zod)
   store/       # stores Zustand (estado de cliente)
-  routes/      # definición de rutas + RouteGuard
+  routes/      # definición de rutas + guards (RequireAuth/RequireGuest)
   styles/      # globals.css y variables de tema
 ```
 
 **Reglas de arquitectura:**
+- **Un solo `AppLayout` autenticado, no un layout por rol.** ADMIN y USER son roles dentro de la
+  **misma** clínica (mismo staff, mismo shell), no personas con experiencias distintas — ADMIN es
+  un superset de USER (hoy, solo suma `Personalizar marca`). El shell (sidebar + header) es único;
+  la navegación se filtra por rol dentro de él, igual que ya filtran por rol las rutas
+  (`RequireAuth roles={...}`). Separar en `AdminLayout`/`UserLayout` solo se justifica si el admin
+  se vuelve una experiencia realmente distinta (p. ej. un backoffice de plataforma que gestiona
+  *otras* organizaciones) — no es el caso hoy, y adelantarlo sería la abstracción prematura que
+  `docs/coding-style.md §3` prohíbe.
+  > **Estado actual (objetivo, aún no adoptado):** hoy solo existe `RootLayout` (bootstrap de
+  > sesión + marca, sin nav — cada pantalla arma su propio `<main>` suelto). El `AppLayout` con
+  > sidebar/header se construye la primera vez que una segunda pantalla necesite nav persistente
+  > compartida, no antes.
 - **`screens` orquestan; `modules` encapsulan lógica.** Las pantallas montan features dentro de un layout; no contienen lógica de negocio.
+  > [!IMPORTANT]
+  > **Una pantalla es una línea.** `screens/<área>/XScreen.tsx` → `return <XFeature />;`. **NO declares sub-componentes dentro de la screen** —ni skeletons, ni estados vacíos/error, ni campos de formulario, ni filas—: van a `modules/<cap>/components/`, agrupados por tipo (la feature, filas, loaders/skeletons, estados, modales). Señal de mal uso: una screen con `function SkeletonRows()` o `function Field()` debajo.
+  > ```tsx
+  > // ✅ screens/patients/PatientListScreen.tsx
+  > export function PatientListScreen() { return <PatientList />; }
+  > // ❌ una screen con su tabla, su skeleton y su estado vacío declarados dentro
+  > ```
+- **Un archivo = un componente.** La regla de arriba **no es solo para las screens**: un componente de módulo tampoco declara otros dentro. **Skeletons, estados (vacío/error/no encontrado), filas, modales y campos van SIEMPRE a su propio archivo**, aunque solo los use un sitio. Los helpers de presentación, a su `xDisplay.ts`.
+  > ✅ **Lo impide la build, no la disciplina.** `react/no-multi-comp` (ESLint) está activa en `src/screens/**` y `src/modules/*/components/**`: **un archivo con dos componentes no compila**. Es el equivalente frontend del *tripwire* de ArchUnit del backend — esta regla ya estaba escrita y se incumplió tres veces, así que dejó de ser un consejo. `core/ui` está **exento** a propósito (la excepción de la familia de primitivos, abajo).
+  > [!IMPORTANT]
+  > Señal de mal uso: `PatientDetail.tsx` con `function PatientDetailSkeleton()` debajo. **Un skeleton nunca vive dentro del componente que reemplaza** — es una unidad independiente (se prueba y se reutiliza sola), y enterrarlo obliga a leer la feature entera para encontrarlo.
+  > ```
+  > ✅ PatientDetail.tsx · PatientDetailSkeleton.tsx · PatientDetailStates.tsx · patientDisplay.ts
+  > ❌ PatientDetail.tsx con el skeleton, el "no encontrado" y dos helpers dentro
+  > ```
+  > **Única excepción:** una **familia de primitivos** de `core/ui` diseñada para usarse junta puede compartir archivo, siguiendo la convención de shadcn (`dialog.tsx` exporta `Dialog`, `DialogContent`, `DialogHeader`…). No es excusa para meter la feature y su skeleton en el mismo sitio.
 - **`core` no depende de otros módulos** (es la base transversal: UI, auth guard, utils). Los demás módulos pueden depender de `core`.
+  > [!IMPORTANT]
+  > **Un componente genérico se crea EN `core`, no en el módulo.** Si **no conoce el dominio** (un `FormField`, un `SelectField`, un `InfoCard`, un `Badge` base) → `core/ui` (primitivo) o `core/components` (compuesto), y **genérico** (`<T extends FieldValues>` si aplica). Solo lo **específico del dominio** (p. ej. `PatientStatusBadge`, que conoce el enum del paciente) vive en `modules/<cap>/components/`, **componiéndose** sobre el primitivo de `core`. Pregunta de control: *"¿esto lo usaría otra capacidad?"* → sí = `core`.
+- **La validación de formularios vive en el schema Zod del módulo** (`modules/<cap>/schemas/`), **nunca dentro del componente**: ahí van las reglas (incluidas las condicionales, con `superRefine`), en **paridad con el backend** (`docs/coding-style.md §7`). El componente de campo **solo pinta** el error —venga de Zod o del servidor (`applyServerFieldErrors`)—. El servidor es la autoridad.
+  > [!IMPORTANT]
+  > **`useForm({ mode: "onTouched" })` — avisa tarde, corrige pronto.** La primera validación es **al salir** del campo (no le grites "correo inválido" a quien lleva una letra escrita); pero una vez avisado, **revalida en cada tecla**, así el error **desaparece solo** en cuanto el valor pasa a ser válido.
+  > **No uses `"onBlur"`**: obliga a salir del campo para descubrir que ya lo arreglaste — el mensaje se queda en pantalla mintiendo mientras corriges. Y **no uses `"onChange"`**: valida desde la primera tecla, así que te marca en rojo por no haber terminado de escribir.
 - **Mapeo capacidad ↔ código**: cada capacidad de negocio `<cap>` se materializa en `modules/<cap>/` (hooks de dominio, components, schemas Zod) y sus pantallas en `screens/<área>/`. El **cliente API tipado se genera** en `core/services/generated/` (ver §2.3); lo transversal (guard, roles) en `modules/core/`.
 
 ---
@@ -52,6 +94,8 @@ export const userKeys = {
 - **Clave raíz (`all`)**: única por módulo, `["nombre-modulo"] as const`.
 - **Subclaves**: funciones que extienden el array raíz por desestructuración (mantienen la jerarquía de cache).
 - **Invalidación coherente**: `queryClient.invalidateQueries({ queryKey: userKeys.all })` refresca todas las subclaves.
+
+> **Estado actual (objetivo, aún no adoptado):** los hooks existentes (`auth`, `branding`, `patients`) usan una **clave raíz inline** (`const BRANDING_KEY = ["branding", "me"] as const`) e invalidan por ella, no una factoría `xKeys`. Es la convención **real** hoy, y mantiene la jerarquía. Adopta la factoría cuando un módulo tenga **varias** lecturas con parámetros y la invalidación por subclaves aporte de verdad.
 
 ### 2.3 Estructura de la capa de API (generada con orval)
 
@@ -111,6 +155,34 @@ queryFn: async () => {
 ```
 - **Solo en lecturas que la UI renderiza** (adopción incremental); **no sobre-valides el envelope** (metadata de paginación). A futuro, inferir tipos desde los schemas (`z.infer`) para una única fuente de verdad.
 
+> **Estado actual (objetivo, aún no adoptado):** `modules/core/utils/validateApiResponse.ts` (`parseApiResponse`) **todavía no existe** y ningún hook valida la respuesta con Zod. Los hooks actuales confían en el tipo del contrato (que el `codegen-drift` mantiene sincronizado). Cuando se adopte, se crea primero el util y se aplica **incrementalmente** a las lecturas que la UI renderiza.
+
+---
+
+### 2.6 Errores de la API — tipados desde el contrato
+
+**Nunca escribas a mano la forma de un error.** El backend responde RFC 9457 y el contrato lo documenta, así que orval genera los tipos (`ApiProblem`, `ValidationProblem`, `FieldError`). Si el backend cambia la forma del error, lo detecta el **typecheck** en vez de romperse en producción.
+
+> Antes había literalmente un `interface ProblemDetailBody { detail?: string }` escrito a mano. Eso es lo que la capacidad `api-type-contracts` existe para impedir. Si te descubres declarando la forma de un error, **el contrato es el que está incompleto**: arréglalo allí.
+
+En axios el cuerpo del error viaja en `AxiosError<T>`, así que se **parametriza con el tipo generado** (sigue siendo derivado del contrato). Todo pasa por `modules/core/utils/apiError.ts`:
+
+| Helper | Para qué |
+|---|---|
+| `getUserFriendlyError(e)` | El `detail` del problema, redactado para el usuario → aviso genérico (toast) |
+| `getFieldErrors(e)` | Los `errors[{field, message}]` del `400` de validación |
+| `applyServerFieldErrors(e, setError)` | Los vuelca **sobre los campos** de react-hook-form |
+
+**Errores de validación → junto al campo.** Un `400` del servidor trae el detalle por campo: se pinta **en el input**, igual que los de Zod. En la mutación:
+
+```ts
+mutation.mutate(values, {
+  onError: (error) => applyServerFieldErrors(error, setError),
+});
+```
+
+`errors` es **opcional**: el otro `400` posible (JSON malformado) no lo trae. Por eso `getFieldErrors` devuelve `[]` y la UI cae en el aviso genérico.
+
 ---
 
 ## 3. Estado del cliente (Zustand)
@@ -168,24 +240,66 @@ export const useSortingStore = createSelectors(useSortingStoreBase);
 
 ## 4. Patrones de UI, animación, responsividad y accesibilidad
 
+> **Superficie nueva sin patrón previo** (ej. la futura landing pública de `public-booking`,
+> `docs/vision.md §7`, o un rediseño deliberado de marca): antes de picar código, dirección creativa
+> con el skill `frontend-design` — anclada en la identidad ya existente (gradiente + logo), no una
+> reinvención desde cero. **Pantalla dentro del producto ya autenticado**: no se usa; se sigue el
+> sistema de diseño de esta sección (§4.1–§4.6) y `coding-style.md §5.5` ("consistencia > preferencia
+> personal").
+
 ### 4.1 shadcn/ui e integración
 > [!IMPORTANT]
 > **Antes de crear un componente visual o añadir una librería**, revisa si ya existe en `modules/core/ui/`. Reutilizar garantiza temas (claro/oscuro), overrides de marca, estilos consistentes (bordes, sombras, transiciones, accesibilidad) y evita duplicación y bundle innecesario.
 
 > [!IMPORTANT]
-> **Nunca uses el atributo nativo `title`** en un elemento interactivo: usa el componente `Tooltip` (`modules/core/ui/tooltip.tsx`). El `Button` de core/ui acepta prop `tooltip`. Mantén siempre `aria-label` (el tooltip no lo sustituye).
+> **Nunca uses el atributo nativo `title`** en un elemento interactivo: cuando exista un componente `Tooltip` en `core/ui`, úsalo. Mantén siempre `aria-label` (el tooltip no lo sustituye).
 
-Componentes base en `modules/core/ui/`: `Dialog`, `Sheet`, `Popover`, `DropdownMenu`, `Select`, `Tooltip`, `Table`, `Badge`, etc.
+**Estado actual de `modules/core/ui/`** (lo que HAY hoy): `button` (+ `button-variants`), `card`, `input`, `icon-input`, `password-input`, `label`, `logo`, `theme-toggle`, `form-field` (`FormField`/`SelectField`/`FormSection`, genéricos sobre react-hook-form), `dialog` (shadcn/Radix), `confirm-dialog` y `tooltip` (shadcn/Radix). Para un tooltip de ayuda sobre un control usa **`HintTooltip`** (`core/components`): trae su propio `TooltipProvider` y, con `triggerDisabled`, envuelve un botón deshabilitado para que el tooltip se siga abriendo (un `disabled` no recibe hover) — justo cuando más falta explicar por qué no está disponible.
+
+**Por incorporar** (aún NO existen; añádelos con `pnpm dlx shadcn@latest add <componente>` desde el registro oficial, la **primera vez que una pantalla los necesite**): `sheet`, `popover`, `dropdown-menu`, `select`, `table`, `badge`.
+
+> **`@base-ui/react` (headless, del stack §1) tampoco está instalado.** El único primitivo headless
+> hoy es `@radix-ui/react-dialog` (vía shadcn). Instala `@base-ui/react` recién cuando un componente
+> lo necesite y shadcn/Radix no lo cubra — no antes.
+
+> [!WARNING]
+> **`components.json` ya existe (escrito a mano) — no dejes que el CLI haga `init`.** Un `init` reescribiría `src/styles/globals.css` y `tailwind.config.cjs` con sus defaults, y ahí vive la **tematización por organización** (§4.5.1): la romperías.
+> Los `paths` del alias están **duplicados en el `tsconfig.json` raíz solo para el tooling**: es un tsconfig *solution* (`files: []`) y sin ellos el CLI no resuelve `@/` y escribe los componentes en una carpeta **literal `@/`**.
+> **Tras cada `add`, verifica con `git diff` que no tocó `globals.css` ni `tailwind.config.cjs`.**
+
+> Regla: un componente **genérico y reutilizable** (un `Badge` base, una `Table`) vive en `core/ui`, no en `modules/<cap>/`. Lo específico de un dominio (p. ej. `PatientStatusBadge`, que conoce el enum de estado del paciente) sí vive en `modules/<cap>/components/`, y puede componerse sobre el primitivo de `core/ui`.
 
 ### 4.2 Animación (Framer Motion)
-- **`<AnimatePresence>`** para componentes que entran/salen del árbol (diálogos, menús colapsables).
-- **`layout`/`layoutId`** para transiciones fluidas de posición/tamaño (ej. píldora de pestaña activa).
+> **Instalado.** Para transiciones simples que no involucran entrar/salir del árbol (hover, color,
+> spinners) sigue prefiriéndose **CSS de Tailwind** (`transition-colors`, `animate-pulse`,
+> `hover:`/`focus:`) — más barato, sin JS. `framer-motion` entra cuando hace falta animar
+> entrada/salida del árbol o layout, no antes (mismo criterio de "instálalo cuando haga falta" con
+> el que se adoptó: ver `PatientRow`/`PatientList`, primer uso real).
+
+> [!IMPORTANT]
+> **`<MotionConfig reducedMotion="user">` envuelve toda la app** (`layouts/RootLayout.tsx`): respeta
+> `prefers-reduced-motion` del SO para **cualquier** `motion.*`/`AnimatePresence` sin que cada
+> componente tenga que pensar en ello. No dupliques ese chequeo por componente.
+
+- **`<AnimatePresence>`** para componentes que entran/salen del árbol (diálogos, menús colapsables,
+  filas de una lista que se filtra — ver `PatientList`: `initial={false}` para no animar la carga
+  inicial, solo altas/bajas posteriores).
+- **`layout`/`layoutId`** para transiciones fluidas de posición/tamaño (ej. píldora de pestaña activa,
+  o el reflow de una lista cuando una fila entra/sale — `layout="position"` en `PatientRow`).
+- **Solo `transform`/`opacity`** (nunca `width`/`height`/`top`/`left`: repintan caro). En framer-motion,
+  anima `x`/`y`/`scale`/`opacity`, no propiedades de layout CSS crudas.
 - **Micro-interacciones rápidas** (0.2s–0.3s); prefiere `spring` (con `stiffness`/`damping`) sobre curvas lineales.
 - **Respeta el estado colapsado**: oculta ancho/opacidad para evitar desbordes de texto.
+- **Con moderación**: 1-2 elementos animados por vista como regla general; una lista que anima sus
+  propias entradas/salidas al cambiar es un único movimiento coherente, no "animar todo".
 
 ### 4.3 Responsividad (Mobile-First)
 - Breakpoints: **móvil** < `480px`, **tablet** `481–1024px`, **escritorio** > `1024px`.
-- Prueba cambios de navegación/Sidebar/estilos en móvil, tablet y ancho. La Sidebar: cajón flotante en móvil, barra de iconos en mediano, expandida en escritorio.
+- Prueba cambios de navegación/estilos en móvil, tablet y escritorio.
+
+> **Estado actual (objetivo, aún no adoptado):** la Sidebar del `AppLayout` (§1) no existe todavía.
+> Objetivo cuando se construya: cajón flotante en móvil, barra de iconos en mediano, expandida en
+> escritorio.
 
 ### 4.4 Accesibilidad (WCAG)
 - **HTML semántico** (`<aside>`, `<nav>`, `<main>`, `<header>`, `<article>`).

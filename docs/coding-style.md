@@ -13,8 +13,9 @@ Este documento define las convenciones de escritura de código, tipado y calidad
   * *Ejemplo*: `modules/frontend/src/modules/core/components/Sidebar.tsx`, `modules/frontend/src/layouts/UserLayout.tsx`.
 * **Hooks Personalizados**: Usan `camelCase` con el prefijo `use`.
   * *Ejemplo*: `modules/frontend/src/modules/users/hooks/useUserProfile.ts`.
-* **Servicios e Integraciones API**: Usan `camelCase` y el archivo representa la entidad en singular.
-  * *Ejemplo*: `modules/frontend/src/modules/users/services/user.ts`.
+* **Integraciones API**: **no se escriben clientes a mano.** Los fetchers tipados salen de orval
+  (`core/services/generated/<cap>.ts`, código generado, no se edita) y los hooks de dominio sobre
+  ellos van en `hooks/` con la convención de arriba (`use<Cap>Api.ts`). Ver `docs/frontend.md §2.3`.
 * **Utilidades e Interfaces Auxiliares**: Usan `camelCase`.
   * *Ejemplo*: `modules/frontend/src/modules/core/utils/cn.ts`.
 
@@ -22,8 +23,11 @@ Este documento define las convenciones de escritura de código, tipado y calidad
 * Las funciones de ayuda, métodos de clases y variables usan `camelCase` (ej. `getUserProfile()`, `handleLogout()`).
 
 ### Constantes y Enums
-* Las constantes globales, configuraciones estáticas u objetos que simulan Enums se prefijan con un signo de dólar `$` y se escriben en `PascalCase` o `UPPERCASE` dependiendo de su naturaleza:
-  * *Ejemplo*: `$UserRole`, `$OrderBy`, `$CookieKey`.
+* Las constantes globales y configuraciones estáticas se escriben en `UPPER_SNAKE_CASE` sin prefijo.
+  * *Ejemplo*: `PATHS`, `PAGE_SIZE`, `ADULT_AGE`.
+* Los "enums simulados" (uniones de literales) no llevan objeto aparte: son un `type` en `PascalCase`
+  (`type Role = "ADMIN" | "USER"`, ver §2). Los enums reales del dominio salen del contrato (orval),
+  nunca se declaran a mano — ver `docs/frontend.md §2.3`.
 
 ### Types e Interfaces
 * Usan `PascalCase`.
@@ -136,9 +140,11 @@ inteligente" y la disciplina de estado). Aplícalas con criterio, no como dogma.
    vecino aunque no sea tu estilo favorito. La uniformidad es lo que más ayuda a
    que el equipo lea el código rápido.
 6. **Cubre los estados async: loading / error / empty / con datos.** Toda vista que
-   consume datos asíncronos contempla los cuatro. Reutiliza el componente de estado
-   de datos del proyecto (`DataState`, bajo `modules/frontend/src/modules/core/components/`)
-   en vez de improvisar cada caso.
+   consume datos asíncronos contempla los cuatro. Para **error / vacío / no-encontrado**
+   reutiliza el shell genérico `DataState` (`modules/frontend/src/modules/core/components/`)
+   componiendo ícono + título + descripción + acción por caso, en vez de improvisar cada uno
+   desde cero (ver `PatientListEmpty`/`PatientListError`/`PatientNotFound`). **Loading** no pasa
+   por `DataState`: usa un skeleton propio del módulo (`PatientListSkeleton`).
 7. **Props mínimas y tipadas; evita el prop-drilling.** Pasa solo lo que el
    componente necesita. Si una prop baja 3+ niveles, prefiere composición
    (children/slots, patrón de composición de UI) o un contexto.
@@ -193,7 +199,7 @@ sobre los DTOs `*Request`. Son **dos capas del mismo contrato**, no validaciones
 | campo requerido (sin `.optional()`) | `@NotNull` | presencia |
 | `.min(1)` / `.trim().min(1)` en string | `@NotBlank` | requerido no vacío |
 | `.min(n)` / `.max(n)` (longitud de string) | `@Size(min = n, max = n)` | longitud |
-| `.email()` | `@Email` | formato email |
+| `z.email()` (Zod v4; `.email()` como método está deprecado) | `@Email` | formato email |
 | `.regex(re)` | `@Pattern(regexp = re)` | **misma** expresión regular |
 | `.positive()` / `.int().positive()` | `@Positive` | número > 0 |
 | `.min(n)` / `.max(n)` (número) | `@Min(n)` / `@Max(n)` (o `@DecimalMin/@DecimalMax`) | rango numérico |
@@ -223,6 +229,20 @@ emite las restricciones de Bean Validation en el schema OpenAPI (`maxLength`, `p
 dejando el **backend como fuente de verdad** de los límites. En ese punto se evaluará **generar los
 schemas Zod desde el OpenAPI** para eliminar el drift manual; hasta entonces, la paridad se mantiene
 a mano según esta tabla.
+
+### 7.1 La paridad no acaba en el cliente: el servidor también marca campos
+
+Zod valida **antes** de enviar, pero el servidor es la autoridad: hay reglas que solo él conoce (un correo ya registrado) y, si la paridad se rompe, su `400` es la red de seguridad.
+
+Ese `400` llega en RFC 9457 con `errors: [{ field, message }]`, así que **el error del servidor se pinta junto al mismo input** que el de Zod — el usuario no distingue de dónde vino, que es como debe ser:
+
+```ts
+mutation.mutate(values, {
+  onError: (error) => applyServerFieldErrors(error, setError),  // core/utils/apiError.ts
+});
+```
+
+Los tipos (`ValidationProblem`, `FieldError`) **se derivan del contrato**, no se escriben a mano (ver `docs/frontend.md §2.6`).
 
 ---
 

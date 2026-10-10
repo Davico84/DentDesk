@@ -26,39 +26,40 @@ beforeEach(() => {
 });
 
 describe("BrandingSettingsScreen", () => {
-  it("valida el color y no envía la petición si es inválido", async () => {
+  it("elige un preset del catálogo y envía el PUT con esa clave", async () => {
     const user = userEvent.setup();
-    let putCalled = false;
-    server.use(
-      http.put("*/organizations/me/branding", () => {
-        putCalled = true;
-        return HttpResponse.json({});
-      }),
-    );
-    renderWithProviders(<BrandingSettingsScreen />);
-
-    await user.type(screen.getByLabelText("Color primario"), "rojo");
-    await user.click(screen.getByRole("button", { name: /guardar marca/i }));
-
-    expect(await screen.findByText(/color hex inválido/i)).toBeInTheDocument();
-    expect(putCalled).toBe(false);
-  });
-
-  it("guarda una marca válida (envía el PUT con el color)", async () => {
-    const user = userEvent.setup();
-    let body: { brandPrimary?: string } | null = null;
+    let body: { brandPreset?: string } | null = null;
     server.use(
       http.put("*/organizations/me/branding", async ({ request }) => {
-        body = (await request.json()) as { brandPrimary?: string };
+        body = (await request.json()) as { brandPreset?: string };
         return HttpResponse.json(body);
       }),
     );
     renderWithProviders(<BrandingSettingsScreen />);
 
-    await user.type(screen.getByLabelText("Color primario"), "#123abc");
+    await user.click(await screen.findByRole("radio", { name: /teal/i }));
     await user.click(screen.getByRole("button", { name: /guardar marca/i }));
 
-    await waitFor(() => expect(body?.brandPrimary).toBe("#123abc"));
+    await waitFor(() => expect(body?.brandPreset).toBe("TEAL"));
+  });
+
+  it("'Ninguno' no envía preset (equivale a quitar la personalización)", async () => {
+    const user = userEvent.setup();
+    let body: { brandPreset?: string } | null = null;
+    // Precarga con un preset ya elegido, para volver a "Ninguno" desde ahí.
+    server.use(
+      http.get("*/organizations/me/branding", () => HttpResponse.json({ brandPreset: "TEAL" })),
+      http.put("*/organizations/me/branding", async ({ request }) => {
+        body = (await request.json()) as { brandPreset?: string };
+        return HttpResponse.json(body);
+      }),
+    );
+    renderWithProviders(<BrandingSettingsScreen />);
+
+    await user.click(await screen.findByRole("radio", { name: /ninguno/i }));
+    await user.click(screen.getByRole("button", { name: /guardar marca/i }));
+
+    await waitFor(() => expect(body).toEqual({ brandPreset: undefined, logoUrl: undefined }));
   });
 
   it("rechaza una URL de logo que no sea https (sin enviar)", async () => {
@@ -72,7 +73,7 @@ describe("BrandingSettingsScreen", () => {
     );
     renderWithProviders(<BrandingSettingsScreen />);
 
-    await user.type(screen.getByLabelText(/url del logo/i), "http://cdn.test/logo.png");
+    await user.type(await screen.findByLabelText(/url del logo/i), "http://cdn.test/logo.png");
     await user.click(screen.getByRole("button", { name: /guardar marca/i }));
 
     expect(await screen.findByText(/debe usar https/i)).toBeInTheDocument();

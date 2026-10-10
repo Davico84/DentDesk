@@ -17,6 +17,7 @@ import com.odontorisas.persistence.repository.OrganizationSettingsRepository;
 import com.odontorisas.persistence.repository.RefreshTokenRepository;
 import com.odontorisas.persistence.repository.UserRepository;
 import com.odontorisas.service.organization.OrganizationSlugService;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -24,6 +25,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
+import java.time.Clock;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
@@ -34,6 +36,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -55,8 +58,18 @@ class AuthServiceTest {
     @Mock TenantSession tenantSession;
     @Mock PasswordEncoder passwordEncoder;
     @Mock TokenService tokenService;
+    @Mock LoginAttemptService loginAttemptService;
+    @Mock Clock clock;
 
     @InjectMocks AuthService authService;
+
+    private static final Instant NOW = Instant.parse("2026-07-23T12:00:00Z");
+
+    /** Default: el reset condicional (D13) "gana la carrera" salvo que un test diga lo contrario. */
+    @BeforeEach
+    void defaultResetSucceeds() {
+        lenient().when(users.resetLoginAttemptsIfNotLocked(anyLong(), any())).thenReturn(1);
+    }
 
     // --- Factorías ---
 
@@ -164,6 +177,106 @@ class AuthServiceTest {
 
         assertThatThrownBy(() -> authService.login("ana@clinica.test", "mala"))
             .isInstanceOf(InvalidCredentialsException.class);
+    }
+
+    // --- Bloqueo por intentos fallidos (design.md, update-authentication) ---
+
+    @Test
+    void login_wrong_password_records_the_failure_in_its_own_transaction() {
+        when(users.findByEmail("ana@clinica.test")).thenReturn(Optional.of(activeUser()));
+        when(passwordEncoder.matches("mala", "hashed")).thenReturn(false);
+
+        assertThatThrownBy(() -> authService.login("ana@clinica.test", "mala"))
+            .isInstanceOf(InvalidCredentialsException.class);
+
+        // D7: el incremento lo hace el colaborador REQUIRES_NEW, no una escritura en esta transacción.
+        verify(loginAttemptService).recordFailure(1L);
+    }
+
+    @Test
+    void login_locked_identity_is_rejected_before_checking_the_password() {
+        User locked = User.builder().id(1L).email("ana@clinica.test").passwordHash("hashed")
+            .fullName("Ana Pérez").status(UserStatus.ACTIVE)
+            .lockedUntil(NOW.plus(5, ChronoUnit.MINUTES)).build();
+        when(users.findByEmail("ana@clinica.test")).thenReturn(Optional.of(locked));
+        when(clock.instant()).thenReturn(NOW);
+
+        assertThatThrownBy(() -> authService.login("ana@clinica.test", "password123"))
+            .isInstanceOf(InvalidCredentialsException.class);
+
+        // D2: rechaza antes de gastar BCrypt. D8: insistir durante el bloqueo no toca el contador.
+        verify(passwordEncoder, never()).matches(anyString(), anyString());
+        verify(loginAttemptService, never()).recordFailure(any());
+    }
+
+    @Test
+    void login_with_expired_lock_and_correct_password_proceeds_normally() {
+        User expiredLock = User.builder().id(1L).email("ana@clinica.test").passwordHash("hashed")
+            .fullName("Ana Pérez").status(UserStatus.ACTIVE)
+            .lockedUntil(NOW.minus(1, ChronoUnit.MINUTES)).build();
+        Organization org = activeOrg();
+        when(users.findByEmail("ana@clinica.test")).thenReturn(Optional.of(expiredLock));
+        when(clock.instant()).thenReturn(NOW);
+        when(passwordEncoder.matches("password123", "hashed")).thenReturn(true);
+        when(memberships.findByUserId(1L)).thenReturn(List.of(membership(expiredLock, org, MembershipStatus.ACTIVE)));
+        stubTokenIssuance();
+
+        AuthResult result = authService.login("ana@clinica.test", "password123");
+
+        assertThat(result.accessToken()).isEqualTo("access-token");
+        verify(users).resetLoginAttemptsIfNotLocked(1L, NOW);
+    }
+
+    @Test
+    void login_success_resets_the_attempt_counter_in_the_same_transaction() {
+        User user = activeUser();
+        Organization org = activeOrg();
+        when(users.findByEmail("ana@clinica.test")).thenReturn(Optional.of(user));
+        when(clock.instant()).thenReturn(NOW);
+        when(passwordEncoder.matches("password123", "hashed")).thenReturn(true);
+        when(memberships.findByUserId(1L)).thenReturn(List.of(membership(user, org, MembershipStatus.ACTIVE)));
+        stubTokenIssuance();
+
+        authService.login("ana@clinica.test", "password123");
+
+        // D7: el reset vive en la transacción de login (no en el colaborador REQUIRES_NEW),
+        // para que un rechazo posterior por estado lo revierta junto con el resto.
+        verify(users).resetLoginAttemptsIfNotLocked(1L, NOW);
+        verify(loginAttemptService, never()).recordFailure(any());
+    }
+
+    @Test
+    void login_loses_the_race_against_a_concurrent_lock_is_rejected_without_issuing_tokens() {
+        User user = activeUser();
+        Organization org = activeOrg();
+        when(users.findByEmail("ana@clinica.test")).thenReturn(Optional.of(user));
+        when(clock.instant()).thenReturn(NOW);
+        when(passwordEncoder.matches("password123", "hashed")).thenReturn(true);
+        when(memberships.findByUserId(1L)).thenReturn(List.of(membership(user, org, MembershipStatus.ACTIVE)));
+        // D13: otra request concurrente bloqueó la cuenta entre la lectura inicial de lockedUntil
+        // y este punto (p. ej. un flood de intentos fallidos de alguien más) — el UPDATE
+        // condicional afecta 0 filas.
+        when(users.resetLoginAttemptsIfNotLocked(1L, NOW)).thenReturn(0);
+
+        assertThatThrownBy(() -> authService.login("ana@clinica.test", "password123"))
+            .isInstanceOf(InvalidCredentialsException.class);
+
+        verify(refreshTokens, never()).save(any());
+    }
+
+    @Test
+    void login_state_rejection_with_correct_password_does_not_touch_the_counter() {
+        User disabled = User.builder().id(1L).email("ana@clinica.test").passwordHash("hashed")
+            .fullName("Ana Pérez").status(UserStatus.DISABLED).build();
+        when(users.findByEmail("ana@clinica.test")).thenReturn(Optional.of(disabled));
+        when(passwordEncoder.matches("password123", "hashed")).thenReturn(true);
+
+        assertThatThrownBy(() -> authService.login("ana@clinica.test", "password123"))
+            .isInstanceOf(InvalidCredentialsException.class);
+
+        // D8: un rechazo por estado no incrementa NI reinicia — deja el contador como estaba.
+        verify(loginAttemptService, never()).recordFailure(any());
+        verify(users, never()).resetLoginAttemptsIfNotLocked(any(), any());
     }
 
     // --- Gate por estado (design.md D14) ---

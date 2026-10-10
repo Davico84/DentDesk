@@ -7,6 +7,7 @@ import {
   cachedActiveBranding,
   clearBrandingCache,
 } from "@/modules/core/theme/brandingCache";
+import { findPreset } from "@/modules/branding/presets";
 import { useSessionStore } from "@/store/useSessionStore";
 import { useBrandingStore } from "@/store/useBrandingStore";
 
@@ -18,8 +19,8 @@ import { useBrandingStore } from "@/store/useBrandingStore";
  */
 export function useBranding(): void {
   const organizationId = useSessionStore((s) => s.user?.organizationId ?? null);
-  const setBranding = useBrandingStore((s) => s.setBranding);
-  const clear = useBrandingStore((s) => s.clear);
+  const setBranding = useBrandingStore.use.setBranding();
+  const clear = useBrandingStore.use.clear();
 
   useEffect(() => {
     if (organizationId == null) {
@@ -39,16 +40,17 @@ export function useBranding(): void {
     getBranding()
       .then((branding) => {
         if (cancelled) return;
+        const preset = findPreset(branding.brandPreset);
         const theme = deriveTheme({
-          brandPrimary: branding.brandPrimary,
-          brandSecondary: branding.brandSecondary,
+          brandPrimary: preset?.brandPrimary,
+          brandSecondary: preset?.brandSecondary,
         });
         if (theme) ThemeManager.apply(theme);
         else ThemeManager.reset();
         setBranding(branding.logoUrl ?? null, theme?.contrastWarning ?? false);
         cacheBranding(organizationId, {
-          brandPrimary: branding.brandPrimary,
-          brandSecondary: branding.brandSecondary,
+          brandPrimary: preset?.brandPrimary,
+          brandSecondary: preset?.brandSecondary,
           logoUrl: branding.logoUrl,
         });
       })

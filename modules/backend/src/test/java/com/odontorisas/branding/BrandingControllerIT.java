@@ -12,9 +12,12 @@ import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 
+import java.nio.charset.StandardCharsets;
+
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -40,7 +43,7 @@ class BrandingControllerIT extends AbstractIntegrationTest {
                 .contentType(MediaType.APPLICATION_JSON).content(body))
             .andExpect(status().isCreated())
             .andReturn();
-        return JsonPath.read(result.getResponse().getContentAsString(), "$.accessToken");
+        return JsonPath.read(result.getResponse().getContentAsString(StandardCharsets.UTF_8), "$.accessToken");
     }
 
     private String bearer(String token) {
@@ -54,14 +57,14 @@ class BrandingControllerIT extends AbstractIntegrationTest {
         mockMvc.perform(put("/organizations/me/branding")
                 .header("Authorization", bearer(token))
                 .contentType(MediaType.APPLICATION_JSON)
-                .content("{\"brandPrimary\":\"#123abc\",\"logoUrl\":\"https://cdn.test/logo.png\"}"))
+                .content("{\"brandPreset\":\"TEAL\",\"logoUrl\":\"https://cdn.test/logo.png\"}"))
             .andExpect(status().isOk())
-            .andExpect(jsonPath("$.brandPrimary").value("#123abc"))
+            .andExpect(jsonPath("$.brandPreset").value("TEAL"))
             .andExpect(jsonPath("$.logoUrl").value("https://cdn.test/logo.png"));
 
         mockMvc.perform(get("/organizations/me/branding").header("Authorization", bearer(token)))
             .andExpect(status().isOk())
-            .andExpect(jsonPath("$.brandPrimary").value("#123abc"));
+            .andExpect(jsonPath("$.brandPreset").value("TEAL"));
     }
 
     @Test
@@ -69,35 +72,44 @@ class BrandingControllerIT extends AbstractIntegrationTest {
         String token = registerAdmin("brand-clear@clinica.test");
 
         mockMvc.perform(put("/organizations/me/branding").header("Authorization", bearer(token))
-                .contentType(MediaType.APPLICATION_JSON).content("{\"brandPrimary\":\"#123abc\"}"))
+                .contentType(MediaType.APPLICATION_JSON).content("{\"brandPreset\":\"TEAL\"}"))
             .andExpect(status().isOk());
 
         mockMvc.perform(put("/organizations/me/branding").header("Authorization", bearer(token))
                 .contentType(MediaType.APPLICATION_JSON).content("{}"))
             .andExpect(status().isOk())
-            .andExpect(jsonPath("$.brandPrimary").doesNotExist());
+            .andExpect(jsonPath("$.brandPreset").doesNotExist());
 
         mockMvc.perform(get("/organizations/me/branding").header("Authorization", bearer(token)))
             .andExpect(status().isOk())
-            .andExpect(jsonPath("$.brandPrimary").doesNotExist());
+            .andExpect(jsonPath("$.brandPreset").doesNotExist());
     }
 
+    /**
+     * Scenario "Un error de permisos usa el formato común": el 403 de {@code @PreAuthorize} ya era
+     * RFC 9457 (pasa por GlobalExceptionHandler). Se fija por test para que siga compartiendo forma
+     * con el resto de errores.
+     */
     @Test
     void non_admin_cannot_update_branding() throws Exception {
         // Token válido en firma pero con rol USER (no existe endpoint para crear USER aún).
         String userToken = tokenService.issueAccessToken(999L, "user@clinica.test", 999L, Role.USER);
 
         mockMvc.perform(put("/organizations/me/branding").header("Authorization", bearer(userToken))
-                .contentType(MediaType.APPLICATION_JSON).content("{\"brandPrimary\":\"#123abc\"}"))
-            .andExpect(status().isForbidden());
+                .contentType(MediaType.APPLICATION_JSON).content("{\"brandPreset\":\"TEAL\"}"))
+            .andExpect(status().isForbidden())
+            .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
+            .andExpect(jsonPath("$.type").value("/errors/access-denied"))
+            .andExpect(jsonPath("$.status").value(403))
+            .andExpect(jsonPath("$.timestamp").isNotEmpty());
     }
 
     @Test
-    void invalid_color_is_rejected() throws Exception {
-        String token = registerAdmin("brand-badcolor@clinica.test");
+    void invalid_preset_key_is_rejected() throws Exception {
+        String token = registerAdmin("brand-badpreset@clinica.test");
 
         mockMvc.perform(put("/organizations/me/branding").header("Authorization", bearer(token))
-                .contentType(MediaType.APPLICATION_JSON).content("{\"brandPrimary\":\"rojo\"}"))
+                .contentType(MediaType.APPLICATION_JSON).content("{\"brandPreset\":\"ROJO\"}"))
             .andExpect(status().isBadRequest());
     }
 

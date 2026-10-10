@@ -7,7 +7,7 @@ import { getUserFriendlyError } from "@/modules/core/utils/apiError";
 
 /** Inicia sesión: al éxito guarda la sesión (access en memoria); errores → toast. */
 export function useLogin() {
-  const setSession = useSessionStore((s) => s.setSession);
+  const setSession = useSessionStore.use.setSession();
   return useMutation({
     mutationFn: (data: LoginRequest) => login(data),
     onSuccess: (auth) => setSession(auth.accessToken, auth.user),
@@ -17,7 +17,7 @@ export function useLogin() {
 
 /** Registra una cuenta e inicia sesión automáticamente. */
 export function useRegister() {
-  const setSession = useSessionStore((s) => s.setSession);
+  const setSession = useSessionStore.use.setSession();
   return useMutation({
     mutationFn: (data: RegisterRequest) => register(data),
     onSuccess: (auth) => setSession(auth.accessToken, auth.user),
@@ -27,7 +27,7 @@ export function useRegister() {
 
 /** Cierra sesión. Best-effort: limpia el estado local aunque el backend falle. */
 export function useLogout() {
-  const clear = useSessionStore((s) => s.clear);
+  const clear = useSessionStore.use.clear();
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: () => logout(),

@@ -2,54 +2,57 @@ import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import type { CSSProperties } from "react";
 import { Link } from "react-router-dom";
-import { Loader2, ArrowLeft } from "lucide-react";
+import { Loader2, ArrowLeft, Check } from "lucide-react";
 import { Button } from "@/modules/core/ui/button";
 import { buttonVariants } from "@/modules/core/ui/button-variants";
 import { Label } from "@/modules/core/ui/label";
 import { Input } from "@/modules/core/ui/input";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/modules/core/ui/card";
 import { PATHS } from "@/routes/paths";
+import { cn } from "@/modules/core/utils/cn";
 import { deriveTheme } from "@/modules/core/theme/deriveTheme";
 import { brandingSchema, toRequest, type BrandingValues } from "@/modules/branding/schemas/branding";
+import { BRAND_PRESETS, findPreset } from "@/modules/branding/presets";
+import { applyServerFieldErrors } from "@/modules/core/utils/apiError";
 import { useBrandingQuery, useUpdateBranding } from "@/modules/branding/hooks/useBrandingApi";
 
 /** Variables CSS (tokens claros) del tema derivado, para el contenedor de vista previa. */
 function previewVars(values: BrandingValues): CSSProperties | undefined {
-  const theme = deriveTheme({
-    brandPrimary: values.brandPrimary || null,
-    brandSecondary: values.brandSecondary || null,
-  });
+  const preset = findPreset(values.brandPreset);
+  const theme = deriveTheme({ brandPrimary: preset?.brandPrimary, brandSecondary: preset?.brandSecondary });
   if (!theme) return undefined;
   const vars: Record<string, string> = {};
   for (const [token, value] of Object.entries(theme.light)) vars[`--${token}`] = value;
   return vars as CSSProperties;
 }
 
-/** Ajustes de marca de la organización (solo ADMIN): color(es), logo y vista previa en vivo. */
+/** Ajustes de marca de la organización (solo ADMIN): preset de color, logo y vista previa en vivo. */
 export function BrandingSettingsScreen() {
   const brandingQuery = useBrandingQuery();
   const updateBranding = useUpdateBranding();
 
   const current = brandingQuery.data;
   const {
-    register,
     handleSubmit,
     control,
     setValue,
+    setError,
+    register,
     formState: { errors },
   } = useForm<BrandingValues>({
     resolver: zodResolver(brandingSchema),
     values: {
-      brandPrimary: current?.brandPrimary ?? "",
-      brandSecondary: current?.brandSecondary ?? "",
+      brandPreset: current?.brandPreset ?? "",
       logoUrl: current?.logoUrl ?? "",
     },
   });
 
   const watched = useWatch({ control }) as BrandingValues;
   const contrastWarning =
-    deriveTheme({ brandPrimary: watched.brandPrimary || null, brandSecondary: watched.brandSecondary || null })
-      ?.contrastWarning ?? false;
+    deriveTheme({
+      brandPrimary: findPreset(watched.brandPreset)?.brandPrimary,
+      brandSecondary: findPreset(watched.brandPreset)?.brandSecondary,
+    })?.contrastWarning ?? false;
 
   return (
     <main className="mx-auto flex min-h-screen max-w-2xl flex-col gap-6 p-6">
@@ -61,29 +64,60 @@ export function BrandingSettingsScreen() {
       </div>
 
       <form
-        onSubmit={handleSubmit((values) => updateBranding.mutate(toRequest(values)))}
+        onSubmit={handleSubmit((values) =>
+          // El 400 del servidor (logo que no es https) trae el detalle por campo: se pinta
+          // junto al input, igual que el de Zod.
+          updateBranding.mutate(toRequest(values), {
+            onError: (error) => applyServerFieldErrors(error, setError),
+          }),
+        )}
         className="flex flex-col gap-4"
         noValidate
       >
-        <div className="flex flex-col gap-1.5">
-          <Label htmlFor="brandPrimary">Color primario</Label>
-          <div className="flex items-center gap-2">
-            <input
-              type="color"
-              aria-label="Selector de color primario"
-              className="h-9 w-12 rounded border"
-              value={/^#[0-9a-fA-F]{6}$/.test(watched.brandPrimary || "") ? watched.brandPrimary : "#7f1aa6"}
-              onChange={(e) => setValue("brandPrimary", e.target.value, { shouldValidate: true })}
-            />
-            <Input id="brandPrimary" placeholder="#7f1aa6" {...register("brandPrimary")} />
+        <div className="flex flex-col gap-2">
+          <Label>Color de marca</Label>
+          <div className="flex flex-wrap gap-2" role="radiogroup" aria-label="Color de marca">
+            <button
+              type="button"
+              role="radio"
+              aria-checked={watched.brandPreset === ""}
+              onClick={() => setValue("brandPreset", "", { shouldValidate: true })}
+              className={cn(
+                "flex h-11 items-center gap-2 rounded-xl border px-3 text-sm font-medium transition-colors",
+                watched.brandPreset === ""
+                  ? "border-primary/40 bg-primary/5 text-primary"
+                  : "border-input bg-card text-muted-foreground hover:bg-muted/50",
+              )}
+            >
+              {watched.brandPreset === "" ? <Check className="size-4" /> : null}
+              Ninguno (default)
+            </button>
+            {BRAND_PRESETS.map((preset) => {
+              const selected = watched.brandPreset === preset.key;
+              return (
+                <button
+                  key={preset.key}
+                  type="button"
+                  role="radio"
+                  aria-checked={selected}
+                  onClick={() => setValue("brandPreset", preset.key, { shouldValidate: true })}
+                  className={cn(
+                    "flex h-11 items-center gap-2 rounded-xl border px-3 text-sm font-medium transition-colors",
+                    selected ? "border-primary/40 bg-primary/5" : "border-input bg-card hover:bg-muted/50",
+                  )}
+                >
+                  <span
+                    className="size-5 shrink-0 rounded-full border border-black/10"
+                    style={{ backgroundColor: preset.brandPrimary }}
+                    aria-hidden="true"
+                  />
+                  {preset.label}
+                  {selected ? <Check className="size-4 text-primary" /> : null}
+                </button>
+              );
+            })}
           </div>
-          {errors.brandPrimary ? <p className="text-xs text-destructive">{errors.brandPrimary.message}</p> : null}
-        </div>
-
-        <div className="flex flex-col gap-1.5">
-          <Label htmlFor="brandSecondary">Color secundario (opcional)</Label>
-          <Input id="brandSecondary" placeholder="#16C3B2" {...register("brandSecondary")} />
-          {errors.brandSecondary ? <p className="text-xs text-destructive">{errors.brandSecondary.message}</p> : null}
+          {errors.brandPreset ? <p className="text-xs text-destructive">{errors.brandPreset.message}</p> : null}
         </div>
 
         <div className="flex flex-col gap-1.5">

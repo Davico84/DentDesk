@@ -13,8 +13,8 @@ interface RequireAuthProps {
  * destino); con sesión pero rol sin permiso → acceso denegado.
  */
 export function RequireAuth({ roles }: RequireAuthProps) {
-  const status = useSessionStore((s) => s.status);
-  const user = useSessionStore((s) => s.user);
+  const status = useSessionStore.use.status();
+  const user = useSessionStore.use.user();
   const location = useLocation();
 
   if (status !== "authenticated" || !user) {

@@ -1,4 +1,5 @@
 import { Outlet } from "react-router-dom";
+import { MotionConfig } from "framer-motion";
 import { Toaster } from "sonner";
 import { useSessionBootstrap } from "@/modules/auth/hooks/useSessionBootstrap";
 import { useBranding } from "@/modules/branding/hooks/useBranding";
@@ -21,9 +22,13 @@ export function RootLayout() {
   }
 
   return (
-    <div className="min-h-screen bg-background text-foreground">
-      <Outlet />
-      <Toaster richColors position="top-right" />
-    </div>
+    // reducedMotion="user": respeta prefers-reduced-motion del SO para TODA animación de
+    // framer-motion de la app, una sola vez aquí (docs/frontend.md §4.2).
+    <MotionConfig reducedMotion="user">
+      <div className="min-h-screen bg-background text-foreground">
+        <Outlet />
+        <Toaster richColors position="top-right" />
+      </div>
+    </MotionConfig>
   );
 }

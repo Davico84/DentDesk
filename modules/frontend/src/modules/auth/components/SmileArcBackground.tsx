@@ -1,0 +1,91 @@
+import { useEffect, useRef } from "react";
+
+/**
+ * Arcos ambientales en canvas para el panel de marca del login/registro (arco dental
+ * ascendente, en tonos amatista + un acento menta). Decorativo puro (`aria-hidden`); respeta
+ * `prefers-reduced-motion` dibujando el cuadro final sin animar.
+ */
+export function SmileArcBackground() {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+
+    const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    let width = 0;
+    let height = 0;
+    let resizeTimeout: ReturnType<typeof setTimeout>;
+    let frameId: number;
+
+    function resize() {
+      if (!canvas || !ctx) return;
+      const rect = canvas.getBoundingClientRect();
+      width = rect.width;
+      height = rect.height;
+      canvas.width = width * dpr;
+      canvas.height = height * dpr;
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    }
+
+    function drawArcs(progress: number) {
+      if (!ctx) return;
+      ctx.clearRect(0, 0, width, height);
+      const cx = width * 0.5;
+      const cy = height * 1.18;
+      const base = height * 0.95;
+      for (let i = 0; i < 5; i++) {
+        const radius = base + i * (height * 0.1);
+        const alpha = (0.15 - i * 0.024) * progress;
+        if (alpha <= 0) continue;
+        ctx.beginPath();
+        ctx.strokeStyle =
+          i === 1 ? `rgba(77,208,191,${0.55 * progress})` : `rgba(221,195,230,${alpha})`;
+        ctx.lineWidth = i === 1 ? 2 : 1.25;
+        const span = Math.PI * (0.32 + 0.04 * i);
+        ctx.arc(cx, cy, radius, -Math.PI / 2 - span, -Math.PI / 2 + span);
+        ctx.stroke();
+      }
+    }
+
+    function run() {
+      resize();
+      if (reduce) {
+        drawArcs(1);
+        return;
+      }
+      let start: number | null = null;
+      function frame(t: number) {
+        if (start === null) start = t;
+        const p = Math.min((t - start) / 1100, 1);
+        const eased = 1 - Math.pow(1 - p, 3);
+        drawArcs(eased);
+        if (p < 1) frameId = requestAnimationFrame(frame);
+      }
+      frameId = requestAnimationFrame(frame);
+    }
+
+    run();
+    const handleResize = () => {
+      clearTimeout(resizeTimeout);
+      resizeTimeout = setTimeout(() => {
+        resize();
+        drawArcs(1);
+      }, 150);
+    };
+    window.addEventListener("resize", handleResize);
+
+    return () => {
+      window.removeEventListener("resize", handleResize);
+      clearTimeout(resizeTimeout);
+      cancelAnimationFrame(frameId);
+    };
+  }, []);
+
+  return (
+    <canvas ref={canvasRef} aria-hidden="true" className="absolute inset-0 h-full w-full" />
+  );
+}

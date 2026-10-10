@@ -4,8 +4,6 @@ import com.odontorisas.common.OrganizationContext;
 import com.odontorisas.persistence.entity.OrganizationBranding;
 import com.odontorisas.persistence.repository.OrganizationBrandingRepository;
 import com.odontorisas.persistence.repository.OrganizationRepository;
-import com.odontorisas.presentation.dto.BrandingResponse;
-import com.odontorisas.presentation.dto.UpdateBrandingRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -29,30 +27,29 @@ public class BrandingService {
 
     /** Marca de la organización activa; devuelve siempre un objeto (vacío = defaults del producto). */
     @Transactional(readOnly = true)
-    public BrandingResponse getForCurrentOrganization() {
+    public Branding getForCurrentOrganization() {
         return brandingRepository.findById(currentOrganizationId())
-            .map(BrandingResponse::from)
-            .orElseGet(BrandingResponse::empty);
+            .map(Branding::from)
+            .orElseGet(Branding::empty);
     }
 
     /** Crea/actualiza la marca de la organización activa; si queda toda vacía, elimina la fila. */
     @Transactional
-    public BrandingResponse update(UpdateBrandingRequest request) {
+    public Branding update(Branding requested) {
         Long organizationId = currentOrganizationId();
 
-        if (request.brandPrimary() == null && request.brandSecondary() == null && request.logoUrl() == null) {
+        if (requested.isEmpty()) {
             brandingRepository.deleteById(organizationId); // idempotente si no existe
-            return BrandingResponse.empty();
+            return Branding.empty();
         }
 
         OrganizationBranding branding = brandingRepository.findById(organizationId)
             .orElseGet(() -> OrganizationBranding.builder()
                 .organization(organizationRepository.getReferenceById(organizationId))
                 .build());
-        branding.setBrandPrimary(request.brandPrimary());
-        branding.setBrandSecondary(request.brandSecondary());
-        branding.setLogoUrl(request.logoUrl());
-        return BrandingResponse.from(brandingRepository.save(branding));
+        branding.setBrandPreset(requested.brandPreset());
+        branding.setLogoUrl(requested.logoUrl());
+        return Branding.from(brandingRepository.save(branding));
     }
 
     private Long currentOrganizationId() {

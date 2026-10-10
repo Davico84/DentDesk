@@ -44,8 +44,9 @@ jobs:
         run: pnpm lint
 
   # Verifica que el cliente generado (orval) esté sincronizado con contracts/openapi.json.
-  # (La sincronización contrato ↔ backend real se verificará en un job del backend
-  #  cuando se automatice el export de /v3/api-docs.)
+  # Es una de las DOS direcciones del drift; la otra —que el contrato refleje el backend real—
+  # la vigila ContractDriftIT en el `verify` del backend. Entre ambas, la cadena
+  # backend → contrato → cliente no puede desincronizarse sin que CI lo detecte.
   codegen-drift:
     runs-on: ubuntu-latest
     steps:
@@ -84,4 +85,30 @@ jobs:
         with:
           name: frontend-coverage
           path: modules/frontend/coverage
+          if-no-files-found: ignore
+
+  # Smoke E2E (docs/testing.md §4): sin backend, sin Testcontainers — solo el dev
+  # server. Cubre flujos que degradan con gracia sin API (bootstrap de sesión →
+  # no autenticado → login). El CRUD real contra datos reales sigue pendiente.
+  e2e-smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+      - run: pnpm install --frozen-lockfile
+      - name: Instalar Chromium
+        run: pnpm exec playwright install --with-deps chromium
+      - name: E2E smoke
+        run: pnpm test:e2e
+      - name: Subir reporte
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-e2e-report
+          path: modules/frontend/playwright-report
           if-no-files-found: ignore

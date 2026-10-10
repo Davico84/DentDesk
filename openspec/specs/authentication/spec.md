@@ -7,7 +7,7 @@ Gestiona la identidad y el acceso de los usuarios: registro de cuenta, inicio y 
 ## Requirements
 
 ### Requirement: Registro de usuario
-El sistema SHALL permitir crear una organización junto con su configuración por defecto, la identidad de su primer usuario y una membresía de administrador que los una, a partir del nombre de la organización, el nombre completo, el correo y la contraseña (con confirmación de contraseña en el cliente); SHALL iniciar sesión automáticamente tras el alta; y SHALL rechazar correos duplicados o datos que no cumplan las validaciones mínimas. La membresía creada SHALL tener rol `ADMIN` en la organización recién creada. El correo SHALL ser único en toda la plataforma. Otros datos de perfil (nombre de usuario, teléfono, país) se capturan más adelante en la gestión de perfil (capacidad `users`). El alta de la organización, la identidad y la membresía se rige por la capacidad `multi-tenancy`.
+El sistema SHALL permitir crear una organización con su configuración por defecto, la identidad de su primer usuario y una membresía con rol `ADMIN` que los une, a partir del nombre de la organización, el nombre completo, el correo y la contraseña (confirmada en el cliente). SHALL iniciar sesión automáticamente tras el alta y SHALL rechazar correos duplicados o datos que no cumplan las validaciones mínimas. El correo SHALL ser único en toda la plataforma. El alta se rige por `multi-tenancy`.
 
 #### Scenario: Registro exitoso
 - **WHEN** un visitante envía el formulario con el nombre de la organización, su nombre completo, un correo válido y una contraseña de al menos 8 caracteres cuya confirmación coincide, con un correo no registrado
@@ -37,12 +37,13 @@ El sistema SHALL permitir crear una organización junto con su configuración po
 - **AND** no envía la petición al backend
 
 ### Requirement: Inicio de sesión con credenciales
-El sistema SHALL autenticar a un usuario por su identidad global (correo y contraseña), establecer su sesión al validarlas y rechazar credenciales inválidas sin revelar cuál campo falló. El token de acceso emitido SHALL identificar la organización activa y el rol del usuario en ella, tomados de su membresía, de modo que toda petición posterior quede acotada a esa organización. El sistema SHALL conceder sesión únicamente cuando la identidad, la membresía y la organización estén activas; en caso contrario SHALL rechazar el acceso sin revelar el motivo. En este alcance cada usuario tiene una única membresía; el manejo de usuarios con varias membresías (selección de organización activa) se difiere a la capacidad `users`.
+El sistema SHALL autenticar a un usuario por su identidad global (correo y contraseña), establecer su sesión al validarlas y rechazar credenciales inválidas sin revelar qué campo falló. El token de acceso SHALL identificar la organización activa y el rol del usuario en ella, según su membresía. SHALL conceder sesión solo si la identidad, la membresía y la organización están activas; si no, SHALL rechazar el acceso sin revelar el motivo. En este alcance cada usuario tiene una única membresía.
 
 #### Scenario: Credenciales válidas
-- **WHEN** un usuario registrado envía su correo y contraseña correctos
+- **WHEN** un usuario registrado envía su correo y contraseña correctos y su identidad no está bloqueada
 - **THEN** el sistema establece la sesión (token de acceso y de refresco)
 - **AND** el token de acceso identifica la organización de su membresía y su rol en ella
+- **AND** reinicia el contador de intentos fallidos de la identidad
 - **AND** redirige al panel correspondiente a su rol
 
 #### Scenario: Credenciales inválidas
@@ -60,6 +61,82 @@ El sistema SHALL autenticar a un usuario por su identidad global (correo y contr
 - **THEN** el sistema rechaza el acceso con el mismo mensaje que unas credenciales inválidas
 - **AND** no establece ninguna sesión
 - **AND** no revela cuál de los tres estados provocó el rechazo
+
+### Requirement: Bloqueo temporal del login por intentos fallidos
+El sistema SHALL bloquear temporalmente una identidad tras un número configurable de intentos fallidos **consecutivos** y, mientras dure el bloqueo, SHALL rechazar el acceso aunque las credenciales sean correctas. Si se bloquea mientras otro login ya validó su contraseña sin establecer sesión, NO SHALL establecerla. El rechazo por bloqueo SHALL ser idéntico (estado, cuerpo y cabeceras) al de credenciales inválidas, sin revelar el bloqueo ni que el correo existe (no cubre la latencia).
+
+#### Scenario: Bloqueo tras alcanzar el umbral de intentos fallidos
+- **WHEN** un correo registrado acumula un número de intentos de contraseña fallidos consecutivos igual al umbral configurado
+- **THEN** el sistema bloquea la identidad durante la ventana de tiempo configurada
+- **AND** responde con el mensaje "Correo electrónico o contraseña incorrectos"
+- **AND** no establece ninguna sesión
+
+#### Scenario: Cuenta bloqueada con credenciales correctas
+- **WHEN** un usuario cuya identidad está dentro de la ventana de bloqueo envía su correo y contraseña correctos
+- **THEN** el sistema rechaza el acceso sin establecer sesión
+- **AND** responde con el mismo mensaje "Correo electrónico o contraseña incorrectos" (no revela que la cuenta está bloqueada)
+
+#### Scenario: Un bloqueo concurrente corta un login que ya validó la contraseña
+- **WHEN** una identidad queda bloqueada por alcanzar el umbral de intentos fallidos justo mientras otra petición de login con credenciales correctas para esa misma identidad ya pasó la verificación de contraseña pero todavía no estableció la sesión
+- **THEN** el sistema rechaza esa petición sin establecer sesión
+- **AND** responde con el mismo mensaje genérico "Correo electrónico o contraseña incorrectos"
+
+### Requirement: Conteo de intentos fallidos
+El sistema SHALL incrementar el contador **solo** cuando la contraseña no coincide para un correo registrado. Un rechazo por estado (identidad, membresía u organización no activa) NO SHALL incrementarlo ni reiniciarlo. Un intento durante el bloqueo NO SHALL incrementarlo ni prolongar la ventana. Un correo no registrado NO SHALL crear ni alterar estado alguno. El incremento SHALL persistir aunque el intento se rechace y SHALL ser correcto con intentos concurrentes (N simultáneos cuentan N).
+
+#### Scenario: El conteo persiste pese al rechazo del intento
+- **WHEN** un intento de login se rechaza por contraseña incorrecta
+- **THEN** el incremento del contador de esa identidad queda persistido
+- **AND** un intento posterior parte de ese contador (los fallos acumulan hasta el umbral)
+
+#### Scenario: Intentos fallidos concurrentes sobre la misma identidad
+- **WHEN** varios intentos con contraseña incorrecta contra el mismo correo registrado llegan de forma simultánea
+- **THEN** el contador refleja todos los intentos (no se pierde ninguno)
+- **AND** al alcanzarse el umbral la identidad queda bloqueada
+
+#### Scenario: Insistir durante el bloqueo no prolonga la ventana
+- **WHEN** un usuario cuya identidad está bloqueada realiza más intentos antes de que expire la ventana
+- **THEN** el sistema los rechaza con el mensaje genérico
+- **AND** no incrementa el contador ni retrasa el momento de expiración del bloqueo
+
+#### Scenario: Un rechazo por estado no cuenta para el bloqueo
+- **WHEN** un usuario con contraseña correcta es rechazado porque su identidad, membresía u organización no está activa
+- **THEN** el sistema no incrementa su contador de intentos fallidos
+- **AND** repetir el intento no llega a bloquear la identidad
+
+#### Scenario: Un rechazo por estado tampoco borra los intentos ya acumulados
+- **WHEN** un usuario con intentos fallidos ya acumulados envía la contraseña correcta pero es rechazado porque su identidad, membresía u organización no está activa
+- **THEN** su contador de intentos fallidos permanece intacto
+- **AND** los intentos acumulados siguen contando para un bloqueo posterior
+
+#### Scenario: Un intento contra un correo inexistente no crea estado de bloqueo
+- **WHEN** un atacante envía repetidos intentos de login contra un correo que no está registrado
+- **THEN** el sistema responde siempre con el mensaje "Correo electrónico o contraseña incorrectos"
+- **AND** no crea ni altera ningún contador de intentos ni estado de bloqueo
+- **AND** su respuesta (código de estado, cuerpo y cabeceras) es idéntica a la de un correo registrado que falla
+
+### Requirement: Expiración y alcance del bloqueo
+Un login exitoso SHALL reiniciar el contador. El bloqueo SHALL expirar solo al cumplirse una ventana configurable, sin desbloqueo manual, reiniciando el contador. Umbral y ventana SHALL ser configuración externalizada y validada. Bloquear SHALL impedir solo **nuevos** inicios de sesión, sin invalidar sesiones emitidas ni su renovación. El bloqueo SHALL ser independiente del estado administrativo de la identidad: expirar no la reactiva ni la altera, y el acceso SHALL exigir que ambos lo permitan.
+
+#### Scenario: La ventana de bloqueo expira y el usuario acierta
+- **WHEN** un usuario cuya identidad estuvo bloqueada envía credenciales correctas después de que la ventana de bloqueo haya transcurrido
+- **THEN** el sistema establece la sesión normalmente
+- **AND** reinicia el contador de intentos fallidos de la identidad
+
+#### Scenario: La ventana de bloqueo expira y el usuario vuelve a fallar
+- **WHEN** un usuario cuya identidad estuvo bloqueada envía una contraseña incorrecta después de que la ventana de bloqueo haya transcurrido
+- **THEN** el sistema rechaza el intento con el mensaje genérico
+- **AND** no vuelve a bloquear la identidad de inmediato (el conteo parte de cero tras la expiración)
+
+#### Scenario: Expirar el bloqueo no reactiva una identidad deshabilitada
+- **WHEN** una identidad deshabilitada o bloqueada administrativamente acumula intentos fallidos hasta quedar además bloqueada por tiempo, y esa ventana transcurre
+- **THEN** el sistema sigue rechazando el acceso con el mensaje genérico, incluso con credenciales correctas
+- **AND** su estado administrativo permanece intacto (expirar la ventana no la reactiva)
+
+#### Scenario: Bloquear no cierra las sesiones ya abiertas
+- **WHEN** una identidad queda bloqueada por intentos fallidos mientras tiene una sesión vigente en otro dispositivo
+- **THEN** esa sesión sigue funcionando y su token de acceso se renueva con normalidad
+- **AND** el bloqueo solo impide iniciar sesión de nuevo con credenciales
 
 ### Requirement: Persistencia de sesión
 El sistema SHALL restaurar la sesión del usuario tras recargar la aplicación cuando la sesión siga vigente (token de refresco válido), y presentarse como no autenticado cuando no exista una sesión restaurable.

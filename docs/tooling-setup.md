@@ -82,8 +82,59 @@ Un workflow **por área** en `.github/workflows/`, cada uno con **path filter** 
 | Workflow | Filtro de rutas | Jobs |
 |---|---|---|
 | `openspec.yml` | `openspec/**` | `validate` → `openspec validate --all --strict` |
-| `frontend.yml` | `modules/frontend/**` | `lint` (typecheck + eslint) · `test` (`vitest --coverage` + artifact) |
-| `backend.yml` | `modules/backend/**` | `verify` (`./mvnw -B verify`) · *(futuro: lint Spotless/Checkstyle, coverage JaCoCo)* |
+| `frontend.yml` | `modules/frontend/**`, `contracts/**` | `lint` (typecheck + eslint) · `test` (`vitest --coverage` + artifact) · **`codegen-drift`** |
+| `backend.yml` | `modules/backend/**` | `verify` (`./mvnw -B verify`, incluye **`ContractDriftIT`**) · *(futuro: lint Spotless/Checkstyle, coverage JaCoCo)* |
+
+### 5.1 Los dos guardianes del contrato
+
+El contrato OpenAPI es la fuente única de verdad, así que CI vigila que **la cadena entera** siga sincronizada. Hacen falta **las dos direcciones**: con una sola, el contrato puede mentir sobre el backend sin que nadie se entere (que es exactamente lo que pasaba).
+
+```
+backend ──[ContractDriftIT]──► contracts/openapi.json ──[codegen-drift]──► cliente generado
+```
+
+| Guardián | Dónde | Qué hace |
+|---|---|---|
+| **`ContractDriftIT`** | test, dentro del `verify` del backend | Compara la especificación que el backend publica **ahora** con `contracts/openapi.json`. **Cambiar la API sin regenerar el contrato rompe la build.** |
+| **`codegen-drift`** | job del workflow de frontend | Regenera el cliente con orval y falla si difiere de lo commiteado. |
+
+> **Por qué el primero es un test y no un job que arranque un servidor**: usa la misma maquinaria de springdoc, corre dentro del `verify` que CI ya ejecuta y rompe la build igual — sin añadir un servidor y un `curl` como piezas frágiles.
+
+**Si CI te dice que hay drift**, regenera y commitea ambos:
+```bash
+# con el backend arrancado — OJO: con `-o`, nunca canalizando por un script
+curl -o contracts/openapi.json http://localhost:8080/v3/api-docs
+pnpm --filter odontorisas-frontend generate:api
+```
+> [!WARNING]
+> Exporta el contrato con `curl -o`. Un `curl | python` en Windows lo dejó **doble codificado** (el `stdin` de Python usa cp1252, no UTF-8), lo que reventaba a `ContractDriftIT` y propagaba *mojibake* al cliente generado.
 
 > [!NOTE]
 > **Path filters + branch protection**: si más adelante marcas estos checks como *required*, un workflow que no dispara (porque su área no cambió) aparece como *pending/skipped* y puede bloquear el merge. Cuando llegue ese momento, usar "required workflows" a nivel de organización o un job agregador. Por ahora no hay branch protection.
+
+> [!WARNING]
+> ### 🚩 Al leer un fallo de CI: mira SIEMPRE el SHA del run
+>
+> Los workflows llevan `concurrency: cancel-in-progress: true`, así que **cada push cancela el run anterior a media ejecución**. Si haces varios pushes seguidos arreglando algo, quedan runs **cancelados** cuyos logs **siguen visibles** y muestran **fallos ya resueltos**.
+>
+> Esto nos ha costado **tres rondas** de diagnosticar bugs que ya no existían. Dos síntomas que lo delatan:
+>
+> - **El error "no desaparece"** por más que lo arregles → estás leyendo el log de un run viejo. **Comprueba el SHA en la cabecera del run** y contrástalo con `git log -1`.
+> - **El donut del commit sale rojo aunque los checks estén todos en verde** → el donut agrega **todos** los check runs del commit, y un run **cancelado** no cuenta como verde. Si los checks del último SHA están ✅, está bien.
+>
+> **Y para encontrar el fallo real:** los tests que fallan por aserción lanzan `AssertionError`, **no tienen `Caused by:`**. Busca `<<< FAILURE!` o `Tests run: … Failures:`. El `Caused by:` solo aparece si el contexto de Spring no arranca.
+
+---
+
+## 6. Testcontainers local (Docker Desktop reciente)
+
+Los `*IT` (Testcontainers) llevan `@Testcontainers(disabledWithoutDocker = true)`: si Testcontainers no valida el entorno Docker, **se saltan limpios** en vez de fallar — así que un `mvn verify` "en verde" localmente puede en realidad no haber probado nada.
+
+**Síntoma**: en Windows, con Docker Desktop reciente (Docker Engine ≥ 29), los `*IT` se saltaban siempre, aunque `docker info`/`docker run` funcionaran perfecto. El log de Maven solo decía *"Could not find a valid Docker environment"*, sin más detalle (hace falta `-Dorg.slf4j.simpleLogger.log.org.testcontainers=debug` para ver la causa real).
+
+**Causa real**: el `pom.xml` fijaba `testcontainers.version=1.21.3` a mano (resto del scaffolding inicial), sobrescribiendo lo que `spring-boot-starter-parent:4.0.6` ya gestiona por su cuenta (`2.0.5` — la versión con la que el propio Spring Boot 4.0 se probó). Esa `1.21.3` habla API Docker `1.32`; Docker Engine 29 exige mínimo `1.44` → el cliente Java de Testcontainers no podía ni validar el entorno.
+
+**Fix** (aplicado): quitar la fijación manual (`testcontainers.version` + el `<dependencyManagement>` que importaba `testcontainers-bom`) y dejar que `spring-boot-starter-parent` decida — hereda `2.0.5` solo. En 2.x, dos `artifactId` cambiaron de nombre (`junit-jupiter`→`testcontainers-junit-jupiter`, `postgresql`→`testcontainers-postgresql`); los paquetes Java (`org.testcontainers.junit.jupiter.Testcontainers`, `org.testcontainers.containers.PostgreSQLContainer`) **no cambiaron** — cero cambios de código.
+
+> [!WARNING]
+> **Trampa aparte, ya resuelta pero vale la pena conocerla**: Testcontainers cachea la estrategia de conexión que le funcionó en `~/.testcontainers.properties` (`docker.client.strategy=...`). Si ese archivo quedó con una estrategia rota de un intento anterior, **ignora cualquier `DOCKER_HOST` que fijes después** hasta que lo borres. Si Testcontainers "no ve" un Docker que sabes que funciona, borra ese archivo antes de seguir investigando.

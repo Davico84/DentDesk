@@ -1,0 +1,232 @@
+import { describe, it, expect } from "vitest";
+import { patientSchema, toRequest, toDefaults, isMinor, documentMaxLength, type PatientValues } from "./patient";
+
+function isoYearsAgo(years: number): string {
+  const d = new Date();
+  d.setFullYear(d.getFullYear() - years);
+  return d.toISOString().slice(0, 10);
+}
+
+function values(overrides: Partial<PatientValues> = {}): PatientValues {
+  return {
+    fullName: "Ada Lovelace",
+    documentType: "",
+    document: "",
+    birthDate: isoYearsAgo(30),
+    sex: "",
+    // Con teléfono propio por defecto: así el contacto de emergencia (update-patients D2) no
+    // interfiere en los tests que no lo están probando. Los tests de esa regla lo vacían a propósito.
+    phone: "+51987654321",
+    email: "",
+    address: "",
+    guardianName: "",
+    guardianRelationship: "",
+    guardianDocument: "",
+    guardianPhone: "",
+    emergencyContactName: "",
+    emergencyContactPhone: "",
+    emergencyContactRelationship: "",
+    allergies: "",
+    conditions: "",
+    currentMedication: "",
+    ...overrides,
+  };
+}
+
+describe("patientSchema", () => {
+  it("acepta un adulto sin responsable", () => {
+    expect(patientSchema.safeParse(values()).success).toBe(true);
+  });
+
+  it("rechaza un menor sin responsable, con error por cada campo del responsable", () => {
+    const result = patientSchema.safeParse(values({ birthDate: isoYearsAgo(10) }));
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      const paths = result.error.issues.map((i) => i.path[0]);
+      expect(paths).toEqual(expect.arrayContaining(["guardianName", "guardianRelationship", "guardianPhone"]));
+    }
+  });
+
+  it("acepta un menor con responsable", () => {
+    const result = patientSchema.safeParse(
+      values({ birthDate: isoYearsAgo(10), guardianName: "María", guardianRelationship: "MOTHER", guardianPhone: "+51987654321" }),
+    );
+    expect(result.success).toBe(true);
+  });
+
+  it("exige el nombre", () => {
+    expect(patientSchema.safeParse(values({ fullName: "" })).success).toBe(false);
+  });
+});
+
+/** Paridad con el @PastOrPresent del backend: la edad DERIVA de esta fecha. */
+describe("patientSchema — fecha de nacimiento", () => {
+  it("rechaza una fecha futura", () => {
+    const future = new Date();
+    future.setFullYear(future.getFullYear() + 1);
+    const result = patientSchema.safeParse(values({ birthDate: future.toISOString().slice(0, 10) }));
+    expect(result.success).toBe(false);
+  });
+
+  it("acepta hoy (un recién nacido) — que, siendo menor, necesita responsable", () => {
+    const result = patientSchema.safeParse(
+      values({
+        birthDate: new Date().toISOString().slice(0, 10),
+        guardianName: "María",
+        guardianRelationship: "MOTHER",
+        guardianPhone: "+51987654321",
+      }),
+    );
+    expect(result.success).toBe(true);
+  });
+
+  it("rechaza una fecha inválida", () => {
+    expect(patientSchema.safeParse(values({ birthDate: "no-es-fecha" })).success).toBe(false);
+  });
+});
+
+/** Paridad con el backend (design.md D8): emparejamiento tipo↔número y formato según el tipo. */
+describe("patientSchema — documento", () => {
+  function pathsInError(v: PatientValues): unknown[] {
+    const result = patientSchema.safeParse(v);
+    return result.success ? [] : result.error.issues.map((i) => i.path[0]);
+  }
+
+  it("acepta no tener documento (es opcional)", () => {
+    expect(patientSchema.safeParse(values()).success).toBe(true);
+  });
+
+  it("acepta un DNI válido de 8 dígitos", () => {
+    expect(patientSchema.safeParse(values({ documentType: "DNI", document: "12345678" })).success).toBe(true);
+  });
+
+  it("exige el tipo si se da el número", () => {
+    expect(pathsInError(values({ document: "12345678" }))).toContain("documentType");
+  });
+
+  it("exige el número si se da el tipo", () => {
+    expect(pathsInError(values({ documentType: "DNI" }))).toContain("document");
+  });
+
+  it("rechaza un DNI con formato inválido", () => {
+    expect(pathsInError(values({ documentType: "DNI", document: "123" }))).toContain("document");
+    expect(pathsInError(values({ documentType: "DNI", document: "1234567X" }))).toContain("document");
+  });
+
+  it("rechaza un DNI de MÁS de 8 dígitos (pasarse también es inválido)", () => {
+    expect(pathsInError(values({ documentType: "DNI", document: "123456789" }))).toContain("document");
+  });
+
+  it("el largo máximo depende del tipo: impide pasarse en vez de avisar después", () => {
+    expect(documentMaxLength("DNI")).toBe(8);
+    expect(documentMaxLength("CE")).toBe(12);
+    expect(documentMaxLength("PASSPORT")).toBe(12);
+    expect(documentMaxLength("")).toBeUndefined();
+  });
+
+  it("acepta un pasaporte alfanumérico", () => {
+    expect(patientSchema.safeParse(values({ documentType: "PASSPORT", document: "AB123456" })).success).toBe(true);
+  });
+});
+
+describe("patientSchema — teléfono", () => {
+  it("rechaza letras en el teléfono", () => {
+    expect(patientSchema.safeParse(values({ phone: "no-es-un-numero" })).success).toBe(false);
+  });
+
+  it("acepta teléfonos internacionales en formato E.164", () => {
+    expect(patientSchema.safeParse(values({ phone: "+51987654321" })).success).toBe(true);
+    expect(patientSchema.safeParse(values({ phone: "+34612345678" })).success).toBe(true);
+  });
+
+  it("rechaza números sin +, demasiado cortos o con espacios", () => {
+    expect(patientSchema.safeParse(values({ phone: "987654321" })).success).toBe(false);
+    expect(patientSchema.safeParse(values({ phone: "+519876" })).success).toBe(false);
+    expect(patientSchema.safeParse(values({ phone: "+51 987654321" })).success).toBe(false);
+  });
+});
+
+/** update-patients D2: contacto de emergencia obligatorio SOLO si no hay teléfono propio. */
+describe("patientSchema — contacto de emergencia condicional", () => {
+  function pathsInError(v: PatientValues): unknown[] {
+    const result = patientSchema.safeParse(v);
+    return result.success ? [] : result.error.issues.map((i) => i.path[0]);
+  }
+
+  it("sin teléfono propio y sin contacto de emergencia: rechaza por cada campo", () => {
+    const paths = pathsInError(values({ phone: "" }));
+    expect(paths).toEqual(
+      expect.arrayContaining(["emergencyContactName", "emergencyContactPhone", "emergencyContactRelationship"]),
+    );
+  });
+
+  it("el valor inicial del prefijo (+51 sin número) cuenta como 'sin teléfono propio'", () => {
+    expect(pathsInError(values({ phone: "+51" }))).toContain("emergencyContactName");
+  });
+
+  it("sin teléfono propio pero con contacto de emergencia completo: acepta", () => {
+    const result = patientSchema.safeParse(
+      values({
+        phone: "",
+        emergencyContactName: "Hija",
+        emergencyContactPhone: "+51988877766",
+        emergencyContactRelationship: "Hija",
+      }),
+    );
+    expect(result.success).toBe(true);
+  });
+
+  it("con teléfono propio, el contacto de emergencia sigue siendo opcional", () => {
+    const result = patientSchema.safeParse(values({ phone: "+51987654321" }));
+    expect(result.success).toBe(true);
+  });
+});
+
+describe("isMinor", () => {
+  it("deriva la minoría de la fecha de nacimiento", () => {
+    expect(isMinor(isoYearsAgo(10))).toBe(true);
+    expect(isMinor(isoYearsAgo(30))).toBe(false);
+    expect(isMinor("")).toBe(false);
+  });
+});
+
+describe("toRequest", () => {
+  it("convierte la anamnesis separada por comas en listas y omite los vacíos", () => {
+    const request = toRequest(values({ allergies: "penicilina, látex ,", document: "  " }));
+    expect(request.allergies).toEqual(["penicilina", "látex"]);
+    expect(request.conditions).toEqual([]);
+    expect(request.document).toBeUndefined();
+  });
+
+  it("conserva los teléfonos internacionales y omite el prefijo inicial sin número", () => {
+    const request = toRequest(values({ phone: "+51987654321", emergencyContactPhone: "+34612345678", guardianPhone: "+51" }));
+    expect(request.phone).toBe("+51987654321");
+    expect(request.emergencyContactPhone).toBe("+34612345678");
+    expect(request.guardianPhone).toBeUndefined();
+  });
+});
+
+describe("toDefaults", () => {
+  it("une las listas con comas para editar", () => {
+    const defaults = toDefaults({
+      id: 1,
+      fullName: "Ada",
+      birthDate: "2000-01-01",
+      allergies: ["penicilina", "látex"],
+    });
+    expect(defaults.allergies).toBe("penicilina, látex");
+    expect(defaults.fullName).toBe("Ada");
+  });
+
+  it("normaliza el teléfono internacional al editar", () => {
+    const defaults = toDefaults({ id: 1, fullName: "Ada", birthDate: "2000-01-01", phone: "+51 987 654 321" });
+    expect(defaults.phone).toBe("+51987654321");
+  });
+
+  it("usa +51 como valor inicial para los teléfonos vacíos", () => {
+    const defaults = toDefaults();
+    expect(defaults.phone).toBe("+51");
+    expect(defaults.guardianPhone).toBe("+51");
+    expect(defaults.emergencyContactPhone).toBe("+51");
+  });
+});

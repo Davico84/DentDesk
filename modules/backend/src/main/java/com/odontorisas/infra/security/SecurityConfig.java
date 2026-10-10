@@ -1,6 +1,6 @@
 package com.odontorisas.infra.security;
 
-import jakarta.servlet.http.HttpServletResponse;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -15,6 +15,7 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
+import org.springframework.web.servlet.HandlerExceptionResolver;
 
 import java.util.List;
 
@@ -27,7 +28,7 @@ import java.util.List;
  * {@code SameSite=Lax} + método POST.
  */
 @Configuration
-@EnableConfigurationProperties(SecurityProperties.class)
+@EnableConfigurationProperties({SecurityProperties.class, LoginLockoutProperties.class})
 @EnableMethodSecurity
 public class SecurityConfig {
 
@@ -39,20 +40,31 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http,
                                                    JwtAuthenticationFilter jwtAuthenticationFilter,
-                                                   SecurityProperties props) throws Exception {
+                                                   SecurityProperties props,
+                                                   @Qualifier("handlerExceptionResolver")
+                                                   HandlerExceptionResolver handlerExceptionResolver)
+            throws Exception {
         http
             .csrf(AbstractHttpConfigurer::disable)
             .cors(cors -> cors.configurationSource(corsConfigurationSource(props)))
             .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
-                .requestMatchers(
-                    "/auth/**",
-                    "/actuator/health/**", "/actuator/info",
-                    "/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
+                .requestMatchers(PublicPaths.PATTERNS).permitAll()
                 .anyRequest().authenticated())
-            .exceptionHandling(ex -> ex.authenticationEntryPoint(
-                (request, response, authException) ->
-                    response.sendError(HttpServletResponse.SC_UNAUTHORIZED)))
+            // El 401 de "sesión ausente" y el 403 de acceso denegado se delegan al
+            // HandlerExceptionResolver de MVC en vez de usar sendError() (que devolvía el cuerpo
+            // por defecto del contenedor). Así los renderiza el mismo GlobalExceptionHandler que
+            // el resto de errores y la API falla SIEMPRE con la misma forma (RFC 9457) — requisito
+            // para que el contrato pueda describir los errores con un único schema. El
+            // accessDeniedHandler cubre el 403 a nivel de RUTA (authorizeHttpRequests); el 403 de
+            // @PreAuthorize (method-security) ya llegaba al mismo resultado por otra vía
+            // (AccessDeniedException → @ExceptionHandler propio), pero hoy no hay ninguna regla de
+            // rol por URL que dispare este camino — se cierra antes de que `staff` la traiga.
+            .exceptionHandling(ex -> ex
+                .authenticationEntryPoint((request, response, authException) ->
+                    handlerExceptionResolver.resolveException(request, response, null, authException))
+                .accessDeniedHandler((request, response, accessDeniedException) ->
+                    handlerExceptionResolver.resolveException(request, response, null, accessDeniedException)))
             .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
         return http.build();
     }

@@ -23,6 +23,11 @@ defaults:
 jobs:
   # Compila y corre los tests (test slices + Testcontainers). En CI Linux
   # Testcontainers funciona con el socket Docker estándar.
+  #
+  # Incluye el GUARDIÁN DEL CONTRATO (ContractDriftIT): compara la especificación que el backend
+  # publica ahora con contracts/openapi.json y falla si difieren. Es decir: cambiar la API sin
+  # regenerar el contrato ROMPE LA BUILD. Se resuelve como test (y no como un job que arranque un
+  # servidor y le haga curl) porque es la vía más estable en CI.
   verify:
     runs-on: ubuntu-latest
     steps:
