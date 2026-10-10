@@ -41,10 +41,21 @@ class StartupReadyBanner {
         List<String> lines = render(environment.getProperty("app.name", DEFAULT_NAME),
             port,
             environment.getProperty("server.servlet.context-path", ""),
-            environment.getProperty("springdoc.swagger-ui.enabled", Boolean.class, false));
+            swaggerEnabled());
         // Una sola entrada de log que empieza con salto de línea: el prefijo (fecha, hilo, clase)
         // sale una vez y el bloque queda limpio y alineado debajo.
         log.info("{}{}", System.lineSeparator(), String.join(System.lineSeparator(), lines));
+    }
+
+    /**
+     * Swagger UI sirve de algo solo si también existe el documento que carga: con
+     * {@code springdoc.swagger-ui.enabled=true} y {@code springdoc.api-docs.enabled=false} (un
+     * override directo de springdoc, saltándose {@code SWAGGER_ENABLED}) la UI abre vacía, así
+     * que el aviso la da por desactivada. Por defecto, ambas apagadas.
+     */
+    private boolean swaggerEnabled() {
+        return environment.getProperty("springdoc.swagger-ui.enabled", Boolean.class, false)
+            && environment.getProperty("springdoc.api-docs.enabled", Boolean.class, false);
     }
 
     /** Líneas del aviso. Puro: sin Spring ni logger. */

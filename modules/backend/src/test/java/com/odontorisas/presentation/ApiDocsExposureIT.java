@@ -35,6 +35,19 @@ class ApiDocsExposureIT extends AbstractIntegrationTest {
     }
 
     @Test
+    void secondary_springdoc_routes_are_not_served_either() throws Exception {
+        // Cubiertas por /v3/api-docs/** y /swagger-ui/** en PublicPaths: no existen → 404.
+        for (String path : new String[] {
+            "/v3/api-docs/swagger-config", "/v3/api-docs/default", "/swagger-ui/index.html",
+            "/swagger-ui/swagger-ui-bundle.js", "/swagger-ui/swagger-initializer.js"}) {
+            mockMvc.perform(get(path)).andExpect(status().isNotFound());
+        }
+        // /v3/api-docs.yaml no está en PublicPaths ("/v3/api-docs/**" no la cubre): la corta la
+        // seguridad antes (401). Tampoco se sirve: lo que importa es que no responda 200.
+        mockMvc.perform(get("/v3/api-docs.yaml")).andExpect(status().isUnauthorized());
+    }
+
+    @Test
     void the_rest_of_the_api_still_works() throws Exception {
         mockMvc.perform(post("/auth/login").contentType(MediaType.APPLICATION_JSON).content("{}"))
             .andExpect(status().isBadRequest());
