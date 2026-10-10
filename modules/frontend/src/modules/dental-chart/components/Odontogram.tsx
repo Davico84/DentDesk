@@ -1,4 +1,4 @@
-import { useEffect, useState, type KeyboardEvent, type ReactNode } from "react";
+import { useEffect, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
 import { ArrowLeftRight } from "lucide-react";
 import { Button } from "@/modules/core/ui/button";
 import type { DentalChartFindingResponse, DentalFindingCatalogEntryResponse } from "@/modules/core/services/generated/model";
@@ -6,6 +6,7 @@ import { teethInQuadrant, type ToothSurfaceCode } from "@/modules/core/utils/fdi
 import type { FindingFormValues } from "@/modules/dental-chart/schemas/dentalChart";
 import { RED, BLUE, findingColor } from "@/modules/dental-chart/utils/findingColor";
 import { HintTooltip } from "@/modules/core/components/HintTooltip";
+import { useHorizontalOverflow } from "@/modules/core/hooks/useHorizontalOverflow";
 import { FindingsSummary } from "./FindingsSummary";
 import { RangeModeHint } from "./RangeModeHint";
 import {
@@ -107,6 +108,14 @@ function colX(i: number): number {
 }
 
 const CHART_WIDTH = colX(15) + CROWN_PERM + 4;
+/** Columna de rótulos (Permanente / Temporal) a la izquierda del dibujo. */
+const LABEL_W = 88;
+/**
+ * Ancho mínimo del dibujo (rótulos + piezas), el que ya tiene en tablet: más angosto no se encoge,
+ * se desliza dentro de su tarjeta (`update-responsive-layout` design D1). A 600 px las coronas
+ * miden ~26 px; a 375 px sin este mínimo medían ~8 px y no se podían leer ni tocar.
+ */
+const CHART_MIN_WIDTH = 600;
 
 /**
  * El odontograma: SVG inline, cada pieza y superficie enfocable/accionable por teclado (design.md
@@ -162,6 +171,8 @@ export function Odontogram({
   // Ajuste de estado derivado durante el render (no en un efecto): si el llamador apaga
   // rangeMode a mitad de selección, el ancla no debe sobrevivir a la próxima vez que lo prenda.
   const [prevRangeMode, setPrevRangeMode] = useState(rangeMode);
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const overflow = useHorizontalOverflow(scrollRef);
   if (rangeMode !== prevRangeMode) {
     setPrevRangeMode(rangeMode);
     if (!rangeMode) setRangeStart(null);
@@ -297,7 +308,7 @@ export function Odontogram({
   });
 
   return (
-    <div className="w-full overflow-x-auto rounded-2xl border px-4 py-3" style={{ background: PAPER, fontFamily: FONT_BODY }}>
+    <div className="w-full rounded-2xl border px-4 py-3" style={{ background: PAPER, fontFamily: FONT_BODY }}>
       <div className="mb-2 flex flex-wrap items-center justify-between gap-3">
         {interactive ? (
           <div className="flex flex-wrap items-center gap-2">
@@ -349,72 +360,96 @@ export function Odontogram({
         <span>← Derecha del paciente</span>
         <span>Izquierda del paciente →</span>
       </div>
-      <div className="flex">
-        <div className="flex shrink-0 flex-col text-[11px] font-bold uppercase tracking-wide" style={{ width: 88 }}>
-          <div style={{ height: LANE_H }} />
-          <div style={{ height: rangeStripHeights[0] }} />
-          <div style={{ height: rowHeights[0], paddingTop: UPPER_LABEL_PAD, color: INK, display: "flex", justifyContent: "flex-start" }}>Permanente</div>
-          <div style={{ height: rangeStripHeights[1] }} />
-          <div style={{ height: rowHeights[1], paddingTop: UPPER_LABEL_PAD, color: INK_2, display: "flex", justifyContent: "flex-start" }}>Temporal</div>
-          <div style={{ height: rowHeights[2], paddingTop: LOWER_LABEL_PAD, color: INK_2, display: "flex", justifyContent: "flex-start" }}>Temporal</div>
-          <div style={{ height: rangeStripHeights[2] }} />
-          <div style={{ height: rowHeights[3], paddingTop: LOWER_LABEL_PAD, color: INK, display: "flex", justifyContent: "flex-start" }}>Permanente</div>
-          <div style={{ height: rangeStripHeights[3] }} />
-          <div style={{ height: LANE_H }} />
+      {/* Solo el dibujo se desliza; barra de herramientas, orientación y leyenda quedan a la vista. */}
+      <div className="relative">
+        <div ref={scrollRef} data-testid="odontogram-scroll" className="overflow-x-auto">
+          <div className="flex" style={{ minWidth: CHART_MIN_WIDTH, maxWidth: LABEL_W + CHART_WIDTH }}>
+            {/* Los rótulos se ubican en % del alto del dibujo, que escala con su ancho: así quedan
+                a la altura de su fila a cualquier ancho, sin franjas vacías (design D2). Su letra
+                no escala, para que a 600 px se siga leyendo. `sticky`: al deslizar, siguen a la vista. */}
+            <div
+              className="sticky left-0 z-10 shrink-0 self-stretch text-[11px] font-bold uppercase tracking-wide"
+              style={{ width: LABEL_W, background: PAPER }}
+            >
+              {[
+                { top: rowY[0] + UPPER_LABEL_PAD, text: "Permanente", color: INK },
+                { top: rowY[1] + UPPER_LABEL_PAD, text: "Temporal", color: INK_2 },
+                { top: rowY[2] + LOWER_LABEL_PAD, text: "Temporal", color: INK_2 },
+                { top: rowY[3] + LOWER_LABEL_PAD, text: "Permanente", color: INK },
+              ].map((label, i) => (
+                <div key={i} className="absolute left-0" style={{ top: `${(label.top / height) * 100}%`, color: label.color }}>
+                  {label.text}
+                </div>
+              ))}
+            </div>
+
+            <svg
+              role="img"
+              aria-label="Odontograma: representación gráfica del estado dental por pieza y superficie"
+              viewBox={`0 0 ${CHART_WIDTH} ${height}`}
+              width="100%"
+              className="block h-auto min-w-0 flex-1"
+              style={{ background: PAPER, color: INK, maxWidth: CHART_WIDTH }}
+            >
+              <line x1={colX(7) + CROWN_PERM + MIDLINE_GAP / 2} y1={LANE_H} x2={colX(7) + CROWN_PERM + MIDLINE_GAP / 2} y2={height - LANE_H} stroke={DIVIDER} strokeDasharray="2 3" />
+              <line x1={0} y1={rowY[2]} x2={CHART_WIDTH} y2={rowY[2]} stroke={DIVIDER} />
+
+              {lane("SUPERIOR", 4, CHART_WIDTH, upperLaneFindings, colorOf, siglaOfFinding, interactive && !rangeMode, selectArch)}
+
+              {rangesByRow[0].length > 0
+                ? rangeMarkers(rangesByRow[0], rangeLanes[0], (i) => rangeStrips[0].bottom - 16 - i * RANGE_STACK_STEP, toothCenters, colorOf, siglaOfFinding)
+                : null}
+
+              {rangesByRow[1].length > 0
+                ? rangeMarkers(rangesByRow[1], rangeLanes[1], (i) => rangeStrips[1].bottom - 16 - i * RANGE_STACK_STEP, toothCenters, colorOf, siglaOfFinding)
+                : null}
+
+              {ROWS.map((row, i) =>
+                toothRow(
+                  row,
+                  ROW_COL_OFFSET[i],
+                  rowY[i],
+                  toothFindings,
+                  surfaceFindings,
+                  colorOf,
+                  siglaOfFinding,
+                  interactive,
+                  interactive && !rangeMode,
+                  selectTooth,
+                  selectSurface,
+                  rangeStart,
+                  selectBetween,
+                ),
+              )}
+
+              {rangesByRow[2].length > 0
+                ? rangeMarkers(rangesByRow[2], rangeLanes[2], (i) => rangeStrips[2].top + 16 + i * RANGE_STACK_STEP, toothCenters, colorOf, siglaOfFinding)
+                : null}
+
+              {rangesByRow[3].length > 0
+                ? rangeMarkers(rangesByRow[3], rangeLanes[3], (i) => rangeStrips[3].top + 16 + i * RANGE_STACK_STEP, toothCenters, colorOf, siglaOfFinding)
+                : null}
+
+              {lane("INFERIOR", height - LANE_H + 4, CHART_WIDTH, lowerLaneFindings, colorOf, siglaOfFinding, interactive && !rangeMode, selectArch)}
+
+              {betweenFindings.map((f) => betweenMarker(f, toothCenters, colorOf, siglaOfFinding))}
+            </svg>
+          </div>
         </div>
-
-        <svg
-          role="img"
-          aria-label="Odontograma: representación gráfica del estado dental por pieza y superficie"
-          viewBox={`0 0 ${CHART_WIDTH} ${height}`}
-          width={CHART_WIDTH}
-          height={height}
-          style={{ background: PAPER, color: INK }}
-        >
-          <line x1={colX(7) + CROWN_PERM + MIDLINE_GAP / 2} y1={LANE_H} x2={colX(7) + CROWN_PERM + MIDLINE_GAP / 2} y2={height - LANE_H} stroke={DIVIDER} strokeDasharray="2 3" />
-          <line x1={0} y1={rowY[2]} x2={CHART_WIDTH} y2={rowY[2]} stroke={DIVIDER} />
-
-          {lane("SUPERIOR", 4, CHART_WIDTH, upperLaneFindings, colorOf, siglaOfFinding, interactive && !rangeMode, selectArch)}
-
-          {rangesByRow[0].length > 0
-            ? rangeMarkers(rangesByRow[0], rangeLanes[0], (i) => rangeStrips[0].bottom - 16 - i * RANGE_STACK_STEP, toothCenters, colorOf, siglaOfFinding)
-            : null}
-
-          {rangesByRow[1].length > 0
-            ? rangeMarkers(rangesByRow[1], rangeLanes[1], (i) => rangeStrips[1].bottom - 16 - i * RANGE_STACK_STEP, toothCenters, colorOf, siglaOfFinding)
-            : null}
-
-          {ROWS.map((row, i) =>
-            toothRow(
-              row,
-              ROW_COL_OFFSET[i],
-              rowY[i],
-              toothFindings,
-              surfaceFindings,
-              colorOf,
-              siglaOfFinding,
-              interactive,
-              interactive && !rangeMode,
-              selectTooth,
-              selectSurface,
-              rangeStart,
-              selectBetween,
-            ),
-          )}
-
-          {rangesByRow[2].length > 0
-            ? rangeMarkers(rangesByRow[2], rangeLanes[2], (i) => rangeStrips[2].top + 16 + i * RANGE_STACK_STEP, toothCenters, colorOf, siglaOfFinding)
-            : null}
-
-          {rangesByRow[3].length > 0
-            ? rangeMarkers(rangesByRow[3], rangeLanes[3], (i) => rangeStrips[3].top + 16 + i * RANGE_STACK_STEP, toothCenters, colorOf, siglaOfFinding)
-            : null}
-
-          {lane("INFERIOR", height - LANE_H + 4, CHART_WIDTH, lowerLaneFindings, colorOf, siglaOfFinding, interactive && !rangeMode, selectArch)}
-
-          {betweenFindings.map((f) => betweenMarker(f, toothCenters, colorOf, siglaOfFinding))}
-        </svg>
+        {/* Degradado del lado donde queda dibujo oculto (design D3). */}
+        {overflow.left ? (
+          <div aria-hidden="true" className="pointer-events-none absolute inset-y-0 left-0 w-8" style={{ background: `linear-gradient(to right, ${PAPER}, transparent)` }} />
+        ) : null}
+        {overflow.right ? (
+          <div aria-hidden="true" className="pointer-events-none absolute inset-y-0 right-0 w-8" style={{ background: `linear-gradient(to left, ${PAPER}, transparent)` }} />
+        ) : null}
       </div>
+      {overflow.left || overflow.right ? (
+        <p className="mt-1 flex items-center justify-center gap-1.5 text-xs" style={{ color: INK_2 }}>
+          <ArrowLeftRight aria-hidden="true" className="size-3.5" />
+          Desliza para ver toda la boca
+        </p>
+      ) : null}
 
       <div aria-live="polite" className="sr-only">
         {rangeMode ? (rangeStart == null ? "Modo rango activo. Selecciona la primera pieza del rango." : `Primera pieza del rango: ${rangeStart}. Selecciona la última pieza, en la misma fila. Escape para cancelar.`) : ""}

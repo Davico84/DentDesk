@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { afterEach, beforeEach, describe, it, expect, vi } from "vitest";
 import { screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { http, HttpResponse } from "msw";
@@ -72,5 +72,48 @@ describe("FindingList", () => {
     await user.click(screen.getByRole("button", { name: /eliminar hallazgo lesión de caries/i }));
 
     expect(deletedId).toBe(1);
+  });
+});
+
+describe("FindingList en celular (< 640 px)", () => {
+  const setWidth = (px: number) => Object.defineProperty(window, "innerWidth", { configurable: true, value: px });
+  beforeEach(() => setWidth(375));
+  afterEach(() => setWidth(1024));
+
+  it("muestra cada hallazgo como bloque con sigla, tipo, localización y estado, sin tabla", () => {
+    renderWithProviders(<FindingList patientId={1} findings={FINDINGS} catalog={CATALOG} editable={false} />);
+
+    expect(screen.queryByRole("table")).not.toBeInTheDocument();
+    const items = screen.getAllByRole("listitem");
+    expect(items).toHaveLength(FINDINGS.length);
+    expect(items[0]).toHaveTextContent("CD");
+    expect(items[0]).toHaveTextContent("Pieza 26, superficie OCLUSAL");
+    expect(items[1]).toHaveTextContent("Pieza 36");
+    expect(items[1]).toHaveTextContent("Realizado");
+  });
+
+  it("con el odontograma abierto, cada bloque conserva eliminar con su nombre accesible", async () => {
+    let deleted = false;
+    server.use(
+      http.delete("*/patients/1/dental-chart/findings/2", () => {
+        deleted = true;
+        return new HttpResponse(null, { status: 204 });
+      }),
+    );
+    renderWithProviders(<FindingList patientId={1} findings={FINDINGS} catalog={CATALOG} editable />);
+
+    const remove = screen.getByRole("button", { name: /eliminar hallazgo corona/i });
+    await userEvent.setup().click(remove);
+    await vi.waitFor(() => expect(deleted).toBe(true));
+  });
+});
+
+describe("FindingList desde 640 px", () => {
+  it("a 768 px muestra la tabla de cuatro columnas", () => {
+    Object.defineProperty(window, "innerWidth", { configurable: true, value: 768 });
+    renderWithProviders(<FindingList patientId={1} findings={FINDINGS} catalog={CATALOG} editable={false} />);
+    expect(screen.getByRole("table")).toBeInTheDocument();
+    expect(screen.getAllByRole("columnheader").map((h) => h.textContent)).toEqual(["Sigla", "Hallazgo", "Localización", "Estado"]);
+    Object.defineProperty(window, "innerWidth", { configurable: true, value: 1024 });
   });
 });
