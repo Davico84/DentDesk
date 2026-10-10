@@ -11,7 +11,7 @@
 - [x] 2.1 `core/components/shell`: `NavItem` (con tooltip opcional y `aria-label`), `Sidebar` (logo por prop, secciones filtradas por rol, cerrar sesión al pie, botón contraer ≥ 1024 px), `Header` (usuario o correo, rol, clínica, tema, botón de menú en celular), `MobileNav` (sobre `Sheet`, se cierra al navegar)
 - [x] 2.2 `layouts/AppLayout` (marco de 1920 px, barra `sticky`, único `<main>`) y routing anidado bajo `RequireAuth`, con las secciones de D1 (design D2/D6)
 - [x] 2.3 `PageContainer` pasa a `<div>` sin `min-h-screen`; `AccessDenied` variante `inShell` con foco en el título (design D3)
-- [ ] 2.4 Pasada visual con `frontend-design`: barra, cabecera, cajón y estados (activo, hover, foco, contraída) en claro/oscuro y con un preset de marca (design D9)
+- [x] 2.4 Pasada visual con `frontend-design`: barra, cabecera, cajón y estados (activo, hover, foco, contraída) en claro/oscuro y con un preset de marca (design D9)
 - [x] 2.5 Tests de `AppLayout` y componentes: un solo `<main>`; login sin shell; ítem activo en subrutas; ítem de Marca oculto para `USER`; acceso denegado dentro del shell con foco y sin pedir datos; identidad con y sin nombre; cerrar sesión deshabilitado en curso; cajón (abrir con `aria-expanded`, cerrar al navegar, con `Escape` y con clic fuera); tooltip en la barra de íconos sin `title`; contraer/expandir con `aria-expanded`, preferencia recordada y sin almacenamiento; botón oculto bajo 1024 px
 
 ## 3. Inicio
@@ -27,8 +27,8 @@
 
 ## 5. Verificación y docs
 
-- [ ] 5.1 e2e Playwright (API mockeada): a 375, 768 y 1280 px, ninguna pantalla privada se desplaza de costado y la navegación es alcanzable; a 2560 px el marco mide 1920 px y queda centrado
-- [ ] 5.2 Capturas antes/después de las pantallas existentes: el contenido no cambia salvo por el shell alrededor
+- [x] 5.1 e2e Playwright (API mockeada): a 375, 768 y 1280 px, ninguna pantalla privada se desplaza de costado y la navegación es alcanzable; a 2560 px el marco mide 1920 px y queda centrado
+- [x] 5.2 Capturas antes/después de las pantallas existentes: el contenido no cambia salvo por el shell alrededor
 - [ ] 5.3 `pnpm validate` verde; `pnpm build`
-- [ ] 5.4 `docs/frontend.md` §1 (shell en la estructura) y §4.3 (el `AppLayout` existe: quitar "objetivo, aún no adoptado"; breakpoints reales), `docs/vision.md` §8
-- [ ] 5.5 `openspec validate add-app-shell --strict`
+- [x] 5.4 `docs/frontend.md` §1 (shell en la estructura) y §4.3 (el `AppLayout` existe: quitar "objetivo, aún no adoptado"; breakpoints reales), `docs/vision.md` §8
+- [x] 5.5 `openspec validate add-app-shell --strict`

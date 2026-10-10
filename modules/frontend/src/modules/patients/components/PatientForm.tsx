@@ -291,7 +291,7 @@ export function PatientForm() {
           Barra de acciones FIJA: en un formulario largo, dejar el botón al final obliga a
           scrollear hasta abajo para guardar. Aquí siempre está a la vista.
         */}
-        <div className="sticky bottom-0 -mx-6 border-t bg-background/95 px-6 py-4 backdrop-blur-sm supports-backdrop-filter:bg-background/80">
+        <div className="sticky bottom-0 -mx-4 border-t bg-background/95 px-4 py-4 sm:-mx-6 sm:px-6 backdrop-blur-sm supports-backdrop-filter:bg-background/80">
           <div className="flex items-center justify-end gap-3">
             <Link to={backTo} className={buttonVariants({ variant: "ghost" })}>
               Cancelar

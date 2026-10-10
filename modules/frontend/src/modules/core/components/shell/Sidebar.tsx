@@ -52,32 +52,35 @@ export function Sidebar({
   );
 
   return (
+    // El fondo y el borde ocupan todo el alto de la página; el contenido viaja `sticky` con el scroll.
     <aside
       className={cn(
-        "sticky top-0 hidden h-screen shrink-0 flex-col border-r border-border bg-card sm:flex",
+        "hidden shrink-0 border-r border-border bg-card sm:block",
         "transition-[width] duration-200 motion-reduce:transition-none",
-        compact ? "w-16 items-center px-3" : "w-60 px-4",
+        compact ? "w-16" : "w-60",
       )}
     >
-      <div className={cn("flex h-16 shrink-0 items-center", compact ? "justify-center" : "px-1")}>
-        {compact ? <Monogram name={organizationName} className="size-10" /> : logo}
-      </div>
+      <div className={cn("sticky top-0 flex h-screen flex-col", compact ? "items-center px-3" : "px-4")}>
+        <div className={cn("flex h-16 shrink-0 items-center", compact ? "justify-center" : "px-1")}>
+          {compact ? <Monogram name={organizationName} className="size-10" /> : logo}
+        </div>
 
-      <div className="flex-1 overflow-y-auto py-4">
-        <NavList items={items} compact={compact} />
-      </div>
+        <div className="flex-1 overflow-y-auto py-4">
+          <NavList items={items} compact={compact} />
+        </div>
 
-      <div className="flex shrink-0 flex-col gap-1 border-t border-border py-3">
-        {canCollapse ? (
-          compact ? (
-            <HintTooltip content={toggleLabel} side="right" repeatsLabel>
-              {toggle}
-            </HintTooltip>
-          ) : (
-            toggle
-          )
-        ) : null}
-        <LogoutButton onLogout={onLogout} pending={logoutPending} compact={compact} />
+        <div className="flex shrink-0 flex-col gap-1 border-t border-border py-3">
+          {canCollapse ? (
+            compact ? (
+              <HintTooltip content={toggleLabel} side="right" repeatsLabel>
+                {toggle}
+              </HintTooltip>
+            ) : (
+              toggle
+            )
+          ) : null}
+          <LogoutButton onLogout={onLogout} pending={logoutPending} compact={compact} />
+        </div>
       </div>
     </aside>
   );
