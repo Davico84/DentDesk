@@ -27,7 +27,7 @@ springdoc:
     enabled: ${SWAGGER_ENABLED:false}
 ```
 
-Un solo nombre para ambas: no tiene sentido servir la UI sin el documento, ni el documento "sin UI" como media medida. Se llama `SWAGGER_ENABLED` porque es lo que el equipo busca. Va documentado en `secrets.properties.example` con valor `true` y el comentario "false o ausente en despliegue".
+Un solo nombre para ambas: no tiene sentido servir la UI sin el documento, ni el documento "sin UI" como media medida. Se llama `SWAGGER_ENABLED` porque es lo que el equipo busca. Va en `secrets.properties.example` **comentado** (`# SWAGGER_ENABLED=true`): copiar el archivo tal cual a un despliegue deja la documentación apagada; en local se descomenta. *(Revisión externa: con la línea activa, el README manda copiar el `.example` y un despliegue podía encenderla sin querer.)*
 
 *Alternativa descartada:* perfiles (`application-prod.yml`): contradice la configuración única.
 
@@ -43,14 +43,14 @@ Con la documentación apagada, springdoc no registra sus endpoints y las rutas p
 
 Los tests importan también `./secrets.properties` (failsafe corre en `modules/backend`) y leen el entorno: si un desarrollador tiene `SWAGGER_ENABLED=true` en su archivo, un test "sin la propiedad" no probaría el default. Por eso **ningún test depende de la ausencia** de la propiedad:
 
-- **Apagado** — `ApiDocsExposureIT` con `@TestPropertySource(properties = "SWAGGER_ENABLED=false")`, que gana a `secrets.properties` y al entorno: `GET /v3/api-docs` y `/swagger-ui.html` → `404`; una operación normal (`POST /auth/login` con cuerpo vacío → `400`) sigue respondiendo.
+- **Apagado** — `ApiDocsExposureIT` con `@TestPropertySource(properties = "SWAGGER_ENABLED=false")`, que gana a `secrets.properties` y al entorno: `GET /v3/api-docs` y `/swagger-ui.html` → `404`, igual que las rutas secundarias (`/v3/api-docs/swagger-config`, `/v3/api-docs/{grupo}`, `/swagger-ui/index.html` y sus assets); `/v3/api-docs.yaml` → `401` (no está en `PublicPaths`); una operación normal (`POST /auth/login` con cuerpo vacío → `400`) sigue respondiendo.
 - **Valor por defecto** — `ApiDocsDefaultTest` (unit, sin Spring): lee `application.yml` del classpath y exige que las dos propiedades valgan exactamente `${SWAGGER_ENABLED:false}`. Determinista en cualquier máquina.
 - **Encendido** — en `OpenApiContractIT`: `/v3/api-docs` → `200` y `/swagger-ui.html` sirve la UI (`200`, o redirección a `/swagger-ui/index.html` que responde `200`).
 - **Mutación** — cambiar temporalmente la propiedad de `ContractDriftIT` a `false` (no quitarla: quitarla depende del entorno) → tiene que fallar con `404`; restaurar.
 
 ### D5. Aviso de arranque
 
-`StartupReadyBanner` sigue leyendo `springdoc.swagger-ui.enabled`, que ahora viene del placeholder, pero con default `false` para coincidir con D1 si la propiedad faltara. El texto del estado apagado nombra el interruptor que hay que tocar: `Swagger UI: desactivado (SWAGGER_ENABLED=false)`.
+`StartupReadyBanner` anuncia Swagger solo si **ambas** propiedades (`springdoc.swagger-ui.enabled` y `springdoc.api-docs.enabled`) están encendidas, cada una con default `false`. Con un override directo de springdoc que apague solo el documento, la UI abriría vacía: el aviso la da por desactivada. *(Revisión externa.)* El texto del estado apagado nombra el interruptor que hay que tocar: `Swagger UI: desactivado (SWAGGER_ENABLED=false)`.
 
 ## Risks / Trade-offs
 

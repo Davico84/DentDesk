@@ -18,4 +18,5 @@
 
 - [x] 3.1 `docs/backend.md` (§ API docs y §12), `docs/architecture.md`, `docs/tooling-setup.md` (aviso de arranque y cómo encender Swagger en local), `readme.md` y el `context` de `openspec/config.yaml`: quitar "por perfil", documentar `SWAGGER_ENABLED`
 - [x] 3.2 `./mvnw -B verify` verde con `Skipped: 0`; `contracts/openapi.json` sin cambios
+- [x] 3.4 Revisión externa (Codex): `.example` con la línea comentada, aviso de arranque que exige documento e interfaz encendidos (test de divergencia), y rutas secundarias de springdoc en `ApiDocsExposureIT`
 - [x] 3.3 `openspec validate update-api-docs-exposure --strict` y medir a mano el requirement MODIFIED (≤ 500 caracteres)

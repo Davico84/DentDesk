@@ -164,6 +164,6 @@ Cambiar el secreto invalida los access tokens ya emitidos (tendrás que volver a
 ============================================================
 ```
 
-Con `SWAGGER_ENABLED` ausente o en `false` la segunda línea dice `Swagger UI: desactivado (SWAGGER_ENABLED=false)`: la documentación está apagada por defecto para que un despliegue no exponga la API. En local, agrega `SWAGGER_ENABLED=true` a tu `secrets.properties` (el `.example` ya lo trae). Hace falta también para exportar el contrato con `curl` (`ContractDriftIT` te lo recuerda).
+Con `SWAGGER_ENABLED` ausente o en `false` la segunda línea dice `Swagger UI: desactivado (SWAGGER_ENABLED=false)`: la documentación está apagada por defecto para que un despliegue no exponga la API. En local, agrega `SWAGGER_ENABLED=true` a tu `secrets.properties` (el `.example` trae la línea **comentada**: copiarlo tal cual a un despliegue no enciende nada). Hace falta también para exportar el contrato con `curl` (`ContractDriftIT` te lo recuerda).
 
 Si no aparece, el arranque falló: busca el primer `Caused by:` del log (por ejemplo, un `JWT_SECRET` inválido).
