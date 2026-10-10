@@ -6,6 +6,9 @@ import type {
   CorrectionRequest,
 } from "@/modules/core/services/generated/model";
 import { BackgroundEntryRequestCategory, CorrectionRequestField } from "@/modules/core/services/generated/model";
+import { clinicDay } from "@/modules/core/utils/clinicDate";
+
+export { clinicDay };
 
 /**
  * Nota de consulta (`update-clinical-history` design.md D3/D4) — paridad con
@@ -21,17 +24,6 @@ import { BackgroundEntryRequestCategory, CorrectionRequestField } from "@/module
  * zona de la clínica — igual que el servidor —, no en la del navegador.
  */
 const text = z.string();
-
-/**
- * Zona horaria de la clínica. Espejo de `OrganizationSettings.DEFAULT_TIMEZONE`: hoy ninguna clínica
- * puede cambiarla (no hay endpoint) y la API no la expone. Si eso cambia, debe llegar del servidor.
- */
-export const CLINIC_TIMEZONE = "America/Lima";
-
-/** Día calendario (`YYYY-MM-DD`) de un instante en la zona de la clínica. */
-export function clinicDay(instant: Date): string {
-  return new Intl.DateTimeFormat("en-CA", { timeZone: CLINIC_TIMEZONE }).format(instant);
-}
 
 /** Margen para el reloj del equipo: una atención "de ahora" puede llegar unos segundos adelantada. */
 export const CLOCK_SKEW_MS = 60_000;
