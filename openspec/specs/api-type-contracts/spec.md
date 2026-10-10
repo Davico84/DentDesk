@@ -7,12 +7,22 @@ Establece el contrato de API como fuente única de verdad entre backend y fronte
 ## Requirements
 
 ### Requirement: Especificación OpenAPI publicada y versionada
-El backend SHALL exponer su especificación OpenAPI en runtime y exportarla a un snapshot **versionado en Git**, que sirve como contrato fuente único para el frontend.
+El backend SHALL exponer su especificación OpenAPI en runtime **solo cuando la documentación está habilitada por configuración** (`SWAGGER_ENABLED`, deshabilitada por defecto) y exportarla a un snapshot **versionado en Git**, que sirve como contrato fuente único para el frontend.
 
 #### Scenario: Exposición en runtime
-- **WHEN** se realiza una petición GET a `/v3/api-docs` con la aplicación en ejecución
+- **WHEN** se realiza una petición GET a `/v3/api-docs` con la aplicación en ejecución y la documentación habilitada (`SWAGGER_ENABLED=true`)
 - **THEN** el backend responde `200 OK` con un documento OpenAPI válido
 - **AND** el documento incluye las operaciones de autenticación (registro, login, refresco)
+
+#### Scenario: Documentación deshabilitada por defecto
+- **WHEN** la aplicación se ejecuta sin configurar `SWAGGER_ENABLED`, o con `false`
+- **THEN** `GET /v3/api-docs` y `GET /swagger-ui.html` responden `404`
+- **AND** el resto de la API funciona igual
+- **AND** el valor por defecto en la configuración versionada es `false`
+
+#### Scenario: Swagger UI disponible al habilitarla
+- **WHEN** la aplicación se ejecuta con `SWAGGER_ENABLED=true`
+- **THEN** `GET /swagger-ui.html` sirve la interfaz de Swagger UI
 
 #### Scenario: Snapshot del contrato versionado
 - **WHEN** se ejecuta la tarea de export del contrato del backend

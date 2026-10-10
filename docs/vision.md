@@ -127,6 +127,8 @@ Dimensión de **negocio** (sustituible por proyecto). Define **qué** construimo
 
 ---
 
+- ✅ **`update-api-docs-exposure`** (técnica, `api-type-contracts`) — **construido** (2026-10-10). Change archivado: `openspec/changes/archive/2026-10-10-update-api-docs-exposure/`; specs `api-type-contracts` (*Especificación OpenAPI publicada y versionada*) y `project-foundation` (*Aviso de backend listo al arrancar*). Swagger y `/v3/api-docs` apagados por defecto con un solo interruptor, `SWAGGER_ENABLED`; el `.example` trae la línea comentada para que copiarlo a un despliegue no la encienda. Verificado con `mvn verify` y revisión externa. Traído de HSO (ver §8).
+
 ## 4. Ciclo de vida de una capacidad (gobernanza)
 
 ```
@@ -186,3 +188,28 @@ Regla equivalente para agentes en `CLAUDE.md → Flujo de trabajo → Gobernanza
 - **Cobertura medida con umbral (JaCoCo back, threshold Vitest front)**: hoy `docs/testing.md §7` mide "confianza", no cobertura — no hay JaCoCo en `pom.xml` ni umbral que rompa el build en ninguno de los dos lados. Es el único hueco real de la estrategia de pruebas (el resto — matrices, ArchUnit de capas/tenant, contrato en las 2 direcciones, aislamiento obligatorio por capacidad — ya está aplicado). Al adoptarlo: umbral por paquete/capa (dominio > aplicación > infraestructura, no un número plano), y job `coverage` en `backend.yml` (ya marcado `TODO(futuro)` ahí).
 
 > El orden no es rígido: se ajusta según prioridad de negocio. Cambiar el orden no cambia las reglas de granularidad de este documento.
+
+---
+
+## 8. Mejoras traídas del proyecto hermano HSO
+
+Checklist de lo que se copia de HSOFACOP (`D:/proyectos/HSOFACOP`, analizado el 2026-10-09). Cada ítem entra como change propio por el flujo normal (propose → apply → archive); acá solo se lleva el control. **Lo de historias clínicas de HSO no se trae**: es otro tipo de historia (ortodoncia), decisión del usuario.
+
+**Por hacer, en este orden:**
+
+- [x] **`update-api-docs-exposure`** — Swagger y `/v3/api-docs` apagados por defecto (`SWAGGER_ENABLED`). HSO: `2026-09-30-update-api-docs-exposure`. ✅ archivado 2026-10-10
+- [ ] **`update-tailwind-v4`** — Tailwind 3.4 → 4, configuración CSS-first, tokens de color completos y test que vigila colores literales. Destraba los componentes nuevos de shadcn (`sheet`, `progress`). HSO: `2026-09-28-update-tailwind-v4`
+- [ ] **`add-app-shell`** — barra lateral + cabecera (usuario, rol, tema, salir), responsive (escritorio / íconos en tablet / cajón en celular), barra contraíble en escritorio, secciones por rol desde una sola configuración con "Acceso denegado" dentro del shell, ancho máximo del marco (1920 px) y del contenido (1536 px) que reemplaza a `PageContainer`, volver al listado conservando búsqueda y página. HSO: `add-app-shell`, `update-app-shell-tooltips`, `update-app-shell-role-nav`, `update-app-shell-collapsible-sidebar`, `update-orthodontic-records-back-link` (solo el patrón de volver)
+- [ ] **Revisión responsive** (375 / 768 px) con e2e que verifique que no hay desplazamiento horizontal: listado de pacientes, odontograma, consultas. HSO: `update-orthodontic-records-responsive` (solo el método de auditoría)
+
+**Más adelante (cuando toque):**
+
+- [ ] **Despliegue**: arranque en frío, despliegue en la nube, backups de la base, contacto de soporte; incluye cerrar `show-details: always` de Actuator. HSO: `add-cold-start-warmup`, `add-cloud-deployment`, `add-database-backups`, `add-support-contact`
+- [ ] **Gestión de cuentas** (deshabilitar/reactivar, solo ADMIN) dentro de `staff`. HSO: `add-user-account-status`
+- [ ] **Métricas de inicio por rol** dentro de `dashboard`. HSO: `add-dashboard-metrics` (como referencia de modelo)
+- [ ] **Cupos por usuario/plan** dentro de `subscriptions`. HSO: `add-record-quota`
+
+**Ya los teníamos:** bloqueo de login, guardián de drift del contrato, contrato con status y errores reales, secreto JWT obligatorio, aviso de arranque, tooltip de shadcn, branding por organización.
+
+**No se copian:** todo lo de `orthodontic-records` (análisis, autoguardado, pasos, conflictos entre dispositivos); `add-patient-identity-lock` (choca con DS 009 art. 47 a: la filiación se actualiza a pedido del paciente); `add-template-bootstrap` y `update-brand-colors-facop` (propios de la plantilla y de FACOP).
+

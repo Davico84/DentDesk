@@ -30,7 +30,7 @@ context: |
 
   Backend:
     - Java 25 · Maven · Spring Boot 4.0.6.
-    - API REST: Spring Web MVC + springdoc-openapi (Swagger por perfil).
+    - API REST: Spring Web MVC + springdoc-openapi (Swagger apagado por defecto: SWAGGER_ENABLED).
     - Realtime: Spring WebSocket (STOMP) — encaja con @stomp/stompjs + sockjs del front.
     - Persistencia: Spring Data JPA (Hibernate) + PostgreSQL. Migraciones: Flyway (db/migration), ddl-auto=none.
     - Seguridad: Spring Security + JWT (com.auth0:java-jwt). Validación: Bean Validation.

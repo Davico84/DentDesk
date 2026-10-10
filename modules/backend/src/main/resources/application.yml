@@ -43,6 +43,16 @@ spring:
 server:
   forward-headers-strategy: framework
 
+# Documentación de la API (update-api-docs-exposure). Un solo interruptor para el documento OpenAPI
+# y la interfaz de Swagger, APAGADO por defecto: un despliegue que no lo configure no expone la API.
+# En local se enciende con SWAGGER_ENABLED=true en secrets.properties. Con el interruptor apagado
+# las rutas siguen en PublicPaths pero no existen, así que responden 404.
+springdoc:
+  api-docs:
+    enabled: ${SWAGGER_ENABLED:false}
+  swagger-ui:
+    enabled: ${SWAGGER_ENABLED:false}
+
 app:
   security:
     jwt:

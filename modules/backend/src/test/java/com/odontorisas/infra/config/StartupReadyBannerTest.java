@@ -70,8 +70,11 @@ class StartupReadyBannerTest {
     // --- scenarios: Documentación de la API activa / desactivada ---
 
     @Test
-    void swagger_is_enabled_by_default_and_shows_its_url(CapturedOutput output) {
-        new StartupReadyBanner(new MockEnvironment().withProperty("local.server.port", "8080")).onReady();
+    void swagger_enabled_shows_its_url(CapturedOutput output) {
+        new StartupReadyBanner(new MockEnvironment()
+            .withProperty("local.server.port", "8080")
+            .withProperty("springdoc.swagger-ui.enabled", "true")
+            .withProperty("springdoc.api-docs.enabled", "true")).onReady();
 
         assertThat(output.getAll()).contains("Swagger UI: http://localhost:8080/swagger-ui.html");
     }
@@ -84,7 +87,25 @@ class StartupReadyBannerTest {
 
         new StartupReadyBanner(env).onReady();
 
-        assertThat(output.getAll()).contains("Swagger UI: desactivado (springdoc.swagger-ui.enabled=false)");
+        assertThat(output.getAll()).contains("Swagger UI: desactivado (SWAGGER_ENABLED=false)");
+    }
+
+    @Test
+    void swagger_ui_without_the_api_docs_is_announced_as_disabled(CapturedOutput output) {
+        // Override directo de springdoc (SPRINGDOC_API_DOCS_ENABLED=false): la UI no tendría qué cargar.
+        new StartupReadyBanner(new MockEnvironment()
+            .withProperty("local.server.port", "8080")
+            .withProperty("springdoc.swagger-ui.enabled", "true")
+            .withProperty("springdoc.api-docs.enabled", "false")).onReady();
+
+        assertThat(output.getAll()).contains("Swagger UI: desactivado (SWAGGER_ENABLED=false)");
+    }
+
+    @Test
+    void swagger_is_disabled_when_the_property_is_missing(CapturedOutput output) {
+        new StartupReadyBanner(new MockEnvironment().withProperty("local.server.port", "8080")).onReady();
+
+        assertThat(output.getAll()).contains("Swagger UI: desactivado (SWAGGER_ENABLED=false)");
     }
 
     // --- scenario: Sin servidor web no hay aviso ---
