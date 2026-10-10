@@ -23,7 +23,7 @@ El frontend SHALL definir su paleta (colores y radio) como variables CSS en un �
 - **AND** los tokens de marca del producto (`--brand-*`) no forman parte del tema derivado
 
 ### Requirement: Sin colores literales en componentes
-Los componentes y hooks del frontend MUST NOT contener colores literales (hex, `rgb()`, `hsl()`): cambiar un color SHALL requerir editar solo `globals.css`. Solo se exceptúan, en una lista explícita y justificada, los colores normativos o deliberadamente fijos del odontograma y los colores de marca de los presets, que son datos.
+Los componentes y hooks del frontend MUST NOT contener colores literales (hex, `rgb()`, `hsl()`): cambiar un color SHALL requerir editar solo `globals.css`. Solo se exceptúan, en una lista explícita y justificada, los colores normativos o deliberadamente fijos del odontograma, los colores de marca de los presets (datos) y el generador del tema de cada clínica, que produce los tokens.
 
 #### Scenario: Sin colores literales fuera de las excepciones
 - **WHEN** se inspeccionan los archivos `.ts`/`.tsx` de `src/`, excepto el cliente generado, los tests y la lista de excepciones

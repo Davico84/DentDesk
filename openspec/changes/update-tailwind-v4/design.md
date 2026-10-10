@@ -55,6 +55,7 @@ Tokens nuevos en `globals.css`, **con los mismos valores de hoy** en `:root` y `
 | `--brand-amber` | `hsl(38 92% 46%)` | igual | medidor "Regular" |
 | `--brand-arc-teal` | `rgb(77 208 191)` | igual | arco destacado del fondo |
 | `--brand-arc-lilac` | `rgb(221 195 230)` | igual | arcos del fondo |
+| `--brand-hero-from` / `-via` / `-to` | `#671a86` / `#7f1aa6` / `#481864` | `#481864` / `#671a86` / `#2b0e39` | gradiente del panel de marca (`AuthLayout`); agregado en el apply: el test de literales no lo veía por el `_` después del hex |
 
 - Por qué tokens propios y no `success`/`warning`/`primary`: esos cambian en modo oscuro o con la marca de la clínica, y el login dejaría de verse igual. Es exactamente la razón por la que hoy son literales.
 - El `<canvas>` de `SmileArcBackground` no puede usar clases: lee el token con `getComputedStyle(document.documentElement).getPropertyValue("--brand-arc-teal")` y aplica la transparencia animada con `ctx.globalAlpha` en vez de `rgba(…, α)`.
@@ -73,7 +74,7 @@ Correr `npx @tailwindcss/upgrade` sobre un árbol limpio (renombra utilidades en
 
 - **Compilación real**: un test de Vitest en entorno `node` compila `globals.css` con `compile()` de `@tailwindcss/node` (devDependency, misma versión que `tailwindcss`) y pide candidatos (`bg-primary`, `bg-primary/10`, `text-muted-foreground`, `bg-brand-cta`, `dark:hidden`). Verifica que referencian `var(--token)` y que `dark:` genera un selector con `.dark`.
 - **Paridad claro/oscuro**: el mismo test extrae los tokens de `:root` y `.dark` y comprueba que cada token de color existe en los dos.
-- **Sin literales**: un test recorre `src/**/*.{ts,tsx}` (excluye `services/generated` y `*.test.*`) y falla ante `#rgb`/`#rrggbb`, `rgb(`, `hsl(`. La **lista de excepciones** va en el propio test, con el motivo de cada archivo: `dental-chart/utils/findingColor.ts` (NTS 188), `dental-chart/utils/chartPalette.ts` (papel fijo) y `branding/presets.ts` (datos). Si un archivo de la lista ya no tiene literales, el test falla y pide sacarlo.
+- **Sin literales**: un test recorre `src/**/*.{ts,tsx}` (excluye `services/generated` y `*.test.*`) y falla ante `#rgb`/`#rrggbb`, `rgb(`, `hsl(`. La **lista de excepciones** va en el propio test, con el motivo de cada archivo: `dental-chart/utils/findingColor.ts` (NTS 188), `dental-chart/utils/chartPalette.ts` (papel fijo), `branding/presets.ts` (datos) y `core/theme/deriveTheme.ts` (genera los tokens del tema de cada clínica; agregado en el apply). El regex de hex no usa `` al final: dentro de una clase arbitraria al hex le sigue `_` (`#671a86_0%`), que `` toma como parte de la palabra. Si un archivo de la lista ya no tiene literales, el test falla y pide sacarlo.
 
 ### D8. Revisión visual
 

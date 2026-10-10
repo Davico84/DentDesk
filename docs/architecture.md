@@ -71,7 +71,7 @@ Base: template FixRiver `modules/frontend/proyecto-base`.
 | Área | Tecnología |
 |---|---|
 | Core | React 19 · TypeScript · Vite |
-| UI | Tailwind CSS 3 + shadcn/Radix · `lucide-react` · `sonner` · `framer-motion` · `@base-ui/react`¹ · `recharts`¹ |
+| UI | Tailwind CSS 4 (plugin de Vite, configuración en CSS) + shadcn/Radix · `lucide-react` · `sonner` · `framer-motion` · `@base-ui/react`¹ · `recharts`¹ |
 | Datos servidor | `@tanstack/react-query` + `axios` |
 | Estado cliente | Zustand |
 | Formularios | `react-hook-form` + `zod` (`@hookform/resolvers`) |
