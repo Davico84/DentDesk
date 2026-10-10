@@ -6,7 +6,7 @@ import type { ReactNode } from "react";
  */
 export function InfoCard({ title, children }: { title: string; children: ReactNode }) {
   return (
-    <section className="rounded-2xl border bg-card p-5 shadow-sm">
+    <section className="rounded-2xl border bg-card p-5 shadow-xs">
       <h2 className="mb-3 text-sm font-semibold">{title}</h2>
       <dl className="flex flex-col gap-2.5 text-sm">{children}</dl>
     </section>

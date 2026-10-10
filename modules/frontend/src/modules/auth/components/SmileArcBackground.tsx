@@ -31,6 +31,12 @@ export function SmileArcBackground() {
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     }
 
+    // Colores de los tokens fijos de producto (update-tailwind-v4, design D5): el canvas no usa
+    // clases, así que los lee del CSS; la transparencia animada va en globalAlpha.
+    const tokens = getComputedStyle(canvas);
+    const arcTeal = tokens.getPropertyValue("--brand-arc-teal").trim();
+    const arcLilac = tokens.getPropertyValue("--brand-arc-lilac").trim();
+
     function drawArcs(progress: number) {
       if (!ctx) return;
       ctx.clearRect(0, 0, width, height);
@@ -42,13 +48,14 @@ export function SmileArcBackground() {
         const alpha = (0.15 - i * 0.024) * progress;
         if (alpha <= 0) continue;
         ctx.beginPath();
-        ctx.strokeStyle =
-          i === 1 ? `rgba(77,208,191,${0.55 * progress})` : `rgba(221,195,230,${alpha})`;
+        ctx.strokeStyle = i === 1 ? arcTeal : arcLilac;
+        ctx.globalAlpha = i === 1 ? 0.55 * progress : alpha;
         ctx.lineWidth = i === 1 ? 2 : 1.25;
         const span = Math.PI * (0.32 + 0.04 * i);
         ctx.arc(cx, cy, radius, -Math.PI / 2 - span, -Math.PI / 2 + span);
         ctx.stroke();
       }
+      ctx.globalAlpha = 1;
     }
 
     function run() {

@@ -117,7 +117,7 @@ export function OpenNoteEditor({ patientId, note }: { patientId: number; note: C
         </div>
       </form>
 
-      <section className="rounded-2xl border bg-card p-5 shadow-sm">
+      <section className="rounded-2xl border bg-card p-5 shadow-xs">
         <h3 className="mb-4 text-sm font-semibold">Diagnóstico (CIE10)</h3>
         <DiagnosisList
           diagnoses={note.diagnoses ?? []}
@@ -135,7 +135,7 @@ export function OpenNoteEditor({ patientId, note }: { patientId: number; note: C
         </div>
       </section>
 
-      <section className="rounded-2xl border bg-card p-5 shadow-sm">
+      <section className="rounded-2xl border bg-card p-5 shadow-xs">
         <h3 className="mb-1 flex items-center gap-2 text-sm font-semibold">
           <HeartPulse className="size-4" aria-hidden="true" />
           Antecedentes nuevos

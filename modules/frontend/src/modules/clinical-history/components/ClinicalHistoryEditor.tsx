@@ -129,7 +129,7 @@ export function ClinicalHistoryEditor({ patientId }: { patientId: number }) {
           ) : null}
         </form>
 
-        <section className="rounded-2xl border bg-card p-5 shadow-sm">
+        <section className="rounded-2xl border bg-card p-5 shadow-xs">
           <h3 className="mb-4 text-sm font-semibold">Diagnóstico (CIE10)</h3>
           <DiagnosisList
             diagnoses={history?.diagnosticos ?? []}

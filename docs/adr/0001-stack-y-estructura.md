@@ -30,7 +30,7 @@ Configuración única sin perfiles; todos los valores externalizados como secret
 Arquitectura por capas: `presentation (controller·dto) → infra (config·security·service·utils/mappers) → persistence (entity·repository·specification)`.
 
 ### Frontend
-React 19 · TypeScript · Vite · Tailwind + shadcn/Radix + `@base-ui/react` · `@tanstack/react-query` + `axios` ·
+React 19 · TypeScript · Vite · Tailwind 4 (desde `update-tailwind-v4`, 2026-10; antes 3) + shadcn/Radix + `@base-ui/react` · `@tanstack/react-query` + `axios` ·
 Zustand · `react-hook-form` + `zod` · `react-router-dom` v7 + RouteGuard · `@stomp/stompjs` + `sockjs-client` ·
 Vitest + RTL + MSW · Playwright (e2e) · ESLint · pnpm.
 Arquitectura orientada a pantallas: `src/{layouts,screens,modules(core/auth/…),store,routes,styles}`.

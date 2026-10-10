@@ -263,9 +263,9 @@ export const useSortingStore = createSelectors(useSortingStoreBase);
 > lo necesite y shadcn/Radix no lo cubra — no antes.
 
 > [!WARNING]
-> **`components.json` ya existe (escrito a mano) — no dejes que el CLI haga `init`.** Un `init` reescribiría `src/styles/globals.css` y `tailwind.config.cjs` con sus defaults, y ahí vive la **tematización por organización** (§4.5.1): la romperías.
+> **`components.json` ya existe (escrito a mano) — no dejes que el CLI haga `init`.** Un `init` reescribiría `src/styles/globals.css` con sus defaults, y ahí vive la **tematización por organización** (§4.5.1): la romperías.
 > Los `paths` del alias están **duplicados en el `tsconfig.json` raíz solo para el tooling**: es un tsconfig *solution* (`files: []`) y sin ellos el CLI no resuelve `@/` y escribe los componentes en una carpeta **literal `@/`**.
-> **Tras cada `add`, verifica con `git diff` que no tocó `globals.css` ni `tailwind.config.cjs`.**
+> **Tras cada `add`, verifica con `git diff` que no tocó `globals.css`.** `components.json` declara Tailwind 4 (`"config": ""`), así que el registro genera componentes v4 que encajan sin adaptar.
 
 > Regla: un componente **genérico y reutilizable** (un `Badge` base, una `Table`) vive en `core/ui`, no en `modules/<cap>/`. Lo específico de un dominio (p. ej. `PatientStatusBadge`, que conoce el enum de estado del paciente) sí vive en `modules/<cap>/components/`, y puede componerse sobre el primitivo de `core/ui`.
 
@@ -307,15 +307,24 @@ export const useSortingStore = createSelectors(useSortingStoreBase);
 - **Formularios**: cada `input` con su `label` enlazado (`htmlFor`/`id`).
 - **ARIA**: `aria-label` en botones solo-icono; `aria-describedby` para textos/errores.
 
-### 4.5 Paleta y variables de estilo (Tailwind v3 + CSS vars)
-Colores resueltos por variables CSS en `src/styles/globals.css`.
-> [!WARNING]
-> `tailwind.config.cjs` mapea colores con HSL: `background: "hsl(var(--background))"`. Las variables CSS deben contener **solo los 3 canales separados por espacios** (`--background: 220 25% 98%`), sin envoltorio. Si importas variables de diseños Tailwind v4/OKLCH (`oklch(...)`), **conviértelas a HSL puro** antes de pegarlas, o compilará a `hsl(oklch(...))` y romperá los estilos.
+### 4.5 Paleta y variables de estilo (Tailwind v4 + CSS vars)
+Toda la configuración de Tailwind vive en `src/styles/globals.css` (no hay `tailwind.config.*` ni PostCSS: Tailwind entra como plugin de Vite, `@tailwindcss/vite`).
+
+- **Tokens con color completo** en `:root` (claro) y `.dark` (oscuro): `--primary: hsl(292 72% 36%)`. Es el formato que emite el registro de shadcn para v4 y el que escribe el tema de cada clínica (§4.5.1). Un valor en OKLCH (`oklch(...)`) también sirve tal cual: ya no hay envoltorio `hsl(var(...))` que lo rompa.
+- **`@theme inline`** mapea cada token a su utilidad (`--color-primary: var(--primary)` → `bg-primary`, `text-primary`, `bg-primary/10`…). El `inline` hace que la utilidad lea la variable en runtime: el cambio claro/oscuro y el tema de la clínica funcionan sin recompilar; la opacidad sale con `color-mix()`.
+- **Modo oscuro por clase**: `@custom-variant dark (&:where(.dark, .dark *))` — la clase `dark` en `<html>` la maneja `ThemeToggle`; nunca `prefers-color-scheme`.
+- **Navegadores**: Tailwind 4 usa `color-mix()`, `@property` y capas en cascada en runtime. Requiere **Safari 16.4+, Chrome 111+, Firefox 128+**; en uno anterior la app se ve sin estilos correctos.
+- **Opacidad** (`bg-primary/10`): v4 la resuelve con `color-mix(in oklab, var(--primary) 10%, transparent)` en vez de `hsl(... / 0.1)`. El resultado es el mismo color con transparencia; al migrar se midió una diferencia máxima de **1/255 por canal** (redondeo), invisible.
+- **Animaciones** de los componentes de Radix (`animate-in`, `fade-in-0`, `zoom-in-95`…): `tw-animate-css`.
+- **Tokens de marca del producto** (`--brand-cta`, `--brand-teal`, `--brand-hero-*`…): colores del login que **no** siguen al tema de la clínica. `deriveTheme` nunca los emite. Úsalos solo para la identidad de Dentdesk.
+
+> [!IMPORTANT]
+> **Sin colores literales en componentes** (`#hex` y funciones de color: `rgb()`, `hsl()`, `oklch()`…; no se buscan colores con nombre porque chocan con clases como `text-white`): cambiar un color se hace en `globals.css`. Lo vigila `src/styles/noLiteralColors.test.ts`, con una lista de excepciones justificadas en el propio test (colores normativos y papel del odontograma, presets de marca, el generador `deriveTheme`). Si un archivo de la lista deja de tener literales, el test pide sacarlo. El contrato del tema (utilidades desde tokens, paridad claro/oscuro, `dark:` por clase) lo compila `src/styles/themeContract.test.ts` con `@tailwindcss/node`.
 
 #### 4.5.1 Tematización por organización (branding)
 Capacidad `organization-branding`: cada organización personaliza su color de marca y logo, aplicados al **app shell** (post-login). Piezas:
 
-- **`deriveTheme(colors)`** (`modules/core/theme`) — lógica **pura** (sin React, testeable): de 1-2 colores de marca deriva los tokens (claro + oscuro). Los `-foreground` se eligen por **contraste WCAG AA** (alternan solo blanco/neutro oscuro, nunca generan colores); *lightness clamping* por modo; los **neutros** conservan S/L y solo cambian el hue; los **semánticos** (éxito/aviso/error) **no** se tocan.
+- **`deriveTheme(colors)`** (`modules/core/theme`) — lógica **pura** (sin React, testeable): de 1-2 colores de marca deriva los tokens (claro + oscuro), como **color completo** (`hsl(H S% L%)`, el mismo formato que `globals.css`). Los `-foreground` se eligen por **contraste WCAG AA** (alternan solo blanco/neutro oscuro, nunca generan colores); *lightness clamping* por modo; los **neutros** conservan S/L y solo cambian el hue; los **semánticos** (éxito/aviso/error) **no** se tocan.
 - **`ThemeManager`** (sin React) — inyecta las variables en un `<style>` con `:root { … }` y `.dark { … }`; `reset()` restaura los defaults del producto. **El DOM lo toca el ThemeManager, no los hooks.**
 - **`useBranding`** (en `RootLayout`) — reactivo al **`organizationId` activo** (no al login): al cambiar, obtiene la marca, deriva y aplica; resetea al cerrar sesión.
 - **Cache-first** (`brandingCache`, `localStorage` por organización) — pinta al instante en el arranque (`applyCachedThemeOnBoot` en `main.tsx`) y se corrige tras el refresh; limpia en logout.

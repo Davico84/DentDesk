@@ -20,7 +20,7 @@ export function SealedNoteCard({ patientId, note }: { patientId: number; note: C
   const canCorrect = user?.id != null && user.id === note.sealedBy && filled.length > 0;
 
   return (
-    <article className="flex flex-col gap-4 rounded-2xl border bg-card p-5 shadow-sm" aria-label={`Consulta del ${dateLabel(note.attendedAt)}`}>
+    <article className="flex flex-col gap-4 rounded-2xl border bg-card p-5 shadow-xs" aria-label={`Consulta del ${dateLabel(note.attendedAt)}`}>
       <header className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h3 className="text-sm font-semibold">Consulta del {dateLabel(note.attendedAt)}</h3>

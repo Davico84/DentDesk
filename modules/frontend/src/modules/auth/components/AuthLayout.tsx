@@ -38,8 +38,8 @@ export function AuthLayout({ title, description, children, footer }: AuthLayoutP
       <aside
         className={cn(
           "relative hidden flex-col justify-between overflow-hidden p-12 text-white lg:flex",
-          "bg-[image:radial-gradient(120%_90%_at_12%_0%,#671a86_0%,#7f1aa6_45%,#481864_100%)]",
-          "dark:bg-[image:radial-gradient(120%_90%_at_12%_0%,#481864_0%,#671a86_45%,#2b0e39_100%)]",
+          // Tokens fijos de producto (update-tailwind-v4, design D5): cambian con el modo, no con la clínica.
+          "bg-[radial-gradient(120%_90%_at_12%_0%,var(--brand-hero-from)_0%,var(--brand-hero-via)_45%,var(--brand-hero-to)_100%)]",
         )}
       >
         <SmileArcBackground />

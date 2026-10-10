@@ -54,7 +54,7 @@ export function PatientDetail() {
         Documentos clínicos a la izquierda; acciones sobre la ficha a la derecha. Los tres documentos
         con el mismo estilo: la ficha es un punto de partida, no una navegación con uno "elegido".
       */}
-      <header className="flex flex-col gap-4 rounded-2xl border bg-card p-5 shadow-sm">
+      <header className="flex flex-col gap-4 rounded-2xl border bg-card p-5 shadow-xs">
         <div className="flex items-center gap-4">
           <PatientAvatar fullName={patient.fullName!} muted={inactive} className="size-14 text-lg" />
           <div>
