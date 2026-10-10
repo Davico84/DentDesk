@@ -75,7 +75,7 @@ export function DentalChartEditor({ patientId }: { patientId: number }) {
         }}
       />
 
-      <section className="rounded-2xl border bg-card p-5 shadow-sm">
+      <section className="rounded-2xl border bg-card p-5 shadow-xs">
         <h3 className="mb-1 text-sm font-semibold">Hallazgos registrados</h3>
         <p className="mb-4 text-xs text-muted-foreground">
           Pieza, superficie, arco y entre-piezas se registran clickeando el odontograma. Rango necesita dos clicks — activá "Registrar rango"

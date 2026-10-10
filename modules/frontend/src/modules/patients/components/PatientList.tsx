@@ -98,7 +98,7 @@ export function PatientList() {
         </button>
       </div>
 
-      <div className="overflow-hidden rounded-2xl border bg-card shadow-sm">
+      <div className="overflow-hidden rounded-2xl border bg-card shadow-xs">
         {isLoading ? (
           <PatientListSkeleton />
         ) : isError ? (

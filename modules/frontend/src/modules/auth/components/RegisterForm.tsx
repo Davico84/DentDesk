@@ -150,7 +150,7 @@ export function RegisterForm() {
 
       {/* Nota de privacidad */}
       <p className="flex items-start gap-1.5 text-[11px] leading-relaxed text-muted-foreground">
-        <ShieldCheck className="mt-0.5 size-3.5 shrink-0 text-[hsl(174_70%_40%)]" />
+        <ShieldCheck className="mt-0.5 size-3.5 shrink-0 text-brand-teal" />
         Al crear tu cuenta aceptas el tratamiento de tus datos conforme a nuestra política de privacidad.
       </p>
 

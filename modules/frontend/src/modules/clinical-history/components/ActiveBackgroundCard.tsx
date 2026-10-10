@@ -12,7 +12,7 @@ export function ActiveBackgroundCard({ patientId }: { patientId: number }) {
   const items = data?.items ?? [];
 
   return (
-    <section className="rounded-2xl border bg-card p-5 shadow-sm" aria-labelledby="active-background-title">
+    <section className="rounded-2xl border bg-card p-5 shadow-xs" aria-labelledby="active-background-title">
       <h2 id="active-background-title" className="mb-1 flex items-center gap-2 text-sm font-semibold">
         <HeartPulse className="size-4" aria-hidden="true" />
         Antecedentes vigentes

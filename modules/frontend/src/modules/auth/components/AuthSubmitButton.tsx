@@ -21,11 +21,11 @@ export function AuthSubmitButton({ pending, pendingLabel, children, className }:
       disabled={pending}
       className={cn(
         "flex h-11 w-full items-center justify-center gap-2 rounded-lg",
-        "bg-[#7f1aa6] text-sm font-semibold text-white dark:bg-[#671a86]",
+        "bg-brand-cta text-sm font-semibold text-white",
         "transition-colors duration-150",
-        "hover:bg-[#711794] dark:hover:bg-[#7a1e9c]",
+        "hover:bg-brand-cta-hover",
         "active:scale-[0.98]",
-        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
+        "focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
         "disabled:pointer-events-none disabled:opacity-60",
         className,
       )}

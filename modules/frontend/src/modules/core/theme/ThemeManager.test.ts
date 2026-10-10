@@ -3,8 +3,8 @@ import { ThemeManager } from "./ThemeManager";
 import type { DerivedTheme } from "./deriveTheme";
 
 const theme: DerivedTheme = {
-  light: { primary: "292 72% 36%" },
-  dark: { primary: "292 65% 66%" },
+  light: { primary: "hsl(292 72% 36%)" },
+  dark: { primary: "hsl(292 65% 66%)" },
   contrastWarning: false,
 };
 
@@ -16,9 +16,9 @@ describe("ThemeManager", () => {
     const el = document.getElementById("odr-org-theme");
     expect(el).not.toBeNull();
     expect(el!.textContent).toContain(":root {");
-    expect(el!.textContent).toContain("--primary: 292 72% 36%;");
+    expect(el!.textContent).toContain("--primary: hsl(292 72% 36%);");
     expect(el!.textContent).toContain(".dark {");
-    expect(el!.textContent).toContain("--primary: 292 65% 66%;");
+    expect(el!.textContent).toContain("--primary: hsl(292 65% 66%);");
   });
 
   it("reset retira el <style>", () => {

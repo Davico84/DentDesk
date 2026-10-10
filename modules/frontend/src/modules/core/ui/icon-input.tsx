@@ -25,7 +25,7 @@ export const IconInput = forwardRef<HTMLInputElement, IconInputProps>(
             "flex h-11 w-full rounded-lg border border-input bg-background pl-10 pr-3 py-2 text-sm",
             "text-foreground placeholder:text-muted-foreground",
             "transition-all duration-200",
-            "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-background",
+            "focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-background",
             "focus-visible:border-primary/50",
             "disabled:cursor-not-allowed disabled:opacity-50",
             hasError && "border-destructive focus-visible:ring-destructive",

@@ -58,7 +58,7 @@ export function PhoneNumberField({
           aria-label={`Código de país para ${label}`}
           value={countryCode}
           onChange={(event) => update(event.target.value, nationalNumber)}
-          className="h-11 rounded-xl border border-input bg-card px-3 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+          className="h-11 rounded-xl border border-input bg-card px-3 text-sm ring-offset-background focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
         >
           {countryCodes.map((country) => (
             <option key={`${country.country}-${country.code}`} value={country.code}>
