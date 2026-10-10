@@ -5,12 +5,13 @@ import { AccessDenied } from "./AccessDenied";
 
 interface RequireAuthProps {
   /** Si se indica, solo estos roles pueden entrar; el resto ve acceso denegado. */
-  roles?: Role[];
+  roles?: readonly Role[];
 }
 
 /**
  * Guard de rutas privadas: sin sesión → redirige a login (guardando la ruta
- * destino); con sesión pero rol sin permiso → acceso denegado.
+ * destino); con sesión pero rol sin permiso → acceso denegado. Los guards con roles viven dentro
+ * del shell (`add-app-shell` design D2), así que el aviso usa su variante `inShell`.
  */
 export function RequireAuth({ roles }: RequireAuthProps) {
   const status = useSessionStore.use.status();
@@ -21,7 +22,7 @@ export function RequireAuth({ roles }: RequireAuthProps) {
     return <Navigate to={PATHS.LOGIN} state={{ next: location.pathname }} replace />;
   }
   if (roles && !roles.includes(user.role)) {
-    return <AccessDenied />;
+    return <AccessDenied inShell />;
   }
   return <Outlet />;
 }

@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { Link } from "react-router-dom";
+import { useEffect, useRef } from "react";
+import { Link, useLocation, useSearchParams } from "react-router-dom";
 import { AnimatePresence } from "framer-motion";
 import { Search, UserPlus } from "lucide-react";
 import { buttonVariants } from "@/modules/core/ui/button-variants";
@@ -12,6 +12,7 @@ import { PatientListSkeleton } from "./PatientListSkeleton";
 import { PatientListEmpty } from "./PatientListEmpty";
 import { PatientListError } from "./PatientListError";
 import { PageContainer } from "@/modules/core/components/PageContainer";
+import { rememberPatientsList, wantsSearchFocus } from "@/modules/patients/utils/listNavigation";
 
 const PAGE_SIZE = 20;
 
@@ -19,14 +20,52 @@ const PAGE_SIZE = 20;
 const PAGER_BUTTON =
   "h-11 cursor-pointer rounded-xl border border-input bg-card px-4 font-medium transition-colors duration-200 hover:bg-muted/50 disabled:cursor-not-allowed disabled:opacity-40";
 
+/** Parámetros de la URL del listado (`add-app-shell` design D8). La página va 1-based: es la que se ve. */
+const PARAM = { query: "q", page: "pagina", inactive: "inactivos" } as const;
+
 /**
  * Feature del listado de pacientes: búsqueda, inclusión de inactivos, paginación y estados. Vive
  * en el módulo; la pantalla (`screens/patients/PatientListScreen`) solo la monta.
+ *
+ * La búsqueda, la página y los inactivos viven en la URL: recargar o volver desde la ficha
+ * muestra lo mismo. Al tipear se reemplaza la entrada del historial en vez de apilar una por tecla.
  */
 export function PatientList() {
-  const [query, setQuery] = useState("");
-  const [includeInactive, setIncludeInactive] = useState(false);
-  const [page, setPage] = useState(0);
+  const [params, setParams] = useSearchParams();
+  const location = useLocation();
+  const searchRef = useRef<HTMLInputElement>(null);
+
+  const query = params.get(PARAM.query) ?? "";
+  const includeInactive = params.get(PARAM.inactive) === "1";
+  const page = Math.max(0, (Number.parseInt(params.get(PARAM.page) ?? "1", 10) || 1) - 1);
+
+  /** Cambia los parámetros dados; `null` lo quita. Cambiar la búsqueda o el filtro vuelve a la página 1. */
+  const update = (changes: Partial<Record<keyof typeof PARAM, string | null>>, replace = false) => {
+    setParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        for (const [key, value] of Object.entries(changes) as [keyof typeof PARAM, string | null][]) {
+          if (value === null || value === "") next.delete(PARAM[key]);
+          else next.set(PARAM[key], value);
+        }
+        if (!("page" in changes)) next.delete(PARAM.page);
+        return next;
+      },
+      { replace },
+    );
+  };
+  const setPage = (p: number) => update({ page: p > 0 ? String(p + 1) : null });
+
+  // Registra esta URL para los enlaces "volver al listado" de la ficha y el formulario.
+  useEffect(() => {
+    rememberPatientsList(`${location.pathname}${location.search}`);
+  }, [location.pathname, location.search]);
+
+  // Atajo "Buscar paciente" del Inicio: llega con el pedido de enfocar el buscador.
+  const focusSearch = wantsSearchFocus(location.state);
+  useEffect(() => {
+    if (focusSearch) searchRef.current?.focus();
+  }, [focusSearch]);
 
   // Se consulta cuando dejas de escribir, no en cada tecla: "Ada Lovelace" serían 12 peticiones,
   // y las respuestas podrían llegar desordenadas. Lo que se teclea sigue siendo inmediato.
@@ -72,21 +111,16 @@ export function PatientList() {
             type="search"
             className="h-11 rounded-xl pl-10"
             placeholder="Buscar por nombre o documento…"
+            ref={searchRef}
             value={query}
-            onChange={(e) => {
-              setQuery(e.target.value);
-              setPage(0);
-            }}
+            onChange={(e) => update({ query: e.target.value }, true)}
             aria-label="Buscar pacientes"
           />
         </div>
         <button
           type="button"
           aria-pressed={includeInactive}
-          onClick={() => {
-            setIncludeInactive((v) => !v);
-            setPage(0);
-          }}
+          onClick={() => update({ inactive: includeInactive ? null : "1" })}
           className={[
             "h-11 cursor-pointer rounded-xl border px-4 text-sm font-medium transition-colors duration-200",
             includeInactive
@@ -128,12 +162,12 @@ export function PatientList() {
             <button
               type="button"
               disabled={page === 0}
-              onClick={() => setPage((p) => Math.max(0, p - 1))}
+              onClick={() => setPage(Math.max(0, page - 1))}
               className={PAGER_BUTTON}
             >
               Anterior
             </button>
-            <button type="button" disabled={isLast} onClick={() => setPage((p) => p + 1)} className={PAGER_BUTTON}>
+            <button type="button" disabled={isLast} onClick={() => setPage(page + 1)} className={PAGER_BUTTON}>
               Siguiente
             </button>
           </div>

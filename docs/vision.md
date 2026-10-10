@@ -131,6 +131,8 @@ Dimensión de **negocio** (sustituible por proyecto). Define **qué** construimo
 
 - ✅ **`update-tailwind-v4`** (técnica, `project-foundation`) — **construido** (2026-10-10). Change archivado: `openspec/changes/archive/2026-10-10-update-tailwind-v4/`; spec `project-foundation` (+2: *Tema definido por tokens CSS*, *Sin colores literales en componentes*). Tailwind 3.4 → 4 como plugin de Vite, configuración en `globals.css` (tokens con color completo, `@theme inline`, modo oscuro por clase, `tw-animate-css`); el tema de cada clínica emite color completo y el login usa tokens fijos de producto `--brand-*`. Sin cambio visual: 84 capturas antes/después idénticas (máx. 1/255 por canal). Verificado con `pnpm validate` (213 tests), e2e smoke y revisión externa. Traído de HSO (ver §8).
 
+- ✅ **`app-shell`** (técnica, frontend) — construida (2026-10-10). Spec: `openspec/specs/app-shell/spec.md` · change archivado: `openspec/changes/archive/2026-10-10-add-app-shell/`. Barra lateral y cabecera para toda la zona privada, secciones y roles en una sola configuración, responsive con barra contraíble, Inicio con atajos, y el listado de pacientes que conserva la búsqueda al volver (requirement sumado a `patients`). Traído de HSO (ver §8).
+
 ## 4. Ciclo de vida de una capacidad (gobernanza)
 
 ```
@@ -201,8 +203,8 @@ Checklist de lo que se copia de HSOFACOP (`D:/proyectos/HSOFACOP`, analizado el 
 
 - [x] **`update-api-docs-exposure`** — Swagger y `/v3/api-docs` apagados por defecto (`SWAGGER_ENABLED`). HSO: `2026-09-30-update-api-docs-exposure`. ✅ archivado 2026-10-10
 - [x] **`update-tailwind-v4`** — Tailwind 3.4 → 4, configuración CSS-first, tokens de color completos y test que vigila colores literales. Destraba los componentes nuevos de shadcn (`sheet`, `progress`). HSO: `2026-09-28-update-tailwind-v4`. ✅ archivado 2026-10-10
-- [ ] **`add-app-shell`** — barra lateral + cabecera (usuario, rol, tema, salir), responsive (escritorio / íconos en tablet / cajón en celular), barra contraíble en escritorio, secciones por rol desde una sola configuración con "Acceso denegado" dentro del shell, ancho máximo del marco (1920 px) y del contenido (1536 px) que reemplaza a `PageContainer`, volver al listado conservando búsqueda y página. HSO: `add-app-shell`, `update-app-shell-tooltips`, `update-app-shell-role-nav`, `update-app-shell-collapsible-sidebar`, `update-orthodontic-records-back-link` (solo el patrón de volver)
-- [ ] **Revisión responsive** (375 / 768 px) con e2e que verifique que no hay desplazamiento horizontal: listado de pacientes, odontograma, consultas. HSO: `update-orthodontic-records-responsive` (solo el método de auditoría)
+- [x] **`add-app-shell`** — barra lateral + cabecera (usuario, rol, tema, salir), responsive (escritorio / íconos en tablet / cajón en celular), barra contraíble en escritorio, secciones por rol desde una sola configuración con "Acceso denegado" dentro del shell, ancho máximo del marco (1920 px; el contenido conserva el ancho uniforme de `PageContainer`), volver al listado conservando búsqueda y página. HSO: `add-app-shell`, `update-app-shell-tooltips`, `update-app-shell-role-nav`, `update-app-shell-collapsible-sidebar`, `update-orthodontic-records-back-link` (solo el patrón de volver) ✅ archivado 2026-10-10
+- [ ] **Revisión responsive** (375 / 768 px) con e2e que verifique que no hay desplazamiento horizontal: listado de pacientes, odontograma, consultas. HSO: `update-orthodontic-records-responsive` (solo el método de auditoría). *Avance:* `add-app-shell` dejó el e2e (`e2e/app-shell.spec.ts`, todas las pantallas privadas a 375/768/1280 px, hoy en verde); falta la revisión de usabilidad en esos anchos, no solo el desborde.
 
 **Más adelante (cuando toque):**
 

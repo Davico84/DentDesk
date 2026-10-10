@@ -5,7 +5,8 @@ import { ArrowLeft, HeartPulse, Loader2, Phone, Siren, User, UserCheck } from "l
 import { toast } from "sonner";
 import { Button } from "@/modules/core/ui/button";
 import { buttonVariants } from "@/modules/core/ui/button-variants";
-import { PATHS, patientDetailPath } from "@/routes/paths";
+import { patientDetailPath } from "@/routes/paths";
+import { patientsListPath } from "@/modules/patients/utils/listNavigation";
 import {
   applyServerFieldErrors,
   getApiProblem,
@@ -93,11 +94,11 @@ export function PatientForm() {
   const hasOwnPhone = Boolean(phone?.trim()) && phone !== PHONE_COUNTRY_CODE;
   const pending = createPatient.isPending || updatePatient.isPending;
   const anamnesisFrozen = patientQuery.data?.anamnesisFrozen === true;
-  const backTo = isEdit ? patientDetailPath(id!) : PATHS.PATIENTS;
+  const backTo = isEdit ? patientDetailPath(id!) : patientsListPath();
 
   if (isEdit && patientQuery.isLoading) {
     return (
-      <div className="flex min-h-screen items-center justify-center">
+      <div className="flex items-center justify-center py-24">
         <Loader2 className="size-6 animate-spin text-muted-foreground" />
       </div>
     );
@@ -290,7 +291,7 @@ export function PatientForm() {
           Barra de acciones FIJA: en un formulario largo, dejar el botón al final obliga a
           scrollear hasta abajo para guardar. Aquí siempre está a la vista.
         */}
-        <div className="sticky bottom-0 -mx-6 border-t bg-background/95 px-6 py-4 backdrop-blur-sm supports-backdrop-filter:bg-background/80">
+        <div className="sticky bottom-0 -mx-4 border-t bg-background/95 px-4 py-4 sm:-mx-6 sm:px-6 backdrop-blur-sm supports-backdrop-filter:bg-background/80">
           <div className="flex items-center justify-end gap-3">
             <Link to={backTo} className={buttonVariants({ variant: "ghost" })}>
               Cancelar

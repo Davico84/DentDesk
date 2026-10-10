@@ -18,12 +18,14 @@ Dimensión **tecnológica** (reutilizable). Guía única del cliente: stack, arq
 
 ```
 src/
-  layouts/     # marcos de página (shells) reutilizables
+  layouts/     # marcos de página: RootLayout (sesión, marca, toasts) y AppLayout (shell privado)
   screens/     # pantallas: orquestan una feature dentro de un layout (hojas de composición)
   modules/     # lógica encapsulada por dominio
     core/      # transversal (SIN deps a otros módulos):
       #   auth/ (guards RequireAuth/RequireGuest, roleHome) · components/ (DataState, InfoCard…)
-      #   config/ (httpClient axios) · hooks/ (useDebouncedValue…) · services/generated/ (orval)
+      #   components/shell/ (Sidebar, Header, NavItem, MobileNav: piezas del shell, sin dominio)
+      #   config/ (httpClient axios, sections: secciones + roles) · hooks/ (useDebouncedValue,
+      #   useMediaQuery…) · services/generated/ (orval)
       #   theme/ (deriveTheme, ThemeManager — branding) · ui/ (shadcn) · utils/
     <cap>/     # un módulo por capacidad (hooks de dominio, components, types, schemas Zod)
   store/       # stores Zustand (estado de cliente)
@@ -40,10 +42,15 @@ src/
   se vuelve una experiencia realmente distinta (p. ej. un backoffice de plataforma que gestiona
   *otras* organizaciones) — no es el caso hoy, y adelantarlo sería la abstracción prematura que
   `docs/coding-style.md §3` prohíbe.
-  > **Estado actual (objetivo, aún no adoptado):** hoy solo existe `RootLayout` (bootstrap de
-  > sesión + marca, sin nav — cada pantalla arma su propio `<main>` suelto). El `AppLayout` con
-  > sidebar/header se construye la primera vez que una segunda pantalla necesite nav persistente
-  > compartida, no antes.
+- **Secciones en un solo lugar.** `core/config/sections.ts` declara cada sección (`id`, ruta,
+  `roles?`). De ahí salen el menú (`core/components/shell/navItems.ts`, que solo agrega etiqueta e
+  ícono) y el árbol de rutas (`routes/index.tsx` agrupa cada sección bajo
+  `RequireAuth roles={...}`). Una sección nueva = una entrada ahí + su etiqueta e ícono; los roles
+  no se escriben en otro sitio. Ocultar en el front **no** autoriza: el backend lleva su
+  `@PreAuthorize`.
+- **Un solo `<main>`.** Lo pone `AppLayout`; `PageContainer` es un `<div>` que da el ancho de
+  contenido uniforme (`max-w-5xl`). Una pantalla privada nunca arma su propio `<main>` ni usa
+  `min-h-screen` (centrar en vertical dentro del shell: `py-*`).
 - **`screens` orquestan; `modules` encapsulan lógica.** Las pantallas montan features dentro de un layout; no contienen lógica de negocio.
   > [!IMPORTANT]
   > **Una pantalla es una línea.** `screens/<área>/XScreen.tsx` → `return <XFeature />;`. **NO declares sub-componentes dentro de la screen** —ni skeletons, ni estados vacíos/error, ni campos de formulario, ni filas—: van a `modules/<cap>/components/`, agrupados por tipo (la feature, filas, loaders/skeletons, estados, modales). Señal de mal uso: una screen con `function SkeletonRows()` o `function Field()` debajo.
@@ -294,12 +301,14 @@ export const useSortingStore = createSelectors(useSortingStoreBase);
   propias entradas/salidas al cambiar es un único movimiento coherente, no "animar todo".
 
 ### 4.3 Responsividad (Mobile-First)
-- Breakpoints: **móvil** < `480px`, **tablet** `481–1024px`, **escritorio** > `1024px`.
-- Prueba cambios de navegación/estilos en móvil, tablet y escritorio.
-
-> **Estado actual (objetivo, aún no adoptado):** la Sidebar del `AppLayout` (§1) no existe todavía.
-> Objetivo cuando se construya: cajón flotante en móvil, barra de iconos en mediano, expandida en
-> escritorio.
+- Breakpoints (los de Tailwind): **celular** < `640px` (`sm`), **tablet** `640–1023px`,
+  **escritorio** ≥ `1024px` (`lg`). En JS, `useMediaQuery(DESKTOP_QUERY)` de `core/hooks`.
+- El shell (`AppLayout`, §1): en celular la barra se oculta y el botón de menú abre un cajón
+  (`core/ui/sheet`); en tablet la barra muestra solo íconos con tooltip; en escritorio se expande o
+  se contrae (preferencia en `useSidebarStore`). El marco mide como mucho 1920 px, centrado.
+- Prueba cambios de navegación/estilos en móvil, tablet y escritorio. `e2e/app-shell.spec.ts`
+  falla si alguna pantalla privada se desplaza de costado a 375, 768 o 1280 px: una pantalla nueva
+  se agrega a su lista.
 
 ### 4.4 Accesibilidad (WCAG)
 - **HTML semántico** (`<aside>`, `<nav>`, `<main>`, `<header>`, `<article>`).
