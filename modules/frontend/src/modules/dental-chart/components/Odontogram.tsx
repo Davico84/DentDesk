@@ -531,7 +531,7 @@ function toothRow(
               aria-label={`Entre las piezas ${fdiA} y ${fdiB}`}
               onClick={() => selectBetween(fdiA, fdiB)}
               onKeyDown={(e) => activateOnEnterOrSpace(e, () => selectBetween(fdiA, fdiB))}
-              className={surfaceInteractive ? "cursor-pointer focus:outline-none" : "focus:outline-none"}
+              className={surfaceInteractive ? "cursor-pointer focus:outline-hidden" : "focus:outline-hidden"}
             />
             <circle cx={(xA + xB) / 2} cy={rowHeight / 2} r={2.5} fill={DIVIDER} pointerEvents="none" />
           </g>
@@ -591,7 +591,7 @@ function toothRow(
               aria-label={toothLabel(fdi, toothList, surfacesOnTooth)}
               onClick={() => selectTooth(fdi)}
               onKeyDown={(e) => activateOnEnterOrSpace(e, () => selectTooth(fdi))}
-              className={interactive ? "cursor-pointer focus:outline-none" : "focus:outline-none"}
+              className={interactive ? "cursor-pointer focus:outline-hidden" : "focus:outline-hidden"}
             >
               <rect x={0} y={numY} width={size} height={NUM_H} rx={3} fill="transparent" />
               {numberCircle ? (
@@ -630,7 +630,7 @@ function toothRow(
                     aria-label={`Pieza ${fdi}, superficie ${SURFACE_LABEL[slot.surface]}${list.length > 0 ? `: ${list.length} hallazgo(s)` : ", sin hallazgos"}`}
                     onClick={() => selectSurface(fdi, slot.surface)}
                     onKeyDown={(e) => activateOnEnterOrSpace(e, () => selectSurface(fdi, slot.surface))}
-                    className={surfaceInteractive ? "cursor-pointer focus:outline-none" : "focus:outline-none"}
+                    className={surfaceInteractive ? "cursor-pointer focus:outline-hidden" : "focus:outline-hidden"}
                     points={slot.points}
                     fill={fill}
                     stroke={OUTLINE}
@@ -818,7 +818,7 @@ function lane(
       aria-label={`Arco ${arch.toLowerCase()}${archFindings.length > 0 ? `: ${archFindings.map(siglaOfFinding).join(", ")}` : ", sin hallazgos de arco completo"}`}
       onClick={() => selectArch(arch)}
       onKeyDown={(e) => activateOnEnterOrSpace(e, () => selectArch(arch))}
-      className={interactive ? "cursor-pointer focus:outline-none" : "focus:outline-none"}
+      className={interactive ? "cursor-pointer focus:outline-hidden" : "focus:outline-hidden"}
     >
       {/* ⚠️ El objetivo de click real es TODA la franja (LANE_H), no la línea/glifo visual — de
           2-3px de grosor, prácticamente imposible de acertar con el mouse (bug real: el user no

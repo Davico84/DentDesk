@@ -13,11 +13,17 @@ import {
   DentalChartLocationRequestSurface,
 } from "@/modules/core/services/generated/model";
 import { applicableSurfaces, isFdiValid } from "@/modules/core/utils/fdiTeeth";
+import { clinicToday } from "@/modules/core/utils/clinicDate";
 
 // --- crear el odontograma inicial ---
 
+/** Paridad con `DentalChartCreateRequest`: `@NotNull @PastOrPresent`, comparado en el día de la clínica. */
 export const dentalChartCreateSchema = z.object({
-  examinedOn: z.string().trim().min(1, "La fecha del examen es obligatoria."),
+  examinedOn: z
+    .string()
+    .trim()
+    .min(1, "La fecha del examen es obligatoria.")
+    .refine((day) => day <= clinicToday(), "La fecha del examen no puede ser futura."),
 });
 export type DentalChartCreateValues = z.infer<typeof dentalChartCreateSchema>;
 
@@ -26,7 +32,7 @@ export function toCreateRequest(values: DentalChartCreateValues): DentalChartCre
 }
 
 export function createDefaults(): DentalChartCreateValues {
-  return { examinedOn: new Date().toISOString().slice(0, 10) };
+  return { examinedOn: clinicToday() };
 }
 
 // --- especificaciones / observaciones (design.md D5: "revisado" no vuelve a false al editar) ---

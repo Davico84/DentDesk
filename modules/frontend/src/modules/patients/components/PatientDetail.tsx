@@ -1,11 +1,12 @@
 import { useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { ArrowLeft, ClipboardList, Pencil, Smile, Users } from "lucide-react";
+import { ArrowLeft, ClipboardList, NotebookPen, Pencil, Smile, Users } from "lucide-react";
 import { Button } from "@/modules/core/ui/button";
 import { buttonVariants } from "@/modules/core/ui/button-variants";
 import { ConfirmDialog } from "@/modules/core/ui/confirm-dialog";
 import { InfoCard, InfoRow } from "@/modules/core/components/InfoCard";
-import { PATHS, clinicalHistoryPath, dentalChartPath, patientEditPath } from "@/routes/paths";
+import { patientsListPath } from "@/modules/patients/utils/listNavigation";
+import { clinicalHistoryPath, consultationNotesPath, dentalChartPath, patientEditPath } from "@/routes/paths";
 import {
   useDeactivatePatient,
   usePatient,
@@ -18,6 +19,7 @@ import { PatientDetailSkeleton } from "./PatientDetailSkeleton";
 import { PatientNotFound } from "./PatientNotFound";
 import { ageLabel, documentLabel, joinOrDash } from "./patientDisplay";
 import { guardianRelationshipOptions, labelOf, sexOptions } from "./patientOptions";
+import { PageContainer } from "@/modules/core/components/PageContainer";
 
 /** Feature de la consulta de una ficha: datos, y acciones de edición/baja/reactivación. */
 export function PatientDetail() {
@@ -35,10 +37,10 @@ export function PatientDetail() {
   const inactive = patient.status === "INACTIVE";
 
   return (
-    <main className="mx-auto flex min-h-screen w-full max-w-2xl flex-col gap-6 p-6">
+    <PageContainer>
       <div className="flex items-center gap-2">
         <Link
-          to={PATHS.PATIENTS}
+          to={patientsListPath()}
           aria-label="Volver al listado"
           className={buttonVariants({ variant: "ghost", size: "icon" })}
         >
@@ -47,7 +49,13 @@ export function PatientDetail() {
         <span className="text-sm text-muted-foreground">Pacientes</span>
       </div>
 
-      <header className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border bg-card p-5 shadow-sm">
+      {/*
+        Dos filas: la identidad arriba y las acciones abajo, cada grupo con flex-wrap. Con cinco
+        acciones en una sola fila sin envolver, la tarjeta desbordaba (update-clinical-history 6.9).
+        Documentos clínicos a la izquierda; acciones sobre la ficha a la derecha. Los tres documentos
+        con el mismo estilo: la ficha es un punto de partida, no una navegación con uno "elegido".
+      */}
+      <header className="flex flex-col gap-4 rounded-2xl border bg-card p-5 shadow-xs">
         <div className="flex items-center gap-4">
           <PatientAvatar fullName={patient.fullName!} muted={inactive} className="size-14 text-lg" />
           <div>
@@ -61,28 +69,36 @@ export function PatientDetail() {
             </div>
           </div>
         </div>
-        <div className="flex items-center gap-2">
-          <Link to={clinicalHistoryPath(id)} className={buttonVariants({ variant: "default", size: "lg" })}>
-            <ClipboardList className="mr-2 size-4" />
-            Historia Clínica
-          </Link>
-          <Link to={dentalChartPath(id)} className={buttonVariants({ variant: "outline", size: "lg" })}>
-            <Smile className="mr-2 size-4" />
-            Odontograma
-          </Link>
-          <Link to={patientEditPath(id)} className={buttonVariants({ variant: "outline", size: "lg" })}>
-            <Pencil className="mr-2 size-4" />
-            Editar
-          </Link>
-          {inactive ? (
-            <Button size="lg" disabled={reactivate.isPending} onClick={() => reactivate.mutate(id)}>
-              Reactivar
-            </Button>
-          ) : (
-            <Button variant="outline" size="lg" disabled={deactivate.isPending} onClick={() => setConfirmingBaja(true)}>
-              Dar de baja
-            </Button>
-          )}
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <nav aria-label="Documentos clínicos" className="flex flex-wrap items-center gap-2">
+            <Link to={clinicalHistoryPath(id)} className={buttonVariants({ variant: "outline", size: "lg" })}>
+              <ClipboardList className="mr-2 size-4" />
+              Historia Clínica
+            </Link>
+            <Link to={consultationNotesPath(id)} className={buttonVariants({ variant: "outline", size: "lg" })}>
+              <NotebookPen className="mr-2 size-4" />
+              Consultas
+            </Link>
+            <Link to={dentalChartPath(id)} className={buttonVariants({ variant: "outline", size: "lg" })}>
+              <Smile className="mr-2 size-4" />
+              Odontograma
+            </Link>
+          </nav>
+          <div className="flex flex-wrap items-center gap-2">
+            <Link to={patientEditPath(id)} className={buttonVariants({ variant: "ghost", size: "lg" })}>
+              <Pencil className="mr-2 size-4" />
+              Editar
+            </Link>
+            {inactive ? (
+              <Button size="lg" disabled={reactivate.isPending} onClick={() => reactivate.mutate(id)}>
+                Reactivar
+              </Button>
+            ) : (
+              <Button variant="ghost" size="lg" disabled={deactivate.isPending} onClick={() => setConfirmingBaja(true)}>
+                Dar de baja
+              </Button>
+            )}
+          </div>
         </div>
       </header>
 
@@ -124,10 +140,19 @@ export function PatientDetail() {
         <InfoRow label="Parentesco" value={patient.emergencyContactRelationship} />
       </InfoCard>
 
-      <InfoCard title="Anamnesis">
+      <InfoCard title={patient.anamnesisFrozen ? "Anamnesis al dar de alta" : "Anamnesis"}>
         <InfoRow label="Alergias" value={joinOrDash(patient.allergies)} />
         <InfoRow label="Condiciones" value={joinOrDash(patient.conditions)} />
         <InfoRow label="Medicación actual" value={joinOrDash(patient.currentMedication)} />
+        {patient.anamnesisFrozen ? (
+          <p className="text-xs text-muted-foreground">
+            Registrada al dar de alta, sin autoría clínica. Ya no se edita: lo nuevo se registra en la{" "}
+            <Link to={consultationNotesPath(id)} className="text-primary underline-offset-4 hover:underline">
+              consulta
+            </Link>
+            .
+          </p>
+        ) : null}
       </InfoCard>
 
       {/*
@@ -144,6 +169,6 @@ export function PatientDetail() {
         pending={deactivate.isPending}
         onConfirm={() => deactivate.mutate(id, { onSuccess: () => setConfirmingBaja(false) })}
       />
-    </main>
+    </PageContainer>
   );
 }

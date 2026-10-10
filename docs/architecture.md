@@ -32,7 +32,7 @@ OdontoRisas/
 |---|---|
 | Lenguaje / build | Java 25 · Maven |
 | Framework | Spring Boot 4.0.6 |
-| API REST | Spring Web MVC + springdoc-openapi (Swagger, por perfil) |
+| API REST | Spring Web MVC + springdoc-openapi (Swagger, apagado por defecto: `SWAGGER_ENABLED`) |
 | Realtime | Spring WebSocket (STOMP) — **planeado, aún no implementado** (sin `spring-boot-starter-websocket` en el `pom.xml`); encajará con `@stomp/stompjs` + `sockjs` del front cuando se construya (`docs/vision.md §7`) |
 | Persistencia | Spring Data JPA (Hibernate) + PostgreSQL |
 | Migraciones | Flyway (`db/migration`) · `ddl-auto=none` (schema lo maneja Flyway) |
@@ -71,7 +71,7 @@ Base: template FixRiver `modules/frontend/proyecto-base`.
 | Área | Tecnología |
 |---|---|
 | Core | React 19 · TypeScript · Vite |
-| UI | Tailwind CSS 3 + shadcn/Radix · `lucide-react` · `sonner` · `framer-motion` · `@base-ui/react`¹ · `recharts`¹ |
+| UI | Tailwind CSS 4 (plugin de Vite, configuración en CSS) + shadcn/Radix · `lucide-react` · `sonner` · `framer-motion` · `@base-ui/react`¹ · `recharts`¹ |
 | Datos servidor | `@tanstack/react-query` + `axios` |
 | Estado cliente | Zustand |
 | Formularios | `react-hook-form` + `zod` (`@hookform/resolvers`) |
@@ -122,7 +122,7 @@ Capa de plataforma **reutilizable** que aísla los datos de cada organización (
 - **Auth**: JWT emitido por Spring Security; el front lo guarda y lo envía vía `axios` (interceptor). Refresh de token ante 401.
 - **Roles**: ADMIN / USER (alineados con el tipo `Role` del front — `store/useSessionStore.ts` — y la seguridad por rol del back).
 - **Realtime**: STOMP sobre WebSocket — **planeado, aún no implementado** en ningún lado del contrato (`docs/vision.md §7`).
-- **API docs**: springdoc-openapi (Swagger) por perfil como contrato de referencia.
+- **API docs**: springdoc-openapi (Swagger) como contrato de referencia. Apagado por defecto; se enciende con `SWAGGER_ENABLED=true` (`docs/backend.md` §12). El frontend no depende de él: genera desde `contracts/openapi.json`.
 
 ---
 

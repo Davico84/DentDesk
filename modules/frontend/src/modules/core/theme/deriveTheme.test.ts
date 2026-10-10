@@ -1,13 +1,29 @@
 import { describe, it, expect } from "vitest";
 import { deriveTheme } from "./deriveTheme";
 
-/** Extrae {h,s,l} de un triplete "H S% L%". */
-function parse(triplet: string) {
-  const [h, s, l] = triplet.replace(/%/g, "").split(/\s+/).map(Number);
+/** Extrae {h,s,l} de un color "hsl(H S% L%)". */
+function parse(color: string) {
+  const [h, s, l] = color.replace(/^hsl\(|\)$|%/g, "").split(/\s+/).map(Number);
   return { h, s, l };
 }
 
 describe("deriveTheme", () => {
+  // --- project-foundation: El tema de la organización emite tokens válidos (update-tailwind-v4) ---
+
+  it("cada token derivado es un color completo, como los de globals.css", () => {
+    const theme = deriveTheme({ brandPrimary: "#0F9B8E", brandSecondary: "#0B7285" })!;
+    for (const tokens of [theme.light, theme.dark]) {
+      for (const [name, value] of Object.entries(tokens)) {
+        expect(value, name).toMatch(/^hsl\(\d+ \d+% \d+%\)$/);
+      }
+    }
+  });
+
+  it("el tema derivado no incluye los tokens de marca del producto", () => {
+    const theme = deriveTheme({ brandPrimary: "#0F9B8E" })!;
+    expect([...Object.keys(theme.light), ...Object.keys(theme.dark)].filter((n) => n.startsWith("brand-"))).toEqual([]);
+  });
+
   it("devuelve null cuando no hay color primario (usa defaults del producto)", () => {
     expect(deriveTheme({})).toBeNull();
     expect(deriveTheme({ brandPrimary: null })).toBeNull();
@@ -15,7 +31,7 @@ describe("deriveTheme", () => {
 
   it("color de marca oscuro → texto claro (contraste)", () => {
     const theme = deriveTheme({ brandPrimary: "#1a1a1a" })!;
-    expect(theme.light["primary-foreground"]).toBe("0 0% 100%"); // blanco
+    expect(theme.light["primary-foreground"]).toBe("hsl(0 0% 100%)"); // blanco
   });
 
   it("color de marca claro → texto oscuro (contraste)", () => {

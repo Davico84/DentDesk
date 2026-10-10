@@ -4,6 +4,7 @@
 - **Fecha:** 2026-09-23
 - **Decisores:** David Velarde Alvarado
 - **Supersede:** [`ADR-0014`](0014-ciclo-de-vida-del-documento-clinico.md) **D5**, **D6** y **D7** (el plazo de conservación) · [`ADR-0017`](0017-catalogo-odontograma-nts-188.md) **D8** (parcialmente: el IHO) · refina el fundamento normativo de [`ADR-0016`](0016-responsabilidad-clinica.md) **D1** y **D7**
+- 🔴 **Corregido por [`ADR-0020`](0020-nota-de-consulta.md)** (2026-10-09), contra el mismo texto oficial: en **D3**, la fila *"Evolución estructurada SOAP"* cita §5.2.2 · §4.2.9, pero "SOAP" no aparece en la norma y **§4.2.9 es sobre diagnósticos** (CIE10 + P/D/R); el contenido de la nota sale de §5.2.1 (1). En **D2**, *"Odontograma inicial y final"* es solo de **12.1, Ficha del Niño**; la 12.2 (adulto) pide *"Odontograma"* y *"Alta básica odontológica con fecha"*.
 - **Fuente:** **texto oficial** de la NTS N°139-MINSA/2018/DGAIN (RM N°214-2018/MINSA, **con** su modificatoria RM N°265-2018/MINSA) y del **Código de Ética y Deontología del COP** (aprobado el 16.02.2024, Resolución N°01-02.SOCN.COP.2024, 104 artículos)
 
 ## Contexto

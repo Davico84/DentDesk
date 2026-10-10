@@ -16,7 +16,7 @@ export interface BrandColors {
   brandSecondary?: string | null;
 }
 
-export type TokenMap = Record<string, string>; // nombre de token (sin `--`) → triplete HSL "H S% L%"
+export type TokenMap = Record<string, string>; // nombre de token (sin `--`) → color completo "hsl(H S% L%)"
 
 export interface DerivedTheme {
   light: TokenMap;
@@ -135,7 +135,8 @@ function contrastRatio(a: Rgb, b: Rgb): number {
   return (hi + 0.05) / (lo + 0.05);
 }
 
-const hslStr = ({ h, s, l }: Hsl): string => `${Math.round(h)} ${Math.round(s)}% ${Math.round(l)}%`;
+/** Color completo, mismo formato que los tokens de `globals.css` (update-tailwind-v4, design D3). */
+const hslStr = ({ h, s, l }: Hsl): string => `hsl(${Math.round(h)} ${Math.round(s)}% ${Math.round(l)}%)`;
 
 /** Acota la luminosidad del primario para que destaque legible en cada modo. */
 function clampedPrimary(base: Hsl, mode: "light" | "dark"): Hsl {

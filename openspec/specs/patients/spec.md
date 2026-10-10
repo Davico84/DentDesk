@@ -227,3 +227,43 @@ Cuando el alta o la edición de un paciente choca con un documento que **ya exis
 - **WHEN** el documento existe en **otra** clínica pero no en la activa
 - **THEN** no hay conflicto y el alta se completa con normalidad
 - **AND** la respuesta no revela nada de la ficha de la otra clínica
+
+### Requirement: La anamnesis de la ficha se congela al existir la Historia Clínica
+Desde que el paciente tiene Historia Clínica, en cualquier estado, el sistema SHALL rechazar todo cambio a las **alergias**, **condiciones/patologías** y **medicación actual** de su ficha: lo nuevo se registra en la consulta, como antecedente de la nota. Los demás datos de la ficha SHALL seguir editables, y la anamnesis congelada SHALL seguir legible.
+
+#### Scenario: La anamnesis se edita mientras no hay Historia Clínica
+- **WHEN** se modifican las alergias de un paciente que aún no tiene Historia Clínica
+- **THEN** los cambios quedan guardados
+
+#### Scenario: Rechazar cambios a la anamnesis congelada
+- **WHEN** se intenta modificar las alergias, condiciones o medicación de un paciente que ya tiene Historia Clínica
+- **THEN** el sistema rechaza el cambio indicando que los antecedentes nuevos se registran en la consulta
+- **AND** no modifica nada de la ficha
+
+#### Scenario: El resto de la ficha sigue editable con la anamnesis congelada
+- **WHEN** se edita el teléfono de un paciente con Historia Clínica, enviando su anamnesis sin cambios
+- **THEN** el cambio de teléfono queda guardado
+
+#### Scenario: La anamnesis congelada sigue legible
+- **WHEN** se consulta la ficha de un paciente con Historia Clínica
+- **THEN** su anamnesis se muestra en modo lectura, indicando que no admite cambios
+
+### Requirement: El listado conserva la búsqueda al volver
+El listado de pacientes SHALL reflejar en la URL la búsqueda, la página y si incluye a los dados de baja. Volver al listado desde la ficha o el formulario de un paciente SHALL regresar a esa misma búsqueda y página, aunque en medio se haya navegado a la Historia, el odontograma o las consultas. Sin un listado previo en la pestaña, SHALL volver al listado sin filtros.
+
+#### Scenario: La búsqueda queda en la URL
+- **WHEN** se busca "Lucía" y se pasa a la página 2
+- **THEN** la URL del listado refleja la búsqueda y la página
+- **AND** recargar la página muestra los mismos resultados
+
+#### Scenario: Volver desde la ficha conserva la búsqueda
+- **WHEN** desde un listado filtrado se abre un paciente, se pasa por su Historia Clínica y se vuelve al listado desde la ficha
+- **THEN** el listado muestra la misma búsqueda y la misma página
+
+#### Scenario: Sin listado previo
+- **WHEN** se abre la ficha de un paciente directamente por URL y se vuelve al listado
+- **THEN** el listado se muestra sin filtros, en la primera página
+
+#### Scenario: El listado recordado no sobrevive al cierre de sesión
+- **WHEN** el usuario cierra sesión y vuelve a entrar
+- **THEN** volver al listado lo muestra sin la búsqueda anterior

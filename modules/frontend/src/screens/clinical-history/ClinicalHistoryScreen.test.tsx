@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { Routes, Route } from "react-router-dom";
+import { Link, Routes, Route } from "react-router-dom";
 import { http, HttpResponse } from "msw";
 import { renderWithProviders } from "@/test/utils";
 import { server } from "@/test/mocks/server";
@@ -141,6 +141,31 @@ describe("ClinicalHistoryScreen — requisito del odontograma (add-dental-chart)
   });
 });
 
+describe("ClinicalHistoryScreen — checklist del odontograma al completar", () => {
+  it("si al odontograma le falta información, lo dice y no deja completar", async () => {
+    const READY_DRAFT = { ...COMPLETED_HISTORY, status: "DRAFT" as const, completedAt: undefined };
+    const user = userEvent.setup();
+    renderScreen(READY_DRAFT, {
+      id: 1,
+      patientId: 1,
+      status: "OPEN",
+      findings: [],
+      specificationsReviewed: false,
+      observationsReviewed: true,
+    });
+
+    expect(await screen.findByRole("link", { name: /completar odontograma/i })).toHaveAttribute(
+      "href",
+      "/patients/1/dental-chart",
+    );
+    await user.click(screen.getByRole("button", { name: /completar historia clínica/i }));
+
+    const dialog = await screen.findByRole("dialog");
+    expect(within(dialog).getByText(/especificaciones \(marcar revisado\)/i)).toBeInTheDocument();
+    expect(within(dialog).getByRole("button", { name: "Completar" })).toBeDisabled();
+  });
+});
+
 describe("ClinicalHistoryScreen — historia sellada en modo lectura", () => {
   it("una historia COMPLETED no permite editar ni ofrece guardar o completar de nuevo", async () => {
     renderScreen(COMPLETED_HISTORY);
@@ -149,5 +174,39 @@ describe("ClinicalHistoryScreen — historia sellada en modo lectura", () => {
     expect(screen.getByLabelText(/motivo de consulta/i)).toBeDisabled();
     expect(screen.queryByRole("button", { name: /guardar avance/i })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /completar historia clínica/i })).not.toBeInTheDocument();
+  });
+});
+
+describe("ClinicalHistoryScreen — volver desde el odontograma", () => {
+  it("al volver a la Historia ya en caché, el progreso del checklist es el correcto", async () => {
+    const READY_DRAFT = { ...COMPLETED_HISTORY, status: "DRAFT" as const, completedAt: undefined };
+    server.use(
+      http.get("*/patients/1/clinical-history", () => HttpResponse.json(READY_DRAFT)),
+      http.get("*/patients/1/dental-chart", () => HttpResponse.json({ id: 1, patientId: 1, status: "OPEN", findings: [] })),
+    );
+    const user = userEvent.setup();
+    renderWithProviders(
+      <Routes>
+        <Route
+          path="/patients/:id/clinical-history"
+          element={
+            <>
+              <Link to="/patients/1/dental-chart">Odontograma (test)</Link>
+              <ClinicalHistoryScreen />
+            </>
+          }
+        />
+        <Route path="/patients/:id/dental-chart" element={<Link to="/patients/1/clinical-history">Volver (test)</Link>} />
+      </Routes>,
+      { initialEntries: ["/patients/1/clinical-history"] },
+    );
+
+    expect(await screen.findByText("9 de 9 listos para completar")).toBeInTheDocument();
+
+    // Ida al odontograma y vuelta: la Historia se monta con los datos ya en caché.
+    await user.click(screen.getByRole("link", { name: "Odontograma (test)" }));
+    await user.click(await screen.findByRole("link", { name: "Volver (test)" }));
+
+    expect(await screen.findByText("9 de 9 listos para completar")).toBeInTheDocument();
   });
 });

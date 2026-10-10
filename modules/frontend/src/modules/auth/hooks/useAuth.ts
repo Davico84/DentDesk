@@ -25,7 +25,11 @@ export function useRegister() {
   });
 }
 
-/** Cierra sesión. Best-effort: limpia el estado local aunque el backend falle. */
+/**
+ * Cierra sesión. Best-effort: limpia el estado local aunque el backend falle. También vacía el
+ * `sessionStorage` de la pestaña (p. ej. la última búsqueda del listado de pacientes), para que
+ * quien entre después en el mismo equipo no herede nada de esta sesión.
+ */
 export function useLogout() {
   const clear = useSessionStore.use.clear();
   const queryClient = useQueryClient();
@@ -34,6 +38,11 @@ export function useLogout() {
     onSettled: () => {
       clear();
       queryClient.clear();
+      try {
+        sessionStorage.clear();
+      } catch {
+        /* almacenamiento no disponible: no había nada que borrar */
+      }
     },
   });
 }

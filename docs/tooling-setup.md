@@ -138,3 +138,32 @@ Los `*IT` (Testcontainers) llevan `@Testcontainers(disabledWithoutDocker = true)
 
 > [!WARNING]
 > **Trampa aparte, ya resuelta pero vale la pena conocerla**: Testcontainers cachea la estrategia de conexión que le funcionó en `~/.testcontainers.properties` (`docker.client.strategy=...`). Si ese archivo quedó con una estrategia rota de un intento anterior, **ignora cualquier `DOCKER_HOST` que fijes después** hasta que lo borres. Si Testcontainers "no ve" un Docker que sabes que funciona, borra ese archivo antes de seguir investigando.
+
+## 7. `JWT_SECRET` local — regenerar uno corto o de ejemplo
+
+Desde `update-jwt-secret-validation` el backend **no arranca** si `app.security.jwt.secret` falta, quedó como el placeholder `${JWT_SECRET}`, es el valor de `secrets.properties.example` o tiene **menos de 32 bytes**. El `Caused by:` del log lo dice (`app.security.jwt.secret debe tener al menos 32 bytes (tiene N)`, `…usa el valor de ejemplo…`), sin mostrar el valor.
+
+Si tu `modules/backend/secrets.properties` es anterior, o lo copiaste del `.example` sin cambiar el secreto, reemplaza **a mano** la línea `JWT_SECRET=...`:
+
+```powershell
+openssl rand -base64 48
+# sin openssl:
+node -e "console.log(require('crypto').randomBytes(48).toString('base64'))"
+```
+
+Pega la salida como `JWT_SECRET=<salida>` en tu editor. **No** imprimas `secrets.properties` en la consola, ni pegues el secreto en chats, issues o PRs. Los tests no lo necesitan: usan su propio secreto (`AbstractIntegrationTest.TEST_JWT_SECRET`), que gana a tu archivo, al entorno y a las `-D`.
+
+Cambiar el secreto invalida los access tokens ya emitidos (tendrás que volver a iniciar sesión en local); ver `docs/backend.md` §12.
+
+**¿Ya arrancó el backend?** Cuando está listo para recibir peticiones escribe un bloque destacado en el log (`StartupReadyBanner`), fácil de ver en terminales integradas:
+
+```
+============================================================
+  >> Dentdesk API lista en http://localhost:8080
+    Swagger UI: http://localhost:8080/swagger-ui.html
+============================================================
+```
+
+Con `SWAGGER_ENABLED` ausente o en `false` la segunda línea dice `Swagger UI: desactivado (SWAGGER_ENABLED=false)`: la documentación está apagada por defecto para que un despliegue no exponga la API. En local, agrega `SWAGGER_ENABLED=true` a tu `secrets.properties` (el `.example` trae la línea **comentada**: copiarlo tal cual a un despliegue no enciende nada). Hace falta también para exportar el contrato con `curl` (`ContractDriftIT` te lo recuerda).
+
+Si no aparece, el arranque falló: busca el primer `Caused by:` del log (por ejemplo, un `JWT_SECRET` inválido).

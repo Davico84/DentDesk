@@ -18,12 +18,14 @@ Dimensión **tecnológica** (reutilizable). Guía única del cliente: stack, arq
 
 ```
 src/
-  layouts/     # marcos de página (shells) reutilizables
+  layouts/     # marcos de página: RootLayout (sesión, marca, toasts) y AppLayout (shell privado)
   screens/     # pantallas: orquestan una feature dentro de un layout (hojas de composición)
   modules/     # lógica encapsulada por dominio
     core/      # transversal (SIN deps a otros módulos):
       #   auth/ (guards RequireAuth/RequireGuest, roleHome) · components/ (DataState, InfoCard…)
-      #   config/ (httpClient axios) · hooks/ (useDebouncedValue…) · services/generated/ (orval)
+      #   components/shell/ (Sidebar, Header, NavItem, MobileNav: piezas del shell, sin dominio)
+      #   config/ (httpClient axios, sections: secciones + roles) · hooks/ (useDebouncedValue,
+      #   useMediaQuery…) · services/generated/ (orval)
       #   theme/ (deriveTheme, ThemeManager — branding) · ui/ (shadcn) · utils/
     <cap>/     # un módulo por capacidad (hooks de dominio, components, types, schemas Zod)
   store/       # stores Zustand (estado de cliente)
@@ -40,10 +42,15 @@ src/
   se vuelve una experiencia realmente distinta (p. ej. un backoffice de plataforma que gestiona
   *otras* organizaciones) — no es el caso hoy, y adelantarlo sería la abstracción prematura que
   `docs/coding-style.md §3` prohíbe.
-  > **Estado actual (objetivo, aún no adoptado):** hoy solo existe `RootLayout` (bootstrap de
-  > sesión + marca, sin nav — cada pantalla arma su propio `<main>` suelto). El `AppLayout` con
-  > sidebar/header se construye la primera vez que una segunda pantalla necesite nav persistente
-  > compartida, no antes.
+- **Secciones en un solo lugar.** `core/config/sections.ts` declara cada sección (`id`, ruta,
+  `roles?`). De ahí salen el menú (`core/components/shell/navItems.ts`, que solo agrega etiqueta e
+  ícono) y el árbol de rutas (`routes/index.tsx` agrupa cada sección bajo
+  `RequireAuth roles={...}`). Una sección nueva = una entrada ahí + su etiqueta e ícono; los roles
+  no se escriben en otro sitio. Ocultar en el front **no** autoriza: el backend lleva su
+  `@PreAuthorize`.
+- **Un solo `<main>`.** Lo pone `AppLayout`; `PageContainer` es un `<div>` que da el ancho de
+  contenido uniforme (`max-w-5xl`). Una pantalla privada nunca arma su propio `<main>` ni usa
+  `min-h-screen` (centrar en vertical dentro del shell: `py-*`).
 - **`screens` orquestan; `modules` encapsulan lógica.** Las pantallas montan features dentro de un layout; no contienen lógica de negocio.
   > [!IMPORTANT]
   > **Una pantalla es una línea.** `screens/<área>/XScreen.tsx` → `return <XFeature />;`. **NO declares sub-componentes dentro de la screen** —ni skeletons, ni estados vacíos/error, ni campos de formulario, ni filas—: van a `modules/<cap>/components/`, agrupados por tipo (la feature, filas, loaders/skeletons, estados, modales). Señal de mal uso: una screen con `function SkeletonRows()` o `function Field()` debajo.
@@ -263,9 +270,9 @@ export const useSortingStore = createSelectors(useSortingStoreBase);
 > lo necesite y shadcn/Radix no lo cubra — no antes.
 
 > [!WARNING]
-> **`components.json` ya existe (escrito a mano) — no dejes que el CLI haga `init`.** Un `init` reescribiría `src/styles/globals.css` y `tailwind.config.cjs` con sus defaults, y ahí vive la **tematización por organización** (§4.5.1): la romperías.
+> **`components.json` ya existe (escrito a mano) — no dejes que el CLI haga `init`.** Un `init` reescribiría `src/styles/globals.css` con sus defaults, y ahí vive la **tematización por organización** (§4.5.1): la romperías.
 > Los `paths` del alias están **duplicados en el `tsconfig.json` raíz solo para el tooling**: es un tsconfig *solution* (`files: []`) y sin ellos el CLI no resuelve `@/` y escribe los componentes en una carpeta **literal `@/`**.
-> **Tras cada `add`, verifica con `git diff` que no tocó `globals.css` ni `tailwind.config.cjs`.**
+> **Tras cada `add`, verifica con `git diff` que no tocó `globals.css`.** `components.json` declara Tailwind 4 (`"config": ""`), así que el registro genera componentes v4 que encajan sin adaptar.
 
 > Regla: un componente **genérico y reutilizable** (un `Badge` base, una `Table`) vive en `core/ui`, no en `modules/<cap>/`. Lo específico de un dominio (p. ej. `PatientStatusBadge`, que conoce el enum de estado del paciente) sí vive en `modules/<cap>/components/`, y puede componerse sobre el primitivo de `core/ui`.
 
@@ -294,12 +301,14 @@ export const useSortingStore = createSelectors(useSortingStoreBase);
   propias entradas/salidas al cambiar es un único movimiento coherente, no "animar todo".
 
 ### 4.3 Responsividad (Mobile-First)
-- Breakpoints: **móvil** < `480px`, **tablet** `481–1024px`, **escritorio** > `1024px`.
-- Prueba cambios de navegación/estilos en móvil, tablet y escritorio.
-
-> **Estado actual (objetivo, aún no adoptado):** la Sidebar del `AppLayout` (§1) no existe todavía.
-> Objetivo cuando se construya: cajón flotante en móvil, barra de iconos en mediano, expandida en
-> escritorio.
+- Breakpoints (los de Tailwind): **celular** < `640px` (`sm`), **tablet** `640–1023px`,
+  **escritorio** ≥ `1024px` (`lg`). En JS, `useMediaQuery(DESKTOP_QUERY)` de `core/hooks`.
+- El shell (`AppLayout`, §1): en celular la barra se oculta y el botón de menú abre un cajón
+  (`core/ui/sheet`); en tablet la barra muestra solo íconos con tooltip; en escritorio se expande o
+  se contrae (preferencia en `useSidebarStore`). El marco mide como mucho 1920 px, centrado.
+- Prueba cambios de navegación/estilos en móvil, tablet y escritorio. `e2e/app-shell.spec.ts`
+  falla si alguna pantalla privada se desplaza de costado a 375, 768 o 1280 px: una pantalla nueva
+  se agrega a su lista.
 
 ### 4.4 Accesibilidad (WCAG)
 - **HTML semántico** (`<aside>`, `<nav>`, `<main>`, `<header>`, `<article>`).
@@ -307,15 +316,24 @@ export const useSortingStore = createSelectors(useSortingStoreBase);
 - **Formularios**: cada `input` con su `label` enlazado (`htmlFor`/`id`).
 - **ARIA**: `aria-label` en botones solo-icono; `aria-describedby` para textos/errores.
 
-### 4.5 Paleta y variables de estilo (Tailwind v3 + CSS vars)
-Colores resueltos por variables CSS en `src/styles/globals.css`.
-> [!WARNING]
-> `tailwind.config.cjs` mapea colores con HSL: `background: "hsl(var(--background))"`. Las variables CSS deben contener **solo los 3 canales separados por espacios** (`--background: 220 25% 98%`), sin envoltorio. Si importas variables de diseños Tailwind v4/OKLCH (`oklch(...)`), **conviértelas a HSL puro** antes de pegarlas, o compilará a `hsl(oklch(...))` y romperá los estilos.
+### 4.5 Paleta y variables de estilo (Tailwind v4 + CSS vars)
+Toda la configuración de Tailwind vive en `src/styles/globals.css` (no hay `tailwind.config.*` ni PostCSS: Tailwind entra como plugin de Vite, `@tailwindcss/vite`).
+
+- **Tokens con color completo** en `:root` (claro) y `.dark` (oscuro): `--primary: hsl(292 72% 36%)`. Es el formato que emite el registro de shadcn para v4 y el que escribe el tema de cada clínica (§4.5.1). Un valor en OKLCH (`oklch(...)`) también sirve tal cual: ya no hay envoltorio `hsl(var(...))` que lo rompa.
+- **`@theme inline`** mapea cada token a su utilidad (`--color-primary: var(--primary)` → `bg-primary`, `text-primary`, `bg-primary/10`…). El `inline` hace que la utilidad lea la variable en runtime: el cambio claro/oscuro y el tema de la clínica funcionan sin recompilar; la opacidad sale con `color-mix()`.
+- **Modo oscuro por clase**: `@custom-variant dark (&:where(.dark, .dark *))` — la clase `dark` en `<html>` la maneja `ThemeToggle`; nunca `prefers-color-scheme`.
+- **Navegadores**: Tailwind 4 usa `color-mix()`, `@property` y capas en cascada en runtime. Requiere **Safari 16.4+, Chrome 111+, Firefox 128+**; en uno anterior la app se ve sin estilos correctos.
+- **Opacidad** (`bg-primary/10`): v4 la resuelve con `color-mix(in oklab, var(--primary) 10%, transparent)` en vez de `hsl(... / 0.1)`. El resultado es el mismo color con transparencia; al migrar se midió una diferencia máxima de **1/255 por canal** (redondeo), invisible.
+- **Animaciones** de los componentes de Radix (`animate-in`, `fade-in-0`, `zoom-in-95`…): `tw-animate-css`.
+- **Tokens de marca del producto** (`--brand-cta`, `--brand-teal`, `--brand-hero-*`…): colores del login que **no** siguen al tema de la clínica. `deriveTheme` nunca los emite. Úsalos solo para la identidad de Dentdesk.
+
+> [!IMPORTANT]
+> **Sin colores literales en componentes** (`#hex` y funciones de color: `rgb()`, `hsl()`, `oklch()`…; no se buscan colores con nombre porque chocan con clases como `text-white`): cambiar un color se hace en `globals.css`. Lo vigila `src/styles/noLiteralColors.test.ts`, con una lista de excepciones justificadas en el propio test (colores normativos y papel del odontograma, presets de marca, el generador `deriveTheme`). Si un archivo de la lista deja de tener literales, el test pide sacarlo. El contrato del tema (utilidades desde tokens, paridad claro/oscuro, `dark:` por clase) lo compila `src/styles/themeContract.test.ts` con `@tailwindcss/node`.
 
 #### 4.5.1 Tematización por organización (branding)
 Capacidad `organization-branding`: cada organización personaliza su color de marca y logo, aplicados al **app shell** (post-login). Piezas:
 
-- **`deriveTheme(colors)`** (`modules/core/theme`) — lógica **pura** (sin React, testeable): de 1-2 colores de marca deriva los tokens (claro + oscuro). Los `-foreground` se eligen por **contraste WCAG AA** (alternan solo blanco/neutro oscuro, nunca generan colores); *lightness clamping* por modo; los **neutros** conservan S/L y solo cambian el hue; los **semánticos** (éxito/aviso/error) **no** se tocan.
+- **`deriveTheme(colors)`** (`modules/core/theme`) — lógica **pura** (sin React, testeable): de 1-2 colores de marca deriva los tokens (claro + oscuro), como **color completo** (`hsl(H S% L%)`, el mismo formato que `globals.css`). Los `-foreground` se eligen por **contraste WCAG AA** (alternan solo blanco/neutro oscuro, nunca generan colores); *lightness clamping* por modo; los **neutros** conservan S/L y solo cambian el hue; los **semánticos** (éxito/aviso/error) **no** se tocan.
 - **`ThemeManager`** (sin React) — inyecta las variables en un `<style>` con `:root { … }` y `.dark { … }`; `reset()` restaura los defaults del producto. **El DOM lo toca el ThemeManager, no los hooks.**
 - **`useBranding`** (en `RootLayout`) — reactivo al **`organizationId` activo** (no al login): al cambiar, obtiene la marca, deriva y aplica; resetea al cerrar sesión.
 - **Cache-first** (`brandingCache`, `localStorage` por organización) — pinta al instante en el arranque (`applyCachedThemeOnBoot` en `main.tsx`) y se corrige tras el refresh; limpia en logout.

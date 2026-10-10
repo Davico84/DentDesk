@@ -17,7 +17,7 @@ export function getPasswordStrength(password: string): PasswordStrength {
   if (/[^A-Za-z0-9]/.test(password)) score++;
 
   if (score === 1) return { level: 1, label: "Débil",   colorClass: "bg-destructive text-destructive" };
-  if (score === 2) return { level: 2, label: "Regular", colorClass: "bg-[hsl(38_92%_46%)] text-[hsl(38_92%_46%)]" };
-  if (score === 3) return { level: 3, label: "Buena",   colorClass: "bg-[hsl(174_70%_40%)] text-[hsl(174_70%_40%)]" };
-  return             { level: 4, label: "Fuerte",  colorClass: "bg-[hsl(152_55%_38%)] text-[hsl(152_55%_38%)]" };
+  if (score === 2) return { level: 2, label: "Regular", colorClass: "bg-brand-amber text-brand-amber" };
+  if (score === 3) return { level: 3, label: "Buena",   colorClass: "bg-brand-teal text-brand-teal" };
+  return             { level: 4, label: "Fuerte",  colorClass: "bg-brand-green text-brand-green" };
 }

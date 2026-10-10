@@ -2,20 +2,24 @@ import { Trash2 } from "lucide-react";
 import { Button } from "@/modules/core/ui/button";
 import { dateLabel } from "@/modules/core/utils/dateLabel";
 import type { DiagnosisResponse } from "@/modules/core/services/generated/model";
-import { useRemoveDiagnosis } from "@/modules/clinical-history/hooks/useClinicalHistoryApi";
 import { labelOf, tipoDiagnosticoOptions } from "./diagnosisOptions";
 
-/** Diagnósticos ya agregados. En DRAFT se pueden eliminar; en COMPLETED, solo lectura. */
+/** Lo que la lista necesita de un diagnóstico: comparten la forma el de la Historia y el de la nota. */
+type ListedDiagnosis = Pick<DiagnosisResponse, "id" | "cie10Code" | "ubicacion" | "fdiNumber" | "tipoDiagnostico" | "createdAt">;
+
+/**
+ * Diagnósticos ya agregados. Con `onRemove` se pueden eliminar (Historia en DRAFT, nota abierta);
+ * sin él, solo lectura.
+ */
 export function DiagnosisList({
-  patientId,
   diagnoses,
-  editable,
+  onRemove,
+  removing = false,
 }: {
-  patientId: number;
-  diagnoses: DiagnosisResponse[];
-  editable: boolean;
+  diagnoses: ListedDiagnosis[];
+  onRemove?: (diagnosisId: number) => void;
+  removing?: boolean;
 }) {
-  const removeDiagnosis = useRemoveDiagnosis(patientId);
 
   if (diagnoses.length === 0) {
     return <p className="text-sm text-muted-foreground">Sin diagnósticos registrados todavía.</p>;
@@ -32,14 +36,14 @@ export function DiagnosisList({
               {d.createdAt ? ` · ${dateLabel(d.createdAt)}` : null}
             </span>
           </div>
-          {editable ? (
+          {onRemove ? (
             <Button
               type="button"
               variant="ghost"
               size="icon"
               aria-label="Eliminar diagnóstico"
-              disabled={removeDiagnosis.isPending}
-              onClick={() => d.id != null && removeDiagnosis.mutate(d.id)}
+              disabled={removing}
+              onClick={() => d.id != null && onRemove(d.id)}
             >
               <Trash2 className="size-4 text-destructive" />
             </Button>

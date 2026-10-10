@@ -55,6 +55,9 @@ Dimensión de **negocio** (sustituible por proyecto). Base de conocimiento del d
 | **Superficie dental** | Cara de una pieza: `M` mesial · `D` distal · `V` vestibular · `P`/`L` palatino/lingual · `O`/`I` oclusal/incisal. |
 | **Cuadrante** | Cada una de las divisiones de la boca; primer dígito del código FDI. |
 | **Anamnesis** | Antecedentes clínicos del paciente (alergias, condiciones, medicación) que condicionan el tratamiento. |
+| **Nota de consulta** | Registro clínico de **cada atención posterior a la admisión** (la primera atención es la Historia Clínica + odontograma inicial). No es la cita: la cita es el turno agendado; la nota es lo que el odontólogo registró al atender. |
+| **Asiento de antecedente** | Alta o baja de una alergia/RAM, antecedente patológico o medicación, registrada en una nota. La baja no borra el alta: lo vigente se calcula. |
+| **Corrección de error material** | Registro **nuevo** que corrige un campo de texto de una nota sellada, con motivo, sin tocar el original (DS 009-2017-SA art. 47 c). No aplica a diagnósticos ni a omisiones. |
 | **Consentimiento informado** | Autorización del tratamiento; en menores lo otorga el tutor/responsable. |
 
 ---
@@ -146,7 +149,7 @@ Ficha clínica-administrativa. Se atienden **menores y adultos**.
 - Contacto: `phone`, `email`, `address` (los teléfonos son **string con formato**, no numéricos). **El teléfono se puede compartir** entre pacientes de la misma clínica (familias) — no es un error de validación: al chocar, el sistema **avisa** (no bloquea), calculado sobre la clínica activa (`update-patients`, `ADR-0010`).
 - **Responsable (para menores)** — campos en el propio Patient: `guardianName`, `guardianRelationship` (**enum** `MOTHER|FATHER|GUARDIAN|OTHER`) y `guardianPhone`, **requeridos** cuando el paciente es menor de edad; `guardianDocument` **opcional** (no siempre está a mano y no debe bloquear la atención).
 - **Contacto de emergencia**: `emergencyContactName`, `emergencyContactPhone`, `emergencyContactRelationship` — **obligatorio solo cuando el paciente no tiene teléfono propio** (regla condicional, mismo mecanismo que el responsable de menores); si hay teléfono propio, sigue siendo opcional (`update-patients`, `ADR-0010`).
-- **Datos clínicos (anamnesis)** — condicionan el tratamiento: `allergies` (lista; anestesia, penicilina, látex…), `medicalHistory`/`conditions` (diabetes, hipertensión, embarazo, anticoagulantes, cardiopatías…), `currentMedication` (lista)
+- **Datos clínicos (anamnesis)** — condicionan el tratamiento: `allergies` (lista; anestesia, penicilina, látex…), `medicalHistory`/`conditions` (diabetes, hipertensión, embarazo, anticoagulantes, cardiopatías…), `currentMedication` (lista). **Se congela desde que el paciente tiene Historia Clínica** (en cualquier estado): lo nuevo se registra como asiento en la nota de consulta, y esta anamnesis se muestra como *registrada al dar de alta, sin autoría clínica* (`update-clinical-history`, `ADR-0020` D6). Borrar las columnas es un `update-patients` futuro.
 - **NO es un usuario del sistema.** El paciente es un **cliente de la clínica**: solo un registro. No tiene cuenta, no inicia sesión y no se vincula a ningún `User`. Lo dan de alta el administrador o la recepcionista (que sí son `User`). *Un eventual portal del paciente sería una capacidad futura y añadiría el vínculo en ese momento; hoy queda fuera de alcance.*
 - **El paciente pertenece a UNA clínica**, no a la plataforma. La misma persona atendida en dos clínicas son **dos `Patient` distintos**, sin relación entre sí: **ninguna clínica sabe que la otra la atiende**. Los datos demográficos se **duplican** (es el precio de la privacidad) y la información clínica **nunca se comparte**.
   > ⚠️ **El documento (DNI) es único POR CLÍNICA**: la restricción va sobre `(organizationId, document)`, **nunca** sobre `document` a secas — eso impediría que dos clínicas atendieran al mismo paciente.
@@ -160,7 +163,7 @@ Ficha clínica-administrativa. Se atienden **menores y adultos**.
 - **Alergias / antecedentes / medicación** ⇒ deben alertarse/mostrarse antes de registrar un tratamiento.
 - La **dentición** del odontograma depende de la edad (ver `treatments`).
 
-### `clinical-history` → **HistoriaClinica + ClinicalHistoryDiagnosis** *(documento inicial; construida)*
+### `clinical-history` → **HistoriaClinica + ClinicalHistoryDiagnosis + ConsultationNote** *(documento inicial y notas de consulta; construida)*
 
 El documento médico-legal inicial de la atención: **una por paciente, de por vida, por clínica** (misma cardinalidad que `Patient`, `ADR-0004`), con ciclo `DRAFT→COMPLETED`. Prerrequisito de cualquier tratamiento (`ADR-0011`). **No** guarda columnas de filiación — la lee de `Patient` en el mapper, así refleja siempre el dato vigente aun sellada.
 
@@ -178,7 +181,19 @@ El documento médico-legal inicial de la atención: **una por paciente, de por v
 
 > ⚠️ **Estado consultable de habilitación**: `{ status, enabledForTreatment }` por paciente (`true` solo si `COMPLETED`) — es la señal que `treatment-plans`/`treatments` (aún no construidas) consumirán como gate. Se expone ya para no rehacer el contrato después.
 >
-> **Pendiente, fuera de esta capacidad** (ver `docs/vision.md §3` y §7): evolución post-sello (`ClinicalEvolutionEntry` append-only, estructura SOAP, reutilizar el tipo `REPETIDO`), retención legal de **20 años** + archivo pasivo ([`ADR-0018`](adr/0018-cumplimiento-nts-139-y-cop.md) D1 — la cifra anterior, 15 años, era más corta que la legal), la **Ficha Odonto-Estomatológica** que NTS 139 § 5.2.2 numeral 12 exige y esta capacidad no cubre (IHO simplificado, placa blanda/calcificada, alta básica con fecha, odontograma inicial **y final** — `ADR-0018` D2), y diagnóstico sin CIE10 para casos estéticos.
+**ConsultationNote** *(nota de consulta; `update-clinical-history`, `ADR-0020`)* — agregado propio colgado del paciente, no fila hija de la Historia.
+- Precondición: Historia `COMPLETED` y paciente **activo**. Una sola `ABIERTA` por paciente; ciclo `ABIERTA → SELLADA`, **sin cierre diario** (eso es de hospitalización). Abierta = borrador editable, descartable solo si está vacía; sellada = inmutable (servicio + triggers `V22`).
+- `attendedAt` (cuándo se atendió, lo ingresa el odontólogo: no futura —margen de 1 min— ni anterior a la última sellada) **distinto** de `createdAt` (cuándo se escribió).
+- Contenido de NTS 139 §5.2.1 (1), unión de 1.1 d y 1.2: obligatorios para sellar `reason`, `examination`, `treatment` y ≥1 diagnóstico; opcionales `illnessDuration`, `symptomsAndSigns`, `previousTreatment`, `biologicalFunctions`, `auxiliaryExams`, `referral`, `nextAppointmentOn` (solo fecha, posterior al día de la atención en la zona de la clínica).
+- `sealedAt`/`sealedBy`: quien sella firma, y es el único que puede corregir.
+
+**ConsultationNoteDiagnosis** — misma forma y reglas que `ClinicalHistoryDiagnosis`, en tabla propia. Un `REPETIDO` exige que el código ya figure en la Historia o en una nota **sellada** del paciente (NTS 139 §4.2.9).
+
+**ConsultationNoteCorrection** — `field` (solo campos de texto), `correctedText`, `reason`; solo sobre nota sellada, solo por `sealedBy`, no sobre un campo vacío. Nunca se modifica ni se borra.
+
+**ClinicalBackgroundEntry** — asiento `ALTA` (categoría `ALERGIA_RAM` | `ANTECEDENTE_PATOLOGICO` | `MEDICACION` + descripción) o `BAJA` (`closesEntryId` → un alta vigente de una nota sellada). **Antecedentes vigentes** = texto de la Historia sellada + altas sin baja + anamnesis de la ficha, cada uno con su origen; se calcula en cada lectura.
+
+> **Pendiente, fuera de esta capacidad** (ver `docs/vision.md §3` y §7): odontograma de evolución sellado con la nota (corte B, `update-dental-chart`), retención legal de **20 años** + archivo pasivo ([`ADR-0018`](adr/0018-cumplimiento-nts-139-y-cop.md) D1 — la cifra anterior, 15 años, era más corta que la legal), la **Ficha Odonto-Estomatológica** que NTS 139 § 5.2.2 numeral 12 exige y esta capacidad no cubre (IHO simplificado, placa blanda/calcificada, alta básica con fecha, odontograma inicial **y final** — `ADR-0018` D2), y diagnóstico sin CIE10 para casos estéticos.
 
 ### `appointments` → **Appointment**
 Cita agendada.
@@ -289,6 +304,12 @@ erDiagram
     Organization ||--o{ Patient : "atiende a"
     Patient ||--o| HistoriaClinica : "tiene (única, de por vida)"
     HistoriaClinica ||--o{ ClinicalHistoryDiagnosis : "registra"
+    Patient ||--o{ ConsultationNote : "atenciones posteriores"
+    ConsultationNote ||--o{ ConsultationNoteDiagnosis : "registra"
+    ConsultationNote ||--o{ ConsultationNoteCorrection : "se corrige con"
+    ConsultationNote ||--o{ ClinicalBackgroundEntry : "registra"
+    ClinicalBackgroundEntry |o--o| ClinicalBackgroundEntry : "baja cierra alta"
+    Cie10Code ||--o{ ConsultationNoteDiagnosis : "clasifica"
     Cie10Code ||--o{ ClinicalHistoryDiagnosis : "clasifica"
     Cie10Code ||--o{ Cie10Code : "jerarquía (parentCode)"
     User ||--o{ Appointment : "atiende (dentista)"
@@ -386,6 +407,37 @@ erDiagram
         String tipoDiagnostico
         DateTime createdAt
         Long createdBy
+    }
+    ConsultationNote {
+        Long id PK
+        Long organizationId FK
+        Long patientId FK "UK parcial ABIERTA"
+        String status
+        DateTime attendedAt
+        String reason
+        String examination
+        String treatment
+        Date nextAppointmentOn
+        DateTime sealedAt
+        Long sealedBy
+    }
+    ConsultationNoteCorrection {
+        Long id PK
+        Long noteId FK
+        String field
+        String correctedText
+        String reason
+        DateTime createdAt
+        Long createdBy
+    }
+    ClinicalBackgroundEntry {
+        Long id PK
+        Long patientId FK
+        Long noteId FK
+        String category
+        String kind
+        String description
+        Long closesEntryId FK "UK"
     }
     Cie10Code {
         String code PK

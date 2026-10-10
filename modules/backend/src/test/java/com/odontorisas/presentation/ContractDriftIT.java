@@ -6,6 +6,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
+import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.nio.charset.StandardCharsets;
@@ -39,6 +40,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * —indentado, orden de claves— es irrelevante.
  */
 @SpringBootTest
+// La documentación está apagada por defecto (update-api-docs-exposure, design D2): este test la enciende.
+@TestPropertySource(properties = "SWAGGER_ENABLED=true")
 @AutoConfigureMockMvc
 class ContractDriftIT extends AbstractIntegrationTest {
 
@@ -52,7 +55,7 @@ class ContractDriftIT extends AbstractIntegrationTest {
         Has cambiado la API sin regenerar el contrato. El frontend deriva sus tipos de ese
         archivo, así que quedaría desincronizado. Para arreglarlo:
 
-            1) arranca el backend
+            1) arranca el backend con SWAGGER_ENABLED=true (en secrets.properties)
             2) curl http://localhost:8080/v3/api-docs > contracts/openapi.json
             3) pnpm --filter odontorisas-frontend generate:api
             4) commitea ambos

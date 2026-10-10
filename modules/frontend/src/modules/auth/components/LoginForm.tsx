@@ -64,7 +64,7 @@ export function LoginForm() {
           <button
             type="button"
             tabIndex={-1}
-            className="text-xs text-primary hover:underline underline-offset-4 transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring rounded"
+            className="text-xs text-primary hover:underline underline-offset-4 transition-colors focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring rounded"
           >
             ¿Olvidaste tu contraseña?
           </button>
@@ -100,11 +100,11 @@ export function LoginForm() {
       {/* Badges de seguridad */}
       <div className="flex items-center justify-center gap-4 text-[11px] text-muted-foreground">
         <span className="flex items-center gap-1">
-          <span className="inline-block size-1.5 rounded-full bg-[hsl(152_55%_38%)]" />
+          <span className="inline-block size-1.5 rounded-full bg-brand-green" />
           Conexión cifrada
         </span>
         <span className="flex items-center gap-1">
-          <span className="inline-block size-1.5 rounded-full bg-[hsl(174_70%_40%)]" />
+          <span className="inline-block size-1.5 rounded-full bg-brand-teal" />
           Datos protegidos
         </span>
       </div>

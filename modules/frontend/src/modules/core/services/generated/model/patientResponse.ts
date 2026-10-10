@@ -35,4 +35,6 @@ export interface PatientResponse {
   status?: PatientResponseStatus;
   /** Aviso no bloqueante: el teléfono ya está en otros pacientes de la clínica. */
   phoneSharedWithOtherPatients?: boolean;
+  /** El paciente tiene Historia Clínica: alergias, condiciones y medicación ya no se editan en la ficha. */
+  anamnesisFrozen?: boolean;
 }

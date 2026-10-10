@@ -1,4 +1,5 @@
-import { CheckCircle2, Circle, Loader2 } from "lucide-react";
+import { Link } from "react-router-dom";
+import { CheckCircle2, Circle, CircleAlert, Loader2 } from "lucide-react";
 import { Button } from "@/modules/core/ui/button";
 import {
   Dialog,
@@ -9,6 +10,7 @@ import {
   DialogTitle,
 } from "@/modules/core/ui/dialog";
 import { CHECKLIST_LABELS } from "@/modules/clinical-history/schemas/clinicalHistory";
+import { DENTAL_CHART_CHECKLIST_LABELS } from "@/modules/dental-chart/schemas/dentalChart";
 
 /**
  * Confirmación antes de sellar a COMPLETED (ADR-0011): explícita sobre que la información
@@ -20,16 +22,21 @@ export function CompleteHistoryDialog({
   open,
   onOpenChange,
   missingFields,
+  dentalChartMissingFields = [],
+  dentalChartHref,
   onConfirm,
   pending,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   missingFields: string[];
+  /** Lo que le falta al odontograma inicial, que se sella en la misma operación (ADR-0012 D5). */
+  dentalChartMissingFields?: string[];
+  dentalChartHref?: string;
   onConfirm: () => void;
   pending: boolean;
 }) {
-  const ready = missingFields.length === 0;
+  const ready = missingFields.length === 0 && dentalChartMissingFields.length === 0;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -58,6 +65,25 @@ export function CompleteHistoryDialog({
             );
           })}
         </ul>
+
+        {dentalChartMissingFields.length > 0 ? (
+          <div className="flex flex-col gap-1.5 border-t pt-3 text-sm">
+            <p className="font-medium">Odontograma inicial</p>
+            <ul className="flex flex-col gap-1.5">
+              {dentalChartMissingFields.map((field) => (
+                <li key={field} className="flex items-center gap-2 text-muted-foreground">
+                  <CircleAlert className="size-4 shrink-0" />
+                  {DENTAL_CHART_CHECKLIST_LABELS[field] ?? field}
+                </li>
+              ))}
+            </ul>
+            {dentalChartHref ? (
+              <Link to={dentalChartHref} className="text-primary underline-offset-4 hover:underline">
+                Ir al odontograma
+              </Link>
+            ) : null}
+          </div>
+        ) : null}
 
         <DialogFooter className="gap-2 sm:gap-2">
           <Button variant="ghost" onClick={() => onOpenChange(false)} disabled={pending}>

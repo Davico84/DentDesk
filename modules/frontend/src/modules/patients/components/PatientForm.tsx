@@ -5,7 +5,8 @@ import { ArrowLeft, HeartPulse, Loader2, Phone, Siren, User, UserCheck } from "l
 import { toast } from "sonner";
 import { Button } from "@/modules/core/ui/button";
 import { buttonVariants } from "@/modules/core/ui/button-variants";
-import { PATHS, patientDetailPath } from "@/routes/paths";
+import { patientDetailPath } from "@/routes/paths";
+import { patientsListPath } from "@/modules/patients/utils/listNavigation";
 import {
   applyServerFieldErrors,
   getApiProblem,
@@ -25,8 +26,10 @@ import {
 } from "@/modules/patients/schemas/patient";
 import { useCreatePatient, usePatient, useUpdatePatient } from "@/modules/patients/hooks/usePatientsApi";
 import { FormSection, FormField, SelectField, FormErrorSummary } from "@/modules/core/ui/form-field";
+import { InfoRow } from "@/modules/core/components/InfoCard";
 import { documentTypeOptions, sexOptions, guardianRelationshipOptions } from "./patientOptions";
 import { PhoneNumberField } from "./PhoneNumberField";
+import { PageContainer } from "@/modules/core/components/PageContainer";
 
 /**
  * Etiqueta de cada campo, en **un solo sitio**: la usan los campos y el resumen de errores. Si
@@ -90,11 +93,12 @@ export function PatientForm() {
   // descripción de la sección no coincidiría con lo que el propio schema exige al validar.
   const hasOwnPhone = Boolean(phone?.trim()) && phone !== PHONE_COUNTRY_CODE;
   const pending = createPatient.isPending || updatePatient.isPending;
-  const backTo = isEdit ? patientDetailPath(id!) : PATHS.PATIENTS;
+  const anamnesisFrozen = patientQuery.data?.anamnesisFrozen === true;
+  const backTo = isEdit ? patientDetailPath(id!) : patientsListPath();
 
   if (isEdit && patientQuery.isLoading) {
     return (
-      <div className="flex min-h-screen items-center justify-center">
+      <div className="flex items-center justify-center py-24">
         <Loader2 className="size-6 animate-spin text-muted-foreground" />
       </div>
     );
@@ -124,7 +128,7 @@ export function PatientForm() {
   };
 
   return (
-    <main className="mx-auto flex min-h-screen w-full max-w-2xl flex-col gap-6 p-6">
+    <PageContainer>
       <header className="flex items-center gap-3">
         <Link to={backTo} aria-label="Volver" className={buttonVariants({ variant: "ghost", size: "icon" })}>
           <ArrowLeft className="size-4" />
@@ -257,16 +261,37 @@ export function PatientForm() {
           defaultOpen={false}
           hasError={Boolean(errors.allergies || errors.conditions || errors.currentMedication)}
         >
-          <FormField label={LABELS.allergies} name="allergies" register={register} error={errors.allergies} placeholder="penicilina, látex" wide />
-          <FormField label={LABELS.conditions} name="conditions" register={register} error={errors.conditions} placeholder="diabetes, hipertensión" wide />
-          <FormField label={LABELS.currentMedication} name="currentMedication" register={register} error={errors.currentMedication} wide />
+          {anamnesisFrozen ? (
+            /*
+              update-clinical-history design.md D10: con Historia Clínica, la anamnesis de la ficha no
+              cambia. Los campos NO se registran, pero sus valores siguen en el estado del formulario
+              (shouldUnregister=false), así que el guardado los manda tal cual y el servidor los acepta.
+            */
+            <div className="flex flex-col gap-2 text-sm sm:col-span-2">
+              <p className="text-muted-foreground">
+                El paciente ya tiene Historia Clínica: esta anamnesis queda como se registró al darlo de alta. Los
+                antecedentes nuevos se registran en la consulta.
+              </p>
+              <dl className="flex flex-col gap-2.5">
+                <InfoRow label={LABELS.allergies} value={patientQuery.data?.allergies?.join(", ")} />
+                <InfoRow label={LABELS.conditions} value={patientQuery.data?.conditions?.join(", ")} />
+                <InfoRow label={LABELS.currentMedication} value={patientQuery.data?.currentMedication?.join(", ")} />
+              </dl>
+            </div>
+          ) : (
+            <>
+              <FormField label={LABELS.allergies} name="allergies" register={register} error={errors.allergies} placeholder="penicilina, látex" wide />
+              <FormField label={LABELS.conditions} name="conditions" register={register} error={errors.conditions} placeholder="diabetes, hipertensión" wide />
+              <FormField label={LABELS.currentMedication} name="currentMedication" register={register} error={errors.currentMedication} wide />
+            </>
+          )}
         </FormSection>
 
         {/*
           Barra de acciones FIJA: en un formulario largo, dejar el botón al final obliga a
           scrollear hasta abajo para guardar. Aquí siempre está a la vista.
         */}
-        <div className="sticky bottom-0 -mx-6 border-t bg-background/95 px-6 py-4 backdrop-blur supports-[backdrop-filter]:bg-background/80">
+        <div className="sticky bottom-0 -mx-4 border-t bg-background/95 px-4 py-4 sm:-mx-6 sm:px-6 backdrop-blur-sm supports-backdrop-filter:bg-background/80">
           <div className="flex items-center justify-end gap-3">
             <Link to={backTo} className={buttonVariants({ variant: "ghost" })}>
               Cancelar
@@ -278,6 +303,7 @@ export function PatientForm() {
           </div>
         </div>
       </form>
-    </main>
+    </PageContainer>
   );
 }
+

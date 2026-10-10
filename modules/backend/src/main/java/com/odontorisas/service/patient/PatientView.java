@@ -14,6 +14,8 @@ import java.util.List;
  * Incluye {@code minor} <b>derivado</b> (design.md D2): se calcula al leer, nunca se persiste.
  * {@code phoneSharedWithOtherPatients} es un <b>aviso</b> (update-patients D1): indica que el
  * teléfono ya está en otros pacientes de la clínica; lo computa el servicio, no la entidad.
+ * {@code anamnesisFrozen}: el paciente ya tiene Historia Clínica, así que su anamnesis no se edita
+ * (`update-clinical-history` design.md D10).
  */
 public record PatientView(
     Long id,
@@ -37,15 +39,16 @@ public record PatientView(
     List<String> conditions,
     List<String> currentMedication,
     PatientStatus status,
-    boolean phoneSharedWithOtherPatients) {
+    boolean phoneSharedWithOtherPatients,
+    boolean anamnesisFrozen) {
 
-    public static PatientView from(Patient p, boolean phoneSharedWithOtherPatients) {
+    public static PatientView from(Patient p, boolean phoneSharedWithOtherPatients, boolean anamnesisFrozen) {
         return new PatientView(
             p.getId(), p.getFullName(), p.getDocumentType(), p.getDocument(), p.getBirthDate(), p.isMinor(), p.getSex(),
             p.getPhone(), p.getEmail(), p.getAddress(),
             p.getGuardianName(), p.getGuardianRelationship(), p.getGuardianDocument(), p.getGuardianPhone(),
             p.getEmergencyContactName(), p.getEmergencyContactPhone(), p.getEmergencyContactRelationship(),
             p.getAllergies(), p.getConditions(), p.getCurrentMedication(), p.getStatus(),
-            phoneSharedWithOtherPatients);
+            phoneSharedWithOtherPatients, anamnesisFrozen);
     }
 }

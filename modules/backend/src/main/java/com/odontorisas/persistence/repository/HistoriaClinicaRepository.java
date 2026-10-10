@@ -19,6 +19,9 @@ public interface HistoriaClinicaRepository extends JpaRepository<HistoriaClinica
     /** Una por paciente (unicidad garantizada además por `UNIQUE(patient_id)` en la BD). */
     Optional<HistoriaClinica> findByPatientId(Long patientId);
 
+    /** ¿Tiene el paciente Historia (en cualquier estado)? Sin cargar la entidad. */
+    boolean existsByPatientId(Long patientId);
+
     /** {@code SELECT ... FOR UPDATE} para sellar (design.md D4 de `add-dental-chart`): dos sellados
      *  concurrentes se serializan y el segundo ve la Historia ya {@code COMPLETED}. Tiene que ser la
      *  primera carga de la Historia en la transacción: si ya estuviera en el contexto de persistencia,

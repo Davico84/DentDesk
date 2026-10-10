@@ -95,7 +95,7 @@ export function TextareaField<T extends FieldValues>({
         id={name}
         rows={rows}
         placeholder={placeholder}
-        className="w-full resize-y rounded-xl border border-input bg-card px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 aria-[invalid=true]:border-destructive aria-[invalid=true]:focus-visible:ring-destructive"
+        className="w-full resize-y rounded-xl border border-input bg-card px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 aria-invalid:border-destructive aria-invalid:focus-visible:ring-destructive"
         aria-invalid={error ? true : undefined}
         aria-describedby={describedBy(error ? errorId : undefined, hint ? hintId : undefined)}
         {...register(name)}
@@ -127,7 +127,7 @@ export function SelectField<T extends FieldValues>({
       <div className="relative">
         <select
           id={name}
-          className="h-11 w-full appearance-none rounded-xl border border-input bg-card px-3 pr-9 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+          className="h-11 w-full appearance-none rounded-xl border border-input bg-card px-3 pr-9 text-sm ring-offset-background focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
           aria-invalid={error ? true : undefined}
           aria-describedby={describedBy(error ? errorId : undefined, hint ? hintId : undefined)}
           {...register(name)}
@@ -271,7 +271,7 @@ export function FormSection({
 
   if (!collapsible) {
     return (
-      <section className="rounded-2xl border bg-card p-5 shadow-sm">
+      <section className="rounded-2xl border bg-card p-5 shadow-xs">
         <SectionHeading title={title} description={description} icon={icon} className="mb-4" />
         {grid}
       </section>
@@ -279,7 +279,7 @@ export function FormSection({
   }
 
   return (
-    <section className="overflow-hidden rounded-2xl border bg-card shadow-sm">
+    <section className="overflow-hidden rounded-2xl border bg-card shadow-xs">
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
