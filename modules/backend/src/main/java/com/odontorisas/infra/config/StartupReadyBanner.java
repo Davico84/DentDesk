@@ -41,7 +41,7 @@ class StartupReadyBanner {
         List<String> lines = render(environment.getProperty("app.name", DEFAULT_NAME),
             port,
             environment.getProperty("server.servlet.context-path", ""),
-            environment.getProperty("springdoc.swagger-ui.enabled", Boolean.class, true));
+            environment.getProperty("springdoc.swagger-ui.enabled", Boolean.class, false));
         // Una sola entrada de log que empieza con salto de línea: el prefijo (fecha, hilo, clase)
         // sale una vez y el bloque queda limpio y alineado debajo.
         log.info("{}{}", System.lineSeparator(), String.join(System.lineSeparator(), lines));
@@ -52,7 +52,7 @@ class StartupReadyBanner {
         String base = "http://localhost:" + port + normalize(contextPath);
         String swagger = swaggerEnabled
             ? "Swagger UI: " + base + "/swagger-ui.html"
-            : "Swagger UI: desactivado (springdoc.swagger-ui.enabled=false)";
+            : "Swagger UI: desactivado (SWAGGER_ENABLED=false)";
         return List.of(
             RULE,
             "  >> " + appName + " API lista en " + base,

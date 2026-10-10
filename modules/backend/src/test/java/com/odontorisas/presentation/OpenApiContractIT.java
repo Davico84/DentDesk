@@ -8,6 +8,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.http.MediaType;
+import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.nio.charset.StandardCharsets;
@@ -29,6 +30,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * capacidad futura ({@code patients}…) heredará sus errores sin escribir una línea.
  */
 @SpringBootTest
+// La documentación está apagada por defecto (update-api-docs-exposure, design D2): este test la enciende.
+@TestPropertySource(properties = "SWAGGER_ENABLED=true")
 @AutoConfigureMockMvc
 class OpenApiContractIT extends AbstractIntegrationTest {
 
@@ -44,6 +47,23 @@ class OpenApiContractIT extends AbstractIntegrationTest {
         apiDocs = mockMvc.perform(get("/v3/api-docs"))
             .andExpect(status().isOk())
             .andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8);
+    }
+
+    // --- update-api-docs-exposure: con la documentación habilitada se sirve ---
+
+    @Test
+    void with_docs_enabled_the_api_docs_are_served() throws Exception {
+        // Scenario "Exposición en runtime": el @BeforeEach ya exigió 200; acá, el contenido.
+        assertThat((Map<String, Object>) JsonPath.read(apiDocs, "$.paths")).containsKeys("/auth/register", "/auth/login", "/auth/refresh");
+    }
+
+    @Test
+    void with_docs_enabled_swagger_ui_is_served() throws Exception {
+        // Scenario "Swagger UI disponible al habilitarla": la ruta redirige a la página de la UI.
+        String location = mockMvc.perform(get("/swagger-ui.html"))
+            .andExpect(status().is3xxRedirection())
+            .andReturn().getResponse().getRedirectedUrl();
+        mockMvc.perform(get(location)).andExpect(status().isOk());
     }
 
     private Map<String, Object> responsesOf(String path, String method) {
