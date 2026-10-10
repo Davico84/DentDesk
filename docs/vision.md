@@ -127,7 +127,7 @@ Dimensión de **negocio** (sustituible por proyecto). Define **qué** construimo
 
 ---
 
-- 🚧 **`update-api-docs-exposure`** (técnica, `api-type-contracts`) — **propuesto** (2026-10-09). Change en progreso: [`proposal.md`](../openspec/changes/update-api-docs-exposure/proposal.md) · [`design.md`](../openspec/changes/update-api-docs-exposure/design.md). Swagger y `/v3/api-docs` dejan de ser públicos por defecto: un solo interruptor `SWAGGER_ENABLED`, apagado salvo que se pida. Traído del proyecto hermano HSO (ver §8).
+- ✅ **`update-api-docs-exposure`** (técnica, `api-type-contracts`) — **construido** (2026-10-10). Change archivado: `openspec/changes/archive/2026-10-10-update-api-docs-exposure/`; specs `api-type-contracts` (*Especificación OpenAPI publicada y versionada*) y `project-foundation` (*Aviso de backend listo al arrancar*). Swagger y `/v3/api-docs` apagados por defecto con un solo interruptor, `SWAGGER_ENABLED`; el `.example` trae la línea comentada para que copiarlo a un despliegue no la encienda. Verificado con `mvn verify` y revisión externa. Traído de HSO (ver §8).
 
 ## 4. Ciclo de vida de una capacidad (gobernanza)
 
@@ -197,7 +197,7 @@ Checklist de lo que se copia de HSOFACOP (`D:/proyectos/HSOFACOP`, analizado el 
 
 **Por hacer, en este orden:**
 
-- [ ] **`update-api-docs-exposure`** — Swagger y `/v3/api-docs` apagados por defecto (`SWAGGER_ENABLED`). HSO: `2026-09-30-update-api-docs-exposure`. 🚧 propuesto
+- [x] **`update-api-docs-exposure`** — Swagger y `/v3/api-docs` apagados por defecto (`SWAGGER_ENABLED`). HSO: `2026-09-30-update-api-docs-exposure`. ✅ archivado 2026-10-10
 - [ ] **`update-tailwind-v4`** — Tailwind 3.4 → 4, configuración CSS-first, tokens de color completos y test que vigila colores literales. Destraba los componentes nuevos de shadcn (`sheet`, `progress`). HSO: `2026-09-28-update-tailwind-v4`
 - [ ] **`add-app-shell`** — barra lateral + cabecera (usuario, rol, tema, salir), responsive (escritorio / íconos en tablet / cajón en celular), barra contraíble en escritorio, secciones por rol desde una sola configuración con "Acceso denegado" dentro del shell, ancho máximo del marco (1920 px) y del contenido (1536 px) que reemplaza a `PageContainer`, volver al listado conservando búsqueda y página. HSO: `add-app-shell`, `update-app-shell-tooltips`, `update-app-shell-role-nav`, `update-app-shell-collapsible-sidebar`, `update-orthodontic-records-back-link` (solo el patrón de volver)
 - [ ] **Revisión responsive** (375 / 768 px) con e2e que verifique que no hay desplazamiento horizontal: listado de pacientes, odontograma, consultas. HSO: `update-orthodontic-records-responsive` (solo el método de auditoría)

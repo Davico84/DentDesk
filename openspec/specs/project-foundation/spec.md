@@ -79,12 +79,13 @@ Cuando el backend termina de arrancar y ya acepta peticiones, SHALL escribir en 
 - **THEN** el log muestra un bloque delimitado con el nombre del producto (Dentdesk, o `app.name` si se define) y la URL `http://localhost:<puerto>` con el puerto en el que realmente escucha, incluido el context-path si hay uno
 
 #### Scenario: Documentación de la API activa
-- **WHEN** la aplicación arranca con Swagger UI habilitado (lo está por defecto)
+- **WHEN** la aplicación arranca con la documentación habilitada (`SWAGGER_ENABLED=true`)
 - **THEN** el aviso incluye la URL de Swagger UI (`<url base>/swagger-ui.html`)
 
 #### Scenario: Documentación de la API desactivada
-- **WHEN** la aplicación arranca con `springdoc.swagger-ui.enabled=false`
+- **WHEN** la aplicación arranca sin `SWAGGER_ENABLED`, o con `false` (lo está por defecto)
 - **THEN** el aviso indica que Swagger UI está desactivado
+- **AND** nombra el interruptor que hay que encender (`SWAGGER_ENABLED`)
 
 #### Scenario: Sin secretos en el aviso
 - **WHEN** se escribe el aviso
@@ -93,3 +94,4 @@ Cuando el backend termina de arrancar y ya acepta peticiones, SHALL escribir en 
 #### Scenario: Sin servidor web no hay aviso
 - **WHEN** el contexto arranca sin servidor web (por ejemplo, un test sin puerto)
 - **THEN** no se escribe el aviso
+
