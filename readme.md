@@ -156,6 +156,7 @@ cd modules/backend
 cp secrets.properties.example secrets.properties   # rellena DB_* y JWT_SECRET
 ./mvnw spring-boot:run                              # arranca en http://localhost:8080
 ```
+> **`JWT_SECRET` propio, obligatorio:** el de ejemplo no arranca. Reemplaza su línea en `secrets.properties` por `JWT_SECRET=` + la salida de `openssl rand -base64 48` (al menos 32 bytes aleatorios). Detalle en [`docs/tooling-setup.md`](docs/tooling-setup.md).
 Contrato OpenAPI en `http://localhost:8080/v3/api-docs` (y Swagger UI en `/swagger-ui.html`).
 
 ### Frontend

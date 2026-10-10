@@ -70,7 +70,7 @@ public abstract class AbstractIntegrationTest {
     @DynamicPropertySource
     static void containerProperties(DynamicPropertyRegistry registry) {
         // application.yml resuelve el datasource y Flyway desde placeholders de ENTORNO
-        // (${DB_URL}, ${DB_USERNAME}, ${DB_PASSWORD}, ${DB_ADMIN_USERNAME}, ${JWT_SECRET}...).
+        // (${DB_URL}, ${DB_USERNAME}, ${DB_PASSWORD}, ${DB_ADMIN_USERNAME}...).
         // En CI no existen (sin secrets.properties ni variables de entorno), así que aquí los
         // proveemos con los datos del contenedor. Rellenar los placeholders que application.yml
         // REFERENCIA (no sobreescribir spring.*) hace que TODAS las referencias resuelvan por el
@@ -82,8 +82,18 @@ public abstract class AbstractIntegrationTest {
         // contenedor, que es owner del esquema. Proveerlo evita el fallback anidado a ${DB_USERNAME}.
         registry.add("DB_ADMIN_USERNAME", POSTGRES::getUsername);
         registry.add("DB_ADMIN_PASSWORD", POSTGRES::getPassword);
-        // Secret JWT dummy: application.yml lo toma de ${JWT_SECRET} (sin default) y en CI no existe.
-        // Solo sirve para arrancar el contexto; ningún test depende de su valor concreto.
-        registry.add("JWT_SECRET", () -> "test-secret-ci-0123456789-0123456789-0123456789");
+        // El secreto JWT, en cambio, se registra sobre la propiedad FINAL y no sobre el placeholder
+        // ${JWT_SECRET} (update-jwt-secret-validation, design D2): registrar el placeholder solo fija
+        // su valor, y una fuente que defina directamente app.security.jwt.secret (-D, o la variable
+        // APP_SECURITY_JWT_SECRET) le ganaría a application.yml. Así la suite usa siempre su secreto.
+        registry.add("app.security.jwt.secret", () -> TEST_JWT_SECRET);
     }
+
+    /**
+     * Secreto JWT solo para tests (≥ 32 bytes). Lo registra {@code @DynamicPropertySource}, que gana
+     * al secrets.properties local, a {@code JWT_SECRET} del entorno y a las propiedades de sistema.
+     * No gana a {@code @TestPropertySource} ni a {@code properties =} de {@code @SpringBootTest}:
+     * no fijes ahí {@code app.security.jwt.secret} (docs/backend.md §11.3).
+     */
+    public static final String TEST_JWT_SECRET = "test-only-jwt-secret-do-not-use-in-production-0123456789";
 }
