@@ -5,7 +5,8 @@ import { Button } from "@/modules/core/ui/button";
 import { buttonVariants } from "@/modules/core/ui/button-variants";
 import { ConfirmDialog } from "@/modules/core/ui/confirm-dialog";
 import { InfoCard, InfoRow } from "@/modules/core/components/InfoCard";
-import { PATHS, clinicalHistoryPath, consultationNotesPath, dentalChartPath, patientEditPath } from "@/routes/paths";
+import { patientsListPath } from "@/modules/patients/utils/listNavigation";
+import { clinicalHistoryPath, consultationNotesPath, dentalChartPath, patientEditPath } from "@/routes/paths";
 import {
   useDeactivatePatient,
   usePatient,
@@ -39,7 +40,7 @@ export function PatientDetail() {
     <PageContainer>
       <div className="flex items-center gap-2">
         <Link
-          to={PATHS.PATIENTS}
+          to={patientsListPath()}
           aria-label="Volver al listado"
           className={buttonVariants({ variant: "ghost", size: "icon" })}
         >

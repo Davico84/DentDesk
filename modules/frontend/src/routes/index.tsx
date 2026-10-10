@@ -1,5 +1,6 @@
-import { createBrowserRouter } from "react-router-dom";
+import { createBrowserRouter, type RouteObject } from "react-router-dom";
 import { RootLayout } from "@/layouts/RootLayout";
+import { AppLayout } from "@/layouts/AppLayout";
 import { HomeScreen } from "@/screens/home/HomeScreen";
 import { BrandingSettingsScreen } from "@/screens/settings/BrandingSettingsScreen";
 import { PatientListScreen } from "@/screens/patients/PatientListScreen";
@@ -13,42 +14,53 @@ import { RegisterScreen } from "@/screens/auth/RegisterScreen";
 import { RequireAuth } from "@/modules/core/auth/RequireAuth";
 import { RequireGuest } from "@/modules/core/auth/RequireGuest";
 import { RouteError } from "@/modules/core/components/RouteError";
+import { sectionById, type SectionId } from "@/modules/core/config/sections";
 import { PATHS } from "./paths";
 
 // RootLayout (bootstrap de sesión + splash) envuelve dos zonas:
-// - RequireGuest: rutas de auth (solo sin sesión)
-// - RequireAuth: rutas privadas (requieren sesión; opcionalmente por rol)
+// - RequireGuest: rutas de auth (solo sin sesión), sin shell
+// - RequireAuth → AppLayout (barra + cabecera + el único <main>): rutas privadas, agrupadas por
+//   sección. Los roles de cada grupo salen de `core/config/sections` — el mismo lugar del que el
+//   menú deriva sus ítems, así no se desalinean (add-app-shell design D1/D2).
 // errorElement en la raíz: captura errores de render y rutas no encontradas (404).
-export const router = createBrowserRouter([
+
+/** Rutas de una sección, detrás del guard con los roles que declara su configuración. */
+function section(id: SectionId, children: RouteObject[]): RouteObject {
+  return { element: <RequireAuth roles={sectionById(id).roles} />, children };
+}
+
+/** Las dos zonas bajo `RootLayout`. Exportadas para que los tests las monten en un router en memoria. */
+export const appRoutes: RouteObject[] = [
   {
-    element: <RootLayout />,
-    errorElement: <RouteError />,
+    element: <RequireGuest />,
+    children: [
+      { path: PATHS.LOGIN, element: <LoginScreen /> },
+      { path: PATHS.REGISTER, element: <RegisterScreen /> },
+    ],
+  },
+  {
+    element: <RequireAuth />,
     children: [
       {
-        element: <RequireGuest />,
+        element: <AppLayout />,
         children: [
-          { path: PATHS.LOGIN, element: <LoginScreen /> },
-          { path: PATHS.REGISTER, element: <RegisterScreen /> },
+          section("home", [{ path: PATHS.ROOT, element: <HomeScreen /> }]),
+          section("patients", [
+            { path: PATHS.PATIENTS, element: <PatientListScreen /> },
+            { path: PATHS.PATIENT_NEW, element: <PatientFormScreen /> },
+            { path: PATHS.PATIENT_DETAIL, element: <PatientDetailScreen /> },
+            { path: PATHS.PATIENT_EDIT, element: <PatientFormScreen /> },
+            { path: PATHS.CLINICAL_HISTORY, element: <ClinicalHistoryScreen /> },
+            { path: PATHS.DENTAL_CHART, element: <DentalChartScreen /> },
+            { path: PATHS.CONSULTATION_NOTES, element: <ConsultationNotesScreen /> },
+          ]),
+          section("branding", [{ path: PATHS.BRANDING, element: <BrandingSettingsScreen /> }]),
         ],
-      },
-      {
-        element: <RequireAuth />,
-        children: [
-          { path: PATHS.ROOT, element: <HomeScreen /> },
-          // Pacientes: los tres roles los gestionan; basta con estar autenticado (sin rol).
-          { path: PATHS.PATIENTS, element: <PatientListScreen /> },
-          { path: PATHS.PATIENT_NEW, element: <PatientFormScreen /> },
-          { path: PATHS.PATIENT_DETAIL, element: <PatientDetailScreen /> },
-          { path: PATHS.PATIENT_EDIT, element: <PatientFormScreen /> },
-          { path: PATHS.CLINICAL_HISTORY, element: <ClinicalHistoryScreen /> },
-          { path: PATHS.DENTAL_CHART, element: <DentalChartScreen /> },
-          { path: PATHS.CONSULTATION_NOTES, element: <ConsultationNotesScreen /> },
-        ],
-      },
-      {
-        element: <RequireAuth roles={["ADMIN"]} />,
-        children: [{ path: PATHS.BRANDING, element: <BrandingSettingsScreen /> }],
       },
     ],
   },
+];
+
+export const router = createBrowserRouter([
+  { element: <RootLayout />, errorElement: <RouteError />, children: appRoutes },
 ]);

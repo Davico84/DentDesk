@@ -2,7 +2,7 @@ import { Link } from "react-router-dom";
 import { UserX } from "lucide-react";
 import { buttonVariants } from "@/modules/core/ui/button-variants";
 import { DataState } from "@/modules/core/components/DataState";
-import { PATHS } from "@/routes/paths";
+import { patientsListPath } from "@/modules/patients/utils/listNavigation";
 import { PageContainer } from "@/modules/core/components/PageContainer";
 
 /**
@@ -21,7 +21,7 @@ export function PatientNotFound() {
         title="No encontramos este paciente"
         description="Puede que se haya eliminado, o que el enlace no sea de esta clínica."
         action={
-          <Link to={PATHS.PATIENTS} className={buttonVariants({ variant: "default", size: "lg" })}>
+          <Link to={patientsListPath()} className={buttonVariants({ variant: "default", size: "lg" })}>
             Volver al listado
           </Link>
         }

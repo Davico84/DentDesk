@@ -5,7 +5,8 @@ import { ArrowLeft, HeartPulse, Loader2, Phone, Siren, User, UserCheck } from "l
 import { toast } from "sonner";
 import { Button } from "@/modules/core/ui/button";
 import { buttonVariants } from "@/modules/core/ui/button-variants";
-import { PATHS, patientDetailPath } from "@/routes/paths";
+import { patientDetailPath } from "@/routes/paths";
+import { patientsListPath } from "@/modules/patients/utils/listNavigation";
 import {
   applyServerFieldErrors,
   getApiProblem,
@@ -93,11 +94,11 @@ export function PatientForm() {
   const hasOwnPhone = Boolean(phone?.trim()) && phone !== PHONE_COUNTRY_CODE;
   const pending = createPatient.isPending || updatePatient.isPending;
   const anamnesisFrozen = patientQuery.data?.anamnesisFrozen === true;
-  const backTo = isEdit ? patientDetailPath(id!) : PATHS.PATIENTS;
+  const backTo = isEdit ? patientDetailPath(id!) : patientsListPath();
 
   if (isEdit && patientQuery.isLoading) {
     return (
-      <div className="flex min-h-screen items-center justify-center">
+      <div className="flex items-center justify-center py-24">
         <Loader2 className="size-6 animate-spin text-muted-foreground" />
       </div>
     );

@@ -7,7 +7,9 @@ import { cn } from "@/modules/core/utils/cn";
  * genérico de `core`: no conoce ningún dominio.
  *
  * Cambiar el ancho de la app es cambiar esta clase, no cada pantalla.
+ *
+ * Es un `<div>`: el único `<main>` lo pone el shell (`layouts/AppLayout`, `add-app-shell` design D3).
  */
-export function PageContainer({ className, ...props }: ComponentProps<"main">) {
-  return <main className={cn("mx-auto flex min-h-screen w-full max-w-5xl flex-col gap-6 p-6", className)} {...props} />;
+export function PageContainer({ className, ...props }: ComponentProps<"div">) {
+  return <div className={cn("mx-auto flex w-full max-w-5xl flex-col gap-6 p-4 sm:p-6", className)} {...props} />;
 }
