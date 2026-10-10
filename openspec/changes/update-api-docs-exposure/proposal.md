@@ -21,6 +21,7 @@ _(ninguna)_
 ### Modified Capabilities
 
 - `api-type-contracts`: el requirement *Especificación OpenAPI publicada y versionada* pasa a exponer la especificación en runtime solo con la documentación habilitada, y suma los scenarios de "deshabilitada por defecto" y "Swagger UI al habilitarla".
+- `project-foundation`: el requirement *Aviso de backend listo al arrancar* deja de decir que Swagger está habilitado por defecto y nombra el interruptor `SWAGGER_ENABLED` (agregado en el apply: la spec contradecía el cambio).
 
 ## Non-goals
 

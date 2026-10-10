@@ -83,7 +83,7 @@ public class AppointmentService {
 - Status codes correctos: `200/201/204`, `400/401/403/404/409`, `500`. Usa `ResponseEntity<T>`.
 - **Nunca** recibir/retornar entidades JPA: usa DTOs (`*Request` entrada, `*Response` salida).
 - Validación de entrada con `@Valid` sobre el DTO.
-- Documenta con **springdoc-openapi** (`@Operation`, `@ApiResponse`) — Swagger habilitado por perfil.
+- Documenta con **springdoc-openapi** (`@Operation`, `@ApiResponse`) — la documentación (`/v3/api-docs` y Swagger UI) está **apagada por defecto** y se enciende con `SWAGGER_ENABLED=true` (§12).
 
 ```java
 @RestController
@@ -475,6 +475,7 @@ app no arranca** si el secreto es inseguro (`JwtSecretRules`, capacidad `authent
   - **Rotarlo invalida los access tokens emitidos** (dejan de verificar), pero **no cierra las sesiones**: el refresh token es opaco, se guarda hasheado en BD y no depende del secreto, así que el frontend renueva el access token de forma transparente.
   - Si la rotación busca expulsar a todos (por ejemplo, un secreto filtrado), hay que **revocar también los refresh tokens** (borrar `refresh_tokens`).
   - Con **varias réplicas**, todas deben compartir el mismo secreto: una réplica con otro rechazaría los tokens de las demás.
+- **`SWAGGER_ENABLED`** enciende la documentación de la API (`/v3/api-docs` y `/swagger-ui.html`). Por defecto `false`: un despliegue que no la defina **no expone** la API. En local va en `true` en `secrets.properties`. Con el interruptor apagado las rutas siguen en `PublicPaths` pero no existen (`404`). Los tests de contrato la encienden con `@TestPropertySource`; ningún test depende de que falte (`update-api-docs-exposure`).
 - **Nunca** hardcodear ni versionar URLs, credenciales ni parámetros de entorno sensibles.
 - Tipar la configuración con `@ConfigurationProperties` (evitar `@Value` disperso).
 
