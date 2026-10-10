@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { ArrowLeft, ClipboardList, NotebookPen, Pencil, Smile, Users } from "lucide-react";
 import { Button } from "@/modules/core/ui/button";
+import { cn } from "@/modules/core/utils/cn";
 import { buttonVariants } from "@/modules/core/ui/button-variants";
 import { ConfirmDialog } from "@/modules/core/ui/confirm-dialog";
 import { InfoCard, InfoRow } from "@/modules/core/components/InfoCard";
@@ -22,6 +23,10 @@ import { guardianRelationshipOptions, labelOf, sexOptions } from "./patientOptio
 import { PageContainer } from "@/modules/core/components/PageContainer";
 
 /** Feature de la consulta de una ficha: datos, y acciones de edición/baja/reactivación. */
+/** Bajo 640 px cada documento ocupa un tercio de la grilla: ícono arriba y nombre abajo, envuelto. */
+const DOC_LINK_MOBILE =
+  "max-sm:h-auto max-sm:min-h-11 max-sm:flex-col max-sm:gap-1 max-sm:px-2 max-sm:py-2.5 max-sm:text-xs max-sm:whitespace-normal max-sm:text-center";
+
 export function PatientDetail() {
   const params = useParams();
   const id = Number(params.id);
@@ -54,6 +59,7 @@ export function PatientDetail() {
         acciones en una sola fila sin envolver, la tarjeta desbordaba (update-clinical-history 6.9).
         Documentos clínicos a la izquierda; acciones sobre la ficha a la derecha. Los tres documentos
         con el mismo estilo: la ficha es un punto de partida, no una navegación con uno "elegido".
+        En celular, los tres documentos en una grilla pareja (update-responsive-layout D5).
       */}
       <header className="flex flex-col gap-4 rounded-2xl border bg-card p-5 shadow-xs">
         <div className="flex items-center gap-4">
@@ -70,17 +76,17 @@ export function PatientDetail() {
           </div>
         </div>
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <nav aria-label="Documentos clínicos" className="flex flex-wrap items-center gap-2">
-            <Link to={clinicalHistoryPath(id)} className={buttonVariants({ variant: "outline", size: "lg" })}>
-              <ClipboardList className="mr-2 size-4" />
+          <nav aria-label="Documentos clínicos" className="grid w-full grid-cols-3 gap-2 sm:flex sm:w-auto sm:flex-wrap sm:items-center">
+            <Link to={clinicalHistoryPath(id)} className={cn(buttonVariants({ variant: "outline", size: "lg" }), DOC_LINK_MOBILE)}>
+              <ClipboardList className="mr-2 size-4 max-sm:mr-0" />
               Historia Clínica
             </Link>
-            <Link to={consultationNotesPath(id)} className={buttonVariants({ variant: "outline", size: "lg" })}>
-              <NotebookPen className="mr-2 size-4" />
+            <Link to={consultationNotesPath(id)} className={cn(buttonVariants({ variant: "outline", size: "lg" }), DOC_LINK_MOBILE)}>
+              <NotebookPen className="mr-2 size-4 max-sm:mr-0" />
               Consultas
             </Link>
-            <Link to={dentalChartPath(id)} className={buttonVariants({ variant: "outline", size: "lg" })}>
-              <Smile className="mr-2 size-4" />
+            <Link to={dentalChartPath(id)} className={cn(buttonVariants({ variant: "outline", size: "lg" }), DOC_LINK_MOBILE)}>
+              <Smile className="mr-2 size-4 max-sm:mr-0" />
               Odontograma
             </Link>
           </nav>

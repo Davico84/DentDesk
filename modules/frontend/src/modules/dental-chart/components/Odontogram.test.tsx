@@ -5,6 +5,11 @@ import type { DentalChartFindingResponse, DentalFindingCatalogEntryResponse } fr
 import { BLUE, RED } from "@/modules/dental-chart/utils/findingColor";
 import { Odontogram } from "./Odontogram";
 
+/** Alto del dibujo en unidades del SVG: el ancho en pantalla escala, el `viewBox` no. */
+function viewBoxHeight(svg: Element): number {
+  return Number(svg.getAttribute("viewBox")!.split(" ")[3]);
+}
+
 const CATALOG: DentalFindingCatalogEntryResponse[] = [
   { type: "LESION_CARIES", subtype: "CD", acronym: "CD", scope: "SURFACE", colorBehavior: "SIEMPRE_ROJO", requiresGrade: false, requiresSpecification: false },
   { type: "CORONA", subtype: "CM", acronym: "CM", scope: "TOOTH", colorBehavior: "SEGUN_ESTADO", requiresGrade: false, requiresSpecification: true },
@@ -112,7 +117,7 @@ describe("Odontogram", () => {
     expect(circle).not.toBeNull();
 
     const svg = container.querySelector("svg")!;
-    const svgHeight = Number(svg.getAttribute("height"));
+    const svgHeight = viewBoxHeight(svg);
     const cy = Number(circle!.getAttribute("cy"));
     // Ni en el carril superior de arco ni en el inferior (ambos bien menores a 56px de margen).
     expect(cy).toBeGreaterThan(56);
@@ -452,8 +457,8 @@ describe("Odontogram", () => {
       />,
     );
 
-    const emptyHeight = Number(empty.querySelector("svg")!.getAttribute("height"));
-    const busyHeight = Number(busy.querySelector("svg")!.getAttribute("height"));
+    const emptyHeight = viewBoxHeight(empty.querySelector("svg")!);
+    const busyHeight = viewBoxHeight(busy.querySelector("svg")!);
 
     expect(busyHeight).toBeGreaterThan(emptyHeight);
   });

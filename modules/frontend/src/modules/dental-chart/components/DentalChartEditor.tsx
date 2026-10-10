@@ -78,8 +78,8 @@ export function DentalChartEditor({ patientId }: { patientId: number }) {
       <section className="rounded-2xl border bg-card p-5 shadow-xs">
         <h3 className="mb-1 text-sm font-semibold">Hallazgos registrados</h3>
         <p className="mb-4 text-xs text-muted-foreground">
-          Pieza, superficie, arco y entre-piezas se registran clickeando el odontograma. Rango necesita dos clicks — activá "Registrar rango"
-          arriba, elegí la primera pieza y después la última.
+          Pieza, superficie, arco y entre-piezas se registran clickeando el odontograma. Rango necesita dos clicks — activa "Registrar rango"
+          arriba, elige la primera pieza y después la última.
         </p>
         <FindingList patientId={patientId} findings={findings} catalog={catalog} editable={!sealed} />
       </section>

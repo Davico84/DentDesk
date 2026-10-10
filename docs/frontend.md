@@ -306,6 +306,11 @@ export const useSortingStore = createSelectors(useSortingStoreBase);
 - El shell (`AppLayout`, §1): en celular la barra se oculta y el botón de menú abre un cajón
   (`core/ui/sheet`); en tablet la barra muestra solo íconos con tooltip; en escritorio se expande o
   se contrae (preferencia en `useSidebarStore`). El marco mide como mucho 1920 px, centrado.
+- **Contenido más ancho que la pantalla** (un dibujo, una tabla): se desliza **dentro de su tarjeta**
+  (`overflow-x-auto` en su propio contenedor), nunca la página. Si al deslizar se pierde algo
+  importante, se indica que hay más (`useHorizontalOverflow` de `core/hooks`). Una tabla de varias
+  columnas pasa a bloques bajo 640 px con `useMediaQuery`, pintando **una** de las dos vistas (no
+  ambas ocultando una con CSS). Ejemplo: el odontograma (ancho mínimo 600 px) y su lista de hallazgos.
 - Prueba cambios de navegación/estilos en móvil, tablet y escritorio. `e2e/app-shell.spec.ts`
   falla si alguna pantalla privada se desplaza de costado a 375, 768 o 1280 px: una pantalla nueva
   se agrega a su lista.
