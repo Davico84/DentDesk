@@ -5,10 +5,10 @@
 - [x] 1.1 `application.yml`: `management.endpoint.health.probes.enabled: true` y `show-details: ${HEALTH_SHOW_DETAILS:always}` (design D1/D2)
 - [x] 1.2 `PublicPaths` sin `/actuator/info`; test que lo afirme (y que `/actuator/health/**` sigue público)
 - [x] 1.3 `application.yml`: `spring.datasource.hikari` con `minimum-idle: ${DB_POOL_MIN_IDLE:0}`, `idle-timeout: ${DB_POOL_IDLE_TIMEOUT_MS:60000}`, `keepalive-time: 0` y `maximum-pool-size: ${DB_POOL_MAX_SIZE:5}` (design D3); las variables nuevas en `secrets.properties.example` (sin abrir `secrets.properties`)
-- [ ] 1.4 IT de liveness: sin sesión → `200`, `status` `UP`, sin `db`; con un `HealthIndicator` de prueba en `DOWN`, `/actuator/health` responde `503` y liveness sigue `200 UP`; `/actuator/info` sin sesión → `401`
-- [ ] 1.5 IT con `management.endpoint.health.show-details=never`: `/actuator/health` sin `components`; y sin la variable, con `components` (scenario *Detalle visible en local*)
-- [ ] 1.6 IT del pool: propiedades efectivas del `HikariDataSource` (0 / 0 / 60 000 / 5); con `idle-timeout` de 10 s solo en el test, tras abrir y devolver conexiones, esperar con Awaitility (`atMost` 90 s, por la revisión periódica de Hikari) hasta 0 conexiones; tras vaciar el pool, una consulta responde
-- [ ] 1.7 Confirmar versiones de HikariCP y Awaitility con `mvn dependency:tree` y anotarlas en el design; `mvn verify` verde
+- [x] 1.4 IT de liveness: sin sesión → `200`, `status` `UP`, sin `db`; con un `HealthIndicator` de prueba en `DOWN`, `/actuator/health` responde `503` y liveness sigue `200 UP`; `/actuator/info` sin sesión → `401`
+- [x] 1.5 IT con `management.endpoint.health.show-details=never`: `/actuator/health` sin `components`; y sin la variable, con `components` (scenario *Detalle visible en local*)
+- [x] 1.6 IT del pool: propiedades efectivas del `HikariDataSource` (0 / 0 / 60 000 / 5); con `idle-timeout` de 10 s solo en el test, tras abrir y devolver conexiones, esperar con Awaitility (`atMost` 90 s, por la revisión periódica de Hikari) hasta 0 conexiones; tras vaciar el pool, una consulta responde
+- [x] 1.7 Confirmar versiones de HikariCP y Awaitility con `mvn dependency:tree` y anotarlas en el design; `mvn verify` verde
 
 ## 2. Frontend
 
