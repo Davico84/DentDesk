@@ -5,8 +5,9 @@ import axios, {
 } from "axios";
 import type { AuthResponse } from "@/modules/core/services/generated/model";
 import { useSessionStore } from "@/store/useSessionStore";
+import { resolveApiBaseUrl } from "./apiBaseUrl";
 
-const BASE_URL = import.meta.env.VITE_API_URL ?? "http://localhost:8080";
+const BASE_URL = resolveApiBaseUrl(import.meta.env);
 
 /** Instancia axios compartida. `withCredentials` para enviar la cookie de refresh. */
 export const axiosInstance = axios.create({

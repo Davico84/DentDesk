@@ -211,7 +211,7 @@ Checklist de lo que se copia de HSOFACOP (`D:/proyectos/HSOFACOP`, analizado el 
 - [ ] **Despliegue** en Neon + Render + Vercel, región Ohio (decisión del usuario, 2026-10-10), en cuatro changes y en este orden. HSO: los mismos cuatro.
   - [x] `add-cold-start-warmup` — ping de liveness, Actuator mínimo, pool que deja dormir a Neon, pantalla de arranque en frío, `docs/deployment.md` (con roles de Neon sin `BYPASSRLS` y el horario 9–20 compartido con HSO). ✅ archivado 2026-10-10 (`openspec/changes/archive/2026-10-10-add-cold-start-warmup/`)
   - [x] `add-support-contact` — fila compacta "¿Problemas para entrar?" con WhatsApp y correo en login, registro y la espera larga. ✅ archivado 2026-10-11 (`openspec/changes/archive/2026-10-11-add-support-contact/`)
-  - [ ] `add-cloud-deployment` — Dockerfile, `render.yaml`, `vercel.json` con la API en el mismo origen, rutas `/ingresar` y `/registro`, roles de Neon sin `BYPASSRLS`
+  - [ ] `add-cloud-deployment` — API bajo `/api`, Dockerfile, `render.yaml`, `vercel.json` con la API en el mismo origen, roles de Neon sin `BYPASSRLS` y verificación del aislamiento entre clínicas. 🚧 implementado en el repo (falta la puesta en marcha en los paneles y su verificación): [`proposal.md`](../openspec/changes/add-cloud-deployment/proposal.md) · [`design.md`](../openspec/changes/add-cloud-deployment/design.md)
   - [ ] `add-database-backups` — copia diaria cifrada fuera de Neon con restauración verificada
 - [ ] **Gestión de cuentas** (deshabilitar/reactivar, solo ADMIN) dentro de `staff`. HSO: `add-user-account-status`
 - [ ] **Métricas de inicio por rol** dentro de `dashboard`. HSO: `add-dashboard-metrics` (como referencia de modelo)

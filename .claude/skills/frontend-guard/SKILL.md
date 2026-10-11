@@ -45,5 +45,5 @@ ceros a la izquierda; los pasaportes son alfanuméricos) → `string` + regex.
 
 ## 5. Al terminar
 
-`pnpm --filter odontorisas-frontend validate` (typecheck + lint + tests) **en verde**, y los
+`pnpm --filter dentdesk-frontend validate` (typecheck + lint + tests) **en verde**, y los
 componentes nuevos con su test si tienen comportamiento (no solo maquetación).
