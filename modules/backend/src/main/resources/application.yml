@@ -51,6 +51,13 @@ spring:
 # sessions; esto es lo único que necesitaba para vivir detrás de un balanceador.
 server:
   forward-headers-strategy: framework
+  # Render asigna el puerto en PORT; en local, 8080 (add-cloud-deployment D2).
+  port: ${PORT:8080}
+  servlet:
+    # Toda la API bajo /api (add-cloud-deployment D1): sin prefijo, sus rutas (/patients/1) chocan con
+    # las pantallas de la app, y el proxy de Vercel no podría distinguirlas. Spring Security, los
+    # controladores y los paths del contrato OpenAPI siguen relativos a esta base.
+    context-path: /api
 
 # Documentación de la API (update-api-docs-exposure). Un solo interruptor para el documento OpenAPI
 # y la interfaz de Swagger, APAGADO por defecto: un despliegue que no lo configure no expone la API.

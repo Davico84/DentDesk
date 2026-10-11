@@ -103,7 +103,7 @@ backend ──[ContractDriftIT]──► contracts/openapi.json ──[codegen-d
 **Si CI te dice que hay drift**, regenera y commitea ambos:
 ```bash
 # con el backend arrancado — OJO: con `-o`, nunca canalizando por un script
-curl -o contracts/openapi.json http://localhost:8080/v3/api-docs
+curl -o contracts/openapi.json http://localhost:8080/api/v3/api-docs
 pnpm --filter dentdesk-frontend generate:api
 ```
 > [!WARNING]
@@ -160,7 +160,7 @@ Cambiar el secreto invalida los access tokens ya emitidos (tendrás que volver a
 ```
 ============================================================
   >> Dentdesk API lista en http://localhost:8080
-    Swagger UI: http://localhost:8080/swagger-ui.html
+    Swagger UI: http://localhost:8080/api/swagger-ui.html
 ============================================================
 ```
 

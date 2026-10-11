@@ -1,5 +1,6 @@
 package com.odontorisas.infra.security;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseCookie;
 import org.springframework.stereotype.Component;
 
@@ -8,18 +9,35 @@ import java.time.Instant;
 
 /**
  * Construye la cookie del refresh token: {@code HttpOnly} + {@code Secure} +
- * {@code SameSite=Lax}, acotada al path {@code /auth}. El valor nunca es
- * accesible por JavaScript.
+ * {@code SameSite=Lax}, acotada a la base de la API + {@code /auth} ({@code /api/auth}). El valor
+ * nunca es accesible por JavaScript.
+ *
+ * <p>El path incluye el {@code server.servlet.context-path} (add-cloud-deployment D1): el navegador
+ * compara el path de la cookie con la URL real, y una cookie {@code Path=/auth} no viajaría a
+ * {@code /api/auth/refresh}. La cookie de alta y la de borrado salen del mismo builder.
  */
 @Component
 public class RefreshCookieFactory {
 
-    private static final String COOKIE_PATH = "/auth";
-
     private final SecurityProperties props;
+    private final String cookiePath;
 
-    public RefreshCookieFactory(SecurityProperties props) {
+    public RefreshCookieFactory(SecurityProperties props,
+                                @Value("${server.servlet.context-path:}") String contextPath) {
         this.props = props;
+        this.cookiePath = cookiePath(contextPath);
+    }
+
+    /** Base de la API normalizada + {@code /auth}: vacía → {@code /auth}; {@code /api} o {@code /api/} → {@code /api/auth}. */
+    static String cookiePath(String contextPath) {
+        String base = contextPath == null ? "" : contextPath.trim();
+        while (base.endsWith("/")) {
+            base = base.substring(0, base.length() - 1);
+        }
+        if (!base.isEmpty() && !base.startsWith("/")) {
+            base = "/" + base;
+        }
+        return base + "/auth";
     }
 
     public String cookieName() {
@@ -42,6 +60,6 @@ public class RefreshCookieFactory {
             .httpOnly(true)
             .secure(props.cookie().secure())
             .sameSite("Lax")
-            .path(COOKIE_PATH);
+            .path(cookiePath);
     }
 }

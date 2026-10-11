@@ -2,10 +2,10 @@
 
 ## 1. Backend
 
-- [ ] 1.1 `application.yml`: `server.servlet.context-path: /api` y `server.port: ${PORT:8080}` (design D1/D2)
-- [ ] 1.2 `RefreshCookieFactory`: `Path` = base normalizada + `/auth` (`ServerProperties`); alta y borrado del mismo builder; tests con base vacía, `/api` y `/api/`
-- [ ] 1.3 IT con servidor real (`RANDOM_PORT`) y la base `/api`: login y refresh en `/api/auth/*` (cookie `Path=/api/auth` que viaja al refresh), liveness en `/api/actuator/health/liveness`, `/patients` sin la base no es la API, y preflight CORS (`OPTIONS` con `Origin`, `Access-Control-Request-Method` y credenciales) a `/api/auth/refresh`
-- [ ] 1.4 `OpenApiContractIT`: los paths siguen sin `/api`. Regenerar `contracts/openapi.json` si cambia, confirmar que el cliente de orval no cambia y documentar que `servers` no es parte del contrato verificado; `mvn verify` verde
+- [x] 1.1 `application.yml`: `server.servlet.context-path: /api` y `server.port: ${PORT:8080}` (design D1/D2)
+- [x] 1.2 `RefreshCookieFactory`: `Path` = base normalizada + `/auth` (`ServerProperties`); alta y borrado del mismo builder; tests con base vacía, `/api` y `/api/`
+- [x] 1.3 IT con servidor real (`RANDOM_PORT`) y la base `/api`: login y refresh en `/api/auth/*` (cookie `Path=/api/auth` que viaja al refresh), liveness en `/api/actuator/health/liveness`, `/patients` sin la base no es la API, y preflight CORS (`OPTIONS` con `Origin`, `Access-Control-Request-Method` y credenciales) a `/api/auth/refresh`
+- [x] 1.4 `OpenApiContractIT`: los paths siguen sin `/api`. Regenerar `contracts/openapi.json` si cambia, confirmar que el cliente de orval no cambia y documentar que `servers` no es parte del contrato verificado; `mvn verify` verde
 - [ ] 1.5 `modules/backend/Dockerfile` (multi-etapa, AOT cache entrenado con `DB_URL`/`DB_USERNAME`/`DB_PASSWORD`/`JWT_SECRET` de entrenamiento como variables de entorno, usuario sin privilegios, JVM para 512 MB) y `.dockerignore` (design D2)
 - [ ] 1.6 Verificación local de la imagen: `docker build`; inspección (sin `secrets.properties`, `.env`, `src/`, `mvnw`; usuario no root); `docker run -m 512m --cpus 0.1 -e PORT=10000` contra el PostgreSQL de compose: migra y liveness `200` en `/api/actuator/health/liveness`; registrar arranque y RSS en `docs/deployment.md`
 - [ ] 1.7 `render.yaml` en la raíz (design D3) y un test que lo lee y fija las variables, la rama y el health check
