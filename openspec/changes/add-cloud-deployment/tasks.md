@@ -20,16 +20,16 @@
 
 ## 3. Puesta en marcha (usuario, guiada)
 
-- [ ] 3.1 **(usuario)** Neon: proyecto en `aws-us-east-2`, roles por SQL y consulta de verificación de `pg_roles` (`docs/deployment.md` §4.2)
-- [ ] 3.2 **(usuario)** Render: Blueprint desde el repo en el workspace compartido con HSO; credenciales y `CORS_ALLOWED_ORIGINS=https://pendiente.invalid`; primer deploy migra **con el rol admin** y liveness `200`; en Neon, tablas de `odontorisas_admin` y consulta como `odontorisas_app` (design D6). Sin esto, no se abre a usuarios
-- [ ] 3.3 Ajustar la URL de Render en `vercel.json` si difiere de `dentdesk-api.onrender.com` (commit en `dev`, PR a `main`)
-- [ ] 3.4 **(usuario)** Vercel: importar el repo (raíz, rama `main`, sin `VITE_API_URL`); `CORS_ALLOWED_ORIGINS` en Render = origen de Vercel
+- [x] 3.1 **(usuario)** Neon: proyecto en `aws-us-east-2`, roles por SQL y consulta de verificación de `pg_roles` (`docs/deployment.md` §4.2)
+- [x] 3.2 **(usuario)** Render: Blueprint desde el repo en el workspace compartido con HSO; credenciales y `CORS_ALLOWED_ORIGINS=https://pendiente.invalid`; primer deploy migra **con el rol admin** y liveness `200`; en Neon, tablas de `odontorisas_admin` y consulta como `odontorisas_app` (design D6). Sin esto, no se abre a usuarios
+- [x] 3.3 Ajustar la URL de Render en `vercel.json` si difiere de `dentdesk-api.onrender.com` (commit en `dev`, PR a `main`)
+- [x] 3.4 **(usuario)** Vercel: importar el repo (raíz, rama `main`, sin `VITE_API_URL`); `CORS_ALLOWED_ORIGINS` en Render = origen de Vercel
 - [ ] 3.5 **(usuario)** cron-job.org: liveness cada 10 min de 9:00 a 19:50 (`America/Lima`)
 
 ## 4. Verificación del despliegue
 
 - [ ] 4.1 Matriz del design D7 (rutas, proxy, cookie, sesión en Chrome y Safari/iOS, CORS, Actuator, **RLS y aislamiento entre dos clínicas**, arranque en frío, soporte); resultados en `docs/deployment.md`
-- [ ] 4.2 Smoke E2E contra la URL pública (`E2E_BASE_URL=https://<app>.vercel.app pnpm exec playwright test e2e/auth.smoke.spec.ts`)
+- [x] 4.2 Smoke E2E contra la URL pública (`E2E_BASE_URL=https://<app>.vercel.app pnpm exec playwright test e2e/auth.smoke.spec.ts`)
 
 ## 5. Docs
 

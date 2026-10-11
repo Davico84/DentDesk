@@ -142,7 +142,46 @@ Los pasos en paneles los hace el responsable; el detalle de cada uno está en la
 
 Producción = rama `main`: Render despliega solo con los checks del CI en verde; los pushes a `dev` generan *previews* de Vercel sin sesión (CORS solo admite el origen de producción).
 
-## 9. Pendiente en los changes siguientes
+## 9. Despliegue de producción: estado y verificación
+
+**Publicado el 2026-10-11.**
+
+| Pieza | Dónde |
+|---|---|
+| Frontend | `https://dentdeskapp.vercel.app` (Vercel; `odontorisas-frontend.vercel.app` redirige) |
+| Backend | `https://dentdesk-api.onrender.com` (Render free, Ohio, workspace compartido con HSO) |
+| Base | Neon, proyecto `dentdesk`, base **`dentdeskdb`**, `aws-us-east-2` |
+| `CORS_ALLOWED_ORIGINS` | `https://dentdeskapp.vercel.app` |
+
+Notas de la puesta en marcha (para la próxima vez):
+- `DB_URL` va en formato **JDBC** (`jdbc:postgresql://<host>/dentdeskdb?sslmode=require`), **sin** usuario ni clave dentro y sin `channel_binding`. Pegar la cadena de Neon tal cual falla con `'url' must start with "jdbc"`.
+- En Render, el **valor** de cada variable es el dato, no el nombre de la variable (un `DB_ADMIN_USERNAME=DB_ADMIN_USERNAME` dio `password authentication failed for user 'DB_ADMIN_USERNAME'`).
+- Neon crea en la base una tabla de ejemplo `playing_with_neon`: Flyway se niega a migrar un esquema no vacío. Se borra (`DROP TABLE public.playing_with_neon;`) antes del primer deploy. **Nunca** usar `baselineOnMigrate`.
+- El rol dueño del proyecto en Neon (el del SQL Editor) se llama `dentdeskdb_owner`.
+- `dentdesk.vercel.app` estaba tomado por otro proyecto: los `.vercel.app` son globales.
+
+### Matriz de verificación (design D7 de `add-cloud-deployment`)
+
+| Área | Resultado (2026-10-11) |
+|---|---|
+| Base: roles | `odontorisas_app` sin `rolsuper`, `rolbypassrls` ni `neon_superuser`; puede conectar y usar `public` ✅ |
+| Base: migración | 22 migraciones; tablas de `odontorisas_admin`; app con DML en `patients`; RLS forzada ✅ |
+| **Aislamiento** | dos clínicas registradas en la URL pública, un paciente cada una: cada una ve solo el suyo; pedir el de la otra → `404` ✅ |
+| Rutas | recargar `/auth/login`, `/auth/register`, `/patients/1` → la app, no JSON ✅ |
+| Proxy | `/api/actuator/health/liveness` vía Vercel → `200 UP`; `/actuator/*` no se reenvía (sirve la app) ✅ |
+| Cookie | `refresh_token` del dominio de Vercel, `Path=/api/auth`, `Secure`, `HttpOnly`, `SameSite=Lax` ✅ |
+| Sesión (Chrome) | registro → Inicio en ~4–10 s; recargar con sesión, en Inicio y en Pacientes ✅ |
+| CORS | `POST /api/auth/refresh` vía proxy con el `Origin` de Vercel → `401` (sin cookie), no `403` ✅ |
+| Actuator | liveness `200 UP` / health `200` sin detalle / info `401` / sin prefijo `404` / api-docs `404` ✅ |
+| Smoke E2E | `E2E_BASE_URL=https://dentdeskapp.vercel.app` `auth.smoke` + `register.smoke`: 5/5 ✅ |
+| Sesión en Safari / iOS | pendiente (prueba manual en un iPhone) |
+| Arranque en frío | pendiente: medir fuera del horario del monitor (antes de las 9:00) |
+| Monitor | pendiente: job de cron-job.org 9:00–19:50 |
+| Soporte | pendiente: abrir los botones de WhatsApp y correo desde el login publicado |
+
+Datos de la verificación en producción: quedaron dos clínicas de prueba (`Verificación A` y `Verificación B`, correos `verificacion-*@dentdesk.test`, dominio que no recibe correo) con un paciente cada una. Son inofensivas; se pueden borrar con un script probado antes en local.
+
+## 10. Pendiente en los changes siguientes
 
 - ~~`add-support-contact`~~ (hecho): una fila compacta "¿Problemas para entrar?" con botones de WhatsApp y correo bajo el formulario de login y registro, y en "Está tardando más de lo normal". Los datos están en `modules/frontend/src/modules/core/config/supportContact.ts`; quedan públicos en la web.
 - `add-cloud-deployment`: hecho en el repo (API bajo `/api`, Dockerfile medido en §7, `render.yaml`, `vercel.json`); falta la puesta en marcha de §8 y su matriz de verificación.
