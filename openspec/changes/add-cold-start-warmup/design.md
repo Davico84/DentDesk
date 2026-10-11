@@ -96,6 +96,8 @@ HSO ya está desplegado en Render free y despierto 24/7 (~730 h al mes). El cupo
 2. **Monitor solo en horario de atención** (cron-job.org permite horarios) para uno o ambos: por ejemplo 7:00–22:00 son ~465 h al mes por servicio; fuera de horario duermen y el primer ingreso muestra la pantalla de este change.
 3. **Dejar dormir a Dentdesk** sin monitor hasta tener clínicas reales usándolo.
 
+**Decisión del usuario (2026-10-10): opción 2 con horario 9:00–22:00** (las clínicas no abren antes de las 9), ~403 h al mes, **en un workspace de Render propio**: en el de HSO no entra (730 + 403 h). Detalle en `docs/deployment.md` §3.
+
 Este change sirve igual en cualquiera de las tres: el ping solo se usa si se monitorea, y la pantalla de arranque en frío cubre justo las opciones 2 y 3. `docs/deployment.md` registra las opciones y el presupuesto de horas.
 
 ## Risks / Trade-offs

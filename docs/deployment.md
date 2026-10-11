@@ -33,11 +33,13 @@ El **único** mecanismo que evita el arranque en frío es un monitor externo gra
 
 ## 3. Presupuesto de horas de Render (compartido con HSO)
 
-Render free da **750 h de instancia al mes por workspace**. Un servicio despierto 24/7 consume ~730 h. **HSO ya está desplegado y despierto 24/7**, así que no queda cupo para que Dentdesk también lo esté en el mismo workspace. Opciones (decidir antes del primer despliegue, `add-cold-start-warmup` design D7):
+Render free da **750 h de instancia al mes por workspace**. Un servicio despierto 24/7 consume ~730 h, y **HSO ya está desplegado y despierto 24/7**.
 
-1. **Workspace propio para Dentdesk** (otra cuenta o equipo de Render): cada uno con sus 750 h; ambos despiertos 24/7.
-2. **Monitor solo en horario de atención** (cron-job.org): por ejemplo 7:00–22:00 hora de Perú son ~465 h al mes por servicio. Fuera de ese horario duermen y el primer ingreso muestra la pantalla de espera.
-3. **Dejar dormir a Dentdesk** sin monitor hasta tener clínicas usándolo.
+**Decisión (usuario, 2026-10-10): Dentdesk despierto de 9:00 a 22:00, hora de Perú**, que es cuando atienden las clínicas. Son 13 h al día, **~403 h en un mes de 31 días**. Fuera de ese horario duerme y el primer ingreso muestra la pantalla "Preparando tu consultorio digital".
+
+- El monitor es **cron-job.org** con horario: cada 10 min entre 9:00 y 21:50 (`America/Lima`). El último ping deja el servicio despierto hasta ~22:05.
+- **Necesita un workspace de Render propio** (otra cuenta, con otro correo). En el mismo workspace que HSO no entra: 730 + 403 h pasan de 750. Ni siquiera con los dos en 9–22 (~806 h); habría que bajar ambos a 12 h (~744 h), demasiado justo, porque cualquier uso fuera de horario también despierta el servicio y suma horas.
+- Margen en el workspace propio: 750 − 403 ≈ 347 h para el uso fuera de horario.
 
 ## 4. Base de datos en Neon
 
@@ -62,16 +64,17 @@ CREATE ROLE odontorisas_app LOGIN NOSUPERUSER NOBYPASSRLS PASSWORD '<clave-app>'
 Luego la propiedad de la base y del esquema pasa al admin (Flyway crea las tablas como admin) y la app recibe acceso de conexión. Las tablas y secuencias las concede la migración `V6` al rol `odontorisas_app`:
 
 ```sql
+GRANT odontorisas_admin TO CURRENT_USER;
 ALTER DATABASE <base> OWNER TO odontorisas_admin;
 ALTER SCHEMA public OWNER TO odontorisas_admin;
 GRANT CONNECT ON DATABASE <base> TO odontorisas_app;
 GRANT USAGE ON SCHEMA public TO odontorisas_app;
 ```
 
-> En Neon el `ALTER ... OWNER` puede exigir que el rol que lo ejecuta sea miembro del nuevo dueño
-> (`GRANT odontorisas_admin TO <rol-dueño-del-proyecto>`). Se verifica y se fija el paso exacto en
-> `add-cloud-deployment`, junto con la corrección de `modules/backend/scripts/db-roles.sql`
-> (sus variables de `psql` no se reemplazan dentro del bloque `$$ … $$`).
+> El `GRANT odontorisas_admin TO CURRENT_USER` es necesario en Neon: desde PostgreSQL 16, crear un
+> rol no hace miembro de él a quien lo crea, y sin esa membresía el `ALTER ... OWNER` falla (el
+> dueño del proyecto de Neon no es superusuario). Lo mismo hace `modules/backend/scripts/db-roles.sql`
+> con `psql`, probado contra un PostgreSQL 16 real (`DbRolesScriptIT`).
 
 **Verificación obligatoria antes de abrir la app** — `odontorisas_app` debe tener las dos columnas en `false`:
 
