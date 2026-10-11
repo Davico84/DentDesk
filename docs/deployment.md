@@ -35,11 +35,13 @@ El **único** mecanismo que evita el arranque en frío es un monitor externo gra
 
 Render free da **750 h de instancia al mes por workspace**. Un servicio despierto 24/7 consume ~730 h, y **HSO ya está desplegado y despierto 24/7**.
 
-**Decisión (usuario, 2026-10-10): Dentdesk despierto de 9:00 a 22:00, hora de Perú**, que es cuando atienden las clínicas. Son 13 h al día, **~403 h en un mes de 31 días**. Fuera de ese horario duerme y el primer ingreso muestra la pantalla "Preparando tu consultorio digital".
+**Decisión (usuario, 2026-10-10): Dentdesk y HSO comparten workspace, las dos despiertas de 9:00 a 20:00, hora de Perú** (las clínicas no abren antes de las 9). Fuera de ese horario duermen y el primer ingreso muestra la pantalla "Preparando tu consultorio digital".
 
-- El monitor es **cron-job.org** con horario: cada 10 min entre 9:00 y 21:50 (`America/Lima`). El último ping deja el servicio despierto hasta ~22:05.
-- **Necesita un workspace de Render propio** (otra cuenta, con otro correo). En el mismo workspace que HSO no entra: 730 + 403 h pasan de 750. Ni siquiera con los dos en 9–22 (~806 h); habría que bajar ambos a 12 h (~744 h), demasiado justo, porque cualquier uso fuera de horario también despierta el servicio y suma horas.
-- Margen en el workspace propio: 750 − 403 ≈ 347 h para el uso fuera de horario.
+- **Monitor**: cron-job.org, un job por app, cada 10 min de **9:00 a 19:50** (zona `America/Lima`). El último ping deja el servicio despierto hasta ~20:05 (Render lo suspende 15 min después del último tráfico).
+- **Presupuesto** (mes de 31 días, el peor caso): ~11 h 15 min al día por app ≈ **349 h cada una, ~698 h entre las dos**, de 750. **Margen: ~52 h** para el uso fuera de horario.
+- **Cada ingreso fuera de horario cuesta** al menos ~17 min (arranque + los 15 min hasta que Render vuelve a suspender). El margen alcanza para unos 180 al mes entre las dos apps; si se acerca el límite, Render suspende los servicios hasta el mes siguiente.
+- Opciones descartadas: las dos de 9 a 22 (~806 h, no entra); las dos de 9 a 21 (~744 h, sin margen); un workspace propio para Dentdesk (otra cuenta que mantener).
+- El horario de HSO se cambia en su propio repo (change OpenSpec en HSOFACOP), no desde aquí.
 
 ## 4. Base de datos en Neon
 
