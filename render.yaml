@@ -1,0 +1,44 @@
+# Blueprint de Render: backend de Dentdesk en el plan gratuito (Docker). Ver docs/deployment.md y
+# add-cloud-deployment design D3. Workspace compartido con HSO (horario 9-20, docs/deployment.md §3).
+# Las credenciales (sync: false) se cargan en el panel de Render al crear el Blueprint; nunca aquí.
+services:
+  - type: web
+    name: dentdesk-api
+    runtime: docker
+    plan: free
+    region: ohio
+    branch: main
+    # Despliega solo cuando los checks del CI del commit están en verde.
+    autoDeployTrigger: checksPass
+    rootDir: modules/backend
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    # La API vive bajo /api. Liveness no consulta la base (Neon puede dormir). No reemplaza al
+    # monitor externo.
+    healthCheckPath: /api/actuator/health/liveness
+    envVars:
+      - key: HEALTH_SHOW_DETAILS
+        value: never
+      - key: SWAGGER_ENABLED
+        value: "false"
+      - key: COOKIE_SECURE
+        value: "true"
+      # Neon: cadena directa (sin -pooler) con sslmode=require.
+      - key: DB_URL
+        sync: false
+      # Rol de la aplicación: solo DML, sin SUPERUSER ni BYPASSRLS (docs/deployment.md §4.2).
+      - key: DB_USERNAME
+        sync: false
+      - key: DB_PASSWORD
+        sync: false
+      # Rol dueño de las tablas: lo usa solo Flyway para migrar.
+      - key: DB_ADMIN_USERNAME
+        sync: false
+      - key: DB_ADMIN_PASSWORD
+        sync: false
+      # Aleatorio de al menos 32 bytes (openssl rand -base64 48).
+      - key: JWT_SECRET
+        sync: false
+      # Origen exacto del frontend de producción, sin "/" final (p. ej. https://dentdesk.vercel.app).
+      - key: CORS_ALLOWED_ORIGINS
+        sync: false

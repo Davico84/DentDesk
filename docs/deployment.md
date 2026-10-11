@@ -115,7 +115,20 @@ Consecuencia (decidida en `add-cloud-deployment`): **toda la API pasa a `/api`**
 
 Los secretos se cargan en el panel de Render, **nunca** en el repo.
 
-## 7. Pendiente en los changes siguientes
+## 7. Imagen del backend: medición local
+
+`modules/backend/Dockerfile` (multi-etapa, JRE 25, usuario `app`, AOT cache de Java 25 entrenado en el build). Medido el 2026-10-11 con `docker run -m 512m --cpus 0.1` (los límites de Render free) contra un PostgreSQL 16 local:
+
+| Caso | Hasta liveness `200` | Spring "Started" | Memoria |
+|---|---|---|---|
+| Base vacía (22 migraciones) | 76 s | 65,9 s | 331 MiB |
+| Base ya migrada (rearranque) | 100 s | — | 303 MiB |
+
+- Los dos quedan bajo los **120 s** que el proxy de Vercel espera un rewrite, pero **con poco margen** (la CPU de 0,1 varía entre corridas). Si en Render se acerca al límite, el primer pedido tras dormir puede cortar; la pantalla de arranque en frío ofrece "Reintentar" y la segunda vez el backend ya está despierto. Medir de nuevo en Render (tarea 4.1 de `add-cloud-deployment`).
+- Imagen inspeccionada: sin `secrets.properties`, `.env`, `src/` ni `mvnw`; corre como `app`, no `root`.
+- Para probarla en local: `docker build -t dentdesk-api:local modules/backend` y `docker run -m 512m --cpus 0.1 -e PORT=10000 -e DB_URL=... -e DB_USERNAME=... -e DB_PASSWORD=... -e JWT_SECRET=... -e COOKIE_SECURE=false -p 10000:10000 dentdesk-api:local` (sobre HTTP, la cookie `Secure` no vuelve: `COOKIE_SECURE=false` solo para probar login en local).
+
+## 8. Pendiente en los changes siguientes
 
 - ~~`add-support-contact`~~ (hecho): una fila compacta "¿Problemas para entrar?" con botones de WhatsApp y correo bajo el formulario de login y registro, y en "Está tardando más de lo normal". Los datos están en `modules/frontend/src/modules/core/config/supportContact.ts`; quedan públicos en la web.
 - `add-cloud-deployment`: Dockerfile del backend (y medir memoria y arranque en 512 MB / 0,1 CPU), `render.yaml`, `vercel.json` con el rewrite de `/api/*`, API bajo `/api`, roles de Neon (§4.2) y la matriz de verificación del despliegue.
