@@ -1,4 +1,10 @@
 /// <reference types="vite/client" />
 
-// Global inyectado por Vite (`define`). Ver vite.config.ts / vitest.config.ts.
-declare const BACKEND_URL: string;
+interface ImportMetaEnv {
+  /** URL base de la API. Opcional: sin ella, core/config/apiBaseUrl.ts decide por entorno. */
+  readonly VITE_API_URL?: string;
+}
+
+interface ImportMeta {
+  readonly env: ImportMetaEnv;
+}
