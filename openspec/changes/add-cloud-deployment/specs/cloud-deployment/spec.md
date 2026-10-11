@@ -14,6 +14,10 @@ La API del backend SHALL servirse bajo la base `/api` (endpoints, Actuator y doc
 - **THEN** responde el backend
 - **AND** `GET /patients/1` sin la base no es un endpoint de la API
 
+#### Scenario: Preflight CORS a la API
+- **WHEN** el navegador envía `OPTIONS /api/auth/refresh` con un `Origin` permitido, `Access-Control-Request-Method: POST` y credenciales
+- **THEN** el backend responde el preflight permitiendo ese origen y credenciales
+
 #### Scenario: Cookie de refresh acotada a la base
 - **WHEN** un usuario inicia sesión
 - **THEN** la cookie de refresh lleva `Path=/api/auth`

@@ -76,7 +76,7 @@ GRANT USAGE ON SCHEMA public TO odontorisas_app;
 > El `GRANT odontorisas_admin TO CURRENT_USER` es necesario en Neon: desde PostgreSQL 16, crear un
 > rol no hace miembro de él a quien lo crea, y sin esa membresía el `ALTER ... OWNER` falla (el
 > dueño del proyecto de Neon no es superusuario). Lo mismo hace `modules/backend/scripts/db-roles.sql`
-> con `psql`, probado contra un PostgreSQL 16 real (`DbRolesScriptIT`).
+> con `psql`, probado contra un PostgreSQL 16 local como superusuario (`DbRolesScriptIT`). **En Neon se verifica a mano**: el test no reproduce sus restricciones.
 
 **Verificación obligatoria antes de abrir la app** — `odontorisas_app` debe tener las dos columnas en `false`:
 
@@ -97,7 +97,7 @@ El refresh token viaja en una cookie `HttpOnly; Secure; SameSite=Lax`, que es ad
 
 Solución elegida (se configura en `add-cloud-deployment`): **servir la API bajo el mismo origen que el frontend** con los *rewrites* de Vercel (`/api/*` y `/auth/*` hacia Render). La cookie queda de primera parte y la protección actual se mantiene. Vercel Hobby espera hasta **120 s** en un rewrite externo, más que el arranque en frío. Descartadas: Netlify (corta a 26 s) y `SameSite=None` (debilita CSRF y Safari bloquea las cookies de terceros).
 
-Consecuencia: las páginas de acceso dejan `/auth/login` y `/auth/register` (que chocan con la API) y pasan a `/ingresar` y `/registro`.
+Consecuencia (decidida en `add-cloud-deployment`): **toda la API pasa a `/api`** (`/api/auth/login`, `/api/patients`, `/api/actuator/health/liveness`), porque sin prefijo sus rutas chocan con las pantallas de la app (`/patients/1` es pantalla y endpoint). Vercel reenvía solo `/api/*`. Las pantallas `/auth/login` y `/auth/register` **no cambian** (en HSO se renombraron; aquí ya no chocan).
 
 ## 6. Variables del backend en Render
 
@@ -118,5 +118,5 @@ Los secretos se cargan en el panel de Render, **nunca** en el repo.
 ## 7. Pendiente en los changes siguientes
 
 - ~~`add-support-contact`~~ (hecho): una fila compacta "¿Problemas para entrar?" con botones de WhatsApp y correo bajo el formulario de login y registro, y en "Está tardando más de lo normal". Los datos están en `modules/frontend/src/modules/core/config/supportContact.ts`; quedan públicos en la web.
-- `add-cloud-deployment`: Dockerfile del backend (y medir memoria y arranque en 512 MB / 0,1 CPU), `render.yaml`, `vercel.json` con los rewrites, rutas `/ingresar` y `/registro`, roles de Neon (§4.2) y la matriz de verificación del despliegue.
+- `add-cloud-deployment`: Dockerfile del backend (y medir memoria y arranque en 512 MB / 0,1 CPU), `render.yaml`, `vercel.json` con el rewrite de `/api/*`, API bajo `/api`, roles de Neon (§4.2) y la matriz de verificación del despliegue.
 - `add-database-backups`: copia diaria cifrada fuera de Neon con restauración verificada. "No caduca" no es una copia de seguridad.

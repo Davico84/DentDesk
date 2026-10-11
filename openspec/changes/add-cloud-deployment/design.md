@@ -8,7 +8,7 @@
 - **Rutas de la API hoy**: en la raíz (`/auth`, `/patients`, `/patients/{id}/…`, `/cie10`, `/dental-chart/catalog`, `/organizations/me/branding`, `/actuator`). **Chocan con las pantallas** de la app (`/patients`, `/patients/:id`, `/patients/:id/clinical-history`…).
 - **Cookie de refresh**: `HttpOnly; Secure; SameSite=Lax; Path=/auth` (`RefreshCookieFactory`, constante `COOKIE_PATH`). CSRF deshabilitado por esa cookie.
 - **Frontend**: `httpClient.ts` usa `import.meta.env.VITE_API_URL ?? "http://localhost:8080"`; `vite.config.ts` define un `BACKEND_URL` que nadie lee; el cliente lo genera orval con paths relativos (`/patients/…`).
-- **Base**: dos roles (`odontorisas_admin` para Flyway, `odontorisas_app` para la app) y RLS (`scripts/db-roles.sql`, probado por `DbRolesScriptIT`).
+- **Base**: dos roles (`odontorisas_admin` para Flyway, `odontorisas_app` para la app) y RLS (`scripts/db-roles.sql`). `DbRolesScriptIT` lo prueba contra un PostgreSQL 16 local como superusuario: **no** reproduce las restricciones de Neon (dueño del proyecto no superusuario, `neon_superuser`), que se verifican a mano en el despliegue (D6, D7).
 - **Registro**: crea la organización y al usuario como ADMIN de su clínica (`AuthService`). No hace falta promover un primer ADMIN por SQL, como en HSO.
 - **Flujo de ramas**: trabajo en `dev`, PR a `main` con el CI en verde, merge del usuario.
 
@@ -25,8 +25,11 @@
 `server.servlet.context-path: /api` en `application.yml`, en todos los entornos.
 
 - **Por qué**: con la API en la raíz, el proxy de Vercel tendría que reenviar `/patients/*`, y entonces recargar la pantalla `/patients/1` devolvería el JSON del endpoint. Separar por **prefijo** es la única regla que el proxy puede aplicar sin heurísticas.
-- **Qué no cambia**: los controladores, Spring Security (`PublicPaths` y los matchers comparan la ruta **sin** la base), los tests de MockMvc (no aplican la base) y los **paths del contrato** OpenAPI (siguen relativos: `/patients/{id}`), así que el cliente generado por orval no cambia. Sí cambia la URL del servidor en `contracts/openapi.json` (se regenera).
-- **Cookie de refresh**: su `Path` pasa a ser la base + `/auth` (`/api/auth`). `RefreshCookieFactory` lo arma con `server.servlet.context-path` en vez de la constante, así no se desalinea si la base cambiara. Una cookie con `Path=/auth` no viajaría a `/api/auth/refresh`: la sesión no sobreviviría a una recarga.
+- **Qué no cambia** (revisado en el código por Codex, sin hallazgos): los controladores (mappings relativos), Spring Security (`PublicPaths` y los matchers comparan la ruta **sin** la base), el filtro JWT (solo lee `Authorization`), CORS (registrado en `/**`, que se evalúa sobre la ruta del servlet) y los **paths del contrato** OpenAPI (relativos: `/patients/{id}`), así que el cliente de orval, que solo lee `contracts/openapi.json` y no usa `servers`, no cambia. No hay redirects, `Location` ni URLs absolutas armadas a mano; `ProblemDetail.instance` pasará a incluir `/api` porque Spring lo toma de la URI real.
+- **Tests**: todos usan MockMvc, que **no** aplica el context-path, así que siguen pasando, pero tampoco prueban el prefijo. Se agrega un IT con servidor real (`webEnvironment = RANDOM_PORT` y un cliente HTTP) que recorre `/api/auth/*`, `/api/actuator/health/liveness`, que `/patients` sin la base no es la API y el **preflight CORS** a `/api/auth/refresh` (tarea 1.3).
+- **Contrato**: el guardián de drift (`ContractDriftIT`) ignora `servers` a propósito. `OpenApiContractIT` suma aserciones de que los paths siguen sin `/api` (`/auth/login`, no `/api/auth/login`). La URL de `servers` no es parte del contrato verificado (orval no la usa): se documenta así.
+- **Cookie de refresh**: su `Path` pasa a ser la base + `/auth` (`/api/auth`). `RefreshCookieFactory` lo arma con `ServerProperties.getServlet().getContextPath()` **normalizado** (vacío, `/api` y `/api/` dan `/auth`, `/api/auth` y `/api/auth`) en vez de la constante, y la cookie de alta y la de borrado (logout) salen del mismo builder, así no se desalinean. Una cookie con `Path=/auth` no viajaría a `/api/auth/refresh`: la sesión no sobreviviría a una recarga.
+- **Cookie vieja con `Path=/auth`**: queda huérfana en un navegador que ya la tuviera (no viaja a `/api/auth/*` y el logout nuevo no la borra; expira sola). Dentdesk **nunca se publicó**: solo puede existir en navegadores de desarrollo local. No se emite una cookie de borrado extra; se documenta.
 - **Actuator**: queda en `/api/actuator/health/liveness` (health check de Render y monitor externo). `docs/deployment.md` y `docs/backend.md` se corrigen.
 - **Pantallas de acceso**: **no se renombran**. `/auth/login` y `/auth/register` son rutas de la app y ya no chocan con `/api/auth/*`.
 
@@ -42,7 +45,7 @@
 - `.dockerignore`: `secrets.properties`, `.env*`, `target/`, `compose.yaml`, archivos de IDE.
 - `server.port: ${PORT:8080}`.
 - **Verificación local** (tarea 1.4): `docker run -m 512m --cpus 0.1 -e PORT=10000` contra el PostgreSQL de compose; se registran tiempo de arranque, memoria (RSS) y liveness en `docs/deployment.md`. HSO midió ~54 s y ~295 MiB; Dentdesk tiene más migraciones (22) y más entidades, así que se mide, no se supone.
-- La entrada de entrenamiento necesita las variables obligatorias de la app (p. ej. `JWT_SECRET` con su validación de ≥ 32 bytes): se le pasan valores de entrenamiento, no secretos.
+- **Entrenamiento del AOT cache, distinto de HSO** (bloqueante encontrado por Codex): `application.yml` resuelve el datasource con `${DB_URL}`, `${DB_USERNAME}`, `${DB_PASSWORD}` (Flyway con `${DB_ADMIN_*:...}`) y el JWT con `${JWT_SECRET}`. El Dockerfile de HSO pasaba `-Dspring.datasource.*`; aquí se pasan **las variables que la app consume** como variables de entorno de la corrida (`DB_URL`, `DB_USERNAME`, `DB_PASSWORD`, `JWT_SECRET` de ≥ 32 bytes, todas de entrenamiento, no secretas), con Flyway apagado e Hibernate sin metadatos JDBC. El catálogo CIE10 lo carga Flyway (`V13`), no un bean al arrancar: no toca la base en el refresh. La tarea 1.6 construye la imagen de verdad (`docker build`); si el entrenamiento falla, el build falla.
 
 ### D3. Blueprint de Render (`render.yaml`, raíz)
 
@@ -60,7 +63,7 @@
 ```json
 {
   "installCommand": "pnpm install --frozen-lockfile",
-  "buildCommand": "pnpm --filter odontorisas-frontend build",
+  "buildCommand": "pnpm --filter dentdesk-frontend build",
   "outputDirectory": "modules/frontend/dist",
   "framework": null,
   "rewrites": [
@@ -73,7 +76,8 @@
 - Los rewrites solo aplican si no hay un archivo estático con esa ruta. Vercel Hobby espera hasta 120 s en un rewrite externo: cubre el arranque en frío.
 - Un test del frontend lee `vercel.json` y fija el orden, el destino `/api`, la salida y que no se reenvía nada más.
 - **URL base del cliente**: `core/config/apiBaseUrl.ts`, `resolveApiBaseUrl({ VITE_API_URL, DEV })`: con `VITE_API_URL`, ese valor; si no, `http://localhost:8080/api` en desarrollo y `/api` en producción. `httpClient.ts` la usa. Se quitan el `define BACKEND_URL` (`vite.config.ts`, `vitest.config.ts`), su `declare` y la línea de `.env.example`, que pasa a documentar `VITE_API_URL`. Los tests de MSW siguen con `*/…`.
-- El nombre del filtro (`odontorisas-frontend`) se confirma contra el `package.json` (el paquete se llama `dentdesk-frontend`): se usa el real.
+- El filtro de pnpm es **`dentdesk-frontend`**, el nombre real del paquete (en HSO era otro; copiarlo rompería el build de Vercel).
+- El test de `vercel.json` fija: el orden (`/api/:path*` antes del fallback), el destino con `/api`, el fallback a `/index.html`, `outputDirectory`, el filtro `dentdesk-frontend`, y que **no** hay rewrites de `/auth/*` ni de `/actuator/*`.
 
 ### D5. CORS con el proxy
 
@@ -82,7 +86,7 @@ Vercel reenvía `Origin: https://<app>.vercel.app`; para el backend es una petic
 ### D6. Puesta en marcha guiada (pasos del usuario)
 
 1. **Neon**: proyecto en `aws-us-east-2`; roles por SQL y verificación (`docs/deployment.md` §4.2); cadena **directa** con `sslmode=require`.
-2. **Render**: en el workspace compartido con HSO, "New Blueprint" desde el repo (rama `main`); cargar las credenciales y `CORS_ALLOWED_ORIGINS=https://pendiente.invalid`. Primer deploy: Flyway migra con el rol admin y liveness `200`.
+2. **Render**: en el workspace compartido con HSO, "New Blueprint" desde el repo (rama `main`); cargar las credenciales y `CORS_ALLOWED_ORIGINS=https://pendiente.invalid`. Primer deploy: Flyway migra con el rol **admin** y liveness `200`. Después, en el SQL Editor de Neon: las tablas pertenecen a `odontorisas_admin` y `odontorisas_app` puede leerlas (los `GRANT` y `ALTER DEFAULT PRIVILEGES` de `V6`). **No se abre la app a usuarios** hasta completar esta comprobación y la de §4.2.
 3. Completar la URL real de Render en `vercel.json` si difiere (commit en `dev`, PR a `main`).
 4. **Vercel**: importar el repo, Root Directory = raíz, rama de producción `main`, sin `VITE_API_URL`. Luego `CORS_ALLOWED_ORIGINS` en Render = origen de Vercel.
 5. **cron-job.org**: liveness cada 10 min de 9:00 a 19:50 (`America/Lima`).

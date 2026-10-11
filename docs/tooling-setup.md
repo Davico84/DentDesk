@@ -104,7 +104,7 @@ backend ──[ContractDriftIT]──► contracts/openapi.json ──[codegen-d
 ```bash
 # con el backend arrancado — OJO: con `-o`, nunca canalizando por un script
 curl -o contracts/openapi.json http://localhost:8080/v3/api-docs
-pnpm --filter odontorisas-frontend generate:api
+pnpm --filter dentdesk-frontend generate:api
 ```
 > [!WARNING]
 > Exporta el contrato con `curl -o`. Un `curl | python` en Windows lo dejó **doble codificado** (el `stdin` de Python usa cp1252, no UTF-8), lo que reventaba a `ContractDriftIT` y propagaba *mojibake* al cliente generado.
