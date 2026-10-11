@@ -88,6 +88,7 @@ describe("Pantalla de arranque en frío", () => {
     const bar = screen.getByRole("progressbar");
     expect(Number(bar.getAttribute("aria-valuenow"))).toBeLessThan(100);
     expect(screen.getByText(/No cierres esta pestaña/)).toBeInTheDocument();
+    expect(screen.queryByRole("region", { name: "Soporte" })).not.toBeInTheDocument();
   });
 
   it("desde los 45 s la ayuda dice que ya casi está", async () => {
@@ -103,6 +104,11 @@ describe("Pantalla de arranque en frío", () => {
     const retry = screen.getByRole("button", { name: "Reintentar" });
     expect(screen.getByRole("heading", { name: "Está tardando más de lo normal" })).toBeInTheDocument();
     expect(retry).toHaveFocus();
+    // add-support-contact: el contacto de soporte va abierto, en vez de remitir al administrador.
+    const support = screen.getByRole("region", { name: "Soporte" });
+    expect(support).toHaveTextContent("¿Sigue sin entrar? Escríbeme");
+    expect(support).toHaveTextContent("David Velarde · Soporte Dentdesk");
+    expect(screen.queryByText(/avisa al administrador/)).not.toBeInTheDocument();
     await userEvent.setup({ advanceTimers: vi.advanceTimersByTime }).click(retry);
     expect(reload).toHaveBeenCalledTimes(1);
   });
@@ -112,6 +118,8 @@ describe("Pantalla de arranque en frío", () => {
     renderApp();
     expect(screen.getByRole("heading", { name: "Sin conexión a internet" })).toBeInTheDocument();
     expect(screen.queryByText("Preparando tu consultorio digital")).not.toBeInTheDocument();
+    // Sin red, WhatsApp y el correo no se abren: no se ofrece el contacto.
+    expect(screen.queryByRole("region", { name: "Soporte" })).not.toBeInTheDocument();
 
     onLine.mockReturnValue(true);
     await act(async () => {

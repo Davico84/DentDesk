@@ -1,0 +1,21 @@
+/**
+ * Soporte de Dentdesk (`add-support-contact` D1): quién atiende a las clínicas que no pueden entrar
+ * y cuándo responde. Es el contacto DEL PRODUCTO, no de cada clínica: por eso es una constante y no
+ * va en la base. El horario coincide con el que el servidor está despierto (docs/deployment.md §3).
+ *
+ * ⚠️ Estos datos quedan públicos en la web (login y registro): cambiarlos es editar este archivo.
+ */
+export const supportContact = {
+  name: "David Velarde",
+  role: "Soporte Dentdesk",
+  hours: "de 9:00 a 20:00",
+  /** Formato de `wa.me`: código de país y número, solo dígitos, sin `+` ni espacios. */
+  whatsapp: "51959396384",
+  email: "davicova84@gmail.com",
+  product: "Dentdesk",
+} as const;
+
+/** Enlace de WhatsApp que abre la conversación con un primer mensaje ya escrito. */
+export function whatsappUrl(whatsapp: string, text: string): string {
+  return `https://wa.me/${whatsapp}?text=${encodeURIComponent(text)}`;
+}
