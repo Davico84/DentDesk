@@ -117,6 +117,6 @@ Los secretos se cargan en el panel de Render, **nunca** en el repo.
 
 ## 7. Pendiente en los changes siguientes
 
-- `add-support-contact`: WhatsApp y correo de soporte en login, registro y en "Está tardando más de lo normal".
+- ~~`add-support-contact`~~ (hecho): la tarjeta de soporte (David Velarde, de 9:00 a 20:00, WhatsApp y correo) se despliega desde el login y el registro y aparece abierta en "Está tardando más de lo normal". Los datos están en `modules/frontend/src/modules/core/config/supportContact.ts`; quedan públicos en la web.
 - `add-cloud-deployment`: Dockerfile del backend (y medir memoria y arranque en 512 MB / 0,1 CPU), `render.yaml`, `vercel.json` con los rewrites, rutas `/ingresar` y `/registro`, roles de Neon (§4.2) y la matriz de verificación del despliegue.
 - `add-database-backups`: copia diaria cifrada fuera de Neon con restauración verificada. "No caduca" no es una copia de seguridad.
