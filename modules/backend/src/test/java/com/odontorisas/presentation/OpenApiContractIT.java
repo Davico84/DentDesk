@@ -58,6 +58,15 @@ class OpenApiContractIT extends AbstractIntegrationTest {
     }
 
     @Test
+    void contract_paths_stay_relative_to_the_api_base() throws Exception {
+        // add-cloud-deployment D1: la API vive bajo /api (context-path), pero los paths del contrato
+        // siguen relativos a esa base, así el cliente generado por orval no cambia.
+        Map<String, Object> paths = JsonPath.read(apiDocs, "$.paths");
+        assertThat(paths).containsKey("/auth/login").doesNotContainKey("/api/auth/login");
+        assertThat(paths.keySet()).noneMatch(path -> path.startsWith("/api/"));
+    }
+
+    @Test
     void with_docs_enabled_swagger_ui_is_served() throws Exception {
         // Scenario "Swagger UI disponible al habilitarla": la ruta redirige a la página de la UI.
         String location = mockMvc.perform(get("/swagger-ui.html"))
