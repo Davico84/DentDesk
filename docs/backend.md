@@ -414,14 +414,22 @@ Tras tocar la API: regenera `contracts/openapi.json` **y** el cliente del fronte
 framework (que además solo trae `health`; aquí se sumó `info` a propósito). No amplíes esa lista sin
 decidir a la vez si el endpoint nuevo queda público o autenticado (siguiente punto).
 
-- **Solo `/actuator/health/**` y `/actuator/info` son públicos** (`PublicPaths` — fuente única
-  compartida con el customizer de OpenAPI). Cualquier otro endpoint de actuator cae bajo
-  `anyRequest().authenticated()`: no hay excepción salvo esas dos rutas.
-- ⚠️ **`management.endpoint.health.show-details: always`** combinado con que `/actuator/health/**`
-  es **público** significa que el detalle de salud (estado de cada *health indicator*: BD, disco...)
-  lo ve cualquiera sin autenticar. Es una decisión consciente, no un descuido — pero si algún día un
-  *health indicator* propio expone algo sensible (nombre de host interno, versión de dependencia),
-  hay que revisar si sigue mereciendo `always` en una ruta pública o si baja a `when-authorized`.
+- **Solo `/actuator/health/**` es público** (`PublicPaths` — fuente única compartida con el
+  customizer de OpenAPI). `/actuator/info` sigue expuesto pero **autenticado** (nada lo usa, y así
+  no queda una ruta pública cuyo contenido crezca sin revisión). Cualquier otro endpoint de actuator
+  cae bajo `anyRequest().authenticated()`.
+- **Ping de liveness**: `management.endpoint.health.probes.enabled: true` activa
+  `GET /actuator/health/liveness`, el que llama el monitor externo para mantener despierto el
+  backend en Render (`docs/deployment.md`). Su grupo **no incluye la base**: el ping no la despierta.
+  No uses `/actuator/health` para eso, porque consulta la base en cada llamada.
+- **`show-details: ${HEALTH_SHOW_DETAILS:always}`**: en local el detalle (estado de la BD, del
+  disco) se ve; en despliegue `HEALTH_SHOW_DETAILS=never`, porque la ruta es pública. Si un
+  *health indicator* propio llegara a exponer algo sensible, ni siquiera `always` en local es buena
+  idea: baja a `when-authorized`.
+- **Pool de conexiones (Hikari)**: `minimum-idle` 0, `idle-timeout` 60 s, `keepalive-time` 0 y
+  máximo 5, por variables `DB_POOL_*`. Sin mínimo ni keepalive, el pool puede quedar vacío y la base
+  (Neon) dormir; la siguiente petición abre una conexión nueva. No subas `minimum-idle` ni actives
+  el keepalive sin medir: mantendrían la base despierta y agotarían su cupo gratuito.
 - Antes de exponer un endpoint nuevo de actuator (`/env`, `/beans`, `/httptrace`...): añádelo a
   `exposure.include` **y** decide explícitamente si entra en `PublicPaths` — nunca por omisión. Si
   se expone `/env`, revisa que no filtre `app.security.jwt.secret` ni credenciales de BD.

@@ -19,6 +19,7 @@ Monorepo modular: `modules/backend/` (Java/Spring) + `modules/frontend/` (React/
   - **Tecnología (reutilizable):** `docs/architecture.md` — stack cerrado + arquitectura back/front · `docs/backend.md` — estándares Java/Spring · `docs/frontend.md` — estándares frontend (arquitectura, React Query, Zustand, patrones UI) · `docs/coding-style.md` — estilo general de código (TypeScript, nombres) · `docs/testing.md` — estrategia de pruebas + puente Scenario→test.
   - **Decisiones (el porqué):** `docs/adr/` — un ADR por decisión que sobrevive al change que la implementa. `docs/adr/README.md` — cómo se escriben y se revisan (las **cinco dimensiones**: normativa, dominio clínico, DDD, arquitectura, evolución).
   - **Cumplimiento normativo:** `docs/compliance/regulatory-matrix.md` — trazabilidad norma → ADR → requirement/scenario. Al escribir un ADR con motivación normativa, actualizar su fila. **No** es un resumen de las normas ni un segundo hogar para las decisiones.
+  - `docs/deployment.md` — despliegue en Neon + Render + Vercel: cómo duermen los servicios, monitor externo, roles de Neon sin `BYPASSRLS` (RLS), variables y cookie entre dominios.
   - `docs/tooling-setup.md` — tooling reproducible (scripts, Vitest/MSW, husky/commitlint, CI).
   - `docs/commits.md` — estándar de commits (Conventional Commits en español) + convención `Refs:` para enlazar tareas.
 
