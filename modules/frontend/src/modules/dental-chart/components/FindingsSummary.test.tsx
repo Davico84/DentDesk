@@ -32,3 +32,15 @@ describe("FindingsSummary", () => {
     expect(counts).toEqual(expect.arrayContaining(["2", "1"]));
   });
 });
+
+describe("FindingsSummary sobre el papel del odontograma", () => {
+  // El papel es siempre blanco (documento legal): el texto no puede seguir al tema, o en modo
+  // oscuro queda claro sobre blanco. Se usa la tinta fija de chartPalette.
+  it("usa la tinta fija del documento, no los colores del tema", () => {
+    const { container } = render(<FindingsSummary findings={[]} catalog={CATALOG} />);
+    const root = container.firstElementChild as HTMLElement;
+    expect(root.style.color).toBe("rgb(22, 24, 29)"); // INK
+    expect(screen.getByText("hallazgos")).toHaveStyle({ color: "rgb(74, 79, 87)" }); // INK_2
+    expect(container.querySelector(".text-muted-foreground, .text-foreground")).toBeNull();
+  });
+});
