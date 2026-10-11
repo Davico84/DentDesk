@@ -162,13 +162,13 @@ Contrato OpenAPI en `http://localhost:8080/v3/api-docs` (y Swagger UI en `/swagg
 ### Frontend
 ```bash
 pnpm install                                        # instala todo el workspace
-pnpm --filter odontorisas-frontend dev              # arranca en http://localhost:5173
+pnpm --filter dentdesk-frontend dev              # arranca en http://localhost:5173
 ```
 
 ### Pruebas y calidad
 ```bash
 cd modules/backend && ./mvnw verify                 # backend (test slices + ArchUnit)
-pnpm --filter odontorisas-frontend validate         # frontend (typecheck + lint + test)
+pnpm --filter dentdesk-frontend validate         # frontend (typecheck + lint + test)
 ```
 
 #### Estrategia de pruebas y razón de ser
@@ -198,7 +198,7 @@ Las clases **`*IT`** (integración con **Testcontainers**) corren en la fase `ve
 ### Regenerar el cliente API (tras cambiar el contrato)
 ```bash
 curl http://localhost:8080/v3/api-docs > contracts/openapi.json
-pnpm --filter odontorisas-frontend generate:api
+pnpm --filter dentdesk-frontend generate:api
 ```
 
 ---
@@ -224,5 +224,5 @@ pnpm --filter odontorisas-frontend generate:api
 ## Convenciones
 
 - **Commits**: [Conventional Commits](https://www.conventionalcommits.org/) en **español** (hook `commit-msg` los valida). Ver [`docs/commits.md`](docs/commits.md).
-- **Gates antes de subir**: `openspec validate <change> --strict` + revisión humana · `./mvnw verify` (backend) · `pnpm --filter odontorisas-frontend validate` (frontend).
+- **Gates antes de subir**: `openspec validate <change> --strict` + revisión humana · `./mvnw verify` (backend) · `pnpm --filter dentdesk-frontend validate` (frontend).
 - **No commitear** secretos (`secrets.properties`, `.env`), `target/`, `dist/`, `node_modules/`.

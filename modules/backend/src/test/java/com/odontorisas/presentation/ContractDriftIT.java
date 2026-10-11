@@ -57,7 +57,7 @@ class ContractDriftIT extends AbstractIntegrationTest {
 
             1) arranca el backend con SWAGGER_ENABLED=true (en secrets.properties)
             2) curl http://localhost:8080/api/v3/api-docs > contracts/openapi.json
-            3) pnpm --filter odontorisas-frontend generate:api
+            3) pnpm --filter dentdesk-frontend generate:api
             4) commitea ambos
         """;
 

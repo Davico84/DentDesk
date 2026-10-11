@@ -16,7 +16,7 @@
 - [x] 2.2 Quitar `BACKEND_URL` (`vite.config.ts`, `vitest.config.ts`, `vite-env.d.ts`); `.env.example` con `VITE_API_URL`; tipar `VITE_API_URL`
 - [x] 2.3 `vercel.json` en la raíz + test que fija: orden de los rewrites, destino `/api`, fallback, `outputDirectory`, filtro `dentdesk-frontend`, y que no hay rewrite de `/auth/*` ni `/actuator/*` (design D4)
 - [x] 2.4 Build local idéntico al de Vercel desde la raíz (`pnpm install --frozen-lockfile` + build) y `pnpm validate` verde
-- [ ] 2.5 Prueba local de punta a punta con la base `/api`: backend + frontend en desarrollo, login, recarga con sesión (la cookie viaja a `/api/auth/refresh`) y una pantalla de paciente
+- [x] 2.5 Prueba local de punta a punta con la base `/api`: backend + frontend en desarrollo, login, recarga con sesión (la cookie viaja a `/api/auth/refresh`) y una pantalla de paciente
 
 ## 3. Puesta en marcha (usuario, guiada)
 
@@ -33,6 +33,6 @@
 
 ## 5. Docs
 
-- [ ] 5.1 Búsqueda final sin referencias a `/ingresar`, `/registro` ni al filtro de HSO en el repo
+- [x] 5.1 Búsqueda final sin referencias a `/ingresar`, `/registro` ni al filtro de HSO en el repo
 - [ ] 5.2 `docs/deployment.md`: base `/api` y liveness en `/api/actuator/health/liveness`; pasos concretos (Neon → Render → Vercel → monitor); rama de producción; CORS y previews; mediciones y matriz con resultados. `docs/backend.md` (base `/api`, cookie). `docs/vision.md` §8
 - [ ] 5.3 `openspec validate add-cloud-deployment --strict`

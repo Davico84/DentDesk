@@ -407,6 +407,14 @@ Tras tocar la API: regenera `contracts/openapi.json` **y** el cliente del fronte
 - **Sin secretos en el código ni en git**: viven en `secrets.properties` / variables de entorno (ignorados), con `secrets.properties.example` versionado (§12).
 - Validar y sanear toda entrada; los DTOs + Bean Validation son la primera barrera.
 
+### 11.0 Base de la API: `/api`
+
+Toda la API se sirve bajo `server.servlet.context-path: /api` (`add-cloud-deployment` D1): `/api/auth/login`, `/api/patients`, `/api/actuator/health/liveness`. Sin prefijo, sus rutas chocaban con las pantallas de la app (`/patients/1`) y el proxy de Vercel no podía distinguirlas.
+
+- Los `@RequestMapping`, `PublicPaths` y los matchers de Spring Security siguen **relativos** a la base (`/auth/**`, no `/api/auth/**`); los paths del contrato OpenAPI también, así que el cliente de orval no cambia.
+- **MockMvc no aplica el context-path**: los tests con MockMvc usan las rutas relativas. El prefijo real lo prueba `ApiBasePathIT`, con servidor real.
+- La cookie de refresh lleva `Path=<base>/auth` (`/api/auth`): `RefreshCookieFactory` lo arma desde `server.servlet.context-path`. Si cambia la base, la cookie la sigue sola.
+
 ### 11.1 Actuator — superficie expuesta
 
 `spring-boot-starter-actuator` está en el `pom.xml`. Configuración real (`application.yml`):
@@ -419,7 +427,7 @@ decidir a la vez si el endpoint nuevo queda público o autenticado (siguiente pu
   no queda una ruta pública cuyo contenido crezca sin revisión). Cualquier otro endpoint de actuator
   cae bajo `anyRequest().authenticated()`.
 - **Ping de liveness**: `management.endpoint.health.probes.enabled: true` activa
-  `GET /actuator/health/liveness`, el que llama el monitor externo para mantener despierto el
+  `GET /api/actuator/health/liveness` (la API vive bajo `/api`, ver abajo), el que llama el monitor externo para mantener despierto el
   backend en Render (`docs/deployment.md`). Su grupo **no incluye la base**: el ping no la despierta.
   No uses `/actuator/health` para eso, porque consulta la base en cada llamada.
 - **`show-details: ${HEALTH_SHOW_DETAILS:always}`**: en local el detalle (estado de la BD, del

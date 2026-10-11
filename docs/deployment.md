@@ -25,7 +25,7 @@ Base y backend en la **misma región**: cada consulta cruza esa distancia.
 
 El **único** mecanismo que evita el arranque en frío es un monitor externo gratuito que llame al backend:
 
-- **URL**: `https://<servicio>.onrender.com/actuator/health/liveness` (público, responde `200` con `status: UP` y **no consulta la base**, así que no la despierta).
+- **URL**: `https://<servicio>.onrender.com/api/actuator/health/liveness` (la API vive bajo `/api`; público, responde `200` con `status: UP` y **no consulta la base**, así que no la despierta).
 - **Frecuencia**: cada 10 min (menos de los 15 de Render).
 - **Servicio**: UptimeRobot o cron-job.org (este último permite horarios, ver §3).
 - El *health check* de Render (configurado a la misma ruta) **no lo sustituye**: Render no documenta que cuente como tráfico que evite la suspensión.
@@ -128,8 +128,22 @@ Los secretos se cargan en el panel de Render, **nunca** en el repo.
 - Imagen inspeccionada: sin `secrets.properties`, `.env`, `src/` ni `mvnw`; corre como `app`, no `root`.
 - Para probarla en local: `docker build -t dentdesk-api:local modules/backend` y `docker run -m 512m --cpus 0.1 -e PORT=10000 -e DB_URL=... -e DB_USERNAME=... -e DB_PASSWORD=... -e JWT_SECRET=... -e COOKIE_SECURE=false -p 10000:10000 dentdesk-api:local` (sobre HTTP, la cookie `Secure` no vuelve: `COOKIE_SECURE=false` solo para probar login en local).
 
-## 8. Pendiente en los changes siguientes
+## 8. Puesta en marcha (una vez, en orden)
+
+Los pasos en paneles los hace el responsable; el detalle de cada uno está en las secciones de arriba.
+
+1. **Neon**: crear el proyecto en `aws-us-east-2`. Crear los dos roles **por SQL** y correr la verificación de §4.2 (`odontorisas_app` sin `rolsuper`, `rolbypassrls` ni `neon_superuser`). Copiar la cadena **directa** (sin `-pooler`) con `sslmode=require`.
+2. **Render**: en el workspace compartido con HSO, *New Blueprint* desde el repo, rama `main` (lee `render.yaml`). Cargar `DB_URL`, `DB_USERNAME`/`DB_PASSWORD` (`odontorisas_app`), `DB_ADMIN_USERNAME`/`DB_ADMIN_PASSWORD` (`odontorisas_admin`), `JWT_SECRET` (`openssl rand -base64 48`) y `CORS_ALLOWED_ORIGINS=https://pendiente.invalid`. Primer deploy: Flyway migra con el admin y `/api/actuator/health/liveness` responde `200`.
+3. **Comprobar en Neon** (SQL Editor) que las tablas son de `odontorisas_admin` y que `odontorisas_app` puede leerlas. **No abrir la app a usuarios antes.**
+4. Si Render le dio otra URL que `dentdesk-api.onrender.com`, corregirla en `vercel.json` (commit en `dev`, PR a `main`).
+5. **Vercel**: importar el repo, *Root Directory* = raíz, rama de producción `main`, sin `VITE_API_URL` (lee `vercel.json`). Copiar el origen de producción (`https://<app>.vercel.app`) a `CORS_ALLOWED_ORIGINS` en Render, sin `/` final.
+6. **cron-job.org**: `GET https://<servicio>.onrender.com/api/actuator/health/liveness` cada 10 min de 9:00 a 19:50 (`America/Lima`), §3.
+7. **Verificar** con la matriz de `add-cloud-deployment` (design D7) y anotar los resultados aquí, incluida la prueba de que **dos clínicas no se ven entre sí**.
+
+Producción = rama `main`: Render despliega solo con los checks del CI en verde; los pushes a `dev` generan *previews* de Vercel sin sesión (CORS solo admite el origen de producción).
+
+## 9. Pendiente en los changes siguientes
 
 - ~~`add-support-contact`~~ (hecho): una fila compacta "¿Problemas para entrar?" con botones de WhatsApp y correo bajo el formulario de login y registro, y en "Está tardando más de lo normal". Los datos están en `modules/frontend/src/modules/core/config/supportContact.ts`; quedan públicos en la web.
-- `add-cloud-deployment`: Dockerfile del backend (y medir memoria y arranque en 512 MB / 0,1 CPU), `render.yaml`, `vercel.json` con el rewrite de `/api/*`, API bajo `/api`, roles de Neon (§4.2) y la matriz de verificación del despliegue.
+- `add-cloud-deployment`: hecho en el repo (API bajo `/api`, Dockerfile medido en §7, `render.yaml`, `vercel.json`); falta la puesta en marcha de §8 y su matriz de verificación.
 - `add-database-backups`: copia diaria cifrada fuera de Neon con restauración verificada. "No caduca" no es una copia de seguridad.
