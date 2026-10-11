@@ -209,7 +209,7 @@ Checklist de lo que se copia de HSOFACOP (`D:/proyectos/HSOFACOP`, analizado el 
 **Más adelante (cuando toque):**
 
 - [ ] **Despliegue** en Neon + Render + Vercel, región Ohio (decisión del usuario, 2026-10-10), en cuatro changes y en este orden. HSO: los mismos cuatro.
-  - [ ] `add-cold-start-warmup` — ping de liveness, Actuator mínimo, pool que deja dormir a Neon, pantalla de arranque en frío, `docs/deployment.md`. 🚧 propuesto: [`proposal.md`](../openspec/changes/add-cold-start-warmup/proposal.md) · [`design.md`](../openspec/changes/add-cold-start-warmup/design.md)
+  - [ ] `add-cold-start-warmup` — ping de liveness, Actuator mínimo, pool que deja dormir a Neon, pantalla de arranque en frío, `docs/deployment.md`. 🚧 implementado (falta correr los IT del backend y archivar): [`proposal.md`](../openspec/changes/add-cold-start-warmup/proposal.md) · [`design.md`](../openspec/changes/add-cold-start-warmup/design.md)
   - [ ] `add-support-contact` — WhatsApp y correo de soporte en login, registro y pantalla de espera
   - [ ] `add-cloud-deployment` — Dockerfile, `render.yaml`, `vercel.json` con la API en el mismo origen, rutas `/ingresar` y `/registro`, roles de Neon sin `BYPASSRLS`
   - [ ] `add-database-backups` — copia diaria cifrada fuera de Neon con restauración verificada

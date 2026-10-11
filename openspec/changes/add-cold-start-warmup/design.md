@@ -6,7 +6,7 @@
 - **Render free**: suspende el servicio tras 15 min sin tráfico entrante; la siguiente petición espera el arranque (~1 min). 750 h de instancia al mes por workspace: un servicio despierto 24/7 (~730 h) cabe. 512 MB, 0,1 CPU.
 - **Neon free**: suspende el cómputo tras ~5 min sin actividad; las conexiones persistentes o los keepalives lo impiden. Cupo de horas de cómputo al mes que no alcanza para 24/7. Las cifras de los planes se anotan con fecha en `docs/deployment.md`, porque cambian.
 - **Actuator hoy** (`application.yml`, `docs/backend.md` §11.1): expone `health,info`; `/actuator/health/**` y `/actuator/info` son públicos en `PublicPaths`; `show-details: always` (decisión consciente para local).
-- **Pool**: HikariCP gestionado por Spring Boot 4.0.6, sin configurar: `minimumIdle` = `maximumPoolSize` = 10 y `keepaliveTime` = 120 000 ms.
+- **Pool**: HikariCP 7.0.2 gestionado por Spring Boot 4.0.6 (y Awaitility 4.3.0 vía `spring-boot-starter-test`; confirmado con `mvn dependency:tree`), sin configurar: `minimumIdle` = `maximumPoolSize` = 10 y `keepaliveTime` = 120 000 ms.
 - **Base con RLS y dos roles** (`odontorisas_admin` dueño, solo Flyway; `odontorisas_app` solo DML, `NOSUPERUSER NOBYPASSRLS`; `modules/backend/scripts/db-roles.sql`). El contexto de RLS se fija por transacción.
 - **Frontend**: `RootLayout` llama a `useSessionBootstrap` (refresh single-flight) y muestra "Cargando…" mientras el `status` es `idle`/`loading`. Toda carga pasa por ahí, con o sin sesión: es la primera petición al backend.
 - **Sesión**: refresh token en cookie `HttpOnly; Secure; SameSite=Lax` (`COOKIE_SECURE`); CSRF deshabilitado porque la cookie se protege con `SameSite=Lax` + `POST`.
@@ -87,6 +87,16 @@ Se crea con lo que este change deja listo y lo que el despliegue debe cumplir:
   La app usa `odontorisas_app` (`DB_USERNAME`); Flyway, `odontorisas_admin` (`DB_ADMIN_USERNAME`).
 - **Variables de Render**: `HEALTH_SHOW_DETAILS=never`, `SWAGGER_ENABLED=false`, `COOKIE_SECURE=true`, `JWT_SECRET` ≥ 32 bytes, credenciales de base.
 - **Condición de la cookie entre dominios**: `*.vercel.app` y `*.onrender.com` son *sites* distintos (Public Suffix List): con `SameSite=Lax` la cookie de refresh no viajaría. Se resuelve en `add-cloud-deployment` sirviendo la API bajo el mismo origen con los rewrites de Vercel (que esperan hasta 120 s el arranque en frío). Este change solo lo documenta: **se puede aplicar sin resolverlo**, pero el sistema no es desplegable de extremo a extremo hasta ese change.
+
+### D7. Cupo de horas de Render compartido con HSO
+
+HSO ya está desplegado en Render free y despierto 24/7 (~730 h al mes). El cupo gratuito son **750 h al mes por workspace**: no alcanza para un segundo servicio también despierto todo el día. Opciones, a decidir **antes del primer despliegue** (`add-cloud-deployment`), no en este change:
+
+1. **Workspace de Render propio para Dentdesk** (otra cuenta o equipo): cada uno con sus 750 h; los dos despiertos 24/7. Más simple de operar.
+2. **Monitor solo en horario de atención** (cron-job.org permite horarios) para uno o ambos: por ejemplo 7:00–22:00 son ~465 h al mes por servicio; fuera de horario duermen y el primer ingreso muestra la pantalla de este change.
+3. **Dejar dormir a Dentdesk** sin monitor hasta tener clínicas reales usándolo.
+
+Este change sirve igual en cualquiera de las tres: el ping solo se usa si se monitorea, y la pantalla de arranque en frío cubre justo las opciones 2 y 3. `docs/deployment.md` registra las opciones y el presupuesto de horas.
 
 ## Risks / Trade-offs
 
