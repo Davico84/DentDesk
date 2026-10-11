@@ -8,12 +8,12 @@ Antes de publicar, quien no puede entrar (olvidó su contraseña, el servidor ta
 
 ## What Changes
 
-- **Contacto de soporte de Dentdesk** en una constante de `core/config` (`supportContact`): quién atiende ("David Velarde · Soporte Dentdesk", iniciales DV), en qué horario ("de 9:00 a 20:00", el mismo en que el servidor está despierto), WhatsApp `51959396384` y correo `davicova84@gmail.com` (decisión del usuario). Es el contacto **del producto**, no de cada clínica.
-- **Tarjeta de soporte** (`SupportCard`, genérica en `core/components`): las iniciales, quién atiende y el horario, y dos botones de 44 px: **WhatsApp** (en otra pestaña, con el mensaje "Hola, necesito ayuda con Dentdesk") y **Correo** (`mailto:`). Una persona con horario, no una línea de enlaces: quien no puede entrar sabe a quién le escribe y cuándo le responden.
-- **Dónde aparece** (opción B del diseño revisado con el usuario, lienzo "Contacto de soporte Dentdesk"):
-  - **login y registro**: bajo el formulario, un botón discreto "¿Problemas para entrar? Habla con soporte" que despliega la tarjeta. Igual en escritorio y celular; el panel de marca no cambia;
-  - **"Está tardando más de lo normal"**: la tarjeta visible directamente bajo "Reintentar", con "¿Sigue sin entrar? Escríbeme", en vez de "avisa al administrador".
-- Accesible (botón con `aria-expanded`/`aria-controls`, aviso de que WhatsApp se abre en otra pestaña, objetivos de 44 px) y solo tokens de color.
+- **Contacto de soporte de Dentdesk** en una constante de `core/config` (`supportContact`): WhatsApp `51959396384` y correo `davicova84@gmail.com` (decisión del usuario). Es el contacto **del producto**, no de cada clínica.
+- **Fila de soporte** (`SupportRow`, genérica en `core/components`; opción **C2 · Fila compacta** del diseño revisado con el usuario, lienzo "Contacto de soporte Dentdesk"): una píldora con la pregunta "¿Problemas para entrar?" y dos botones redondos de 44 px y solo ícono, **WhatsApp** (en otra pestaña, con el mensaje "Hola, necesito ayuda con Dentdesk") y **Correo** (`mailto:`), cada uno con nombre accesible y tooltip. Ocupa ~60 px.
+- **Dónde aparece**:
+  - **login y registro**: bajo el formulario, siempre a la vista, en escritorio y celular; el panel de marca no cambia;
+  - **"Está tardando más de lo normal"**: bajo "Reintentar", con "¿Sigue sin entrar?", en vez de "avisa al administrador".
+- Primero se implementó la opción B (botón que despliega una tarjeta con persona y horario); el usuario la encontró con demasiada información y se reemplazó por la C2.
 
 ## Capabilities
 
@@ -34,7 +34,7 @@ Ninguna.
 
 ## Impact
 
-- Frontend: `core/config/supportContact.ts`, `core/components/SupportCard.tsx` y `core/components/SupportDisclosure.tsx` (nuevos), `AuthLayout`, `ServerWarmupScreen` y sus tests. Sin dependencias nuevas.
+- Frontend: `core/config/supportContact.ts` y `core/components/SupportRow.tsx` (nuevos), `AuthLayout`, `ServerWarmupScreen` y sus tests. Sin dependencias nuevas.
 - Sin cambios de backend, contrato ni dominio.
-- **Privacidad**: el nombre, el número y el correo quedan públicos en la web (los recogen bots de spam). Se recomienda a futuro un contacto de soporte propio de Dentdesk; cambiarlo es editar una constante.
+- **Privacidad**: el número y el correo quedan públicos en la web (los recogen bots de spam). Se recomienda a futuro un contacto de soporte propio de Dentdesk; cambiarlo es editar una constante.
 - Docs: `docs/deployment.md` §7 y `docs/vision.md` §8.

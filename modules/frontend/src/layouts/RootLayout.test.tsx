@@ -106,8 +106,8 @@ describe("Pantalla de arranque en frío", () => {
     expect(retry).toHaveFocus();
     // add-support-contact: el contacto de soporte va abierto, en vez de remitir al administrador.
     const support = screen.getByRole("region", { name: "Soporte" });
-    expect(support).toHaveTextContent("¿Sigue sin entrar? Escríbeme");
-    expect(support).toHaveTextContent("David Velarde · Soporte Dentdesk");
+    expect(support).toHaveTextContent("¿Sigue sin entrar?");
+    expect(screen.getByRole("link", { name: /Escribir a soporte por WhatsApp/ })).toBeInTheDocument();
     expect(screen.queryByText(/avisa al administrador/)).not.toBeInTheDocument();
     await userEvent.setup({ advanceTimers: vi.advanceTimersByTime }).click(retry);
     expect(reload).toHaveBeenCalledTimes(1);

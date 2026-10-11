@@ -3,7 +3,7 @@ import { motion } from "framer-motion";
 import { ThemeToggle } from "@/modules/core/ui/theme-toggle";
 import { Logo } from "@/modules/core/ui/logo";
 import { BrandPanel } from "@/modules/core/components/BrandPanel";
-import { SupportDisclosure } from "@/modules/core/components/SupportDisclosure";
+import { SupportRow } from "@/modules/core/components/SupportRow";
 import { supportContact } from "@/modules/core/config/supportContact";
 
 interface AuthLayoutProps {
@@ -52,9 +52,9 @@ export function AuthLayout({ title, description, children, footer }: AuthLayoutP
               {footer}
             </motion.div>
           ) : null}
-          {/* Soporte para quien no puede entrar (add-support-contact D4): cerrado, a pedido. */}
+          {/* Soporte para quien no puede entrar (add-support-contact D3). */}
           <motion.div {...riseIn(0.3)} className="mt-8">
-            <SupportDisclosure {...supportContact} />
+            <SupportRow {...supportContact} />
           </motion.div>
         </div>
       </main>
