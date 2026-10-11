@@ -35,13 +35,17 @@ El **único** mecanismo que evita el arranque en frío es un monitor externo gra
 
 Render free da **750 h de instancia al mes por workspace**. Un servicio despierto 24/7 consume ~730 h, y **HSO ya está desplegado y despierto 24/7**.
 
-**Decisión (usuario, 2026-10-10): Dentdesk y HSO comparten workspace, las dos despiertas de 9:00 a 20:00, hora de Perú** (las clínicas no abren antes de las 9). Fuera de ese horario duermen y el primer ingreso muestra la pantalla "Preparando tu consultorio digital".
+**Decisión (usuario, 2026-10-11): Dentdesk y HSO comparten workspace, las dos despiertas de lunes a sábado, de 9:00 a 21:00, hora de Perú.** Fuera de ese horario (noches y domingos) duermen y el primer ingreso muestra la pantalla "Preparando tu consultorio digital" (~1 min; medido en Render: 64 s).
 
-- **Monitor**: cron-job.org, un job por app, cada 10 min de **9:00 a 19:50** (zona `America/Lima`). El último ping deja el servicio despierto hasta ~20:05 (Render lo suspende 15 min después del último tráfico).
-- **Presupuesto** (mes de 31 días, el peor caso): ~11 h 15 min al día por app ≈ **349 h cada una, ~698 h entre las dos**, de 750. **Margen: ~52 h** para el uso fuera de horario.
-- **Cada ingreso fuera de horario cuesta** al menos ~17 min (arranque + los 15 min hasta que Render vuelve a suspender). El margen alcanza para unos 180 al mes entre las dos apps; si se acerca el límite, Render suspende los servicios hasta el mes siguiente.
-- Opciones descartadas: las dos de 9 a 22 (~806 h, no entra); las dos de 9 a 21 (~744 h, sin margen); un workspace propio para Dentdesk (otra cuenta que mantener).
-- El horario de HSO se cambia en su propio repo (change OpenSpec en HSOFACOP), no desde aquí.
+- **Monitor: cron-job.org**, un job por app, zona `America/Lima`, días **lunes a sábado**, horas **9 a 20**, minutos **0, 10, 20, 30, 40, 50** (último ping 20:50; el servicio queda despierto hasta ~21:05, porque Render lo suspende 15 min después del último tráfico). La última hora marcada es la **20**, no la 21: marcar la 21 extiende el horario a las 22:00 y deja el margen en ~34 h.
+  - Dentdesk: `https://dentdesk-api.onrender.com/api/actuator/health/liveness`
+  - HSO: `https://hs-facop-api.onrender.com/actuator/health/liveness` (sin `/api`)
+  - Aviso de fallo después de 3 fallos seguidos: a las 9:00 el primer ping puede superar los 30 s que espera cron-job.org mientras el servidor despierta.
+- **UptimeRobot (el monitor 24/7 que tenía HSO) se pausa**: sin horario en el plan gratuito, despertaría a HSO de noche y agotaría el cupo compartido.
+- **Presupuesto** (peor mes: 27 días hábiles): ~12 h 15 min al día por app ≈ **331 h cada una, ~662 h entre las dos**, de 750. **Margen: ~88 h** para el uso fuera de horario.
+- **Cada ingreso fuera de horario cuesta** ~17 min (arranque + los 15 min hasta la suspensión): el margen alcanza para unos 300 al mes entre las dos apps. Si se agota, Render suspende **los dos** servicios hasta el mes siguiente.
+- Alternativas evaluadas (lun–sáb): 9–20 (~142 h de margen), 8–20 (~88 h), 8–21 (~44 h, justo), 9–22 (~34 h, muy justo). Todos los días 9–20: ~52 h. Un workspace propio para Dentdesk se descartó (otra cuenta que mantener).
+- El horario de HSO se cambia en su propio repo (change OpenSpec en HSOFACOP), con estos mismos valores.
 
 ## 4. Base de datos en Neon
 
@@ -137,7 +141,7 @@ Los pasos en paneles los hace el responsable; el detalle de cada uno está en la
 3. **Comprobar en Neon** (SQL Editor) que las tablas son de `odontorisas_admin` y que `odontorisas_app` puede leerlas. **No abrir la app a usuarios antes.**
 4. Si Render le dio otra URL que `dentdesk-api.onrender.com`, corregirla en `vercel.json` (commit en `dev`, PR a `main`).
 5. **Vercel**: importar el repo, *Root Directory* = raíz, rama de producción `main`, sin `VITE_API_URL` (lee `vercel.json`). Copiar el origen de producción (`https://<app>.vercel.app`) a `CORS_ALLOWED_ORIGINS` en Render, sin `/` final.
-6. **cron-job.org**: `GET https://<servicio>.onrender.com/api/actuator/health/liveness` cada 10 min de 9:00 a 19:50 (`America/Lima`), §3.
+6. **cron-job.org**: `GET https://<servicio>.onrender.com/api/actuator/health/liveness` cada 10 min, lunes a sábado, de 9:00 a 20:50 (`America/Lima`), §3.
 7. **Verificar** con la matriz de `add-cloud-deployment` (design D7) y anotar los resultados aquí, incluida la prueba de que **dos clínicas no se ven entre sí**.
 
 Producción = rama `main`: Render despliega solo con los checks del CI en verde; los pushes a `dev` generan *previews* de Vercel sin sesión (CORS solo admite el origen de producción).
@@ -175,8 +179,8 @@ Notas de la puesta en marcha (para la próxima vez):
 | Actuator | liveness `200 UP` / health `200` sin detalle / info `401` / sin prefijo `404` / api-docs `404` ✅ |
 | Smoke E2E | `E2E_BASE_URL=https://dentdeskapp.vercel.app` `auth.smoke` + `register.smoke`: 5/5 ✅ |
 | Sesión en Safari / iOS | pendiente (prueba manual en un iPhone) |
-| Arranque en frío | pendiente: medir fuera del horario del monitor (antes de las 9:00) |
-| Monitor | pendiente: job de cron-job.org 9:00–19:50 |
+| Arranque en frío | backend dormido → `/api/actuator/health/liveness` respondió en **63,6 s** (bajo los 120 s del proxy de Vercel) ✅; falta medirlo entrando por la app (login) |
+| Monitor | jobs de cron-job.org lun–sáb 9:00–21:00 para Dentdesk y HSO (creados por el usuario); falta confirmar la primera ejecución a las 9:00 |
 | Soporte | pendiente: abrir los botones de WhatsApp y correo desde el login publicado |
 
 Datos de la verificación en producción: quedaron dos clínicas de prueba (`Verificación A` y `Verificación B`, correos `verificacion-*@dentdesk.test`, dominio que no recibe correo) con un paciente cada una. Son inofensivas; se pueden borrar con un script probado antes en local.
