@@ -19,7 +19,8 @@ public final class PublicPaths {
     /** Patrones de ruta accesibles sin autenticar. */
     public static final String[] PATTERNS = {
         "/auth/**",
-        "/actuator/health/**", "/actuator/info",
+        // Solo health: /actuator/info queda autenticado (add-cold-start-warmup D2), nada lo usa.
+        "/actuator/health/**",
         "/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html"
     };
 

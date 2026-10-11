@@ -124,3 +124,84 @@ test("a 2560 px el marco mide 1920 px y queda centrado, con la barra junto al co
   const navLeft = (await nav.boundingBox())!.x;
   expect(navLeft).toBeGreaterThanOrEqual(frame.left);
 });
+
+for (const width of [768, 1280]) {
+  test(`a ${width} px la barra de íconos no muestra barras de scroll`, async ({ page }) => {
+    // Escritorio: barra contraída por preferencia; tablet: siempre solo íconos.
+    await page.addInitScript(() =>
+      localStorage.setItem("odr-sidebar", JSON.stringify({ state: { collapsed: true }, version: 0 })),
+    );
+    await page.setViewportSize({ width, height: 900 });
+    await mockApi(page, { authed: true, preset: null });
+    await page.goto("/patients");
+    await expect(page.getByRole("navigation", { name: "Principal" })).toBeVisible();
+    const overflowing = await page.evaluate(() =>
+      [...document.querySelectorAll<HTMLElement>("aside *")]
+        .filter((el) => getComputedStyle(el).overflowX !== "visible" && el.scrollWidth > el.clientWidth)
+        .map((el) => el.className),
+    );
+    expect(overflowing).toEqual([]);
+  });
+}
+
+// update-responsive-layout: el odontograma conserva un ancho mínimo legible y se desliza dentro de
+// su tarjeta; sus rótulos de fila quedan a la altura de su fila a cualquier ancho.
+test.describe("odontograma en pantallas angostas", () => {
+  test.beforeEach(() => {
+    CHART.status = "OPEN";
+  });
+
+  test("a 375 px el dibujo mide al menos 600 px, se desliza dentro de su tarjeta y lo indica", async ({ page }) => {
+    await page.setViewportSize({ width: 375, height: 900 });
+    await mockApi(page, { authed: true, preset: null });
+    await page.goto("/patients/1/dental-chart");
+    const scroller = page.getByTestId("odontogram-scroll");
+    await expect(scroller).toBeVisible();
+    const m = await scroller.evaluate((el) => ({
+      scrollWidth: el.scrollWidth,
+      clientWidth: el.clientWidth,
+      drawing: el.firstElementChild!.getBoundingClientRect().width,
+      page: document.documentElement.scrollWidth - document.documentElement.clientWidth,
+    }));
+    expect(m.drawing).toBeGreaterThanOrEqual(600);
+    expect(m.scrollWidth).toBeGreaterThan(m.clientWidth);
+    expect(m.page).toBeLessThanOrEqual(0);
+    await expect(page.getByText("Desliza para ver toda la boca")).toBeVisible();
+  });
+
+  test("a 1280 px el dibujo entra completo, sin deslizar ni indicación", async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 900 });
+    await mockApi(page, { authed: true, preset: null });
+    await page.goto("/patients/1/dental-chart");
+    const scroller = page.getByTestId("odontogram-scroll");
+    await expect(scroller).toBeVisible();
+    const fits = await scroller.evaluate((el) => el.scrollWidth <= el.clientWidth);
+    expect(fits).toBe(true);
+    await expect(page.getByText("Desliza para ver toda la boca")).toHaveCount(0);
+  });
+
+  for (const width of [375, 768, 1280]) {
+    test(`a ${width} px cada rótulo de fila queda a la altura de su fila`, async ({ page }) => {
+      await page.setViewportSize({ width, height: 900 });
+      await mockApi(page, { authed: true, preset: null });
+      await page.goto("/patients/1/dental-chart");
+      await expect(page.getByTestId("odontogram-scroll")).toBeVisible();
+      // Una pieza visible de cada fila (permanente sup., temporal sup., temporal inf., permanente inf.).
+      const rows = [17, 54, 84, 47];
+      const misaligned = await page.evaluate((teeth) => {
+        const labels = [...document.querySelectorAll<HTMLElement>("[data-testid=odontogram-scroll] .sticky > div")];
+        return teeth.flatMap((fdi, i) => {
+          const surfaces = [...document.querySelectorAll(`[aria-label^="Pieza ${fdi}, superficie"]`)];
+          const top = Math.min(...surfaces.map((s) => s.getBoundingClientRect().top));
+          const bottom = Math.max(...surfaces.map((s) => s.getBoundingClientRect().bottom));
+          const label = labels[i].getBoundingClientRect();
+          const center = (label.top + label.bottom) / 2;
+          // Holgura de media corona: el rótulo va "dentro" de la corona, no exactamente centrado.
+          const slack = (bottom - top) / 2;
+          return center >= top - slack && center <= bottom + slack ? [] : [`${labels[i].textContent} (${fdi}): ${center} fuera de ${top}-${bottom}`];
+        });
+      }, rows);
+      expect(misaligned).toEqual([]);
+    });
+  }
+});

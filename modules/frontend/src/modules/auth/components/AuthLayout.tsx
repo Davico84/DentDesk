@@ -2,8 +2,7 @@ import type { ReactNode } from "react";
 import { motion } from "framer-motion";
 import { ThemeToggle } from "@/modules/core/ui/theme-toggle";
 import { Logo } from "@/modules/core/ui/logo";
-import { SmileArcBackground } from "./SmileArcBackground";
-import { cn } from "@/modules/core/utils/cn";
+import { BrandPanel } from "@/modules/core/components/BrandPanel";
 
 interface AuthLayoutProps {
   title: string;
@@ -23,41 +22,14 @@ function riseIn(delay: number) {
 }
 
 /**
- * Marco split-screen de las pantallas de auth: panel de marca (color primario fijo, no
- * temático — las pantallas de auth conservan la identidad de producto) y el formulario al
- * otro lado. En móvil colapsa a una sola columna con el logo arriba.
+ * Marco split-screen de las pantallas de auth: panel de marca (`core/components/BrandPanel`,
+ * color fijo de producto, no el de la clínica) y el formulario al otro lado. En móvil colapsa a
+ * una sola columna con el logo arriba.
  */
 export function AuthLayout({ title, description, children, footer }: AuthLayoutProps) {
   return (
     <div className="grid min-h-screen lg:grid-cols-2">
-      {/* Panel de marca: color FIJO (no sigue --primary), a propósito — es la identidad de
-          producto aprobada, no un panel temático. Degradado radial monocromático, no el
-          cian→magenta decorativo que DESIGN.md prohíbe (es profundidad tonal sobre un único
-          color, no dos matices en pugna). En modo oscuro, un paso más profundo de la misma
-          rampa tonal (no cambia de matiz) para que no choque con el resto de la UI oscura. */}
-      <aside
-        className={cn(
-          "relative hidden flex-col justify-between overflow-hidden p-12 text-white lg:flex",
-          // Tokens fijos de producto (update-tailwind-v4, design D5): cambian con el modo, no con la clínica.
-          "bg-[radial-gradient(120%_90%_at_12%_0%,var(--brand-hero-from)_0%,var(--brand-hero-via)_45%,var(--brand-hero-to)_100%)]",
-        )}
-      >
-        <SmileArcBackground />
-        <motion.div {...riseIn(0.02)} className="relative mt-32 self-center">
-          <Logo variant="dark" className="h-12 w-auto" />
-        </motion.div>
-        <motion.div {...riseIn(0.09)} className="relative max-w-md self-center text-center">
-          <h2 className="text-balance text-3xl font-semibold leading-tight">
-            Sonrisas sanas, gestión simple.
-          </h2>
-          <p className="mt-3 text-white/80">
-            La plataforma para clínicas dentales: pacientes, citas y tratamientos en un solo lugar.
-          </p>
-        </motion.div>
-        <motion.p {...riseIn(0.16)} className="relative self-center text-sm text-white/70">
-          © Dentdesk
-        </motion.p>
-      </aside>
+      <BrandPanel />
 
       {/* Panel del formulario */}
       <main className="relative flex items-center justify-center px-6 py-10">

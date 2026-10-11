@@ -60,16 +60,18 @@ export function Sidebar({
         compact ? "w-16" : "w-60",
       )}
     >
-      <div className={cn("sticky top-0 flex h-screen flex-col", compact ? "items-center px-3" : "px-4")}>
+      {/* Sin `items-center` en la columna: centrar encoge a lo justo el contenedor con scroll, y el arco
+          del ítem activo (20 px) lo desbordaba y hacía aparecer una barra de scroll horizontal. */}
+      <div className={cn("sticky top-0 flex h-screen flex-col", compact ? "px-3" : "px-4")}>
         <div className={cn("flex h-16 shrink-0 items-center", compact ? "justify-center" : "px-1")}>
           {compact ? <Monogram name={organizationName} className="size-10" /> : logo}
         </div>
 
-        <div className="flex-1 overflow-y-auto py-4">
+        <div className="flex-1 overflow-x-hidden overflow-y-auto py-4">
           <NavList items={items} compact={compact} />
         </div>
 
-        <div className="flex shrink-0 flex-col gap-1 border-t border-border py-3">
+        <div className={cn("flex shrink-0 flex-col gap-1 border-t border-border py-3", compact && "items-center")}>
           {canCollapse ? (
             compact ? (
               <HintTooltip content={toggleLabel} side="right" repeatsLabel>
