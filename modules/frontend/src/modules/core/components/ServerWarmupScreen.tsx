@@ -4,7 +4,9 @@ import { Button } from "@/modules/core/ui/button";
 import { Logo } from "@/modules/core/ui/logo";
 import { cn } from "@/modules/core/utils/cn";
 import { ALMOST_AFTER_S, estimatedProgress, warmupState } from "@/modules/core/utils/serverWarmup";
+import { supportContact } from "@/modules/core/config/supportContact";
 import { BrandPanel } from "./BrandPanel";
+import { SupportRow } from "./SupportRow";
 
 const TITLES = {
   loading: "Cargando…",
@@ -136,7 +138,8 @@ export function ServerWarmupScreen({
               <Button ref={retryRef} size="lg" onClick={reload} className="self-start">
                 Reintentar
               </Button>
-              <p className="text-sm text-muted-foreground">Si el problema continúa, avisa al administrador.</p>
+              {/* La espera larga es el caso más probable de "no puedo entrar": el contacto, a la vista. */}
+              <SupportRow {...supportContact} lead="¿Sigue sin entrar?" className="mt-3" />
             </div>
           ) : null}
 
