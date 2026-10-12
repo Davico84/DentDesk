@@ -28,7 +28,7 @@
 
 `core/components/SlowRequestNotice`, genérico: lee `useSlowRequestStore`, `useOnlineStatus` y los segundos desde `slowSince`.
 
-- **Forma**: una píldora fija arriba al centro (`fixed`, sobre el contenido, `z-50`), compacta, con el ícono `Sunrise` en `primary`, "Despertando el servidor…" y "Esto puede tomar un minuto. No cierres esta pestaña.". Es un aviso, no un bloqueo: no tapa la pantalla ni impide usarla.
+- **Forma**: una tarjeta fija (`fixed`, sobre el contenido, `z-50`): **abajo en celular** (arriba tapaba la cabecera y su botón de menú; visto en las capturas del apply) y **arriba al centro desde 640 px**, compacta, con el ícono `Sunrise` en `primary`, "Despertando el servidor…" y "Esto puede tomar un minuto. No cierres esta pestaña.". Es un aviso, no un bloqueo: no tapa la pantalla ni impide usarla.
 - **Desde 90 s** (`STUCK_AFTER_S`): el ícono pasa a reloj (`warning`), "Está tardando más de lo normal", botón **Reintentar** (recarga) y `SupportRow` con "¿Sigue sin responder?".
 - **Sin red**: "Sin conexión a internet" (ícono `WifiOff`).
 - Umbrales y textos reutilizan `core/utils/serverWarmup.ts` (mismos 4 s y 90 s que la pantalla de arranque).

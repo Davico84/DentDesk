@@ -5,6 +5,8 @@ import axios, {
 } from "axios";
 import type { AuthResponse } from "@/modules/core/services/generated/model";
 import { useSessionStore } from "@/store/useSessionStore";
+import { useSlowRequestStore } from "@/store/useSlowRequestStore";
+import { WARMING_AFTER_S } from "@/modules/core/utils/serverWarmup";
 import { resolveApiBaseUrl } from "./apiBaseUrl";
 
 const BASE_URL = resolveApiBaseUrl(import.meta.env);
@@ -23,6 +25,44 @@ axiosInstance.interceptors.request.use((config: InternalAxiosRequestConfig) => {
   }
   return config;
 });
+
+// --- Peticiones lentas (update-slow-request-notice D1) ---
+// Cada petición arranca un timer; si vence antes de la respuesta, se marca lenta y la app muestra
+// "Despertando el servidor…". La respuesta (éxito o error) cancela el timer y la quita. Un reintento
+// tras un 401 es otra petición: tiene su propio id y su propio timer.
+
+type TrackedConfig = InternalAxiosRequestConfig & { _slowId?: number; _slowTimer?: ReturnType<typeof setTimeout> };
+
+let nextRequestId = 0;
+
+axiosInstance.interceptors.request.use((config: InternalAxiosRequestConfig) => {
+  const tracked = config as TrackedConfig;
+  const id = ++nextRequestId;
+  tracked._slowId = id;
+  tracked._slowTimer = setTimeout(
+    () => useSlowRequestStore.getState().markSlow(id, Date.now()),
+    WARMING_AFTER_S * 1000,
+  );
+  return config;
+});
+
+function settle(config: InternalAxiosRequestConfig | undefined) {
+  const tracked = config as TrackedConfig | undefined;
+  if (tracked?._slowId === undefined) return;
+  clearTimeout(tracked._slowTimer);
+  useSlowRequestStore.getState().done(tracked._slowId);
+}
+
+axiosInstance.interceptors.response.use(
+  (response) => {
+    settle(response.config);
+    return response;
+  },
+  (error: AxiosError) => {
+    settle(error.config);
+    return Promise.reject(error);
+  },
+);
 
 // --- Refresco transparente ante 401 (single-flight) ---
 
