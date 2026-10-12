@@ -1,0 +1,48 @@
+name: Despertar servicios
+
+# Despierta cada mañana los backends de Render free (Dentdesk y HSO, workspace compartido) antes del
+# horario de atención (docs/deployment.md §3). Hallazgo del 2026-10-12: cron-job.org NO logra
+# despertarlos (Render le responde con una página propia sin arrancar el servicio), aunque sí los
+# mantiene despiertos una vez arriba. Este workflow solo hace el primer despertar del día.
+#
+# Horario: lunes a sábado 8:45 en Lima (UTC-5) = 13:45 UTC. GitHub puede atrasar los programados
+# unos minutos; por eso 15 min antes de las 9:00.
+
+on:
+  schedule:
+    - cron: "45 13 * * 1-6"
+  workflow_dispatch: {}
+
+permissions: {}
+
+jobs:
+  wake:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Dentdesk
+            url: https://dentdesk-api.onrender.com/api/actuator/health/liveness
+          - name: HSO
+            url: https://hs-facop-api.onrender.com/actuator/health/liveness
+    name: ${{ matrix.name }}
+    steps:
+      - name: Despertar y esperar a que responda
+        env:
+          URL: ${{ matrix.url }}
+        run: |
+          # Hasta 3 intentos de 150 s: el arranque en frío mide ~60-100 s con 0,1 CPU.
+          for attempt in 1 2 3; do
+            start=$(date +%s)
+            body=$(curl -sS --max-time 150 -H "Accept: application/json" "$URL" || true)
+            echo "intento $attempt: $(( $(date +%s) - start )) s -> ${body:0:200}"
+            if [[ "$body" == *'"status":"UP"'* ]]; then
+              echo "despierto"
+              exit 0
+            fi
+            sleep 10
+          done
+          echo "::error::No respondió UP tras 3 intentos"
+          exit 1
