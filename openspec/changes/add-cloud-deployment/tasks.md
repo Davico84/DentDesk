@@ -25,7 +25,7 @@
 - [x] 3.3 Ajustar la URL de Render en `vercel.json` si difiere de `dentdesk-api.onrender.com` (commit en `dev`, PR a `main`)
 - [x] 3.4 **(usuario)** Vercel: importar el repo (raíz, rama `main`, sin `VITE_API_URL`); `CORS_ALLOWED_ORIGINS` en Render = origen de Vercel
 - [ ] 3.5 **(usuario)** cron-job.org: liveness cada 10 min, lunes a sábado, de 9:00 a 20:50 (`America/Lima`), para Dentdesk y HSO; mantiene despiertos los servicios
-- [ ] 3.6 `.github/workflows/wake-up.yml`: despertar diario (lun–sáb 8:45 Lima) de Dentdesk y HSO, porque cron-job.org no logra despertar un servicio dormido (hallazgo 2026-10-12); probarlo con `workflow_dispatch` tras 20 min de inactividad
+- [x] 3.6 `.github/workflows/wake-up.yml`: despertar diario (lun–sáb 8:45 Lima) de Dentdesk y HSO, porque cron-job.org no logra despertar un servicio dormido (hallazgo 2026-10-12); probarlo con `workflow_dispatch` tras 20 min de inactividad
 
 ## 4. Verificación del despliegue
 
