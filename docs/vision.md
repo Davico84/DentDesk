@@ -213,7 +213,7 @@ Checklist de lo que se copia de HSOFACOP (`D:/proyectos/HSOFACOP`, analizado el 
   - [x] `add-support-contact` — fila compacta "¿Problemas para entrar?" con WhatsApp y correo en login, registro y la espera larga. ✅ archivado 2026-10-11 (`openspec/changes/archive/2026-10-11-add-support-contact/`)
   - [ ] `add-cloud-deployment` — API bajo `/api`, Dockerfile, `render.yaml`, `vercel.json` con la API en el mismo origen, roles de Neon sin `BYPASSRLS` y verificación del aislamiento entre clínicas. 🚧 implementado en el repo (falta la puesta en marcha en los paneles y su verificación): [`proposal.md`](../openspec/changes/add-cloud-deployment/proposal.md) · [`design.md`](../openspec/changes/add-cloud-deployment/design.md)
   - [x] `update-slow-request-notice` — aviso "Despertando el servidor…" cuando una petición tarda durante el uso (la pantalla de arranque solo cubre la carga de la app). ✅ archivado 2026-10-11 (`openspec/changes/archive/2026-10-11-update-slow-request-notice/`)
-  - [ ] `add-database-backups` — copia diaria cifrada fuera de Neon con restauración verificada
+  - [ ] `add-database-backups` — copia diaria cifrada fuera de Neon con restauración verificada. **Postergado** mientras Dentdesk esté en fase de prueba (2026-10-12); obligatorio antes de cargar pacientes reales
 - [ ] **Gestión de cuentas** (deshabilitar/reactivar, solo ADMIN) dentro de `staff`. HSO: `add-user-account-status`
 - [ ] **Métricas de inicio por rol** dentro de `dashboard`. HSO: `add-dashboard-metrics` (como referencia de modelo)
 - [ ] **Cupos por usuario/plan** dentro de `subscriptions`. HSO: `add-record-quota`

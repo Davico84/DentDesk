@@ -182,10 +182,10 @@ Notas de la puesta en marcha (para la próxima vez):
 | CORS | `POST /api/auth/refresh` vía proxy con el `Origin` de Vercel → `401` (sin cookie), no `403` ✅ |
 | Actuator | liveness `200 UP` / health `200` sin detalle / info `401` / sin prefijo `404` / api-docs `404` ✅ |
 | Smoke E2E | `E2E_BASE_URL=https://dentdeskapp.vercel.app` `auth.smoke` + `register.smoke`: 5/5 ✅ |
-| Sesión en Safari / iOS | pendiente (prueba manual en un iPhone) |
+| Sesión en Safari / iOS | **no probada**: no hay un iPhone disponible (2026-10-12). Riesgo bajo: la cookie es de primera parte (mismo dominio de Vercel, vía el proxy), que es lo que Safari no bloquea. Probar cuando haya un dispositivo o un usuario con iPhone |
 | Arranque en frío | backend dormido → `/api/actuator/health/liveness` respondió en **63,6 s** (bajo los 120 s del proxy de Vercel) ✅; falta medirlo entrando por la app (login) |
 | Monitor | cron-job.org lun–sáb 9:00–21:00 **no despierta** el servicio dormido (Render le devuelve una página HTML, con o sin `Accept: application/json`), solo lo mantiene despierto. El despertar lo hace GitHub Actions (`wake-up.yml`, 8:45): con Dentdesk dormida, **63 s → `UP`** ✅ (2026-10-12); falta ver la primera ejecución programada (2026-10-13 8:45) |
-| Soporte | pendiente: abrir los botones de WhatsApp y correo desde el login publicado |
+| Soporte | botones de WhatsApp y correo desde el login publicado: abren el chat y el correo ✅ (2026-10-12) |
 
 Datos de la verificación en producción: quedaron dos clínicas de prueba (`Verificación A` y `Verificación B`, correos `verificacion-*@dentdesk.test`, dominio que no recibe correo) con un paciente cada una. Son inofensivas; se pueden borrar con un script probado antes en local.
 
@@ -193,4 +193,4 @@ Datos de la verificación en producción: quedaron dos clínicas de prueba (`Ver
 
 - ~~`add-support-contact`~~ (hecho): una fila compacta "¿Problemas para entrar?" con botones de WhatsApp y correo bajo el formulario de login y registro, y en "Está tardando más de lo normal". Los datos están en `modules/frontend/src/modules/core/config/supportContact.ts`; quedan públicos en la web.
 - `add-cloud-deployment`: hecho en el repo (API bajo `/api`, Dockerfile medido en §7, `render.yaml`, `vercel.json`); falta la puesta en marcha de §8 y su matriz de verificación.
-- `add-database-backups`: copia diaria cifrada fuera de Neon con restauración verificada. "No caduca" no es una copia de seguridad.
+- `add-database-backups`: copia diaria cifrada fuera de Neon con restauración verificada. "No caduca" no es una copia de seguridad. **Postergado** (2026-10-12): Dentdesk está en fase de prueba. Es requisito **antes de cargar pacientes reales**: sin copia, un borrado o una corrupción en Neon pierde historias clínicas que hay que conservar 20 años (ADR-0018).
