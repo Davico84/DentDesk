@@ -315,6 +315,13 @@ export const useSortingStore = createSelectors(useSortingStoreBase);
   falla si alguna pantalla privada se desplaza de costado a 375, 768 o 1280 px: una pantalla nueva
   se agrega a su lista.
 
+### 4.3.1 Esperas largas del servidor
+
+El backend duerme fuera del horario del monitor (`docs/deployment.md` §1, §3) y tarda ~1 min en despertar. Dos piezas lo explican, y **ninguna pantalla tiene que hacer nada**:
+- **Al abrir o recargar**: `ServerWarmupScreen` en `RootLayout`, que mide la espera del refresh de sesión.
+- **Durante el uso**: el cliente HTTP (`core/config/httpClient.ts`) marca en `useSlowRequestStore` toda petición que pasa de 4 s, y `SlowRequestNotice` (montado en `RootLayout` cuando ya terminó el arranque) avisa "Despertando el servidor…"; a los 90 s ofrece reintentar y soporte. Abajo en celular, arriba desde 640 px. No mueve el foco.
+- Una pantalla sigue mostrando su propia carga (skeleton); el aviso se suma, no la reemplaza.
+
 ### 4.4 Accesibilidad (WCAG)
 - **HTML semántico** (`<aside>`, `<nav>`, `<main>`, `<header>`, `<article>`).
 - **Navegación por teclado**: todo interactivo accesible con `Tab` y activable con `Enter`/`Espacio`.

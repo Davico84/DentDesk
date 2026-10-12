@@ -18,7 +18,7 @@ Base y backend en la **misma región**: cada consulta cruza esa distancia.
 
 ## 1. Cómo duermen y despiertan los servicios
 
-- **Render free** suspende el backend tras **15 min sin tráfico entrante**. La siguiente petición lo despierta y espera el arranque de Spring Boot (~1 min). La app lo explica con la pantalla "Preparando tu consultorio digital" (`ServerWarmupScreen`).
+- **Render free** suspende el backend tras **15 min sin tráfico entrante**. La siguiente petición lo despierta y espera el arranque de Spring Boot (~1 min). La app lo explica de dos formas: al **abrir o recargar**, con la pantalla "Preparando tu consultorio digital" (`ServerWarmupScreen`); **durante el uso** (p. ej. una pestaña que quedó abierta), con el aviso "Despertando el servidor…" (`SlowRequestNotice`) cuando cualquier petición tarda más de 4 s.
 - **Neon free** suspende el cómputo tras **~5 min sin actividad** y despierta en menos de un segundo. Su cupo de horas de cómputo al mes **no alcanza para tenerla despierta 24/7**: debe poder dormir. Por eso el pool del backend no retiene conexiones ni hace keepalive (`docs/backend.md` §11.1, variables `DB_POOL_*`).
 
 ## 2. Monitor externo (mantener despierto el backend)
