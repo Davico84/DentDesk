@@ -41,6 +41,8 @@ Render free da **750 h de instancia al mes por workspace**. Un servicio despiert
   - Dentdesk: `https://dentdesk-api.onrender.com/api/actuator/health/liveness`
   - HSO: `https://hs-facop-api.onrender.com/actuator/health/liveness` (sin `/api`)
   - Aviso de fallo después de 3 fallos seguidos: a las 9:00 el primer ping puede superar los 30 s que espera cron-job.org mientras el servidor despierta.
+  - **Encabezado `Accept: application/json` obligatorio** en cada job (Avanzado → Encabezados). Hallazgo del 2026-10-12: sin él, con el servicio **dormido**, Render le responde a cron-job.org en ~1 s con una página HTML grande ("salida demasiado grande") y **no despierta** el servicio; todos los pings de 9:00 a 10:20 fallaron así y las dos apps siguieron dormidas. Con el servicio despierto el ping funciona igual con o sin el encabezado. `curl` (que no pide HTML) sí lo despierta: tardó 63 s y devolvió el JSON.
+  - Plan B si el encabezado no alcanza: un despertador diario con GitHub Actions a las 8:55 (`curl --max-time 120` al liveness) y cron-job.org solo para mantenerlas despiertas.
 - **UptimeRobot (el monitor 24/7 que tenía HSO) se pausa**: sin horario en el plan gratuito, despertaría a HSO de noche y agotaría el cupo compartido.
 - **Presupuesto** (peor mes: 27 días hábiles): ~12 h 15 min al día por app ≈ **331 h cada una, ~662 h entre las dos**, de 750. **Margen: ~88 h** para el uso fuera de horario.
 - **Cada ingreso fuera de horario cuesta** ~17 min (arranque + los 15 min hasta la suspensión): el margen alcanza para unos 300 al mes entre las dos apps. Si se agota, Render suspende **los dos** servicios hasta el mes siguiente.
@@ -180,7 +182,7 @@ Notas de la puesta en marcha (para la próxima vez):
 | Smoke E2E | `E2E_BASE_URL=https://dentdeskapp.vercel.app` `auth.smoke` + `register.smoke`: 5/5 ✅ |
 | Sesión en Safari / iOS | pendiente (prueba manual en un iPhone) |
 | Arranque en frío | backend dormido → `/api/actuator/health/liveness` respondió en **63,6 s** (bajo los 120 s del proxy de Vercel) ✅; falta medirlo entrando por la app (login) |
-| Monitor | jobs de cron-job.org lun–sáb 9:00–21:00 para Dentdesk y HSO (creados por el usuario); falta confirmar la primera ejecución a las 9:00 |
+| Monitor | jobs de cron-job.org lun–sáb 9:00–21:00. **2026-10-12: los pings con el servicio dormido fallaron** (Render devolvió una página HTML y no despertó el servicio); se agregó `Accept: application/json`; falta confirmar que despierta a las 9:00 del 2026-10-13 |
 | Soporte | pendiente: abrir los botones de WhatsApp y correo desde el login publicado |
 
 Datos de la verificación en producción: quedaron dos clínicas de prueba (`Verificación A` y `Verificación B`, correos `verificacion-*@dentdesk.test`, dominio que no recibe correo) con un paciente cada una. Son inofensivas; se pueden borrar con un script probado antes en local.
