@@ -18,7 +18,7 @@ Base y backend en la **misma región**: cada consulta cruza esa distancia.
 
 ## 1. Cómo duermen y despiertan los servicios
 
-- **Render free** suspende el backend tras **15 min sin tráfico entrante**. La siguiente petición lo despierta y espera el arranque de Spring Boot (~1 min). La app lo explica con la pantalla "Preparando tu consultorio digital" (`ServerWarmupScreen`).
+- **Render free** suspende el backend tras **15 min sin tráfico entrante**. La siguiente petición lo despierta y espera el arranque de Spring Boot (~1 min). La app lo explica de dos formas: al **abrir o recargar**, con la pantalla "Preparando tu consultorio digital" (`ServerWarmupScreen`); **durante el uso** (p. ej. una pestaña que quedó abierta), con el aviso "Despertando el servidor…" (`SlowRequestNotice`) cuando cualquier petición tarda más de 4 s.
 - **Neon free** suspende el cómputo tras **~5 min sin actividad** y despierta en menos de un segundo. Su cupo de horas de cómputo al mes **no alcanza para tenerla despierta 24/7**: debe poder dormir. Por eso el pool del backend no retiene conexiones ni hace keepalive (`docs/backend.md` §11.1, variables `DB_POOL_*`).
 
 ## 2. Monitor externo (mantener despierto el backend)
@@ -35,13 +35,20 @@ El **único** mecanismo que evita el arranque en frío es un monitor externo gra
 
 Render free da **750 h de instancia al mes por workspace**. Un servicio despierto 24/7 consume ~730 h, y **HSO ya está desplegado y despierto 24/7**.
 
-**Decisión (usuario, 2026-10-10): Dentdesk y HSO comparten workspace, las dos despiertas de 9:00 a 20:00, hora de Perú** (las clínicas no abren antes de las 9). Fuera de ese horario duermen y el primer ingreso muestra la pantalla "Preparando tu consultorio digital".
+**Decisión (usuario, 2026-10-11): Dentdesk y HSO comparten workspace, las dos despiertas de lunes a sábado, de 9:00 a 21:00, hora de Perú.** Fuera de ese horario (noches y domingos) duermen y el primer ingreso muestra la pantalla "Preparando tu consultorio digital" (~1 min; medido en Render: 64 s).
 
-- **Monitor**: cron-job.org, un job por app, cada 10 min de **9:00 a 19:50** (zona `America/Lima`). El último ping deja el servicio despierto hasta ~20:05 (Render lo suspende 15 min después del último tráfico).
-- **Presupuesto** (mes de 31 días, el peor caso): ~11 h 15 min al día por app ≈ **349 h cada una, ~698 h entre las dos**, de 750. **Margen: ~52 h** para el uso fuera de horario.
-- **Cada ingreso fuera de horario cuesta** al menos ~17 min (arranque + los 15 min hasta que Render vuelve a suspender). El margen alcanza para unos 180 al mes entre las dos apps; si se acerca el límite, Render suspende los servicios hasta el mes siguiente.
-- Opciones descartadas: las dos de 9 a 22 (~806 h, no entra); las dos de 9 a 21 (~744 h, sin margen); un workspace propio para Dentdesk (otra cuenta que mantener).
-- El horario de HSO se cambia en su propio repo (change OpenSpec en HSOFACOP), no desde aquí.
+- **Monitor: cron-job.org**, un job por app, zona `America/Lima`, días **lunes a sábado**, horas **9 a 20**, minutos **0, 10, 20, 30, 40, 50** (último ping 20:50; el servicio queda despierto hasta ~21:05, porque Render lo suspende 15 min después del último tráfico). La última hora marcada es la **20**, no la 21: marcar la 21 extiende el horario a las 22:00 y deja el margen en ~34 h.
+  - Dentdesk: `https://dentdesk-api.onrender.com/api/actuator/health/liveness`
+  - HSO: `https://hs-facop-api.onrender.com/actuator/health/liveness` (sin `/api`)
+  - Aviso de fallo después de 3 fallos seguidos: a las 9:00 el primer ping puede superar los 30 s que espera cron-job.org mientras el servidor despierta.
+  - **Encabezado `Accept: application/json` obligatorio** en cada job (Avanzado → Encabezados). Hallazgo del 2026-10-12: sin él, con el servicio **dormido**, Render le responde a cron-job.org en ~1 s con una página HTML grande ("salida demasiado grande") y **no despierta** el servicio; todos los pings de 9:00 a 10:20 fallaron así y las dos apps siguieron dormidas. Con el servicio despierto el ping funciona igual con o sin el encabezado. `curl` (que no pide HTML) sí lo despierta: tardó 63 s y devolvió el JSON.
+  - **El encabezado no alcanzó** (prueba del mismo día tras 20 min de inactividad: mismo fallo). La diferencia con `curl` parece ser el origen de la petición (servidores de datacenter), no las cabeceras.
+  - **Despertar diario: GitHub Actions** (`.github/workflows/wake-up.yml`): lunes a sábado 8:45 Lima despierta Dentdesk y HSO (hasta 3 intentos de 150 s) y falla, con aviso de GitHub por correo, si alguna no responde. Se ejecuta también a mano (*Run workflow*). ~1 min de Actions por día. cron-job.org queda para **mantenerlas** despiertas de 9:00 a 21:00.
+- **UptimeRobot (el monitor 24/7 que tenía HSO) se pausa**: sin horario en el plan gratuito, despertaría a HSO de noche y agotaría el cupo compartido.
+- **Presupuesto** (peor mes: 27 días hábiles): ~12 h 15 min al día por app ≈ **331 h cada una, ~662 h entre las dos**, de 750. **Margen: ~88 h** para el uso fuera de horario.
+- **Cada ingreso fuera de horario cuesta** ~17 min (arranque + los 15 min hasta la suspensión): el margen alcanza para unos 300 al mes entre las dos apps. Si se agota, Render suspende **los dos** servicios hasta el mes siguiente.
+- Alternativas evaluadas (lun–sáb): 9–20 (~142 h de margen), 8–20 (~88 h), 8–21 (~44 h, justo), 9–22 (~34 h, muy justo). Todos los días 9–20: ~52 h. Un workspace propio para Dentdesk se descartó (otra cuenta que mantener).
+- El horario de HSO se cambia en su propio repo (change OpenSpec en HSOFACOP), con estos mismos valores.
 
 ## 4. Base de datos en Neon
 
@@ -137,12 +144,51 @@ Los pasos en paneles los hace el responsable; el detalle de cada uno está en la
 3. **Comprobar en Neon** (SQL Editor) que las tablas son de `odontorisas_admin` y que `odontorisas_app` puede leerlas. **No abrir la app a usuarios antes.**
 4. Si Render le dio otra URL que `dentdesk-api.onrender.com`, corregirla en `vercel.json` (commit en `dev`, PR a `main`).
 5. **Vercel**: importar el repo, *Root Directory* = raíz, rama de producción `main`, sin `VITE_API_URL` (lee `vercel.json`). Copiar el origen de producción (`https://<app>.vercel.app`) a `CORS_ALLOWED_ORIGINS` en Render, sin `/` final.
-6. **cron-job.org**: `GET https://<servicio>.onrender.com/api/actuator/health/liveness` cada 10 min de 9:00 a 19:50 (`America/Lima`), §3.
+6. **cron-job.org**: `GET https://<servicio>.onrender.com/api/actuator/health/liveness` cada 10 min, lunes a sábado, de 9:00 a 20:50 (`America/Lima`), §3.
 7. **Verificar** con la matriz de `add-cloud-deployment` (design D7) y anotar los resultados aquí, incluida la prueba de que **dos clínicas no se ven entre sí**.
 
 Producción = rama `main`: Render despliega solo con los checks del CI en verde; los pushes a `dev` generan *previews* de Vercel sin sesión (CORS solo admite el origen de producción).
 
-## 9. Pendiente en los changes siguientes
+## 9. Despliegue de producción: estado y verificación
+
+**Publicado el 2026-10-11.**
+
+| Pieza | Dónde |
+|---|---|
+| Frontend | `https://dentdeskapp.vercel.app` (Vercel; `odontorisas-frontend.vercel.app` redirige) |
+| Backend | `https://dentdesk-api.onrender.com` (Render free, Ohio, workspace compartido con HSO) |
+| Base | Neon, proyecto `dentdesk`, base **`dentdeskdb`**, `aws-us-east-2` |
+| `CORS_ALLOWED_ORIGINS` | `https://dentdeskapp.vercel.app` |
+
+Notas de la puesta en marcha (para la próxima vez):
+- `DB_URL` va en formato **JDBC** (`jdbc:postgresql://<host>/dentdeskdb?sslmode=require`), **sin** usuario ni clave dentro y sin `channel_binding`. Pegar la cadena de Neon tal cual falla con `'url' must start with "jdbc"`.
+- En Render, el **valor** de cada variable es el dato, no el nombre de la variable (un `DB_ADMIN_USERNAME=DB_ADMIN_USERNAME` dio `password authentication failed for user 'DB_ADMIN_USERNAME'`).
+- Neon crea en la base una tabla de ejemplo `playing_with_neon`: Flyway se niega a migrar un esquema no vacío. Se borra (`DROP TABLE public.playing_with_neon;`) antes del primer deploy. **Nunca** usar `baselineOnMigrate`.
+- El rol dueño del proyecto en Neon (el del SQL Editor) se llama `dentdeskdb_owner`.
+- `dentdesk.vercel.app` estaba tomado por otro proyecto: los `.vercel.app` son globales.
+
+### Matriz de verificación (design D7 de `add-cloud-deployment`)
+
+| Área | Resultado (2026-10-11) |
+|---|---|
+| Base: roles | `odontorisas_app` sin `rolsuper`, `rolbypassrls` ni `neon_superuser`; puede conectar y usar `public` ✅ |
+| Base: migración | 22 migraciones; tablas de `odontorisas_admin`; app con DML en `patients`; RLS forzada ✅ |
+| **Aislamiento** | dos clínicas registradas en la URL pública, un paciente cada una: cada una ve solo el suyo; pedir el de la otra → `404` ✅ |
+| Rutas | recargar `/auth/login`, `/auth/register`, `/patients/1` → la app, no JSON ✅ |
+| Proxy | `/api/actuator/health/liveness` vía Vercel → `200 UP`; `/actuator/*` no se reenvía (sirve la app) ✅ |
+| Cookie | `refresh_token` del dominio de Vercel, `Path=/api/auth`, `Secure`, `HttpOnly`, `SameSite=Lax` ✅ |
+| Sesión (Chrome) | registro → Inicio en ~4–10 s; recargar con sesión, en Inicio y en Pacientes ✅ |
+| CORS | `POST /api/auth/refresh` vía proxy con el `Origin` de Vercel → `401` (sin cookie), no `403` ✅ |
+| Actuator | liveness `200 UP` / health `200` sin detalle / info `401` / sin prefijo `404` / api-docs `404` ✅ |
+| Smoke E2E | `E2E_BASE_URL=https://dentdeskapp.vercel.app` `auth.smoke` + `register.smoke`: 5/5 ✅ |
+| Sesión en Safari / iOS | pendiente (prueba manual en un iPhone) |
+| Arranque en frío | backend dormido → `/api/actuator/health/liveness` respondió en **63,6 s** (bajo los 120 s del proxy de Vercel) ✅; falta medirlo entrando por la app (login) |
+| Monitor | jobs de cron-job.org lun–sáb 9:00–21:00. **2026-10-12: los pings con el servicio dormido fallaron** (Render devolvió una página HTML y no despertó el servicio); se agregó `Accept: application/json`; falta confirmar que despierta a las 9:00 del 2026-10-13 |
+| Soporte | pendiente: abrir los botones de WhatsApp y correo desde el login publicado |
+
+Datos de la verificación en producción: quedaron dos clínicas de prueba (`Verificación A` y `Verificación B`, correos `verificacion-*@dentdesk.test`, dominio que no recibe correo) con un paciente cada una. Son inofensivas; se pueden borrar con un script probado antes en local.
+
+## 10. Pendiente en los changes siguientes
 
 - ~~`add-support-contact`~~ (hecho): una fila compacta "¿Problemas para entrar?" con botones de WhatsApp y correo bajo el formulario de login y registro, y en "Está tardando más de lo normal". Los datos están en `modules/frontend/src/modules/core/config/supportContact.ts`; quedan públicos en la web.
 - `add-cloud-deployment`: hecho en el repo (API bajo `/api`, Dockerfile medido en §7, `render.yaml`, `vercel.json`); falta la puesta en marcha de §8 y su matriz de verificación.

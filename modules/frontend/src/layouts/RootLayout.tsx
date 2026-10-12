@@ -6,6 +6,7 @@ import { useBranding } from "@/modules/branding/hooks/useBranding";
 import { useElapsedWhile } from "@/modules/core/hooks/useElapsedWhile";
 import { useOnlineStatus } from "@/modules/core/hooks/useOnlineStatus";
 import { ServerWarmupScreen } from "@/modules/core/components/ServerWarmupScreen";
+import { SlowRequestNotice } from "@/modules/core/components/SlowRequestNotice";
 
 /**
  * Layout raíz: restaura la sesión al arrancar (splash mientras resuelve el
@@ -33,6 +34,9 @@ export function RootLayout() {
     <MotionConfig reducedMotion="user">
       <div className="min-h-screen bg-background text-foreground">
         <Outlet />
+        {/* Ya iniciada la app: avisa si una petición tarda (update-slow-request-notice D3). Durante el
+            arranque no se monta: ahí está a cargo ServerWarmupScreen. */}
+        <SlowRequestNotice />
         <Toaster richColors position="top-right" />
       </div>
     </MotionConfig>
