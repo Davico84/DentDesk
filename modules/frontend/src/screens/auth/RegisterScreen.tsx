@@ -1,16 +1,14 @@
-import { Link, useSearchParams } from "react-router-dom";
+import { Link } from "react-router-dom";
 import { AuthLayout } from "@/modules/auth/components/AuthLayout";
-import { RegisterForm } from "@/modules/auth/components/RegisterForm";
+import { InvitationRegistration } from "@/modules/auth/components/InvitationRegistration";
 import { PATHS } from "@/routes/paths";
 
-/** Pantalla de registro. */
+/** Pantalla de registro: solo existe para completar una invitación (`/auth/register?token=…`). */
 export function RegisterScreen() {
-  const [searchParams] = useSearchParams();
-  const token = searchParams.get("token") ?? "";
   return (
     <AuthLayout
       title="Crear cuenta"
-      description="Regístrate para empezar a usar Dentdesk"
+      description="Completa tu invitación a Dentdesk"
       footer={
         <p className="text-sm text-muted-foreground">
           ¿Ya tienes cuenta?{" "}
@@ -20,7 +18,7 @@ export function RegisterScreen() {
         </p>
       }
     >
-      <RegisterForm token={token} />
+      <InvitationRegistration />
     </AuthLayout>
   );
 }

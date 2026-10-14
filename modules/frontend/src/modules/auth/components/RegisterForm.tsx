@@ -11,10 +11,10 @@ import { AuthSubmitButton } from "./AuthSubmitButton";
 import { cn } from "@/modules/core/utils/cn";
 import { applyServerFieldErrors } from "@/modules/core/utils/apiError";
 
-export function RegisterForm({ token }: { token: string }) {
+export function RegisterForm({ token, verifiedEmail = "" }: { token: string; verifiedEmail?: string }) {
   const { register: field, handleSubmit, control, setError, formState: { errors } } = useForm<RegisterValues>({
     resolver: zodResolver(registerSchema),
-    defaultValues: { token, fullName: "", email: "", password: "", confirmPassword: "" },
+    defaultValues: { token, fullName: "", email: verifiedEmail, password: "", confirmPassword: "" },
   });
   const registerMutation = useRegister();
   const passwordValue = useWatch({ control, name: "password" });
@@ -33,7 +33,7 @@ export function RegisterForm({ token }: { token: string }) {
       </div>
       <div className="flex flex-col gap-1.5">
         <Label htmlFor="reg-email" className="text-sm font-medium">Correo electrónico</Label>
-        <IconInput id="reg-email" type="email" autoComplete="email" placeholder="tu@correo.com" icon={<Mail className="size-4" />}
+        <IconInput id="reg-email" type="email" autoComplete="email" readOnly placeholder="tu@correo.com" icon={<Mail className="size-4" />}
           hasError={!!errors.email} aria-invalid={errors.email ? true : undefined} {...field("email")} />
         {errors.email ? <p className="text-xs text-destructive">{errors.email.message}</p> : null}
       </div>

@@ -1,13 +1,9 @@
 import { Menu } from "lucide-react";
 import { Monogram } from "@/modules/core/components/Monogram";
 import { ThemeToggle } from "@/modules/core/ui/theme-toggle";
+import { ROLE_LABEL } from "@/modules/core/auth/roleLabel";
 import type { Role } from "@/store/useSessionStore";
 import { MOBILE_NAV_ID } from "./navItems";
-
-const ROLE_LABEL: Record<Role, string> = {
-  ADMIN: "Administrador",
-  MEMBER: "Personal",
-};
 
 /**
  * Cabecera del shell: la clínica a la izquierda; quién usa la app (nombre o, si no tiene, su correo,

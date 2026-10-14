@@ -20,3 +20,10 @@ export const registerSchema = z
 
 export type LoginValues = z.infer<typeof loginSchema>;
 export type RegisterValues = z.infer<typeof registerSchema>;
+
+export const invitationVerificationSchema = z.object({
+  email: z.string().min(1, "El correo es obligatorio").check(z.email("Correo electrónico no válido")),
+  code: z.string().regex(/^\d{6}$/, "Ingresa el código de 6 dígitos"),
+});
+
+export type InvitationVerificationValues = z.infer<typeof invitationVerificationSchema>;

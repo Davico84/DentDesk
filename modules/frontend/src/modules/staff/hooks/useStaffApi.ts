@@ -16,7 +16,7 @@ export function useInviteStaff() {
     mutationFn: (data: InvitationRequest) => invite(data),
     onSuccess: (result) => {
       void queryClient.invalidateQueries({ queryKey: STAFF_KEY });
-      toast.success(`Invitación creada para ${result.email}. Token: ${result.token}`);
+      toast.success(`Invitación enviada a ${result.email}.`);
     },
     onError: (error) => toast.error(getUserFriendlyError(error)),
   });
