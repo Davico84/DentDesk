@@ -63,6 +63,19 @@ public class Invitation {
     @Column(name = "accepted_at")
     private Instant acceptedAt;
 
+    @Column(name = "verification_code_hash", length = 64)
+    private String verificationCodeHash;
+
+    @Column(name = "verification_expires_at")
+    private Instant verificationExpiresAt;
+
+    @Column(name = "verification_attempts", nullable = false)
+    @Builder.Default
+    private int verificationAttempts = 0;
+
+    @Column(name = "verified_at")
+    private Instant verifiedAt;
+
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;

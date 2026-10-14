@@ -6,6 +6,7 @@ import com.odontorisas.presentation.dto.AuthResponse;
 import com.odontorisas.presentation.dto.LoginRequest;
 import com.odontorisas.presentation.dto.InvitationValidationResponse;
 import com.odontorisas.presentation.dto.InvitationValidationRequest;
+import com.odontorisas.presentation.dto.InvitationVerificationRequest;
 import com.odontorisas.presentation.dto.RegisterRequest;
 import com.odontorisas.presentation.dto.ValidationProblem;
 import com.odontorisas.service.auth.AuthResult;
@@ -77,6 +78,12 @@ public class AuthController {
     @PostMapping("/invitations/validate")
     public InvitationValidationResponse validateInvitation(@jakarta.validation.Valid @RequestBody InvitationValidationRequest request) {
         return InvitationValidationResponse.from(staffService.validate(request.token()));
+    }
+
+    @PostMapping("/invitations/verify")
+    public ResponseEntity<Void> verifyInvitation(@Valid @RequestBody InvitationVerificationRequest request) {
+        staffService.verifyEmail(request.token(), request.email(), request.code());
+        return ResponseEntity.noContent().build();
     }
 
     /**

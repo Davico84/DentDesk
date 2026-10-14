@@ -18,6 +18,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.security.SecureRandom;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
@@ -29,19 +30,25 @@ import java.util.UUID;
 @Transactional
 public class StaffService {
     private static final Duration INVITATION_TTL = Duration.ofDays(7);
+    private static final Duration VERIFICATION_TTL = Duration.ofMinutes(10);
+    private static final int MAX_VERIFICATION_ATTEMPTS = 5;
+    private static final SecureRandom RANDOM = new SecureRandom();
     private final InvitationRepository invitations;
     private final MembershipRepository memberships;
     private final OrganizationRepository organizations;
     private final UserRepository users;
     private final Clock clock;
+    private final InvitationMailer invitationMailer;
 
     public StaffService(InvitationRepository invitations, MembershipRepository memberships,
-                        OrganizationRepository organizations, UserRepository users, Clock clock) {
+                        OrganizationRepository organizations, UserRepository users, Clock clock,
+                        InvitationMailer invitationMailer) {
         this.invitations = invitations;
         this.memberships = memberships;
         this.organizations = organizations;
         this.users = users;
         this.clock = clock;
+        this.invitationMailer = invitationMailer;
     }
 
     public IssuedInvitation invite(String email, Role role) {
@@ -61,10 +68,16 @@ public class StaffService {
         var inviter = users.findById(IdentityContext.get()).orElseThrow();
         var organization = organizations.findById(organizationId).orElseThrow();
         String token = UUID.randomUUID().toString().replace("-", "") + UUID.randomUUID().toString().replace("-", "");
+        String verificationCode = verificationCode();
+        Instant verificationExpiresAt = clock.instant().plus(VERIFICATION_TTL);
         Invitation invitation = invitations.save(Invitation.builder()
             .organization(organization).invitedBy(inviter).email(normalizedEmail)
-            .tokenHash(hash(token)).role(role).expiresAt(clock.instant().plus(INVITATION_TTL)).build());
-        return new IssuedInvitation(invitation.getId(), invitation.getEmail(), role, token, invitation.getExpiresAt());
+            .tokenHash(hash(token)).role(role).expiresAt(clock.instant().plus(INVITATION_TTL))
+            .verificationCodeHash(hash(verificationCode)).verificationExpiresAt(verificationExpiresAt).build());
+        IssuedInvitation issued = new IssuedInvitation(invitation.getId(), invitation.getEmail(), role, token, invitation.getExpiresAt());
+        invitationMailer.send(new InvitationMailer.InvitationMail(
+            invitation.getEmail(), organization.getName(), role, token, verificationCode, invitation.getExpiresAt()));
+        return issued;
     }
 
     @Transactional(readOnly = true)
@@ -102,10 +115,29 @@ public class StaffService {
     public Invitation consume(String rawToken, String email) {
         Invitation invitation = pending(rawToken);
         if (!invitation.getEmail().equalsIgnoreCase(email.trim())) throw new InvalidInvitationException();
+        if (invitation.getVerifiedAt() == null) throw new InvalidInvitationException();
         if (invitations.consume(invitation.getId(), InvitationStatus.ACCEPTED, clock.instant(), clock.instant()) != 1) {
             throw new InvalidInvitationException();
         }
         return invitation;
+    }
+
+    @Transactional(noRollbackFor = InvalidInvitationException.class)
+    public void verifyEmail(String rawToken, String email, String code) {
+        Invitation invitation = pending(rawToken);
+        if (!invitation.getEmail().equalsIgnoreCase(email.trim())
+            || invitation.getVerificationCodeHash() == null
+            || invitation.getVerificationExpiresAt() == null
+            || !invitation.getVerificationExpiresAt().isAfter(clock.instant())
+            || invitation.getVerifiedAt() != null
+            || invitation.getVerificationAttempts() >= MAX_VERIFICATION_ATTEMPTS) {
+            throw new InvalidInvitationException();
+        }
+        invitation.setVerificationAttempts(invitation.getVerificationAttempts() + 1);
+        if (!invitation.getVerificationCodeHash().equals(hash(code.trim()))) {
+            throw new InvalidInvitationException();
+        }
+        invitation.setVerifiedAt(clock.instant());
     }
 
     private Invitation pending(String rawToken) {
@@ -123,6 +155,10 @@ public class StaffService {
         } catch (NoSuchAlgorithmException ex) {
             throw new IllegalStateException(ex);
         }
+    }
+
+    private static String verificationCode() {
+        return Integer.toString(100000 + RANDOM.nextInt(900000));
     }
 
     public record IssuedInvitation(Long id, String email, Role role, String token, Instant expiresAt) {}
