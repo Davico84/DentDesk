@@ -403,7 +403,8 @@ Tras tocar la API: regenera `contracts/openapi.json` **y** el cliente del fronte
 
 - **Spring Security + JWT** (`com.auth0:java-jwt`). Configuración en `infra.security`.
 - Contraseñas con hashing fuerte (BCrypt). **Nunca** en texto plano ni en logs.
-- Autorización por rol (`ADMIN`/`USER`) con seguridad a nivel de método (`@PreAuthorize`) y/o `SecurityFilterChain`.
+- Autorización por rol (`ADMIN`/`MEMBER`) con seguridad a nivel de método (`@PreAuthorize`) y/o `SecurityFilterChain`.
+- El registro público no crea organizaciones: el primer `ADMIN` llega por invitación de plataforma y el `ADMIN` de una clínica invita al personal mediante `/staff/invitations`. Las invitaciones guardan únicamente el hash SHA-256 del token y vencen en siete días.
 - **Sin secretos en el código ni en git**: viven en `secrets.properties` / variables de entorno (ignorados), con `secrets.properties.example` versionado (§12).
 - Validar y sanear toda entrada; los DTOs + Bean Validation son la primera barrera.
 

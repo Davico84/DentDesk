@@ -6,5 +6,5 @@ package com.odontorisas.common;
  */
 public enum Role {
     ADMIN,
-    USER
+    MEMBER
 }

@@ -6,7 +6,7 @@ import { MOBILE_NAV_ID } from "./navItems";
 
 const ROLE_LABEL: Record<Role, string> = {
   ADMIN: "Administrador",
-  USER: "Personal",
+  MEMBER: "Personal",
 };
 
 /**

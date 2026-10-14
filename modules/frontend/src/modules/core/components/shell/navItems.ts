@@ -17,6 +17,7 @@ const PRESENTATION: Record<SectionId, Pick<NavItemConfig, "label" | "icon" | "en
   home: { label: "Inicio", icon: House, end: true },
   patients: { label: "Pacientes", icon: Users },
   branding: { label: "Marca", icon: Palette },
+  staff: { label: "Personal", icon: Users },
 };
 
 /** Ítems de navegación visibles para un rol, en el orden de `sections`. */

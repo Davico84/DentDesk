@@ -12,5 +12,5 @@ export type UserResponseRole = typeof UserResponseRole[keyof typeof UserResponse
 // eslint-disable-next-line @typescript-eslint/no-redeclare
 export const UserResponseRole = {
   ADMIN: 'ADMIN',
-  USER: 'USER',
+  MEMBER: 'MEMBER',
 } as const;

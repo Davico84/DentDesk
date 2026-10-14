@@ -4,6 +4,8 @@ import com.odontorisas.infra.security.RefreshCookieFactory;
 import com.odontorisas.presentation.dto.ApiProblem;
 import com.odontorisas.presentation.dto.AuthResponse;
 import com.odontorisas.presentation.dto.LoginRequest;
+import com.odontorisas.presentation.dto.InvitationValidationResponse;
+import com.odontorisas.presentation.dto.InvitationValidationRequest;
 import com.odontorisas.presentation.dto.RegisterRequest;
 import com.odontorisas.presentation.dto.ValidationProblem;
 import com.odontorisas.service.auth.AuthResult;
@@ -39,10 +41,13 @@ public class AuthController {
 
     private final AuthService authService;
     private final RefreshCookieFactory refreshCookieFactory;
+    private final com.odontorisas.service.staff.StaffService staffService;
 
-    public AuthController(AuthService authService, RefreshCookieFactory refreshCookieFactory) {
+    public AuthController(AuthService authService, RefreshCookieFactory refreshCookieFactory,
+                          com.odontorisas.service.staff.StaffService staffService) {
         this.authService = authService;
         this.refreshCookieFactory = refreshCookieFactory;
+        this.staffService = staffService;
     }
 
     /**
@@ -65,8 +70,13 @@ public class AuthController {
     @PostMapping("/register")
     public ResponseEntity<AuthResponse> register(@Valid @RequestBody RegisterRequest request) {
         RegisterCommand command = new RegisterCommand(
-            request.email(), request.password(), request.fullName(), request.organizationName());
+            request.token(), request.email(), request.password(), request.fullName());
         return authResponse(authService.register(command), HttpStatus.CREATED);
+    }
+
+    @PostMapping("/invitations/validate")
+    public InvitationValidationResponse validateInvitation(@jakarta.validation.Valid @RequestBody InvitationValidationRequest request) {
+        return InvitationValidationResponse.from(staffService.validate(request.token()));
     }
 
     /**

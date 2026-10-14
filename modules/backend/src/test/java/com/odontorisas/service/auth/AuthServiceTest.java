@@ -8,6 +8,7 @@ import com.odontorisas.common.UserStatus;
 import com.odontorisas.infra.security.TokenService;
 import com.odontorisas.infra.tenancy.TenantSession;
 import com.odontorisas.persistence.entity.Membership;
+import com.odontorisas.persistence.entity.Invitation;
 import com.odontorisas.persistence.entity.Organization;
 import com.odontorisas.persistence.entity.RefreshToken;
 import com.odontorisas.persistence.entity.User;
@@ -17,6 +18,7 @@ import com.odontorisas.persistence.repository.OrganizationSettingsRepository;
 import com.odontorisas.persistence.repository.RefreshTokenRepository;
 import com.odontorisas.persistence.repository.UserRepository;
 import com.odontorisas.service.organization.OrganizationSlugService;
+import com.odontorisas.service.staff.StaffService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -60,6 +62,7 @@ class AuthServiceTest {
     @Mock TokenService tokenService;
     @Mock LoginAttemptService loginAttemptService;
     @Mock Clock clock;
+    @Mock StaffService staffService;
 
     @InjectMocks AuthService authService;
 
@@ -89,7 +92,7 @@ class AuthServiceTest {
     }
 
     private RegisterCommand cmd(String email) {
-        return new RegisterCommand(email, "password123", "Ana Pérez", "Clínica Sonrisas");
+        return new RegisterCommand("test-token", email, "password123", "Ana Pérez");
     }
 
     private void stubTokenIssuance() {
@@ -105,13 +108,9 @@ class AuthServiceTest {
     @Test
     void register_creates_organization_identity_and_admin_membership() {
         when(users.existsByEmail("ana@clinica.test")).thenReturn(false);
-        when(slugService.slugFor("Clínica Sonrisas")).thenReturn("clinica-sonrisas");
+        when(staffService.consume("test-token", "ana@clinica.test")).thenReturn(Invitation.builder()
+            .id(3L).organization(activeOrg()).email("ana@clinica.test").role(Role.MEMBER).build());
         when(passwordEncoder.encode("password123")).thenReturn("hashed");
-        when(organizations.save(any())).thenAnswer(inv -> {
-            Organization o = inv.getArgument(0);
-            o.setId(5L);
-            return o;
-        });
         when(users.save(any())).thenAnswer(inv -> {
             User u = inv.getArgument(0);
             u.setId(1L);
@@ -124,10 +123,9 @@ class AuthServiceTest {
 
         assertThat(result.accessToken()).isEqualTo("access-token");
         assertThat(result.user().email()).isEqualTo("ana@clinica.test");
-        assertThat(result.user().role()).isEqualTo(Role.ADMIN);
+        assertThat(result.user().role()).isEqualTo(Role.MEMBER);
         assertThat(result.user().organizationName()).isEqualTo("Clínica Sonrisas");
         assertThat(result.user().organizationSlug()).isEqualTo("clinica-sonrisas");
-        verify(organizationSettings).save(any());
         verify(refreshTokens).save(any(RefreshToken.class));
         verify(tenantSession).bindIdentity(1L); // fija app.user_id antes del INSERT de membership
     }

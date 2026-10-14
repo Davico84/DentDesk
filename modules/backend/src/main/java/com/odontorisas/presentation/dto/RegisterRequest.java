@@ -12,7 +12,7 @@ import jakarta.validation.constraints.Size;
  * formulario (docs/coding-style.md §7).
  */
 public record RegisterRequest(
-    @NotBlank @Size(min = 2, max = 120) String organizationName,
+    @NotBlank String token,
     @NotBlank @Email String email,
     @NotBlank @Size(min = 8, message = "La contraseña debe tener al menos 8 caracteres") String password,
     @NotBlank @Size(min = 2, max = 120) String fullName

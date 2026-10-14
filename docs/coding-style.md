@@ -26,7 +26,7 @@ Este documento define las convenciones de escritura de código, tipado y calidad
 * Las constantes globales y configuraciones estáticas se escriben en `UPPER_SNAKE_CASE` sin prefijo.
   * *Ejemplo*: `PATHS`, `PAGE_SIZE`, `ADULT_AGE`.
 * Los "enums simulados" (uniones de literales) no llevan objeto aparte: son un `type` en `PascalCase`
-  (`type Role = "ADMIN" | "USER"`, ver §2). Los enums reales del dominio salen del contrato (orval),
+  (`type Role = "ADMIN" | "MEMBER"`, ver §2). Los enums reales del dominio salen del contrato (orval),
   nunca se declaran a mano — ver `docs/frontend.md §2.3`.
 
 ### Types e Interfaces
@@ -49,7 +49,7 @@ El proyecto tiene configurado el modo estricto (`strict: true`). Se deben seguir
 * **Types**: Se reservan para uniones (unions), tipos mapeados (mapped types) y tipos de utilidad (utility types).
   ```typescript
   // Preferido para uniones de literales
-  type UserRole = "ADMIN" | "USER";
+  type UserRole = "ADMIN" | "MEMBER";
 
   // Preferido para contratos de datos de la API
   interface UserProfile {

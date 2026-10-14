@@ -1,10 +1,12 @@
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { AuthLayout } from "@/modules/auth/components/AuthLayout";
 import { RegisterForm } from "@/modules/auth/components/RegisterForm";
 import { PATHS } from "@/routes/paths";
 
 /** Pantalla de registro. */
 export function RegisterScreen() {
+  const [searchParams] = useSearchParams();
+  const token = searchParams.get("token") ?? "";
   return (
     <AuthLayout
       title="Crear cuenta"
@@ -18,7 +20,7 @@ export function RegisterScreen() {
         </p>
       }
     >
-      <RegisterForm />
+      <RegisterForm token={token} />
     </AuthLayout>
   );
 }

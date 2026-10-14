@@ -93,7 +93,7 @@ class BrandingControllerIT extends AbstractIntegrationTest {
     @Test
     void non_admin_cannot_update_branding() throws Exception {
         // Token válido en firma pero con rol USER (no existe endpoint para crear USER aún).
-        String userToken = tokenService.issueAccessToken(999L, "user@clinica.test", 999L, Role.USER);
+        String userToken = tokenService.issueAccessToken(999L, "user@clinica.test", 999L, Role.MEMBER);
 
         mockMvc.perform(put("/organizations/me/branding").header("Authorization", bearer(userToken))
                 .contentType(MediaType.APPLICATION_JSON).content("{\"brandPreset\":\"TEAL\"}"))

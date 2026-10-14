@@ -31,7 +31,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 /**
  * Gestión de la ficha del paciente en la clínica activa. <b>Sin {@code @PreAuthorize} de rol</b>
- * (design.md, docs/domain.md): los tres roles (ADMIN, DENTIST, RECEPTIONIST) gestionan pacientes,
+ * (design.md, docs/domain.md): los miembros autenticados (ADMIN o MEMBER) gestionan pacientes,
  * así que basta con estar autenticado en la organización. Por eso el customizer del contrato no
  * inyecta un {@code 403} a estos endpoints — solo el {@code 401} y el {@code 500}.
  *

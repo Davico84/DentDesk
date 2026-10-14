@@ -7,11 +7,8 @@
  */
 
 export interface RegisterRequest {
-  /**
-   * @minLength 2
-   * @maxLength 120
-   */
-  organizationName: string;
+  /** @minLength 1 */
+  token: string;
   /** @minLength 1 */
   email: string;
   /**
