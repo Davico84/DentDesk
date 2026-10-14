@@ -6,10 +6,13 @@ import com.odontorisas.common.MembershipStatus;
 import com.odontorisas.common.OrganizationContext;
 import com.odontorisas.common.Role;
 import com.odontorisas.persistence.entity.Invitation;
+import com.odontorisas.persistence.entity.Organization;
+import com.odontorisas.persistence.entity.User;
 import com.odontorisas.persistence.repository.InvitationRepository;
 import com.odontorisas.persistence.repository.MembershipRepository;
 import com.odontorisas.persistence.repository.OrganizationRepository;
 import com.odontorisas.persistence.repository.UserRepository;
+import com.odontorisas.service.auth.EmailAlreadyExistsException;
 import com.odontorisas.service.auth.InvalidInvitationException;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
@@ -77,6 +80,35 @@ public class StaffService {
         IssuedInvitation issued = new IssuedInvitation(invitation.getId(), invitation.getEmail(), role, token, invitation.getExpiresAt());
         invitationMailer.send(new InvitationMailer.InvitationMail(
             invitation.getEmail(), organization.getName(), role, token, verificationCode, invitation.getExpiresAt()));
+        return issued;
+    }
+
+    /**
+     * Emite la invitacion inicial ADMIN para una organizacion recien aprovisionada. No comprueba
+     * invitaciones pendientes: la organizacion acaba de crearse en esta misma transaccion.
+     *
+     * <p>El correo se envia DENTRO de la transaccion, despues de un flush (add-platform-admin D6):
+     * si el SMTP falla, todo se revierte; si algo de la BD falla, falla antes de enviar. Solo un
+     * fallo del propio COMMIT tras el envio dejaria un correo con un enlace que no resuelve.
+     */
+    public IssuedInvitation inviteInitialAdmin(String email, Organization organization, User inviter) {
+        String normalizedEmail = email.trim().toLowerCase();
+        if (users.existsByEmail(normalizedEmail)) {
+            throw new EmailAlreadyExistsException(normalizedEmail);
+        }
+        String token = UUID.randomUUID().toString().replace("-", "")
+            + UUID.randomUUID().toString().replace("-", "");
+        String verificationCode = verificationCode();
+        Instant verificationExpiresAt = clock.instant().plus(VERIFICATION_TTL);
+        Invitation invitation = invitations.saveAndFlush(Invitation.builder()
+            .organization(organization).invitedBy(inviter).email(normalizedEmail)
+            .tokenHash(hash(token)).role(Role.ADMIN)
+            .expiresAt(clock.instant().plus(INVITATION_TTL))
+            .verificationCodeHash(hash(verificationCode)).verificationExpiresAt(verificationExpiresAt).build());
+        IssuedInvitation issued = new IssuedInvitation(invitation.getId(), invitation.getEmail(), Role.ADMIN,
+            token, invitation.getExpiresAt());
+        invitationMailer.send(new InvitationMailer.InvitationMail(
+            invitation.getEmail(), organization.getName(), Role.ADMIN, token, verificationCode, invitation.getExpiresAt()));
         return issued;
     }
 

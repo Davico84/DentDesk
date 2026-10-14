@@ -32,6 +32,7 @@ import java.util.List;
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private static final String BEARER_PREFIX = "Bearer ";
+    private static final String PLATFORM_PREFIX = "/platform";
     static final String MDC_USER_ID = "userId";
     static final String MDC_ORGANIZATION_ID = "organizationId";
 
@@ -51,13 +52,25 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             String token = header.substring(BEARER_PREFIX.length());
             try {
                 AccessClaims claims = tokenService.verifyAccessToken(token);
+                if (claims.platformAdmin() && !isPlatformPath(request)) {
+                    // Un token global no lleva oid: fuera de /platform/** no tiene tenant que fijar, así
+                    // que la petición queda sin autenticar (add-platform-admin D4). El caso inverso —un
+                    // token de clínica en /platform/**— sí se autentica y lo rechaza el 403 del rol.
+                    throw new JWTVerificationException("Token de plataforma fuera de /platform/**.");
+                }
                 IdentityContext.set(claims.userId());
-                OrganizationContext.set(claims.organizationId());
+                if (claims.organizationId() != null) {
+                    OrganizationContext.set(claims.organizationId());
+                }
                 MDC.put(MDC_USER_ID, String.valueOf(claims.userId()));
-                MDC.put(MDC_ORGANIZATION_ID, String.valueOf(claims.organizationId()));
+                if (claims.organizationId() != null) {
+                    MDC.put(MDC_ORGANIZATION_ID, String.valueOf(claims.organizationId()));
+                }
                 var authentication = new UsernamePasswordAuthenticationToken(
                     claims.email(), null,
-                    List.of(new SimpleGrantedAuthority("ROLE_" + claims.role().name())));
+                    claims.platformAdmin()
+                        ? List.of(new SimpleGrantedAuthority("ROLE_PLATFORM_ADMIN"))
+                        : List.of(new SimpleGrantedAuthority("ROLE_" + claims.role().name())));
                 authentication.setDetails(claims.userId());
                 SecurityContextHolder.getContext().setAuthentication(authentication);
             } catch (JWTVerificationException ex) {
@@ -73,5 +86,11 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             MDC.remove(MDC_USER_ID);
             MDC.remove(MDC_ORGANIZATION_ID);
         }
+    }
+
+    /** Ruta relativa al context path ({@code /api}), como la ven {@link PublicPaths} y SecurityConfig. */
+    private static boolean isPlatformPath(HttpServletRequest request) {
+        String path = request.getRequestURI().substring(request.getContextPath().length());
+        return path.equals(PLATFORM_PREFIX) || path.startsWith(PLATFORM_PREFIX + "/");
     }
 }

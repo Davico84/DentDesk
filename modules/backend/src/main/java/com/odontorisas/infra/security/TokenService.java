@@ -15,6 +15,7 @@ import java.security.SecureRandom;
 import java.time.Instant;
 import java.util.Base64;
 import java.util.HexFormat;
+import java.util.List;
 
 /**
  * Emisión y validación de tokens. El access token es un JWT HS256 (stateless);
@@ -55,6 +56,19 @@ public class TokenService {
             .sign(algorithm);
     }
 
+    /** Token global sin organizacion activa para un administrador de plataforma. */
+    public String issuePlatformAccessToken(Long userId, String email) {
+        Instant now = Instant.now();
+        return JWT.create()
+            .withIssuer(props.jwt().issuer())
+            .withSubject(String.valueOf(userId))
+            .withClaim("email", email)
+            .withClaim("authorities", List.of("ROLE_PLATFORM_ADMIN"))
+            .withIssuedAt(now)
+            .withExpiresAt(now.plus(props.jwt().accessTtl()))
+            .sign(algorithm);
+    }
+
     /**
      * Valida el access token y extrae sus claims. Lanza {@link JWTVerificationException} si es
      * inválido/expirado, o si carece de la organización activa ({@code oid}) — un token sin
@@ -63,14 +77,17 @@ public class TokenService {
     public AccessClaims verifyAccessToken(String token) {
         DecodedJWT jwt = JWT.require(algorithm).withIssuer(props.jwt().issuer()).build().verify(token);
         Claim oid = jwt.getClaim("oid");
-        if (oid.isNull() || oid.isMissing()) {
+        List<String> authorities = jwt.getClaim("authorities").asList(String.class);
+        boolean platformAdmin = authorities != null && authorities.contains("ROLE_PLATFORM_ADMIN");
+        if (!platformAdmin && (oid.isNull() || oid.isMissing())) {
             throw new JWTVerificationException("El token no incluye la organización activa (oid).");
         }
         return new AccessClaims(
             Long.valueOf(jwt.getSubject()),
-            oid.asLong(),
+            platformAdmin ? null : oid.asLong(),
             jwt.getClaim("email").asString(),
-            Role.valueOf(jwt.getClaim("role").asString()));
+            platformAdmin ? null : Role.valueOf(jwt.getClaim("role").asString()),
+            platformAdmin);
     }
 
     /** Genera el valor en claro de un refresh token (opaco, aleatorio). */

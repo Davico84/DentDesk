@@ -28,7 +28,8 @@ import java.util.List;
  * {@code SameSite=Lax} + método POST.
  */
 @Configuration
-@EnableConfigurationProperties({SecurityProperties.class, LoginLockoutProperties.class})
+@EnableConfigurationProperties({SecurityProperties.class, LoginLockoutProperties.class,
+    PlatformBootstrapProperties.class})
 @EnableMethodSecurity
 public class SecurityConfig {
 
@@ -50,6 +51,9 @@ public class SecurityConfig {
             .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers(PublicPaths.PATTERNS).permitAll()
+                // Segunda barrera además del @PreAuthorize de cada controller: un endpoint global
+                // nuevo que olvide la anotación sigue cerrado a usuarios de clínica (add-platform-admin).
+                .requestMatchers("/platform/**").hasRole("PLATFORM_ADMIN")
                 .anyRequest().authenticated())
             // El 401 de "sesión ausente" y el 403 de acceso denegado se delegan al
             // HandlerExceptionResolver de MVC en vez de usar sendError() (que devolvía el cuerpo

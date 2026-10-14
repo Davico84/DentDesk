@@ -85,6 +85,12 @@ app:
     lockout:
       max-attempts: ${AUTH_LOCKOUT_MAX_ATTEMPTS:5}
       window: ${AUTH_LOCKOUT_WINDOW:PT15M}     # ISO-8601 Duration (15 min)
+  platform:
+    bootstrap:
+      enabled: ${PLATFORM_ADMIN_BOOTSTRAP_ENABLED:false}
+      email: ${PLATFORM_ADMIN_EMAIL:}
+      full-name: ${PLATFORM_ADMIN_FULL_NAME:Platform Admin}
+      password: ${PLATFORM_ADMIN_PASSWORD:}
   mail:
     enabled: ${MAIL_ENABLED:false}
     host: ${MAIL_HOST:smtp-relay.brevo.com}
