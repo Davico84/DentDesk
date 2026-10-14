@@ -121,8 +121,8 @@ class OpenApiContractIT extends AbstractIntegrationTest {
     void the_documented_success_status_matches_the_real_one() throws Exception {
         // El registro devuelve 201 de verdad...
         mockMvc.perform(post("/auth/register").contentType(MediaType.APPLICATION_JSON)
-                .content("{\"organizationName\":\"Clínica Contrato\",\"email\":\"contrato@clinica.test\","
-                    + "\"password\":\"password123\",\"fullName\":\"Ana Pérez\"}"))
+                .content(invitedAdminRegisterBody(
+                    "Clínica Contrato", "contrato@clinica.test", "password123", "Ana Pérez")))
             .andExpect(status().isCreated());
         // ...y eso es lo que documenta, sin dejar un 200 fantasma.
         assertThat(responsesOf("/auth/register", "post"))

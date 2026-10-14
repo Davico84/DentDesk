@@ -37,8 +37,7 @@ class BrandingControllerIT extends AbstractIntegrationTest {
 
     /** Registra una organización + admin y devuelve el access token (rol ADMIN). */
     private String registerAdmin(String email) throws Exception {
-        String body = "{\"organizationName\":\"Clínica Marca\",\"email\":\"" + email
-            + "\",\"password\":\"password123\",\"fullName\":\"Ana Pérez\"}";
+        String body = invitedAdminRegisterBody("Clínica Marca", email, "password123", "Ana Pérez");
         MvcResult result = mockMvc.perform(post("/auth/register")
                 .contentType(MediaType.APPLICATION_JSON).content(body))
             .andExpect(status().isCreated())
