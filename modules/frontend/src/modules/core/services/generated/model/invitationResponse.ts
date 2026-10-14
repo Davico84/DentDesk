@@ -11,6 +11,5 @@ export interface InvitationResponse {
   id?: number;
   email?: string;
   role?: InvitationResponseRole;
-  token?: string;
   expiresAt?: string;
 }

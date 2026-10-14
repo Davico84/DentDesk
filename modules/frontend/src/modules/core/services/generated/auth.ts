@@ -9,6 +9,7 @@ import type {
   AuthResponse,
   InvitationValidationRequest,
   InvitationValidationResponse,
+  InvitationVerificationRequest,
   LoginRequest,
   RegisterRequest
 } from './model';
@@ -54,6 +55,16 @@ import { customInstance } from '../../config/httpClient';
     },
       );
     }
+  export const verifyInvitation = (
+    invitationVerificationRequest: InvitationVerificationRequest,
+ ) => {
+      return customInstance<void>(
+      {url: `/auth/invitations/verify`, method: 'POST',
+      headers: {'Content-Type': 'application/json', },
+      data: invitationVerificationRequest
+    },
+      );
+    }
   export const validateInvitation = (
     invitationValidationRequest: InvitationValidationRequest,
  ) => {
@@ -68,4 +79,5 @@ import { customInstance } from '../../config/httpClient';
 export type RefreshResult = NonNullable<Awaited<ReturnType<typeof refresh>>>
 export type LogoutResult = NonNullable<Awaited<ReturnType<typeof logout>>>
 export type LoginResult = NonNullable<Awaited<ReturnType<typeof login>>>
+export type VerifyInvitationResult = NonNullable<Awaited<ReturnType<typeof verifyInvitation>>>
 export type ValidateInvitationResult = NonNullable<Awaited<ReturnType<typeof validateInvitation>>>

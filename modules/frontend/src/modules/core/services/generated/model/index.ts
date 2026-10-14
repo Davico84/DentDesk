@@ -79,6 +79,7 @@ export * from './invitationResponseRole';
 export * from './invitationValidationRequest';
 export * from './invitationValidationResponse';
 export * from './invitationValidationResponseRole';
+export * from './invitationVerificationRequest';
 export * from './loginRequest';
 export * from './memberResponse';
 export * from './memberResponseRole';
