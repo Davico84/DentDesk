@@ -79,7 +79,8 @@ public class StaffService {
             .verificationCodeHash(hash(verificationCode)).verificationExpiresAt(verificationExpiresAt).build());
         IssuedInvitation issued = new IssuedInvitation(invitation.getId(), invitation.getEmail(), role, token, invitation.getExpiresAt());
         invitationMailer.send(new InvitationMailer.InvitationMail(
-            invitation.getEmail(), organization.getName(), role, token, verificationCode, invitation.getExpiresAt()));
+            invitation.getEmail(), organization.getName(), role, inviter.getFullName(), token, verificationCode,
+            invitation.getExpiresAt()));
         return issued;
     }
 
@@ -108,7 +109,8 @@ public class StaffService {
         IssuedInvitation issued = new IssuedInvitation(invitation.getId(), invitation.getEmail(), Role.ADMIN,
             token, invitation.getExpiresAt());
         invitationMailer.send(new InvitationMailer.InvitationMail(
-            invitation.getEmail(), organization.getName(), Role.ADMIN, token, verificationCode, invitation.getExpiresAt()));
+            invitation.getEmail(), organization.getName(), Role.ADMIN, inviter.getFullName(), token, verificationCode,
+            invitation.getExpiresAt()));
         return issued;
     }
 
