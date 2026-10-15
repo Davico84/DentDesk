@@ -6,7 +6,9 @@ Dimensión **tecnológica** (reutilizable). Guía única del cliente: stack, arq
 
 ## 1. Stack y arquitectura de pantallas/módulos
 
-**Stack** (detalle y versiones en `docs/architecture.md §3`): React 19 · TypeScript · Vite. UI: Tailwind + shadcn/Radix, `lucide-react`, `framer-motion`, `sonner`. Datos de servidor: `@tanstack/react-query` + `axios`. Estado de cliente: Zustand. Formularios: `react-hook-form` + `zod`. Routing: `react-router-dom` v7 con guards centrales `RequireAuth`/`RequireGuest` (roles `ADMIN`/`USER`; sin `roles` = cualquier autenticado). Gestor: pnpm.
+**Stack** (detalle y versiones en `docs/architecture.md §3`): React 19 · TypeScript · Vite. UI: Tailwind + shadcn/Radix, `lucide-react`, `framer-motion`, `sonner`. Datos de servidor: `@tanstack/react-query` + `axios`. Estado de cliente: Zustand. Formularios: `react-hook-form` + `zod`. Routing: `react-router-dom` v7 con guards centrales `RequireAuth`/`RequireGuest` (roles `ADMIN`/`MEMBER`; sin `roles` = cualquier autenticado). Gestor: pnpm.
+
+El alta de personal usa enlaces `/auth/register?token=...`; la organización y el rol vienen del token y no se solicitan en el formulario. La sección `Personal` es exclusiva de `ADMIN` y consume el cliente generado desde OpenAPI mediante React Query.
 
 > **Estado actual (objetivo, aún no adoptado):** `@base-ui/react` (§4.1), `recharts` (gráficas) y el
 > par realtime `@stomp/stompjs`/`sockjs-client` (`docs/vision.md §7`) figuran en el stack **cerrado**
@@ -34,7 +36,7 @@ src/
 ```
 
 **Reglas de arquitectura:**
-- **Un solo `AppLayout` autenticado, no un layout por rol.** ADMIN y USER son roles dentro de la
+- **Un solo `AppLayout` autenticado, no un layout por rol.** ADMIN y MEMBER son roles dentro de la
   **misma** clínica (mismo staff, mismo shell), no personas con experiencias distintas — ADMIN es
   un superset de USER (hoy, solo suma `Personalizar marca`). El shell (sidebar + header) es único;
   la navegación se filtra por rol dentro de él, igual que ya filtran por rol las rutas

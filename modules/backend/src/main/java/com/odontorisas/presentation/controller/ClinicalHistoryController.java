@@ -36,7 +36,7 @@ import org.springframework.web.bind.annotation.RestController;
  * cuelgan del paciente ({@code patientId}), no de un id propio de la historia — hay como mucho
  * una por paciente (spec: única por paciente y clínica). <b>Sin {@code @PreAuthorize}</b>
  * (design.md D10): cualquier miembro autenticado de la clínica opera; el candado por rol
- * (`DENTIST`) llega con `staff`.
+ * (perfil profesional y habilitación) llega con `staff`.
  */
 @RestController
 @RequestMapping("/patients/{patientId}/clinical-history")

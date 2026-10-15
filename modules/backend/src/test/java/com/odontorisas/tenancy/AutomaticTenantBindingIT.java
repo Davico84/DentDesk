@@ -120,11 +120,12 @@ class AutomaticTenantBindingIT extends AbstractTenantAwareIntegrationTest {
 
     @Test
     void the_pre_session_flows_still_work() {
-        // El alta de una organización ocurre ANTES de que exista contexto: la organización se
-        // crea en esa misma transacción. El enganche no debe bloquearla por falta de contexto.
+        // El registro ocurre ANTES de que exista contexto: la identidad y su membresía se crean en
+        // esa misma transacción. El enganche no debe bloquearlo por falta de contexto.
         String email = "admin-" + UUID.randomUUID() + "@clinica.test";
+        String token = seedVerifiedInvitation("Clínica Nueva", email, "ADMIN");
         AuthResult result = authService.register(
-            new RegisterCommand(email, "password-segura", "Ada Lovelace", "Clínica Nueva"));
+            new RegisterCommand(token, email, "password-segura", "Ada Lovelace"));
 
         assertThat(result).isNotNull();
     }

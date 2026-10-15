@@ -9,7 +9,7 @@ export function roleHome(role: Role): string {
   switch (role) {
     case "ADMIN":
       return PATHS.ROOT;
-    case "USER":
+    case "MEMBER":
       return PATHS.ROOT;
     default:
       return PATHS.ROOT;

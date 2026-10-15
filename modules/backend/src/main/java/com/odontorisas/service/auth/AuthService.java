@@ -2,22 +2,20 @@ package com.odontorisas.service.auth;
 
 import com.odontorisas.common.MembershipStatus;
 import com.odontorisas.common.OrganizationStatus;
-import com.odontorisas.common.OrganizationType;
 import com.odontorisas.common.Role;
 import com.odontorisas.common.UserStatus;
 import com.odontorisas.infra.security.TokenService;
 import com.odontorisas.infra.tenancy.TenantSession;
 import com.odontorisas.persistence.entity.Membership;
 import com.odontorisas.persistence.entity.Organization;
-import com.odontorisas.persistence.entity.OrganizationSettings;
 import com.odontorisas.persistence.entity.RefreshToken;
 import com.odontorisas.persistence.entity.User;
 import com.odontorisas.persistence.repository.MembershipRepository;
 import com.odontorisas.persistence.repository.OrganizationRepository;
-import com.odontorisas.persistence.repository.OrganizationSettingsRepository;
 import com.odontorisas.persistence.repository.RefreshTokenRepository;
 import com.odontorisas.persistence.repository.UserRepository;
 import com.odontorisas.service.organization.OrganizationSlugService;
+import com.odontorisas.service.staff.StaffService;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -41,39 +39,33 @@ import java.util.function.Supplier;
 public class AuthService {
 
     private final UserRepository users;
-    private final OrganizationRepository organizations;
-    private final OrganizationSettingsRepository organizationSettings;
     private final MembershipRepository memberships;
     private final RefreshTokenRepository refreshTokens;
-    private final OrganizationSlugService slugService;
     private final TenantSession tenantSession;
     private final PasswordEncoder passwordEncoder;
     private final TokenService tokenService;
     private final LoginAttemptService loginAttemptService;
     private final Clock clock;
+    private final StaffService staffService;
 
     public AuthService(UserRepository users,
-                       OrganizationRepository organizations,
-                       OrganizationSettingsRepository organizationSettings,
                        MembershipRepository memberships,
                        RefreshTokenRepository refreshTokens,
-                       OrganizationSlugService slugService,
                        TenantSession tenantSession,
                        PasswordEncoder passwordEncoder,
                        TokenService tokenService,
                        LoginAttemptService loginAttemptService,
-                       Clock clock) {
+                       Clock clock,
+                       StaffService staffService) {
         this.users = users;
-        this.organizations = organizations;
-        this.organizationSettings = organizationSettings;
         this.memberships = memberships;
         this.refreshTokens = refreshTokens;
-        this.slugService = slugService;
         this.tenantSession = tenantSession;
         this.passwordEncoder = passwordEncoder;
         this.tokenService = tokenService;
         this.loginAttemptService = loginAttemptService;
         this.clock = clock;
+        this.staffService = staffService;
     }
 
     /** Alta autoservicio: organización + configuración + identidad + membresía ADMIN, atómico. */
@@ -81,13 +73,7 @@ public class AuthService {
         if (users.existsByEmail(cmd.email())) {
             throw new EmailAlreadyExistsException(cmd.email());
         }
-        Organization organization = organizations.save(Organization.builder()
-            .name(cmd.organizationName())
-            .slug(slugService.slugFor(cmd.organizationName()))
-            .type(OrganizationType.CLINIC)
-            .status(OrganizationStatus.ACTIVE)
-            .build());
-        organizationSettings.save(OrganizationSettings.defaultsFor(organization));
+        var invitation = staffService.consume(cmd.token(), cmd.email());
 
         User user = users.save(User.builder()
             .email(cmd.email())
@@ -100,8 +86,8 @@ public class AuthService {
         tenantSession.bindIdentity(user.getId());
         Membership membership = memberships.save(Membership.builder()
             .user(user)
-            .organization(organization)
-            .role(Role.ADMIN)
+            .organization(invitation.getOrganization())
+            .role(invitation.getRole())
             .status(MembershipStatus.ACTIVE)
             .build());
 

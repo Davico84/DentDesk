@@ -1,6 +1,6 @@
 import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { User, Mail, ShieldCheck, Building2 } from "lucide-react";
+import { User, Mail, ShieldCheck } from "lucide-react";
 import { Label } from "@/modules/core/ui/label";
 import { PasswordInput } from "@/modules/core/ui/password-input";
 import { IconInput } from "@/modules/core/ui/icon-input";
@@ -11,152 +11,54 @@ import { AuthSubmitButton } from "./AuthSubmitButton";
 import { cn } from "@/modules/core/utils/cn";
 import { applyServerFieldErrors } from "@/modules/core/utils/apiError";
 
-/** Formulario de registro (mínimo): nombre, correo y contraseña con confirmación. */
-export function RegisterForm() {
-  const {
-    register: field,
-    handleSubmit,
-    control,
-    setError,
-    formState: { errors },
-  } = useForm<RegisterValues>({
+export function RegisterForm({ token, verifiedEmail = "" }: { token: string; verifiedEmail?: string }) {
+  const { register: field, handleSubmit, control, setError, formState: { errors } } = useForm<RegisterValues>({
     resolver: zodResolver(registerSchema),
-    defaultValues: { organizationName: "", fullName: "", email: "", password: "", confirmPassword: "" },
+    defaultValues: { token, fullName: "", email: verifiedEmail, password: "", confirmPassword: "" },
   });
   const registerMutation = useRegister();
   const passwordValue = useWatch({ control, name: "password" });
 
   return (
-    <form
-      onSubmit={handleSubmit(({ organizationName, fullName, email, password }) =>
-        registerMutation.mutate(
-          { organizationName, fullName, email, password },
-          // El 400 del servidor trae `errors[{field, message}]`: se vuelcan sobre los campos para
-          // que se pinten junto al input, igual que los de Zod (el toast genérico lo pone useAuth).
-          { onError: (error) => applyServerFieldErrors(error, setError) },
-        ),
-      )}
-      className="flex flex-col gap-4"
-      noValidate
-    >
-      {/* Nombre de la clínica (crea la organización) */}
+    <form onSubmit={handleSubmit(({ token: invitationToken, fullName, email, password }) => registerMutation.mutate(
+      { token: invitationToken, fullName, email, password },
+      { onError: (error) => applyServerFieldErrors(error, setError) },
+    ))} className="flex flex-col gap-4" noValidate>
+      <input type="hidden" {...field("token")} />
       <div className="flex flex-col gap-1.5">
-        <Label htmlFor="reg-organizationName" className="text-sm font-medium">
-          Nombre de la clínica
-        </Label>
-        <IconInput
-          id="reg-organizationName"
-          autoComplete="organization"
-          placeholder="Clínica Dental Sonrisas"
-          icon={<Building2 className="size-4" />}
-          hasError={!!errors.organizationName}
-          aria-invalid={errors.organizationName ? true : undefined}
-          {...field("organizationName")}
-        />
-        {errors.organizationName ? (
-          <p className="text-xs text-destructive animate-in fade-in slide-in-from-top-1 duration-200">
-            {errors.organizationName.message}
-          </p>
-        ) : null}
+        <Label htmlFor="reg-fullName" className="text-sm font-medium">Nombre completo</Label>
+        <IconInput id="reg-fullName" autoComplete="name" placeholder="Juan García" icon={<User className="size-4" />}
+          hasError={!!errors.fullName} aria-invalid={errors.fullName ? true : undefined} {...field("fullName")} />
+        {errors.fullName ? <p className="text-xs text-destructive">{errors.fullName.message}</p> : null}
       </div>
-
-      {/* Nombre completo */}
       <div className="flex flex-col gap-1.5">
-        <Label htmlFor="reg-fullName" className="text-sm font-medium">
-          Nombre completo
-        </Label>
-        <IconInput
-          id="reg-fullName"
-          autoComplete="name"
-          placeholder="Juan García"
-          icon={<User className="size-4" />}
-          hasError={!!errors.fullName}
-          aria-invalid={errors.fullName ? true : undefined}
-          {...field("fullName")}
-        />
-        {errors.fullName ? (
-          <p className="text-xs text-destructive animate-in fade-in slide-in-from-top-1 duration-200">
-            {errors.fullName.message}
-          </p>
-        ) : null}
+        <Label htmlFor="reg-email" className="text-sm font-medium">Correo electrónico</Label>
+        <IconInput id="reg-email" type="email" autoComplete="email" readOnly placeholder="tu@correo.com" icon={<Mail className="size-4" />}
+          hasError={!!errors.email} aria-invalid={errors.email ? true : undefined} {...field("email")} />
+        {errors.email ? <p className="text-xs text-destructive">{errors.email.message}</p> : null}
       </div>
-
-      {/* Correo electrónico */}
       <div className="flex flex-col gap-1.5">
-        <Label htmlFor="reg-email" className="text-sm font-medium">
-          Correo electrónico
-        </Label>
-        <IconInput
-          id="reg-email"
-          type="email"
-          autoComplete="email"
-          placeholder="tu@correo.com"
-          icon={<Mail className="size-4" />}
-          hasError={!!errors.email}
-          aria-invalid={errors.email ? true : undefined}
-          {...field("email")}
-        />
-        {errors.email ? (
-          <p className="text-xs text-destructive animate-in fade-in slide-in-from-top-1 duration-200">
-            {errors.email.message}
-          </p>
-        ) : null}
-      </div>
-
-      {/* Contraseña */}
-      <div className="flex flex-col gap-1.5">
-        <Label htmlFor="reg-password" className="text-sm font-medium">
-          Contraseña
-        </Label>
+        <Label htmlFor="reg-password" className="text-sm font-medium">Contraseña</Label>
         <div className="[&_input]:h-11 [&_input]:rounded-lg [&_input]:text-sm">
-          <PasswordInput
-            id="reg-password"
-            autoComplete="new-password"
-            placeholder="Mínimo 8 caracteres"
-            aria-invalid={errors.password ? true : undefined}
-            className={cn(errors.password && "border-destructive focus-visible:ring-destructive")}
-            {...field("password")}
-          />
+          <PasswordInput id="reg-password" autoComplete="new-password" placeholder="Mínimo 8 caracteres"
+            aria-invalid={errors.password ? true : undefined} className={cn(errors.password && "border-destructive focus-visible:ring-destructive")} {...field("password")} />
         </div>
         <PasswordStrengthBar password={passwordValue ?? ""} />
-        {errors.password ? (
-          <p className="text-xs text-destructive animate-in fade-in slide-in-from-top-1 duration-200">
-            {errors.password.message}
-          </p>
-        ) : null}
+        {errors.password ? <p className="text-xs text-destructive">{errors.password.message}</p> : null}
       </div>
-
-      {/* Confirmar contraseña */}
       <div className="flex flex-col gap-1.5">
-        <Label htmlFor="reg-confirm" className="text-sm font-medium">
-          Confirmar contraseña
-        </Label>
+        <Label htmlFor="reg-confirm" className="text-sm font-medium">Confirmar contraseña</Label>
         <div className="[&_input]:h-11 [&_input]:rounded-lg [&_input]:text-sm">
-          <PasswordInput
-            id="reg-confirm"
-            autoComplete="new-password"
-            placeholder="Repite tu contraseña"
-            aria-invalid={errors.confirmPassword ? true : undefined}
-            className={cn(errors.confirmPassword && "border-destructive focus-visible:ring-destructive")}
-            {...field("confirmPassword")}
-          />
+          <PasswordInput id="reg-confirm" autoComplete="new-password" placeholder="Repite tu contraseña"
+            aria-invalid={errors.confirmPassword ? true : undefined} className={cn(errors.confirmPassword && "border-destructive focus-visible:ring-destructive")} {...field("confirmPassword")} />
         </div>
-        {errors.confirmPassword ? (
-          <p className="text-xs text-destructive animate-in fade-in slide-in-from-top-1 duration-200">
-            {errors.confirmPassword.message}
-          </p>
-        ) : null}
+        {errors.confirmPassword ? <p className="text-xs text-destructive">{errors.confirmPassword.message}</p> : null}
       </div>
-
-      {/* Nota de privacidad */}
       <p className="flex items-start gap-1.5 text-[11px] leading-relaxed text-muted-foreground">
         <ShieldCheck className="mt-0.5 size-3.5 shrink-0 text-brand-teal" />
         Al crear tu cuenta aceptas el tratamiento de tus datos conforme a nuestra política de privacidad.
       </p>
-
-      <AuthSubmitButton pending={registerMutation.isPending} pendingLabel="Creando cuenta…">
-        Crear cuenta
-      </AuthSubmitButton>
+      <AuthSubmitButton pending={registerMutation.isPending} pendingLabel="Creando cuenta…">Crear cuenta</AuthSubmitButton>
     </form>
   );
 }

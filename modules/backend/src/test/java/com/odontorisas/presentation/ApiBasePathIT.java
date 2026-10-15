@@ -69,8 +69,7 @@ class ApiBasePathIT extends AbstractIntegrationTest {
     void refresh_cookie_is_scoped_to_api_auth_and_travels_to_refresh() throws Exception {
         String email = "base-" + UUID.randomUUID() + "@clinica.test";
         HttpResponse<String> registered = postJson("/api/auth/register",
-            "{\"organizationName\":\"Clínica Base\",\"email\":\"" + email
-                + "\",\"password\":\"password123\",\"fullName\":\"Ana Base\"}", null);
+            invitedAdminRegisterBody("Clínica Base", email, "password123", "Ana Base"), null);
         assertThat(registered.statusCode()).isEqualTo(201);
 
         List<String> setCookies = registered.headers().allValues("Set-Cookie");

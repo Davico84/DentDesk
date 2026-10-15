@@ -16,7 +16,7 @@ const ANA: SessionUser = {
   id: 1,
   email: "ana@clinica.test",
   fullName: "Ana Torres",
-  role: "USER",
+  role: "MEMBER",
   organizationId: 5,
   organizationName: "Clínica Sonrisas",
   organizationSlug: "clinica-sonrisas",

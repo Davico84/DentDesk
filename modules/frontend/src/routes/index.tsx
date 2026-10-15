@@ -3,6 +3,7 @@ import { RootLayout } from "@/layouts/RootLayout";
 import { AppLayout } from "@/layouts/AppLayout";
 import { HomeScreen } from "@/screens/home/HomeScreen";
 import { BrandingSettingsScreen } from "@/screens/settings/BrandingSettingsScreen";
+import { StaffSettingsScreen } from "@/screens/settings/StaffSettingsScreen";
 import { PatientListScreen } from "@/screens/patients/PatientListScreen";
 import { PatientFormScreen } from "@/screens/patients/PatientFormScreen";
 import { PatientDetailScreen } from "@/screens/patients/PatientDetailScreen";
@@ -55,6 +56,7 @@ export const appRoutes: RouteObject[] = [
             { path: PATHS.CONSULTATION_NOTES, element: <ConsultationNotesScreen /> },
           ]),
           section("branding", [{ path: PATHS.BRANDING, element: <BrandingSettingsScreen /> }]),
+          section("staff", [{ path: PATHS.STAFF, element: <StaffSettingsScreen /> }]),
         ],
       },
     ],

@@ -120,7 +120,7 @@ Capa de plataforma **reutilizable** que aísla los datos de cada organización (
 ## 4. Contrato back ↔ front
 
 - **Auth**: JWT emitido por Spring Security; el front lo guarda y lo envía vía `axios` (interceptor). Refresh de token ante 401.
-- **Roles**: ADMIN / USER (alineados con el tipo `Role` del front — `store/useSessionStore.ts` — y la seguridad por rol del back).
+- **Roles**: ADMIN / MEMBER. La capacidad clínica depende del perfil y habilitación profesional, no de un rol de membresía.
 - **Realtime**: STOMP sobre WebSocket — **planeado, aún no implementado** en ningún lado del contrato (`docs/vision.md §7`).
 - **API docs**: springdoc-openapi (Swagger) como contrato de referencia. Apagado por defecto; se enciende con `SWAGGER_ENABLED=true` (`docs/backend.md` §12). El frontend no depende de él: genera desde `contracts/openapi.json`.
 

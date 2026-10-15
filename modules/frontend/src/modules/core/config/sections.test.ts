@@ -10,9 +10,9 @@ describe("sections — una sola fuente de verdad (add-app-shell)", () => {
 
   // Scenario: Ítem sin roles visible para todos
   it("una sección sin roles la ven todos; con roles, solo esos", () => {
-    expect(canAccess(sectionById("patients"), "USER")).toBe(true);
+    expect(canAccess(sectionById("patients"), "MEMBER")).toBe(true);
     expect(canAccess(sectionById("patients"), "ADMIN")).toBe(true);
-    expect(canAccess(sectionById("branding"), "USER")).toBe(false);
+    expect(canAccess(sectionById("branding"), "MEMBER")).toBe(false);
     expect(canAccess(sectionById("branding"), "ADMIN")).toBe(true);
   });
 
@@ -24,11 +24,12 @@ describe("sections — una sola fuente de verdad (add-app-shell)", () => {
 
   // Scenario: Menú y rutas derivados de la misma configuración
   it("el menú filtra por rol y toma la ruta de la sección", () => {
-    expect(navItemsFor("USER").map((i) => i.label)).toEqual(["Inicio", "Pacientes"]);
+    expect(navItemsFor("MEMBER").map((i) => i.label)).toEqual(["Inicio", "Pacientes"]);
     expect(navItemsFor("ADMIN").map((i) => [i.label, i.to])).toEqual([
       ["Inicio", "/"],
       ["Pacientes", "/patients"],
       ["Marca", "/settings/branding"],
+      ["Personal", "/settings/staff"],
     ]);
   });
 });

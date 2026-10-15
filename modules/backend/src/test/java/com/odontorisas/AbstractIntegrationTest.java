@@ -5,11 +5,17 @@ import org.springframework.test.context.DynamicPropertySource;
 import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.sql.Connection;
 import java.sql.DriverManager;
+import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.util.HexFormat;
+import java.util.UUID;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
@@ -36,6 +42,74 @@ public abstract class AbstractIntegrationTest {
     /** Conexión como superusuario/owner del contenedor (sembrar fixtures, DDL, o probar un CHECK). */
     protected Connection ownerConnection() throws SQLException {
         return DriverManager.getConnection(POSTGRES.getJdbcUrl(), POSTGRES.getUsername(), POSTGRES.getPassword());
+    }
+
+    /**
+     * Siembra (como owner) lo que el aprovisionamiento de plataforma dejaría listo para el primer
+     * administrador —organización, configuración, quien invita y una invitación nominativa— y la deja
+     * ya VERIFICADA, como si el invitado hubiera ingresado el código del correo. Devuelve el token en
+     * claro. El registro exige invitación (update-registration-organization-linking); los tests que
+     * solo necesitan una sesión parten de aquí. El flujo con correo y código se prueba en
+     * {@code PlatformAdminIT}.
+     */
+    protected String seedVerifiedInvitation(String organizationName, String email, String role) {
+        String suffix = UUID.randomUUID().toString();
+        String token = "fixture-" + suffix.replace("-", "");
+        try (Connection owner = ownerConnection()) {
+            long organizationId = insertReturningId(owner,
+                "INSERT INTO organizations(name, slug, type, status) VALUES (?, ?, 'CLINIC', 'ACTIVE') RETURNING id",
+                organizationName, "fixture-" + suffix);
+            try (PreparedStatement st = owner.prepareStatement(
+                    "INSERT INTO organization_settings(organization_id) VALUES (?)")) {
+                st.setLong(1, organizationId);
+                st.executeUpdate();
+            }
+            long inviterId = insertReturningId(owner,
+                "INSERT INTO users(email, password_hash, full_name, status) VALUES (?, 'x', 'Plataforma', 'ACTIVE') RETURNING id",
+                "inviter-" + suffix + "@fixture.test");
+            try (PreparedStatement st = owner.prepareStatement(
+                    "INSERT INTO invitations(organization_id, invited_by, email, token_hash, role, expires_at, verified_at) "
+                        + "VALUES (?, ?, ?, ?, ?, now() + interval '7 days', now())")) {
+                st.setLong(1, organizationId);
+                st.setLong(2, inviterId);
+                st.setString(3, email.trim().toLowerCase());
+                st.setString(4, sha256(token));
+                st.setString(5, role);
+                st.executeUpdate();
+            }
+        } catch (SQLException e) {
+            throw new IllegalStateException(e);
+        }
+        return token;
+    }
+
+    /** Cuerpo de {@code POST /auth/register} para un ADMIN invitado a una organización recién sembrada. */
+    protected String invitedAdminRegisterBody(String organizationName, String email, String password,
+                                              String fullName) {
+        String token = seedVerifiedInvitation(organizationName, email, "ADMIN");
+        return "{\"token\":\"" + token + "\",\"email\":\"" + email + "\",\"password\":\"" + password
+            + "\",\"fullName\":\"" + fullName + "\"}";
+    }
+
+    private static long insertReturningId(Connection connection, String sql, String... params) throws SQLException {
+        try (PreparedStatement st = connection.prepareStatement(sql)) {
+            for (int i = 0; i < params.length; i++) {
+                st.setString(i + 1, params[i]);
+            }
+            try (ResultSet rs = st.executeQuery()) {
+                rs.next();
+                return rs.getLong(1);
+            }
+        }
+    }
+
+    private static String sha256(String value) {
+        try {
+            return HexFormat.of().formatHex(
+                MessageDigest.getInstance("SHA-256").digest(value.getBytes(StandardCharsets.UTF_8)));
+        } catch (NoSuchAlgorithmException e) {
+            throw new IllegalStateException(e);
+        }
     }
 
     /**

@@ -35,8 +35,7 @@ class DentalChartControllerIT extends AbstractIntegrationTest {
     MockMvc mockMvc;
 
     private String registerAdmin(String org, String email) throws Exception {
-        String body = "{\"organizationName\":\"" + org + "\",\"email\":\"" + email
-            + "\",\"password\":\"password123\",\"fullName\":\"Admin " + org + "\"}";
+        String body = invitedAdminRegisterBody(org, email, "password123", "Admin " + org);
         MvcResult result = mockMvc.perform(post("/auth/register")
                 .contentType(MediaType.APPLICATION_JSON).content(body))
             .andExpect(status().isCreated())

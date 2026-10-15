@@ -24,8 +24,8 @@ test("el login valida el correo antes de tocar el servidor", async ({ page }) =>
   await expect(page).toHaveURL(/\/auth\/login/);
 });
 
-test("el login enlaza al registro", async ({ page }) => {
+test("el login explica que el alta es por invitación", async ({ page }) => {
   await page.goto("/auth/login");
-  await page.getByRole("link", { name: "Crear cuenta" }).click();
-  await expect(page).toHaveURL(/\/auth\/register/);
+  await expect(page.getByText(/pide una invitación al administrador/i)).toBeVisible();
+  await expect(page.getByRole("link", { name: "Crear cuenta" })).toHaveCount(0);
 });
