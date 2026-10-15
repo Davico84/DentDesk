@@ -24,16 +24,16 @@
 - [x] 3.2 **(usuario)** Render: Blueprint desde el repo en el workspace compartido con HSO; credenciales y `CORS_ALLOWED_ORIGINS=https://pendiente.invalid`; primer deploy migra **con el rol admin** y liveness `200`; en Neon, tablas de `odontorisas_admin` y consulta como `odontorisas_app` (design D6). Sin esto, no se abre a usuarios
 - [x] 3.3 Ajustar la URL de Render en `vercel.json` si difiere de `dentdesk-api.onrender.com` (commit en `dev`, PR a `main`)
 - [x] 3.4 **(usuario)** Vercel: importar el repo (raíz, rama `main`, sin `VITE_API_URL`); `CORS_ALLOWED_ORIGINS` en Render = origen de Vercel
-- [ ] 3.5 **(usuario)** cron-job.org: liveness cada 10 min, lunes a sábado, de 9:00 a 20:50 (`America/Lima`), para Dentdesk y HSO; mantiene despiertos los servicios
-- [x] 3.6 `.github/workflows/wake-up.yml`: despertar diario (lun–sáb 8:45 Lima) de Dentdesk y HSO, porque cron-job.org no logra despertar un servicio dormido (hallazgo 2026-10-12); probarlo con `workflow_dispatch` tras 20 min de inactividad
+- [x] 3.5 **(usuario)** cron-job.org: liveness cada 10 min, lunes a sábado, de 9:00 a 20:50 (`America/Lima`), para Dentdesk y HSO; mantiene despiertos los servicios (no los despierta: ver 3.6)
+- [x] 3.6 `.github/workflows/wake-up.yml`: despertar diario (lun–sáb 8:45 Lima) de Dentdesk y HSO, porque cron-job.org no logra despertar un servicio dormido (hallazgo 2026-10-12); probarlo con `workflow_dispatch` tras 20 min de inactividad. **2026-10-15:** el `schedule` de GitHub se atrasaba 4–6 h y solo corre desde `dev`; el disparo puntual lo hace un job de cron-job.org vía la API (`workflow_dispatch`), verificado: HSO 54 s, Dentdesk 74 s → `UP`
 
 ## 4. Verificación del despliegue
 
-- [ ] 4.1 Matriz del design D7 (rutas, proxy, cookie, sesión en Chrome y Safari/iOS, CORS, Actuator, **RLS y aislamiento entre dos clínicas**, arranque en frío, soporte); resultados en `docs/deployment.md`
+- [x] 4.1 Matriz del design D7 (rutas, proxy, cookie, sesión en Chrome y Safari/iOS, CORS, Actuator, **RLS y aislamiento entre dos clínicas**, arranque en frío, soporte); resultados en `docs/deployment.md` (**sin probar, riesgo bajo y documentado:** Safari/iOS por falta de dispositivo; arranque en frío medido por liveness, no entrando por el login)
 - [x] 4.2 Smoke E2E contra la URL pública (`E2E_BASE_URL=https://<app>.vercel.app pnpm exec playwright test e2e/auth.smoke.spec.ts`)
 
 ## 5. Docs
 
 - [x] 5.1 Búsqueda final sin referencias a `/ingresar`, `/registro` ni al filtro de HSO en el repo
-- [ ] 5.2 `docs/deployment.md`: base `/api` y liveness en `/api/actuator/health/liveness`; pasos concretos (Neon → Render → Vercel → monitor); rama de producción; CORS y previews; mediciones y matriz con resultados. `docs/backend.md` (base `/api`, cookie). `docs/vision.md` §8
-- [ ] 5.3 `openspec validate add-cloud-deployment --strict`
+- [x] 5.2 `docs/deployment.md`: base `/api` y liveness en `/api/actuator/health/liveness`; pasos concretos (Neon → Render → Vercel → monitor); rama de producción; CORS y previews; mediciones y matriz con resultados. `docs/backend.md` (base `/api`, cookie). `docs/vision.md` §8
+- [x] 5.3 `openspec validate add-cloud-deployment --strict`
