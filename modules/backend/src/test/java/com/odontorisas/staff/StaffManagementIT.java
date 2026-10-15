@@ -117,7 +117,11 @@ class StaffManagementIT extends AbstractIntegrationTest {
         Session adminB = registerAdmin();
 
         String listB = body(get("/staff/invitations").header("Authorization", adminB.bearer()));
-        assertThat(listB).doesNotContain(String.valueOf(invitationA)).doesNotContain(memberA.email());
+        // Se comparan los ids, no el texto: "64" aparecía dentro de una marca de tiempo (…12.642953Z).
+        List<Integer> idsB = JsonPath.read(listB, "$[*].id");
+        assertThat(idsB).doesNotContain((int) invitationA);
+        List<String> emailsB = JsonPath.read(listB, "$[*].email");
+        assertThat(emailsB).doesNotContain(memberA.email());
 
         mockMvc.perform(post("/staff/invitations/" + invitationA + "/resend").header("Authorization", adminB.bearer()))
             .andExpect(status().isNotFound())
