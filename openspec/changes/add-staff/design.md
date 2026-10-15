@@ -99,8 +99,11 @@ documentar y probar.
 - `modules/staff/components/`: `StaffManagement` (cabecera + botón Invitar + pestañas), `InviteStaffDialog`
   (formulario con schema Zod en `modules/staff/schemas/`), `MembersTab`, `InvitationsTab`, `MemberStatusBadge`,
   `InvitationStatusBadge`. Las acciones destructivas usan el `ConfirmDialog` de `core/ui`.
-- `core/ui` suma `tabs` y `badge` con `pnpm dlx shadcn@latest add tabs badge` (nunca `init`; verificar que no tocó
-  `globals.css`). Los badges de estado usan tokens del tema, no colores fijos.
+- `core/ui` suma `tabs` con `pnpm dlx shadcn@latest add tabs` (nunca `init`; verificar que no tocó `globals.css`).
+  Los badges de estado son píldoras de dominio con tokens del tema (patrón `PatientStatusBadge`), no el `badge` de
+  shadcn: se decidió al implementar, por consistencia con el resto del producto.
+- Listas como filas (`ul`/`li`, patrón `PatientList`), no tabla: en celular las acciones bajan a su propia línea y
+  desde `sm` la columna de acciones tiene ancho fijo para alinear rol y estado.
 - La pestaña activa vive en la URL (`?tab=invitaciones`) para poder enlazarla y que sobreviva a una recarga.
 - Hooks de React Query en `modules/staff/hooks/useStaffApi.ts` con claves separadas (`["staff","members"]`,
   `["staff","invitations"]`); invitar, reenviar y revocar invalidan las invitaciones; cambiar estado, los miembros.

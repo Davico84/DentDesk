@@ -49,5 +49,5 @@
 
 ## 6. Docs y cierre
 
-- [ ] 6.1 `docs/domain.md`: estado derivado "vencida", reenvío y concurrencia de `Invitation`; `docs/vision.md`: `staff` en progreso → construida al archivar
-- [ ] 6.2 `openspec validate add-staff --strict` y medir a mano que ningún requirement supere 500 caracteres
+- [x] 6.1 `docs/domain.md`: estado derivado "vencida", reenvío y concurrencia de `Invitation`; `docs/vision.md`: `staff` en progreso → construida al archivar
+- [x] 6.2 `openspec validate add-staff --strict` y medir a mano que ningún requirement supere 500 caracteres
