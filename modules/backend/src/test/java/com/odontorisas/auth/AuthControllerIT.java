@@ -43,9 +43,13 @@ class AuthControllerIT extends AbstractIntegrationTest {
     @Autowired
     MockMvc mockMvc;
 
+    /** Registro con invitación ADMIN ya verificada (cada llamada siembra su propia organización). */
     private String registerBody(String email, String password) {
-        return "{\"organizationName\":\"Clínica Test\",\"email\":\"" + email
-            + "\",\"password\":\"" + password + "\",\"fullName\":\"Ana Pérez\"}";
+        return invitedAdminRegisterBody("Clínica Test", email, password, "Ana Pérez");
+    }
+
+    private static String loginBody(String email, String password) {
+        return "{\"email\":\"" + email + "\",\"password\":\"" + password + "\"}";
     }
 
     @Test
@@ -89,7 +93,7 @@ class AuthControllerIT extends AbstractIntegrationTest {
             .andExpect(status().isCreated());
 
         mockMvc.perform(post("/auth/login").contentType(MediaType.APPLICATION_JSON)
-                .content(registerBody(email, "password123")))
+                .content(loginBody(email, "password123")))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.accessToken").isNotEmpty())
             .andExpect(cookie().exists(REFRESH_COOKIE));
@@ -103,7 +107,7 @@ class AuthControllerIT extends AbstractIntegrationTest {
     @Test
     void login_invalid_credentials_returns_401_generic_as_problem_detail() throws Exception {
         mockMvc.perform(post("/auth/login").contentType(MediaType.APPLICATION_JSON)
-                .content(registerBody("noexiste@clinica.test", "password123")))
+                .content(loginBody("noexiste@clinica.test", "password123")))
             .andExpect(status().isUnauthorized())
             .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
             .andExpect(jsonPath("$.status").value(401))
@@ -181,7 +185,7 @@ class AuthControllerIT extends AbstractIntegrationTest {
 
     private void failLogin(String email, String wrongPassword) throws Exception {
         mockMvc.perform(post("/auth/login").contentType(MediaType.APPLICATION_JSON)
-                .content(registerBody(email, wrongPassword)))
+                .content(loginBody(email, wrongPassword)))
             .andExpect(status().isUnauthorized());
     }
 
@@ -347,7 +351,7 @@ class AuthControllerIT extends AbstractIntegrationTest {
         }
 
         mockMvc.perform(post("/auth/login").contentType(MediaType.APPLICATION_JSON)
-                .content(registerBody(email, "password123"))) // credenciales CORRECTAS
+                .content(loginBody(email, "password123"))) // credenciales CORRECTAS
             .andExpect(status().isUnauthorized())
             .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
             .andExpect(jsonPath("$.status").value(401))
@@ -384,7 +388,7 @@ class AuthControllerIT extends AbstractIntegrationTest {
         setStatusDirectly(email, "DISABLED");
 
         mockMvc.perform(post("/auth/login").contentType(MediaType.APPLICATION_JSON)
-                .content(registerBody(email, "password123"))) // credenciales CORRECTAS
+                .content(loginBody(email, "password123"))) // credenciales CORRECTAS
             .andExpect(status().isUnauthorized());
 
         // D7/D8: el rechazo por estado no resetea (el reset vive en la misma transacción que
@@ -405,7 +409,7 @@ class AuthControllerIT extends AbstractIntegrationTest {
         expireLockDirectly(email);
 
         mockMvc.perform(post("/auth/login").contentType(MediaType.APPLICATION_JSON)
-                .content(registerBody(email, "password123")))
+                .content(loginBody(email, "password123")))
             .andExpect(status().isOk());
 
         assertThat(failedAttempts(email)).isZero();
@@ -477,7 +481,7 @@ class AuthControllerIT extends AbstractIntegrationTest {
         // D12: el lockout automático y el estado administrativo son mecanismos independientes.
         // Expirar la ventana temporal no reactiva una identidad deshabilitada a mano.
         mockMvc.perform(post("/auth/login").contentType(MediaType.APPLICATION_JSON)
-                .content(registerBody(email, "password123")))
+                .content(loginBody(email, "password123")))
             .andExpect(status().isUnauthorized());
         assertThat(statusOf(email)).isEqualTo("DISABLED");
     }

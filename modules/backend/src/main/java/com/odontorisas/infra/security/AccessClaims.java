@@ -7,4 +7,5 @@ import com.odontorisas.common.Role;
  * activa de la sesión (claim {@code oid}); el {@code role} es el de la membresía del usuario
  * en esa organización.
  */
-public record AccessClaims(Long userId, Long organizationId, String email, Role role) {}
+public record AccessClaims(Long userId, Long organizationId, String email, Role role,
+                           boolean platformAdmin) {}

@@ -57,8 +57,8 @@ class ConsultationNoteControllerIT extends AbstractIntegrationTest {
 
     private String registerAdmin() throws Exception {
         String suffix = UUID.randomUUID().toString().substring(0, 8);
-        String body = "{\"organizationName\":\"Clinica Notas " + suffix + "\",\"email\":\"cn-" + suffix
-            + "@clinica.test\",\"password\":\"password123\",\"fullName\":\"Admin\"}";
+        String body = invitedAdminRegisterBody(
+            "Clinica Notas " + suffix, "cn-" + suffix + "@clinica.test", "password123", "Admin");
         MvcResult r = mockMvc.perform(post("/auth/register").contentType(MediaType.APPLICATION_JSON).content(body))
             .andExpect(status().isCreated()).andReturn();
         return JsonPath.read(r.getResponse().getContentAsString(StandardCharsets.UTF_8), "$.accessToken");

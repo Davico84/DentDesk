@@ -1,7 +1,7 @@
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { login, register, logout } from "@/modules/core/services/generated/auth";
-import type { LoginRequest, RegisterRequest } from "@/modules/core/services/generated/model";
+import { login, register, logout, validateInvitation, verifyInvitation } from "@/modules/core/services/generated/auth";
+import type { InvitationVerificationRequest, LoginRequest, RegisterRequest } from "@/modules/core/services/generated/model";
 import { useSessionStore } from "@/store/useSessionStore";
 import { getUserFriendlyError } from "@/modules/core/utils/apiError";
 
@@ -22,6 +22,26 @@ export function useRegister() {
     mutationFn: (data: RegisterRequest) => register(data),
     onSuccess: (auth) => setSession(auth.accessToken, auth.user),
     onError: (error) => toast.error(getUserFriendlyError(error)),
+  });
+}
+
+/**
+ * Valida el token del enlace sin crear datos. Sin reintentos: un token inválido no se arregla
+ * reintentando, y el mismo error para cualquier causa (inexistente, vencido, usado) es a propósito.
+ */
+export function useInvitationValidation(token: string) {
+  return useQuery({
+    queryKey: ["auth", "invitation", token],
+    queryFn: () => validateInvitation({ token }),
+    enabled: token.length > 0,
+    retry: false,
+    staleTime: Infinity,
+  });
+}
+
+export function useVerifyInvitation() {
+  return useMutation({
+    mutationFn: (data: InvitationVerificationRequest) => verifyInvitation(data),
   });
 }
 

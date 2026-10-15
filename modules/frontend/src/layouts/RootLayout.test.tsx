@@ -14,7 +14,7 @@ import { RootLayout } from "./RootLayout";
 // los setTimeout de MSW y axios siguen reales).
 
 const USER = {
-  id: 1, email: "ana@clinica.test", fullName: "Ana Test", role: "USER",
+  id: 1, email: "ana@clinica.test", fullName: "Ana Test", role: "MEMBER",
   organizationId: 5, organizationName: "Clínica Test", organizationSlug: "clinica-test",
 };
 

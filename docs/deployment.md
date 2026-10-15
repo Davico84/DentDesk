@@ -41,9 +41,9 @@ Render free da **750 h de instancia al mes por workspace**. Un servicio despiert
   - Dentdesk: `https://dentdesk-api.onrender.com/api/actuator/health/liveness`
   - HSO: `https://hs-facop-api.onrender.com/actuator/health/liveness` (sin `/api`)
   - Aviso de fallo después de 3 fallos seguidos: a las 9:00 el primer ping puede superar los 30 s que espera cron-job.org mientras el servidor despierta.
-  - **Encabezado `Accept: application/json` obligatorio** en cada job (Avanzado → Encabezados). Hallazgo del 2026-10-12: sin él, con el servicio **dormido**, Render le responde a cron-job.org en ~1 s con una página HTML grande ("salida demasiado grande") y **no despierta** el servicio; todos los pings de 9:00 a 10:20 fallaron así y las dos apps siguieron dormidas. Con el servicio despierto el ping funciona igual con o sin el encabezado. `curl` (que no pide HTML) sí lo despierta: tardó 63 s y devolvió el JSON.
-  - **El encabezado no alcanzó** (prueba del mismo día tras 20 min de inactividad: mismo fallo). La diferencia con `curl` parece ser el origen de la petición (servidores de datacenter), no las cabeceras.
-  - **Despertar diario: GitHub Actions** (`.github/workflows/wake-up.yml`): lunes a sábado 8:45 Lima despierta Dentdesk y HSO (hasta 3 intentos de 150 s) y falla, con aviso de GitHub por correo, si alguna no responde. Se ejecuta también a mano (*Run workflow*). ~1 min de Actions por día. cron-job.org queda para **mantenerlas** despiertas de 9:00 a 21:00.
+  - **Encabezado `Accept: application/json`** en cada job (Avanzado → Encabezados). Hallazgo del 2026-10-12: sin él, con el servicio **dormido**, Render le responde a cron-job.org en ~1 s con una página HTML grande ("salida demasiado grande") y **no despierta** el servicio; todos los pings de 9:00 a 10:20 fallaron así y las dos apps siguieron dormidas. Con el servicio despierto el ping funciona igual con o sin el encabezado. `curl` (que no pide HTML) sí lo despierta: tardó 63 s y devolvió el JSON.
+  - **El encabezado no alcanzó** (prueba del mismo día tras 20 min de inactividad: mismo fallo). La diferencia con `curl` parece ser el origen de la petición (servidores de datacenter), no las cabeceras. Conclusión: cron-job.org **no despierta** el servicio, solo lo mantiene despierto; el encabezado se deja porque no estorba.
+  - **Despertar diario: GitHub Actions** (`.github/workflows/wake-up.yml`): lunes a sábado 8:45 Lima despierta Dentdesk y HSO (hasta 3 intentos de 150 s) y falla, con aviso de GitHub por correo, si alguna no responde. Se ejecuta también a mano (*Run workflow*). ~1 min de Actions por día. cron-job.org queda para **mantenerlas** despiertas de 9:00 a 21:00. **Verificado el 2026-10-12** (*Run workflow* en `main`, cron de Dentdesk pausado y >20 min sin uso): Dentdesk dormida despertó al primer intento en **63 s** con `{"status":"UP"}`; HSO respondió en 0 s (su cron la mantenía despierta).
 - **UptimeRobot (el monitor 24/7 que tenía HSO) se pausa**: sin horario en el plan gratuito, despertaría a HSO de noche y agotaría el cupo compartido.
 - **Presupuesto** (peor mes: 27 días hábiles): ~12 h 15 min al día por app ≈ **331 h cada una, ~662 h entre las dos**, de 750. **Margen: ~88 h** para el uso fuera de horario.
 - **Cada ingreso fuera de horario cuesta** ~17 min (arranque + los 15 min hasta la suspensión): el margen alcanza para unos 300 al mes entre las dos apps. Si se agota, Render suspende **los dos** servicios hasta el mes siguiente.
@@ -119,6 +119,12 @@ Consecuencia (decidida en `add-cloud-deployment`): **toda la API pasa a `/api`**
 | `COOKIE_SECURE` | `true` | |
 | `CORS_ALLOWED_ORIGINS` | origen exacto del frontend | se fija en `add-cloud-deployment` |
 | `DB_POOL_*` | sin definir (valores por defecto) | solo si se mide otra cosa |
+| `MAIL_ENABLED` | `true` | sin correo, **toda invitación se rechaza con 503** (add-platform-admin D7) |
+| `MAIL_HOST` / `MAIL_PORT` | `smtp-relay.brevo.com` / `587` | |
+| `MAIL_USERNAME` / `MAIL_PASSWORD` | credenciales SMTP de Brevo | secreto; es la clave SMTP, no la del buzón |
+| `MAIL_FROM` | remitente verificado en Brevo | |
+| `FRONTEND_URL` | `https://dentdeskapp.vercel.app` | base del enlace del correo de invitación |
+| `PLATFORM_ADMIN_*` | solo durante el bootstrap | ver §11.1; **se retiran** después |
 
 Los secretos se cargan en el panel de Render, **nunca** en el repo.
 
@@ -144,8 +150,9 @@ Los pasos en paneles los hace el responsable; el detalle de cada uno está en la
 3. **Comprobar en Neon** (SQL Editor) que las tablas son de `odontorisas_admin` y que `odontorisas_app` puede leerlas. **No abrir la app a usuarios antes.**
 4. Si Render le dio otra URL que `dentdesk-api.onrender.com`, corregirla en `vercel.json` (commit en `dev`, PR a `main`).
 5. **Vercel**: importar el repo, *Root Directory* = raíz, rama de producción `main`, sin `VITE_API_URL` (lee `vercel.json`). Copiar el origen de producción (`https://<app>.vercel.app`) a `CORS_ALLOWED_ORIGINS` en Render, sin `/` final.
-6. **cron-job.org**: `GET https://<servicio>.onrender.com/api/actuator/health/liveness` cada 10 min, lunes a sábado, de 9:00 a 20:50 (`America/Lima`), §3.
-7. **Verificar** con la matriz de `add-cloud-deployment` (design D7) y anotar los resultados aquí, incluida la prueba de que **dos clínicas no se ven entre sí**.
+6. **cron-job.org**: `GET https://<servicio>.onrender.com/api/actuator/health/liveness` cada 10 min, lunes a sábado, de 9:00 a 20:50 (`America/Lima`), §3. Mantiene despierto el servicio, pero **no lo despierta**.
+7. **Despertar diario**: `.github/workflows/wake-up.yml` ya corre solo desde `main` (lun–sáb 8:45 Lima); probarlo una vez con *Run workflow* tras 20 min sin uso, §3.
+8. **Verificar** con la matriz de `add-cloud-deployment` (design D7) y anotar los resultados aquí, incluida la prueba de que **dos clínicas no se ven entre sí**.
 
 Producción = rama `main`: Render despliega solo con los checks del CI en verde; los pushes a `dev` generan *previews* de Vercel sin sesión (CORS solo admite el origen de producción).
 
@@ -181,10 +188,10 @@ Notas de la puesta en marcha (para la próxima vez):
 | CORS | `POST /api/auth/refresh` vía proxy con el `Origin` de Vercel → `401` (sin cookie), no `403` ✅ |
 | Actuator | liveness `200 UP` / health `200` sin detalle / info `401` / sin prefijo `404` / api-docs `404` ✅ |
 | Smoke E2E | `E2E_BASE_URL=https://dentdeskapp.vercel.app` `auth.smoke` + `register.smoke`: 5/5 ✅ |
-| Sesión en Safari / iOS | pendiente (prueba manual en un iPhone) |
+| Sesión en Safari / iOS | **no probada**: no hay un iPhone disponible (2026-10-12). Riesgo bajo: la cookie es de primera parte (mismo dominio de Vercel, vía el proxy), que es lo que Safari no bloquea. Probar cuando haya un dispositivo o un usuario con iPhone |
 | Arranque en frío | backend dormido → `/api/actuator/health/liveness` respondió en **63,6 s** (bajo los 120 s del proxy de Vercel) ✅; falta medirlo entrando por la app (login) |
-| Monitor | jobs de cron-job.org lun–sáb 9:00–21:00. **2026-10-12: los pings con el servicio dormido fallaron** (Render devolvió una página HTML y no despertó el servicio); se agregó `Accept: application/json`; falta confirmar que despierta a las 9:00 del 2026-10-13 |
-| Soporte | pendiente: abrir los botones de WhatsApp y correo desde el login publicado |
+| Monitor | cron-job.org lun–sáb 9:00–21:00 **no despierta** el servicio dormido (Render le devuelve una página HTML, con o sin `Accept: application/json`), solo lo mantiene despierto. El despertar lo hace GitHub Actions (`wake-up.yml`, 8:45): con Dentdesk dormida, **63 s → `UP`** ✅ (2026-10-12); falta ver la primera ejecución programada (2026-10-13 8:45) |
+| Soporte | botones de WhatsApp y correo desde el login publicado: abren el chat y el correo ✅ (2026-10-12) |
 
 Datos de la verificación en producción: quedaron dos clínicas de prueba (`Verificación A` y `Verificación B`, correos `verificacion-*@dentdesk.test`, dominio que no recibe correo) con un paciente cada una. Son inofensivas; se pueden borrar con un script probado antes en local.
 
@@ -192,4 +199,75 @@ Datos de la verificación en producción: quedaron dos clínicas de prueba (`Ver
 
 - ~~`add-support-contact`~~ (hecho): una fila compacta "¿Problemas para entrar?" con botones de WhatsApp y correo bajo el formulario de login y registro, y en "Está tardando más de lo normal". Los datos están en `modules/frontend/src/modules/core/config/supportContact.ts`; quedan públicos en la web.
 - `add-cloud-deployment`: hecho en el repo (API bajo `/api`, Dockerfile medido en §7, `render.yaml`, `vercel.json`); falta la puesta en marcha de §8 y su matriz de verificación.
-- `add-database-backups`: copia diaria cifrada fuera de Neon con restauración verificada. "No caduca" no es una copia de seguridad.
+- `add-database-backups`: copia diaria cifrada fuera de Neon con restauración verificada. "No caduca" no es una copia de seguridad. **Postergado** (2026-10-12): Dentdesk está en fase de prueba. Es requisito **antes de cargar pacientes reales**: sin copia, un borrado o una corrupción en Neon pierde historias clínicas que hay que conservar 20 años (ADR-0018).
+
+## 11. Operación de plataforma: administrador global y alta de clínicas
+
+Desde `add-platform-admin` el registro público no existe: cada clínica nace de un **`PLATFORM_ADMIN`**, que la
+aprovisiona y emite la invitación de su primer `ADMIN`. **No hay pantalla**: el `PLATFORM_ADMIN` opera solo
+por la API. El login del frontend lo rechaza a propósito, porque no tiene membresía en ninguna clínica.
+
+### 11.1 Crear el `PLATFORM_ADMIN` (una vez por entorno)
+
+No hay endpoint de alta: lo crea el backend **al arrancar**, si lo piden las variables de entorno.
+
+1. **Requisito:** el código de `add-platform-admin` ya está en la rama que despliega el entorno (`main` en
+   producción) y el correo funciona (`MAIL_*` y `FRONTEND_URL` de §6). Sin correo no se puede invitar a nadie.
+2. Elegir el **correo** del `PLATFORM_ADMIN`. Es solo el usuario de login: no recibe nada y puede no tener
+   buzón. **No** puede ser el correo de una cuenta de clínica (el backend no arranca) y conviene que no sea
+   uno que luego quieras usar como administrador de una clínica: una identidad, un correo.
+3. Generar una **clave** larga. En PowerShell:
+   `$b = New-Object byte[] 18; [Security.Cryptography.RandomNumberGenerator]::Create().GetBytes($b); ([Convert]::ToBase64String($b)) -replace '[+/=]','x'`.
+   Guardarla en el gestor de contraseñas. Va **en claro**: el backend la guarda como hash BCrypt.
+4. En el panel de Render, en las variables del servicio:
+
+   | Variable | Valor |
+   |---|---|
+   | `PLATFORM_ADMIN_BOOTSTRAP_ENABLED` | `true` |
+   | `PLATFORM_ADMIN_EMAIL` | el correo del paso 2 |
+   | `PLATFORM_ADMIN_FULL_NAME` | p. ej. `Plataforma Dentdesk` |
+   | `PLATFORM_ADMIN_PASSWORD` | la clave del paso 3 |
+
+   Guardar redespliega. Esperar a que el servicio esté *Live*.
+5. Comprobar el login con el script de §11.2: debe decir "Sesión de plataforma iniciada". Se puede cancelar
+   en la confirmación sin crear nada.
+6. **Retirar el secreto:** `PLATFORM_ADMIN_BOOTSTRAP_ENABLED=false` y **borrar** `PLATFORM_ADMIN_PASSWORD`.
+   Guardar, lo que redespliega otra vez. La clave sigue valiendo: ya está en la base.
+
+Reglas del bootstrap: si el correo ya es `PLATFORM_ADMIN`, no hace nada, **tampoco cambia la clave**. Si
+pertenece a una cuenta de clínica, el backend **no arranca** y lo dice en el log. Hoy no hay forma de cambiar
+la clave de un `PLATFORM_ADMIN` ya creado (open question de `add-platform-admin`).
+
+En **local** es lo mismo con `secrets.properties` (ver `secrets.properties.example`) y reiniciando el backend.
+
+### 11.2 Dar de alta una clínica
+
+Con Windows PowerShell, desde `modules/backend`:
+
+```powershell
+# Producción: la API se llama a través del proxy de Vercel
+.\scripts\new-clinic.ps1 -BaseUrl https://dentdeskapp.vercel.app/api `
+  -PlatformEmail <correo-platform-admin> -ClinicName "Clínica Sonrisas" -AdminEmail <correo-del-dueño>
+
+# Local: -BaseUrl por defecto es http://localhost:8080/api
+.\scripts\new-clinic.ps1 -PlatformEmail admin@dentdesk.local -ClinicName "Clínica Prueba" -AdminEmail ana@correo.com
+```
+
+El script pide la clave por teclado (no queda en el historial), inicia sesión y **pide confirmación antes de
+crear la clínica**, porque envía un correo real. No guarda el token.
+
+- **Producción dormida:** el primer pedido puede tardar ~60 s (§1). Si se corta, repetir: la segunda vez el
+  backend ya está despierto. Abrir antes la app o `/api/actuator/health/liveness` también lo despierta.
+- **El invitado tiene 10 minutos** para ingresar el código desde que sale el correo. Avisarle antes de crear la
+  clínica. Si vence, hoy no se puede reenviar: hay que crear otra clínica con otro correo y borrar la
+  primera a mano.
+- Si la política de ejecución bloquea el script: `powershell -ExecutionPolicy Bypass -File .\scripts\new-clinic.ps1 ...`.
+
+| Respuesta | Qué pasó | Qué hacer |
+|---|---|---|
+| 401 en el login | correo o clave incorrectos, no es `PLATFORM_ADMIN`, o bloqueado 15 min tras 5 fallos | revisar; si no existe, §11.1 |
+| 405 | la petición salió como GET (navegador) | usar el script o un POST |
+| 409 | el correo del administrador ya pertenece a una cuenta | usar otro correo (en Gmail, `nombre+clinica@gmail.com`) |
+| 503 | el correo no se pudo enviar, o `MAIL_ENABLED` no es `true` | no se creó nada; revisar `MAIL_*` y reintentar |
+| 400 | nombre vacío, de 1 carácter o de más de 120; correo inválido | corregir |
+

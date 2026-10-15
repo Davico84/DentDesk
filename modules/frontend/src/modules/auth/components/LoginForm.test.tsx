@@ -29,7 +29,7 @@ describe("LoginForm", () => {
       http.post("*/auth/login", () =>
         HttpResponse.json({
           accessToken: "tok",
-          user: { id: 1, email: "ana@clinica.test", fullName: "Ana Test", role: "USER", organizationId: 5, organizationName: "Clínica Test", organizationSlug: "clinica-test" },
+          user: { id: 1, email: "ana@clinica.test", fullName: "Ana Test", role: "MEMBER", organizationId: 5, organizationName: "Clínica Test", organizationSlug: "clinica-test" },
         }),
       ),
     );

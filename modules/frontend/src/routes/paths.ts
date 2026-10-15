@@ -4,6 +4,7 @@ export const PATHS = {
   LOGIN: "/auth/login",
   REGISTER: "/auth/register",
   BRANDING: "/settings/branding",
+  STAFF: "/settings/staff",
   PATIENTS: "/patients",
   PATIENT_NEW: "/patients/new",
   PATIENT_DETAIL: "/patients/:id",
