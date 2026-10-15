@@ -1,6 +1,6 @@
 import { StaffManagement } from "@/modules/staff/components/StaffManagement";
-import { PageContainer } from "@/modules/core/components/PageContainer";
 
+/** Pantalla de gestión del personal (solo ADMIN). La feature vive en el módulo `staff`. */
 export function StaffSettingsScreen() {
-  return <PageContainer><StaffManagement /></PageContainer>;
+  return <StaffManagement />;
 }

@@ -1,37 +1,64 @@
 import { useState } from "react";
+import { useSearchParams } from "react-router-dom";
+import { MailPlus } from "lucide-react";
+import { PageContainer } from "@/modules/core/components/PageContainer";
 import { Button } from "@/modules/core/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/modules/core/ui/card";
-import { Input } from "@/modules/core/ui/input";
-import { Label } from "@/modules/core/ui/label";
-import { useInviteStaff, useMembersQuery } from "../hooks/useStaffApi";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/modules/core/ui/tabs";
+import { InviteStaffDialog } from "./InviteStaffDialog";
+import { InvitationsTab } from "./InvitationsTab";
+import { MembersTab } from "./MembersTab";
 
+const TAB_PARAM = "tab";
+const INVITATIONS_TAB = "invitaciones";
+const MEMBERS_TAB = "personal";
+
+/**
+ * Feature de gestión del personal (capacidad `staff`): pestañas Personal | Invitaciones y botón Invitar común.
+ * La pestaña vive en la URL (`?tab=invitaciones`): se puede enlazar y sobrevive a una recarga (design D6).
+ */
 export function StaffManagement() {
-  const [email, setEmail] = useState("");
-  const staff = useMembersQuery();
-  const inviteMutation = useInviteStaff();
+  const [params, setParams] = useSearchParams();
+  const [inviting, setInviting] = useState(false);
+  const tab = params.get(TAB_PARAM) === INVITATIONS_TAB ? INVITATIONS_TAB : MEMBERS_TAB;
 
-  function submit(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    inviteMutation.mutate({ email, role: "MEMBER" }, { onSuccess: () => setEmail("") });
-  }
+  const changeTab = (next: string) =>
+    setParams(
+      (prev) => {
+        const updated = new URLSearchParams(prev);
+        if (next === MEMBERS_TAB) updated.delete(TAB_PARAM);
+        else updated.set(TAB_PARAM, next);
+        return updated;
+      },
+      { replace: true },
+    );
 
   return (
-    <div className="flex flex-col gap-6">
-      <Card>
-        <CardHeader><CardTitle>Invitar personal</CardTitle><CardDescription>Elige el rol que tendrá la persona en tu clínica.</CardDescription></CardHeader>
-        <CardContent>
-          <form onSubmit={submit} className="flex flex-col gap-4 sm:flex-row sm:items-end">
-            <div className="flex flex-1 flex-col gap-1.5"><Label htmlFor="staff-email">Correo electrónico</Label><Input id="staff-email" type="email" required value={email} onChange={(event) => setEmail(event.target.value)} /></div>
-            <Button type="submit" disabled={inviteMutation.isPending}>Crear invitación</Button>
-          </form>
-        </CardContent>
-      </Card>
-      <Card>
-        <CardHeader><CardTitle>Personal de la clínica</CardTitle></CardHeader>
-        <CardContent>
-          {staff.isLoading ? <p>Cargando personal…</p> : staff.isError ? <p role="alert">No se pudo cargar el personal.</p> : staff.data?.length ? <div className="divide-y">{staff.data.map((member) => <div key={member.id} className="flex items-center justify-between py-3"><div><p className="font-medium">{member.fullName}</p><p className="text-sm text-muted-foreground">{member.email}</p></div><span className="text-sm text-muted-foreground">{member.role === "ADMIN" ? "Administrador" : "Personal"}</span></div>)}</div> : <p className="text-sm text-muted-foreground">Todavía no hay personal registrado.</p>}
-        </CardContent>
-      </Card>
-    </div>
+    <PageContainer>
+      <header className="flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">Personal</h1>
+          <p className="mt-1 text-sm text-muted-foreground">Quién trabaja en tu clínica y las invitaciones que enviaste.</p>
+        </div>
+        <Button onClick={() => setInviting(true)}>
+          <MailPlus className="mr-2 size-4" />
+          Invitar
+        </Button>
+      </header>
+
+      <Tabs value={tab} onValueChange={changeTab} className="flex flex-col gap-4">
+        <TabsList className="h-11 self-start rounded-xl">
+          <TabsTrigger value={MEMBERS_TAB} className="h-9 rounded-lg px-4">Personal</TabsTrigger>
+          <TabsTrigger value={INVITATIONS_TAB} className="h-9 rounded-lg px-4">Invitaciones</TabsTrigger>
+        </TabsList>
+        <TabsContent value={MEMBERS_TAB} className="mt-0">
+          <MembersTab />
+        </TabsContent>
+        <TabsContent value={INVITATIONS_TAB} className="mt-0">
+          <InvitationsTab onInvite={() => setInviting(true)} />
+        </TabsContent>
+      </Tabs>
+
+      <InviteStaffDialog open={inviting} onOpenChange={setInviting} />
+    </PageContainer>
   );
 }

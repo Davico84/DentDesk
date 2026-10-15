@@ -27,6 +27,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.HexFormat;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 @Service
@@ -65,8 +66,9 @@ public class StaffService {
                 throw new MemberAlreadyExistsException(normalizedEmail);
             }
         });
+        // Una vencida sigue en PENDING en la base (design D1): también ocupa el correo y se ofrece reenviarla.
         if (invitations.existsByOrganizationIdAndEmailIgnoreCaseAndStatus(organizationId, normalizedEmail, InvitationStatus.PENDING)) {
-            throw new IllegalStateException("Ya existe una invitacion pendiente para ese correo.");
+            throw new InvitationAlreadyPendingException();
         }
         var inviter = users.findById(IdentityContext.get()).orElseThrow();
         var organization = organizations.findById(organizationId).orElseThrow();
@@ -126,20 +128,66 @@ public class StaffService {
             .toList();
     }
 
+    /** Invitaciones de la organización activa, más recientes primero, con "vencida" derivada (design D1). */
+    @Transactional(readOnly = true)
+    public List<InvitationListView> invitations() {
+        Instant now = clock.instant();
+        return invitations.findByOrganizationIdOrderByCreatedAtDesc(OrganizationContext.get()).stream()
+            .map(i -> InvitationListView.of(i, now))
+            .toList();
+    }
+
+    /**
+     * Reenvía una invitación MEMBER pendiente o vencida: token, código y vigencias nuevos en la MISMA fila, de modo
+     * que el enlace anterior deja de existir en el mismo commit (design D2). El correo sale tras el flush, dentro de
+     * la transacción: si el SMTP falla, el rollback deja la invitación como estaba.
+     */
+    public InvitationListView resend(Long invitationId) {
+        Invitation invitation = manageablePendingForUpdate(invitationId);
+        String token = newToken();
+        String verificationCode = verificationCode();
+        Instant now = clock.instant();
+        invitation.setTokenHash(hash(token));
+        invitation.setExpiresAt(now.plus(INVITATION_TTL));
+        invitation.setVerificationCodeHash(hash(verificationCode));
+        invitation.setVerificationExpiresAt(now.plus(VERIFICATION_TTL));
+        invitation.setVerificationAttempts(0);
+        invitation.setVerifiedAt(null);
+        invitations.saveAndFlush(invitation);
+        invitationMailer.send(new InvitationMailer.InvitationMail(
+            invitation.getEmail(), invitation.getOrganization().getName(), invitation.getRole(),
+            invitation.getInvitedBy().getFullName(), token, verificationCode, invitation.getExpiresAt()));
+        return InvitationListView.of(invitation, now);
+    }
+
     public void revoke(Long invitationId) {
-        Invitation invitation = invitations.findById(invitationId).orElseThrow(InvalidInvitationException::new);
-        if (!invitation.getOrganization().getId().equals(OrganizationContext.get())) {
-            throw new AccessDeniedException("Invitacion fuera de la organizacion activa.");
+        manageablePendingForUpdate(invitationId).setStatus(InvitationStatus.REVOKED);
+    }
+
+    /**
+     * Carga con bloqueo (primera lectura de la invitación en la transacción) y comprueba DESPUÉS de bloquear
+     * (design D7): de otra clínica o inexistente → 404; ADMIN (la emite la plataforma) → 403; aceptada o revocada
+     * → 409. Una vencida sigue en PENDING y sí se gestiona.
+     */
+    private Invitation manageablePendingForUpdate(Long invitationId) {
+        Invitation invitation = invitations.findByIdForUpdate(invitationId)
+            .filter(i -> i.getOrganization().getId().equals(OrganizationContext.get()))
+            .orElseThrow(InvitationNotFoundException::new);
+        if (invitation.getRole() != Role.MEMBER) {
+            throw new AccessDeniedException("Las invitaciones de administrador las gestiona la plataforma.");
         }
-        invitation.setStatus(InvitationStatus.REVOKED);
+        if (invitation.getStatus() != InvitationStatus.PENDING) {
+            throw new InvitationNotPendingException();
+        }
+        return invitation;
     }
 
     public void changeStatus(Long memberId, MembershipStatus status) {
         if (memberId.equals(IdentityContext.get())) {
-            throw new IllegalStateException("No puedes cambiar el estado de tu propia cuenta.");
+            throw new CannotChangeOwnStatusException();
         }
         var membership = memberships.findByUserIdAndOrganizationId(memberId, OrganizationContext.get())
-            .orElseThrow(() -> new IllegalArgumentException("El miembro no pertenece a la organización activa."));
+            .orElseThrow(MemberNotFoundException::new);
         if (membership.getRole() == Role.ADMIN) {
             throw new AccessDeniedException("No puedes desactivar al administrador de la organización.");
         }
@@ -150,15 +198,21 @@ public class StaffService {
         Invitation invitation = pending(rawToken);
         if (!invitation.getEmail().equalsIgnoreCase(email.trim())) throw new InvalidInvitationException();
         if (invitation.getVerifiedAt() == null) throw new InvalidInvitationException();
-        if (invitations.consume(invitation.getId(), InvitationStatus.ACCEPTED, clock.instant(), clock.instant()) != 1) {
+        // El hash en la condición: si un reenvío confirmó mientras esperábamos, el enlace usado ya no vale (D7).
+        if (invitations.consume(invitation.getId(), hash(rawToken), InvitationStatus.ACCEPTED,
+                clock.instant(), clock.instant()) != 1) {
             throw new InvalidInvitationException();
         }
         return invitation;
     }
 
+    /**
+     * Carga con bloqueo (design D7): sin él, una verificación que confirma después de un reenvío reescribe el hash
+     * viejo, porque Hibernate escribe todas las columnas con lo que leyó, y deshace el reenvío.
+     */
     @Transactional(noRollbackFor = InvalidInvitationException.class)
     public void verifyEmail(String rawToken, String email, String code) {
-        Invitation invitation = pending(rawToken);
+        Invitation invitation = pendingForUpdate(rawToken);
         if (!invitation.getEmail().equalsIgnoreCase(email.trim())
             || invitation.getVerificationCodeHash() == null
             || invitation.getVerificationExpiresAt() == null
@@ -176,11 +230,24 @@ public class StaffService {
 
     private Invitation pending(String rawToken) {
         if (rawToken == null || rawToken.isBlank()) throw new InvalidInvitationException();
-        Invitation invitation = invitations.findByTokenHash(hash(rawToken)).orElseThrow(InvalidInvitationException::new);
+        return requirePending(invitations.findByTokenHash(hash(rawToken)));
+    }
+
+    private Invitation pendingForUpdate(String rawToken) {
+        if (rawToken == null || rawToken.isBlank()) throw new InvalidInvitationException();
+        return requirePending(invitations.findByTokenHashForUpdate(hash(rawToken)));
+    }
+
+    private Invitation requirePending(Optional<Invitation> found) {
+        Invitation invitation = found.orElseThrow(InvalidInvitationException::new);
         if (invitation.getStatus() != InvitationStatus.PENDING || !invitation.getExpiresAt().isAfter(clock.instant())) {
             throw new InvalidInvitationException();
         }
         return invitation;
+    }
+
+    private static String newToken() {
+        return UUID.randomUUID().toString().replace("-", "") + UUID.randomUUID().toString().replace("-", "");
     }
 
     private static String hash(String value) {
@@ -200,4 +267,19 @@ public class StaffService {
         static InvitationView from(Invitation i) { return new InvitationView(i.getEmail(), i.getRole(), i.getOrganization().getName(), i.getExpiresAt()); }
     }
     public record MemberView(Long id, String email, String fullName, Role role, MembershipStatus status) {}
+
+    /**
+     * Invitación en el listado del administrador. Nunca lleva el token ni el código. {@code manageable}: si la
+     * clínica puede reenviarla o revocarla (MEMBER pendiente o vencida, design D3); la regla vive solo aquí.
+     */
+    public record InvitationListView(Long id, String email, Role role, InvitationState state, Instant createdAt,
+                                     Instant expiresAt, boolean manageable) {
+        static InvitationListView of(Invitation i, Instant now) {
+            InvitationState state = InvitationState.of(i.getStatus(), i.getExpiresAt(), now);
+            boolean manageable = i.getRole() == Role.MEMBER
+                && (state == InvitationState.PENDING || state == InvitationState.EXPIRED);
+            return new InvitationListView(i.getId(), i.getEmail(), i.getRole(), state, i.getCreatedAt(),
+                i.getExpiresAt(), manageable);
+        }
+    }
 }

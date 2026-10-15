@@ -68,6 +68,15 @@ async function mockApi(page: Page, { authed, preset }: { authed: boolean; preset
     }
     if (path.endsWith("/organizations/me/branding")) return json(preset ? { brandPreset: preset } : {});
     if (path.endsWith("/dental-chart/catalog")) return json(CATALOG);
+    // Pantalla Personal (add-staff): nombres y correos largos ponen a prueba el desborde a 375 px.
+    if (path.endsWith("/staff/members")) return json([
+      { id: 1, fullName: "Administradora Con Un Nombre Bastante Largo", email: "administradora.con.correo.largo@clinica-dental.test", role: "ADMIN", status: "ACTIVE" },
+      { id: 2, fullName: "María Fernanda Ruiz", email: "maria.fernanda@clinica.test", role: "MEMBER", status: "INACTIVE" },
+    ]);
+    if (path.endsWith("/staff/invitations")) return json([
+      { id: 10, email: "invitada.con.un.correo.muy.largo@clinica-dental.test", role: "MEMBER", state: "EXPIRED",
+        createdAt: "2026-10-01T15:00:00Z", expiresAt: "2026-10-08T15:00:00Z", manageable: true },
+    ]);
     if (/\/patients$/.test(path)) {
       return json({ content: [
         { id: 1, fullName: "Armando Lios", document: "12345678", birthDate: "1980-02-20", minor: false, phone: "+51987654321", status: "ACTIVE" },
@@ -87,6 +96,7 @@ async function mockApi(page: Page, { authed, preset }: { authed: boolean; preset
 const PRIVATE = [
   "/", "/patients", "/patients/new", "/patients/1", "/patients/1/clinical-history",
   "/patients/1/dental-chart", "/patients/1/consultations", "/settings/branding",
+  "/settings/staff", "/settings/staff?tab=invitaciones",
 ];
 
 for (const width of [375, 768, 1280]) {

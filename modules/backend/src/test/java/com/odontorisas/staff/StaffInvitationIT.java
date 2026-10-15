@@ -124,7 +124,7 @@ class StaffInvitationIT extends AbstractIntegrationTest {
         long revokedId = issueMemberInvitationId(admin, revokedEmail);
         String revoked = sentMail().rawToken();
         mockMvc.perform(delete("/staff/invitations/" + revokedId).header("Authorization", admin.bearer()))
-            .andExpect(status().isOk());
+            .andExpect(status().isNoContent());
         jdbc.update("UPDATE invitations SET verified_at = now() WHERE id = ?", revokedId);
 
         String ownerEmail = unique("duena");
@@ -267,8 +267,9 @@ class StaffInvitationIT extends AbstractIntegrationTest {
             .andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
         assertThat(membersOfA).contains(memberA.email()).contains(adminA.email());
 
+        // add-staff design D3: de otra clínica responde como inexistente, sin revelar que existe.
         mockMvc.perform(delete("/staff/invitations/" + pendingInA).header("Authorization", adminB.bearer()))
-            .andExpect(status().isForbidden());
+            .andExpect(status().isNotFound());
         assertThat(count("SELECT count(*) FROM invitations WHERE id = ? AND status = 'PENDING'", pendingInA))
             .isEqualTo(1);
     }

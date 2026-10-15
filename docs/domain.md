@@ -131,6 +131,8 @@ La única puerta de entrada al sistema: una invitación **nominativa** (correo o
 - `organization` (FK), `invitedBy` (FK `User`), `email`, `role` (`ADMIN` | `MEMBER`), `status` (`PENDING` | `ACCEPTED` | `REVOKED`), `expiresAt` (7 días), verificación del código (`verifiedAt`, intentos, vencimiento a los 10 min).
 - **Quién emite qué:** un `ADMIN` de clínica solo invita `MEMBER` a su organización; la invitación `ADMIN` la emite **solo** el `PlatformAdmin`, al aprovisionar la clínica.
 - Se consume una sola vez (aceptación concurrente: exactamente una gana) y puede revocarse mientras está pendiente.
+- **Estado visible para el administrador** (`add-staff`): pendiente, aceptada, revocada o **vencida**. "Vencida" no se guarda: es una pendiente cuya vigencia terminó. Una vencida sigue ocupando el correo (no se emite otra; se reenvía).
+- **Reenvío** (`add-staff`): el `ADMIN` de la clínica reenvía una invitación `MEMBER` pendiente o vencida; recibe un enlace y un código nuevos **en la misma invitación**, el enlace anterior deja de funcionar y la vigencia se renueva. Reenviar, revocar, verificar y aceptar se coordinan sobre la misma fila: una invitación aceptada nunca vuelve a pendiente y un enlace anulado nunca registra.
 
 ### `multi-tenancy` → **PlatformAdmin** *(autorización global; construida)*
 El **operador de Dentdesk**, no de una clínica: aprovisiona organizaciones y emite la invitación de su primer `ADMIN`. Es una fila que marca a un `User` como administrador global — **no** es una `Membership` ni un rol de clínica, y su sesión no tiene organización activa: no ve datos clínicos por ser global.
