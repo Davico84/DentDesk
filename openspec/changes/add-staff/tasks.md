@@ -32,19 +32,19 @@
 
 ## 4. Cliente generado
 
-- [ ] 4.1 Regenerar el cliente orval (`pnpm --filter dentdesk-frontend generate:api`) y commitear contrato + cliente aparte del código
+- [x] 4.1 Regenerar el cliente orval (`pnpm --filter dentdesk-frontend generate:api`) y commitear contrato + cliente aparte del código
 
 ## 5. Frontend
 
-- [ ] 5.1 Componer la pantalla con el sistema de diseño existente (`docs/frontend.md` §4, §4.1–§4.6) — sin `frontend-design`, que no aplica a pantallas autenticadas — y mostrar al usuario una captura antes de commitear
-- [ ] 5.2 `core/ui`: `pnpm dlx shadcn@latest add tabs badge`; verificar con `git diff` que no tocó `globals.css`
-- [ ] 5.3 Hooks en `modules/staff/hooks/useStaffApi.ts`: claves `["staff","members"]` y `["staff","invitations"]`; invitar, reenviar, revocar y cambiar estado, con invalidaciones y toasts (design D6)
-- [ ] 5.4 Handlers de MSW para `GET /staff/invitations`, `POST /staff/invitations/{id}/resend`, `DELETE /staff/invitations/{id}` y `PATCH /staff/members/{id}/status` (MSW corre con `onUnhandledRequest: "error"`)
-- [ ] 5.5 Schema Zod del formulario de invitación en `modules/staff/schemas/` (paridad con el `@Email` del DTO) e `InviteStaffDialog`
-- [ ] 5.6 `MembersTab`: tabla con rol y `MemberStatusBadge`, búsqueda sin tildes ni mayúsculas, desactivar/reactivar con `ConfirmDialog`, sin acciones sobre la propia fila ni sobre un `ADMIN`; estados de carga, error y vacío. Cada fila, badge o estado vacío en su propio archivo (`react/no-multi-comp`)
-- [ ] 5.7 `InvitationsTab`: tabla con `InvitationStatusBadge`, filtro por estado con contadores, reenviar y revocar (con confirmación) solo si `manageable`; estado vacío distinto de "filtro sin resultados". Un componente por archivo
-- [ ] 5.8 `StaffManagement` con pestañas en la URL (`?tab=`) y botón Invitar común; `StaffSettingsScreen` en una línea
-- [ ] 5.9 Tests Vitest/MSW de cada Scenario visible: búsqueda (incl. tildes), filtro y contadores, confirmaciones (aceptar y cancelar), acciones ocultas en la propia fila y en invitaciones no gestionables, errores 409 mostrados, formulario inválido sin petición
+- [x] 5.1 Componer la pantalla con el sistema de diseño existente (`docs/frontend.md` §4, §4.1–§4.6) — sin `frontend-design`, que no aplica a pantallas autenticadas — y mostrar al usuario una captura antes de commitear
+- [x] 5.2 `core/ui`: `pnpm dlx shadcn@latest add tabs`; `globals.css` intacto. **Sin `badge`**: el proyecto usa píldoras de dominio con tokens (patrón `PatientStatusBadge`), y un badge de shadcn rompería esa consistencia
+- [x] 5.3 Hooks en `modules/staff/hooks/useStaffApi.ts`: claves `["staff","members"]` y `["staff","invitations"]`; invitar, reenviar, revocar y cambiar estado, con invalidaciones y toasts (design D6)
+- [x] 5.4 Handlers de MSW para los endpoints de `staff` (MSW corre con `onUnhandledRequest: "error"`). En `modules/staff/test/staffApiMocks.ts` y no en `handlers.ts` global: el repo no registra handlers globales, cada test usa `server.use`
+- [x] 5.5 Schema Zod del formulario de invitación en `modules/staff/schemas/` (paridad con el `@Email` del DTO) e `InviteStaffDialog`
+- [x] 5.6 `MembersTab`: tabla con rol y `MemberStatusBadge`, búsqueda sin tildes ni mayúsculas, desactivar/reactivar con `ConfirmDialog`, sin acciones sobre la propia fila ni sobre un `ADMIN`; estados de carga, error y vacío. Cada fila, badge o estado vacío en su propio archivo (`react/no-multi-comp`)
+- [x] 5.7 `InvitationsTab`: tabla con `InvitationStatusBadge`, filtro por estado con contadores, reenviar y revocar (con confirmación) solo si `manageable`; estado vacío distinto de "filtro sin resultados". Un componente por archivo
+- [x] 5.8 `StaffManagement` con pestañas en la URL (`?tab=`) y botón Invitar común; `StaffSettingsScreen` en una línea
+- [x] 5.9 Tests Vitest/MSW de cada Scenario visible: búsqueda (incl. tildes), filtro y contadores, confirmaciones (aceptar y cancelar), acciones ocultas en la propia fila y en invitaciones no gestionables, errores 409 mostrados, formulario inválido sin petición
 - [ ] 5.10 `pnpm validate` verde y prueba manual en local (invitar, reenviar con código vencido, revocar, desactivar y reactivar)
 
 ## 6. Docs y cierre
