@@ -192,7 +192,7 @@ class PlatformAdminIT extends AbstractIntegrationTest {
         assertNothingCreated(name);
     }
 
-    // ---------------------------------------------------------------- Scenario: Aprovisionamiento atómico
+    // ---------------------------------------------------------------- Scenario: Alta atómica mediante aprovisionamiento
 
     @Test
     void mail_failure_rolls_back_organization_settings_and_invitation() throws Exception {

@@ -36,9 +36,9 @@ Dimensión de **negocio** (sustituible por proyecto). Base de conocimiento del d
 
 > 🔄 **Modelo revisado por [`ADR-0016`](adr/0016-responsabilidad-clinica.md) D7 (2026-08-03).** La capacidad clínica **deja de ser un rol** y pasa a ser una **credencial**: tener colegiatura COP registrada. El eje administrativo se reduce a **`ADMIN` | `MEMBER`**; `DENTIST` y `RECEPTIONIST` **desaparecen como roles**, porque la única diferencia entre ellos era quién atiende — y eso ahora lo dice la colegiatura. Un odontólogo dueño es `ADMIN` **con** colegiatura; un gerente administrativo es `ADMIN` **sin** ella, y no accede a lo clínico. La tabla de abajo describe los **actores** (que siguen siendo válidos), no el modelo de roles.
 
-> ⚠️ **Estado: decidido, aún no construido.** Hoy el sistema solo tiene **`ADMIN` | `USER`** (`multi-tenancy`, construida): el dentista y la recepcionista compartirían rol, y la recepcionista **podría** tocar el odontograma. Esta tabla describe el modelo **acordado**, que implementará la capacidad **`staff`** (fila 2 del roadmap) — la que asigna los roles, y que **no se puede especificar sin decidir esto primero**.
->
-> Como `Membership.role` pertenece a `multi-tenancy`, el change `add-staff` llevará también un **delta sobre esa capacidad** (`docs/vision.md §5` lo contempla: *"si toca varias, crea un `spec.md` delta por cada una"*).
+> ⚠️ **Estado (2026-10-15): el eje administrativo está construido, la credencial clínica no.** El sistema ya tiene **`ADMIN` | `MEMBER`** (`update-registration-organization-linking`): el `ADMIN` invita a su personal como `MEMBER`. Lo que **falta** es la colegiatura en el perfil profesional, que es lo que separará a quien puede realizar el acto clínico. Hasta entonces un `MEMBER` (p. ej. la recepcionista) **no está bloqueado** del odontograma por el sistema. Lo implementa la capacidad **`staff`** (fila 2 del roadmap).
+
+> **Fuera de la clínica: el administrador de plataforma.** El operador de Dentdesk (`PlatformAdmin`, ver *Entidades*) da de alta cada clínica y emite la invitación de su primer `ADMIN`. **No es un actor de la clínica** ni tiene membresía en ninguna: su autorización es global y no da acceso a datos clínicos.
 
 ## Glosario de términos clave
 
@@ -121,9 +121,20 @@ Configuración 1:1 de la organización (punto de extensión).
 - `organizationId` (PK/FK, comparte clave con `Organization`), `timezone`, `locale`, `currency`.
 
 ### `multi-tenancy` → **Membership** *(puente identidad↔organización; construida)*
-Define a qué organización pertenece un usuario y **con qué rol**. Es el corazón del modelo multi-tenant. Un usuario puede tener varias membresías (multi-organización); en el MVP el registro crea una (rol `ADMIN`); **quién más pertenece a la organización lo gestiona `staff`**, y el **selector de organización activa** se difiere al change `update-multi-tenancy` (es re-emitir el token con otro `oid`: una operación de sesión).
+Define a qué organización pertenece un usuario y **con qué rol**. Es el corazón del modelo multi-tenant. Un usuario puede tener varias membresías (multi-organización). **Una membresía solo nace al aceptar una `Invitation`**, que fija la organización y el rol: el registro público no existe (`update-registration-organization-linking`). El **selector de organización activa** sigue diferido (es re-emitir el token con otro `oid`: una operación de sesión).
 - `user` (FK), `organization` (FK), **`role`**, `status` (`ACTIVE` | `INACTIVE` | `SUSPENDED`), único `(user, organization)`, timestamps.
-- **El rol vive aquí, no en el `User`** — por eso una misma persona puede ser `ADMIN` en su clínica y `DENTIST` en otra. Hoy construido: `ADMIN` | `USER`. **Decidido y pendiente**: `ADMIN` | `DENTIST` | `RECEPTIONIST` (lo implementa `add-staff`; ver la tabla de actores).
+- **El rol vive aquí, no en el `User`** — por eso una misma persona puede ser `ADMIN` en su clínica y `MEMBER` en otra. **Construido: `ADMIN` | `MEMBER`** (`ADR-0016` D7). La capacidad clínica no es un rol: la dará la colegiatura del perfil profesional (pendiente, ver la tabla de actores).
+- Un `ADMIN` ve y gestiona las membresías de **su** organización activa; cualquier otro usuario solo ve las suyas.
+
+### `multi-tenancy` → **Invitation** *(alta del personal; construida)*
+La única puerta de entrada al sistema: una invitación **nominativa** (correo obligatorio) a una organización con un rol. El token se entrega **una sola vez, por correo** (la base guarda su hash) y la cuenta solo se crea tras verificar un código de 6 dígitos enviado al mismo correo.
+- `organization` (FK), `invitedBy` (FK `User`), `email`, `role` (`ADMIN` | `MEMBER`), `status` (`PENDING` | `ACCEPTED` | `REVOKED`), `expiresAt` (7 días), verificación del código (`verifiedAt`, intentos, vencimiento a los 10 min).
+- **Quién emite qué:** un `ADMIN` de clínica solo invita `MEMBER` a su organización; la invitación `ADMIN` la emite **solo** el `PlatformAdmin`, al aprovisionar la clínica.
+- Se consume una sola vez (aceptación concurrente: exactamente una gana) y puede revocarse mientras está pendiente.
+
+### `multi-tenancy` → **PlatformAdmin** *(autorización global; construida)*
+El **operador de Dentdesk**, no de una clínica: aprovisiona organizaciones y emite la invitación de su primer `ADMIN`. Es una fila que marca a un `User` como administrador global — **no** es una `Membership` ni un rol de clínica, y su sesión no tiene organización activa: no ve datos clínicos por ser global.
+- `userId` (PK/FK a `User`). Nace por **bootstrap operativo** al arrancar (variables de entorno), nunca por un endpoint público. Operación en `docs/deployment.md` §11.
 - **Regla:** un usuario solo ve sus propias membresías (nunca las de otro). *Cómo* se garantiza, en `docs/backend.md §8.1`.
 
 > **La sesión no se modela aquí.** Que el usuario *inicia sesión*, que la sesión *sabe en qué clínica está* y que *se puede cerrar de verdad* son hechos del negocio; el **cómo** (tokens, rotación, revocación, claims) es implementación de `authentication` — vive en `docs/backend.md §11` y en `openspec/specs/authentication/`.
@@ -299,6 +310,9 @@ Implicaciones:
 erDiagram
     User ||--o{ Membership : "pertenece vía"
     Organization ||--o{ Membership : "reúne a"
+    User ||--o| PlatformAdmin : "administra la plataforma"
+    Organization ||--o{ Invitation : "invita a su personal"
+    User ||--o{ Invitation : "emite"
     Organization ||--|| OrganizationSettings : "configura"
     Organization ||--o| OrganizationBranding : "personaliza"
     Organization ||--o{ Patient : "atiende a"
@@ -361,6 +375,19 @@ erDiagram
         Long organizationId FK
         String role
         String status
+    }
+    PlatformAdmin {
+        Long userId PK
+    }
+    Invitation {
+        Long id PK
+        Long organizationId FK
+        Long invitedBy FK
+        String email
+        String role
+        String status
+        Instant expiresAt
+        Instant verifiedAt
     }
     Patient {
         Long id PK

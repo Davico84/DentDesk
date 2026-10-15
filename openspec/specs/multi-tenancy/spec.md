@@ -84,7 +84,18 @@ El sistema SHALL representar la identidad de una persona (`User`) una sola vez e
 - **AND** conserva el acceso a la organización B
 
 ### Requirement: Resolución del contexto de organización en cada petición autenticada
-El sistema SHALL determinar la organización activa de una petición autenticada **exclusivamente** a partir del token de acceso firmado, nunca a partir de datos suministrados por el cliente (cabeceras, ruta o cuerpo). El token de acceso SHALL incluir el identificador de la organización activa. El contexto SHALL quedar liberado al terminar la petición, de modo que no pueda observarse desde una petición posterior atendida por el mismo hilo.
+
+El sistema SHALL determinar la organización activa exclusivamente a partir del claim `oid` del token para las peticiones de negocio. Las peticiones autenticadas a `/platform/**` con autoridad `ROLE_PLATFORM_ADMIN` SHALL poder operar sin claim `oid`; el filtro de tenant SHALL omitir esas rutas y no SHALL establecer un contexto de organización. El contexto SHALL quedar liberado al terminar cada petición.
+
+#### Scenario: PLATFORM_ADMIN opera sin tenant
+- **WHEN** un `PLATFORM_ADMIN` autenticado con autoridad `ROLE_PLATFORM_ADMIN` llama a `/platform/**` con un JWT sin `oid`
+- **THEN** el sistema permite la operación global autorizada
+- **AND** no establece contexto de organización
+
+#### Scenario: Usuario de clínica no accede a plataforma
+- **WHEN** un usuario con una membresía `ADMIN` o `MEMBER` llama a `/platform/**`
+- **THEN** el sistema responde con acceso denegado
+- **AND** no ejecuta ninguna operación global
 
 #### Scenario: El contexto se deriva del token
 - **WHEN** un usuario realiza una petición autenticada con un token de acceso válido cuya organización activa es A
@@ -97,7 +108,7 @@ El sistema SHALL determinar la organización activa de una petición autenticada
 - **AND** la petición se resuelve en el contexto de la organización A
 
 #### Scenario: Token de acceso sin organización activa
-- **WHEN** se recibe una petición con un token de acceso válido en firma pero que no contiene el identificador de organización
+- **WHEN** se recibe una petición con un token de acceso válido en firma que no contiene el identificador de organización y no tiene autoridad `ROLE_PLATFORM_ADMIN`
 - **THEN** el sistema rechaza la petición como no autenticada
 - **AND** no establece ningún contexto de organización
 
@@ -107,24 +118,44 @@ El sistema SHALL determinar la organización activa de una petición autenticada
 - **AND** en ningún momento observa datos de la organización A
 
 ### Requirement: Alta de organización con su primer administrador
-El sistema SHALL crear una organización, su configuración por defecto, la identidad de su primer usuario y la membresía que los une como una única operación atómica, iniciada por el registro autoservicio. La membresía creada SHALL tener rol de administrador. Si un paso falla, el sistema NO SHALL dejar organizaciones sin administrador, identidades sin membresía ni membresías huérfanas. Cada organización SHALL tener un identificador legible (`slug`) único, derivado de su nombre e **inmutable**.
+
+El sistema SHALL permitir que solo un `PLATFORM_ADMIN` autenticado cree una organización y su configuración, y emita en la misma operación una invitación nominativa con rol `ADMIN` para su primer administrador. La operación SHALL ser atómica y no SHALL crear directamente la cuenta del administrador.
+
+#### Scenario: Plataforma crea una organización
+- **WHEN** un `PLATFORM_ADMIN` envía datos válidos de una clínica
+- **THEN** el sistema crea la organización y su configuración
+- **AND** crea una invitación nominativa con rol `ADMIN`
+- **AND** no crea directamente la cuenta del administrador
+
+#### Scenario: Usuario no autorizado intenta aprovisionar
+- **WHEN** un visitante o un `ADMIN` de clínica llama al endpoint de aprovisionamiento
+- **THEN** el sistema rechaza la operación
+- **AND** no crea organización, configuración ni invitación
+
+#### Scenario: Registro público no permite alta de organización
+- **WHEN** un visitante intenta crear una organización desde `/auth/register`
+- **THEN** el sistema rechaza la solicitud si no presenta una invitación válida
+- **AND** no crea organización, configuración, identidad ni membresía
+
+#### Scenario: Alta atómica mediante aprovisionamiento
+- **WHEN** falla la creación de la organización, configuración o invitación
+- **THEN** el sistema revierte toda la operación
+- **AND** no deja una organización sin su invitación inicial
 
 #### Scenario: Alta correcta de una organización
-- **WHEN** un visitante se registra aportando el nombre de la organización junto con su nombre completo, correo y contraseña válidos
-- **THEN** el sistema crea la organización en estado activo con su configuración por defecto
-- **AND** crea la identidad del usuario
-- **AND** crea una membresía con rol `ADMIN` que une al usuario con la organización
-- **AND** establece la sesión con un token de acceso cuya organización activa es la recién creada
+- **WHEN** un visitante se registra aportando datos válidos mediante una invitación nominativa
+- **THEN** el sistema crea la identidad y la membresía de la organización de la invitación
+- **AND** establece la sesión con un token de acceso cuya organización activa es la invitación
 
 #### Scenario: El alta es atómica
-- **WHEN** un paso posterior falla después de haberse creado la organización
+- **WHEN** un paso posterior falla después de haberse consumido una invitación válida
 - **THEN** el sistema revierte la operación completa
-- **AND** no queda ninguna organización sin administrador ni identidad sin membresía
+- **AND** no queda una identidad sin membresía ni una membresía huérfana
 
 #### Scenario: Dos organizaciones con el mismo nombre
-- **WHEN** un visitante registra una organización cuyo nombre genera un `slug` que ya existe
+- **WHEN** la plataforma aprovisiona una organización cuyo nombre genera un `slug` que ya existe
 - **THEN** el sistema crea la organización con un `slug` desambiguado y único
-- **AND** el alta se completa con normalidad
+- **AND** el aprovisionamiento se completa con normalidad
 
 #### Scenario: El slug no cambia al renombrar la organización
 - **WHEN** una organización existente cambia su nombre visible
@@ -132,9 +163,9 @@ El sistema SHALL crear una organización, su configuración por defecto, la iden
 - **AND** las referencias previas al `slug` siguen resolviendo a la misma organización
 
 #### Scenario: Nombre de organización ausente o inválido
-- **WHEN** un visitante intenta registrarse sin nombre de organización o con un nombre que no cumple las validaciones mínimas
+- **WHEN** la plataforma intenta aprovisionar una organización sin nombre o con un nombre que no cumple las validaciones mínimas
 - **THEN** el sistema responde con un error de validación
-- **AND** no crea ni la organización, ni la configuración, ni la identidad, ni la membresía
+- **AND** no crea la organización, su configuración ni la invitación inicial
 
 ### Requirement: Registro automático de autoría en entidades de negocio
 El sistema SHALL registrar, para toda entidad de negocio que lo declare, qué usuario la creó y qué usuario realizó su última modificación. El sistema SHALL establecer esa autoría **automáticamente** a partir del contexto de identidad de la transacción, sin que el código de negocio tenga que escribirla. Sin usuario en el contexto (una operación previa a la sesión, como el alta de la primera organización), el sistema SHALL completar la operación con normalidad y dejar la autoría sin asignar.
