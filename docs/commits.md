@@ -111,11 +111,12 @@ Decidido el **2026-09-23**, después de encontrar que la rama por defecto del re
 
 **Los PR van a `dev`.** La rama por defecto ya lo hace automático; no hace falta `--base`.
 
-### Por qué `main` puede estar atrasada
+### `main` es lo que corre en producción
 
-**Porque no hay despliegue todavía.** Sincronizarla en cada merge sería trabajo repetido que no responde ninguna pregunta: mientras no exista un entorno productivo, *"qué hay en `main`"* no significa nada distinto de *"qué hay en `dev`"*.
-
-⚠️ **Que esté atrasada no es desorden si se sabe por qué.** El desorden era no saber cuál era la rama por defecto. El día que haya despliegue, `main` empieza a responder *"esto es lo que está corriendo"*, y recién entonces mantenerla al día tiene valor.
+**Desde el 2026-10-11 hay despliegue** (`docs/deployment.md` §9): Render y Vercel publican `main`. Por eso `main` ya no
+es "una rama atrasada": responde *"esto es lo que está corriendo"*. Render despliega solo si **todos los checks de la
+CI pasan sobre el commit de `main`** (`render.yaml`, `autoDeployTrigger: checksPass`); con `main` en rojo, producción
+se queda en la versión anterior.
 
 ### Ramas y tags que no se borran
 
@@ -125,6 +126,32 @@ Decidido el **2026-09-23**, después de encontrar que la rama por defecto del re
 Hoy existen `bifurcacion/saas-template`, `bifurcacion/multi-tenancy` y `bifurcacion/openspec-inicial`.
 
 ⚠️ **Borrar una rama ya mergeada no pierde ningún commit** — se pierde solo el nombre, y el merge commit del PR ya lo registra. Por eso las 47 ramas de avance se borraron sin riesgo, y las tres bifurcaciones se convirtieron en tags antes de borrarlas.
+
+## 5c. Ciclo de un change y de un release
+
+Acordado el **2026-10-15**, después de un día con cinco PRs a `main` (#89, #91, #94, #97, #99), varios solo para
+arreglar el anterior, y cuatro fallos que aparecieron recién en la CI o en producción.
+
+```
+propose → PR (+ prompt para Codex) → revisión → merge a dev
+apply   → antes del PR: tests nuevos en condiciones de CI + suite completa
+        → PR (+ prompt para Codex) → revisión → merge a dev
+release → PR dev → main solo cuando hay algo para producción, con la CI de dev en verde sobre el merge
+```
+
+- **La revisión de Codex va antes del merge.** Cada PR sale con el prompt de revisión listo para pegar. Mergear antes
+  obliga a incorporar la revisión en la rama siguiente.
+- **Changes chicos: un solo PR** con propuesta y apply. Los grandes (varias decisiones de diseño, concurrencia, API
+  nueva) mantienen los dos: la revisión previa de `add-staff` cerró tres carreras antes de escribir código.
+- **Antes de abrir un PR con tests nuevos, correrlos como en la CI**: el runner tiene 2 núcleos, así que el pool común
+  de hilos tiene **uno** (`JAVA_TOOL_OPTIONS=-Djava.util.concurrent.ForkJoinPool.common.parallelism=1`). Y nunca
+  comprobar un id o un valor buscándolo como texto en un JSON: se compara el campo (`JsonPath`). Los dos casos
+  fallaron solo en la CI (`docs/testing.md`).
+- **Release a `main` por valor, no por change.** Se sube cuando hay algo que usar en producción, y recién cuando la CI
+  de `dev` pasó sobre el commit de merge (no basta con que pasara en el PR: puede ser otra ejecución).
+- **Un fallo de la CI se diagnostica con `gh run view <id> --log-failed`**; no hace falta copiar el log a mano.
+- **Sin protección de rama**: el repo es privado en el plan gratis y GitHub no permite reglas que exijan los checks
+  (requiere GitHub Pro o repo público). El freno real hoy es Render, que no despliega `main` en rojo.
 
 ## 6. Automatización (pendiente de andamiaje)
 
