@@ -22,6 +22,10 @@ de plataforma SHALL ser rechazado como no autenticado.
 - **WHEN** una petición sin sesión llega a cualquier operación de gestión del personal
 - **THEN** el sistema la rechaza como no autenticada
 
+#### Scenario: Una sesión de plataforma intenta gestionar el personal
+- **WHEN** una petición con la sesión de un administrador de plataforma llega a la gestión del personal
+- **THEN** el sistema la rechaza como no autenticada
+
 #### Scenario: Un administrador no ve otra clínica
 - **WHEN** el `ADMIN` de la clínica A consulta el personal o las invitaciones
 - **THEN** solo obtiene los de la clínica A
@@ -31,8 +35,8 @@ de plataforma SHALL ser rechazado como no autenticado.
 
 El sistema SHALL permitir al `ADMIN` invitar por correo a una persona con rol `MEMBER`. La invitación SHALL
 enviarse por correo y su enlace SHALL entregarse solo ahí, nunca en la respuesta. SHALL rechazar con conflicto
-un correo que ya es miembro o que ya tiene una invitación pendiente, y validar el formato del correo antes de
-enviar nada.
+un correo que ya es miembro o que ya tiene una invitación pendiente o vencida, y validar el formato del correo
+antes de enviar nada.
 
 #### Scenario: Invitación emitida
 - **WHEN** el `ADMIN` invita un correo válido que no pertenece a la clínica
@@ -46,6 +50,11 @@ enviar nada.
 #### Scenario: Ya hay una invitación pendiente para ese correo
 - **WHEN** el `ADMIN` invita un correo que tiene una invitación pendiente en la clínica
 - **THEN** el sistema responde con un conflicto que sugiere reenviar la existente
+- **AND** no crea una segunda invitación
+
+#### Scenario: La invitación anterior de ese correo venció
+- **WHEN** el `ADMIN` invita un correo cuya invitación en la clínica está vencida
+- **THEN** el sistema responde con un conflicto que indica que la invitación vencida puede reenviarse
 - **AND** no crea una segunda invitación
 
 #### Scenario: Correo con formato inválido
@@ -121,7 +130,13 @@ SHALL quedar como estaba.
 #### Scenario: El reenvío no se puede enviar
 - **WHEN** falla el envío del correo de un reenvío
 - **THEN** el sistema informa el fallo
-- **AND** el enlace y el código anteriores siguen siendo los válidos
+- **AND** la invitación conserva el estado, el enlace y el código que tenía antes del reenvío
+
+#### Scenario: Reenvío y registro al mismo tiempo
+- **WHEN** el invitado completa el registro con el enlace anterior mientras el `ADMIN` reenvía la invitación
+- **THEN** solo uno de los dos tiene efecto: o el registro se acepta y el reenvío responde con un conflicto, o el
+  reenvío se aplica y el registro con el enlace anterior se rechaza
+- **AND** una invitación aceptada nunca vuelve a quedar pendiente
 
 #### Scenario: Invitación de administrador
 - **WHEN** el `ADMIN` ve una invitación con rol `ADMIN` emitida por la plataforma
@@ -140,6 +155,11 @@ enlace SHALL dejar de funcionar. SHALL rechazar con conflicto revocar una invita
 #### Scenario: Cancelar la revocación
 - **WHEN** el `ADMIN` cierra la confirmación sin aceptar
 - **THEN** la invitación sigue pendiente
+
+#### Scenario: Revocación y registro al mismo tiempo
+- **WHEN** el invitado completa el registro mientras el `ADMIN` revoca la invitación
+- **THEN** solo uno de los dos tiene efecto: o la persona queda registrada y la revocación responde con un
+  conflicto, o la invitación queda revocada y el registro se rechaza
 
 #### Scenario: Revocar una invitación aceptada
 - **WHEN** el `ADMIN` intenta revocar una invitación ya aceptada
