@@ -15,7 +15,12 @@ El sistema SHALL permitir que solo un `PLATFORM_ADMIN` autenticado cree una orga
 - **THEN** el sistema rechaza la operación
 - **AND** no crea organización, configuración ni invitación
 
-#### Scenario: Aprovisionamiento atómico
+#### Scenario: Registro público no permite alta de organización
+- **WHEN** un visitante intenta crear una organización desde `/auth/register`
+- **THEN** el sistema rechaza la solicitud si no presenta una invitación válida
+- **AND** no crea organización, configuración, identidad ni membresía
+
+#### Scenario: Alta atómica mediante aprovisionamiento
 - **WHEN** falla la creación de la organización, configuración o invitación
 - **THEN** el sistema revierte toda la operación
 - **AND** no deja una organización sin su invitación inicial

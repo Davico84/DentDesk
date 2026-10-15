@@ -7,34 +7,76 @@ Gestiona la identidad y el acceso de los usuarios: registro de cuenta, inicio y 
 ## Requirements
 
 ### Requirement: Registro de usuario
-El sistema SHALL permitir crear una organización con su configuración por defecto, la identidad de su primer usuario y una membresía con rol `ADMIN` que los une, a partir del nombre de la organización, el nombre completo, el correo y la contraseña (confirmada en el cliente). SHALL iniciar sesión automáticamente tras el alta y SHALL rechazar correos duplicados o datos que no cumplan las validaciones mínimas. El correo SHALL ser único en toda la plataforma. El alta se rige por `multi-tenancy`.
 
-#### Scenario: Registro exitoso
-- **WHEN** un visitante envía el formulario con el nombre de la organización, su nombre completo, un correo válido y una contraseña de al menos 8 caracteres cuya confirmación coincide, con un correo no registrado
-- **THEN** el sistema crea la organización, la identidad del usuario y una membresía con rol `ADMIN`
-- **AND** establece la sesión (emite token de acceso —cuya organización activa es la recién creada— y de refresco)
+El sistema SHALL permitir el registro únicamente mediante una invitación nominativa verificada; `POST /auth/register` SHALL rechazar solicitudes sin invitación válida y SHALL NOT crear organizaciones. La membresía SHALL tomar la organización y el rol de la invitación: un `ADMIN` de clínica solo invita `MEMBER` y la invitación `ADMIN` solo la emite un `PLATFORM_ADMIN`. SHALL iniciar sesión tras el alta y rechazar correos ya registrados o datos inválidos. El alta se rige por `multi-tenancy`.
+
+#### Scenario: Registro exitoso mediante invitación
+- **WHEN** un visitante presenta una invitación nominativa válida, verifica el correo invitado y envía su nombre completo y una contraseña válida cuya confirmación coincide
+- **THEN** el sistema crea la identidad y la membresía con el rol autorizado por la invitación
+- **AND** no crea una organización
+- **AND** establece la sesión con la organización activa indicada por la invitación
 - **AND** redirige al panel correspondiente a su rol
 
-#### Scenario: Correo ya registrado
-- **WHEN** un visitante intenta registrarse con un correo que ya existe en la plataforma, pertenezca a la organización que pertenezca
-- **THEN** el sistema responde con un error de conflicto y un mensaje claro
-- **AND** no crea una identidad duplicada ni una organización nueva
-- **AND** no establece ninguna sesión
+#### Scenario: Registro exitoso
+- **WHEN** un visitante presenta una invitación nominativa válida, verifica el correo invitado y envía sus datos y una contraseña válida
+- **THEN** el sistema crea la identidad y la membresía autorizada por la invitación
+- **AND** establece la sesión con la organización indicada por la invitación
 
 #### Scenario: Nombre de organización ausente (validación en cliente)
-- **WHEN** un visitante intenta enviar el formulario de registro sin indicar el nombre de la organización
-- **THEN** el frontend muestra un error de validación en el campo
-- **AND** no envía la petición al backend
+- **WHEN** un visitante abre el registro con una invitación válida
+- **THEN** el frontend no solicita nombre de organización ni permite crear una clínica desde el formulario
 
 #### Scenario: Contraseña demasiado corta (validación en cliente)
-- **WHEN** un visitante escribe una contraseña de menos de 8 caracteres en el formulario de registro
-- **THEN** el frontend muestra un error de validación en el campo
+- **WHEN** un visitante escribe una contraseña de menos de 8 caracteres
+- **THEN** el frontend muestra un error de validación
 - **AND** no envía la petición al backend
 
 #### Scenario: La confirmación de contraseña no coincide (validación en cliente)
 - **WHEN** un visitante escribe una contraseña y una confirmación distintas
-- **THEN** el frontend muestra un error de validación en el campo de confirmación
+- **THEN** el frontend muestra un error en el campo de confirmación
 - **AND** no envía la petición al backend
+
+#### Scenario: Correo ya registrado
+- **WHEN** un visitante intenta registrarse con un correo que ya existe en la plataforma
+- **THEN** el sistema responde con un error de conflicto y un mensaje claro
+- **AND** no crea una identidad duplicada ni una organización nueva
+- **AND** no establece ninguna sesión
+
+#### Scenario: Nombre de organización no solicitado
+- **WHEN** un visitante abre el formulario de registro con una invitación válida
+- **THEN** el frontend no solicita nombre de organización
+- **AND** muestra la organización y el rol obtenidos de la invitación validada
+- **AND** no permite seleccionar ni editar la organización
+
+#### Scenario: Contraseña demasiado corta
+- **WHEN** un visitante escribe una contraseña de menos de 8 caracteres
+- **THEN** el frontend muestra un error de validación
+- **AND** no envía la petición al backend
+
+#### Scenario: La confirmación de contraseña no coincide
+- **WHEN** un visitante escribe una contraseña y una confirmación distintas
+- **THEN** el frontend muestra un error en el campo de confirmación
+- **AND** no envía la petición al backend
+
+#### Scenario: Registro sin invitación
+- **WHEN** un visitante envía `/auth/register` sin una invitación válida
+- **THEN** el sistema rechaza la operación
+- **AND** no crea identidad, organización ni membresía
+
+#### Scenario: Invitación inválida
+- **WHEN** el token es inexistente, expirado, revocado, consumido o el correo verificado no coincide
+- **THEN** el sistema devuelve un error uniforme
+- **AND** no crea identidad, organización ni membresía
+
+#### Scenario: ADMIN de clínica intenta conceder ADMIN
+- **WHEN** un `ADMIN` de una clínica intenta emitir una invitación con rol `ADMIN`
+- **THEN** el sistema rechaza la operación
+- **AND** no crea la invitación
+
+#### Scenario: Registro concurrente con la misma invitación
+- **WHEN** dos solicitudes aceptan simultáneamente la misma invitación
+- **THEN** exactamente una crea la identidad/membresía y consume la invitación
+- **AND** la otra es rechazada
 
 ### Requirement: Inicio de sesión con credenciales
 El sistema SHALL autenticar a un usuario por su identidad global (correo y contraseña), establecer su sesión al validarlas y rechazar credenciales inválidas sin revelar qué campo falló. El token de acceso SHALL identificar la organización activa y el rol del usuario en ella, según su membresía. SHALL conceder sesión solo si la identidad, la membresía y la organización están activas; si no, SHALL rechazar el acceso sin revelar el motivo. En este alcance cada usuario tiene una única membresía.
