@@ -7,6 +7,7 @@ import com.odontorisas.service.staff.InvitationDeliveryException;
 import com.odontorisas.service.staff.InvitationMailer;
 import com.odontorisas.service.staff.InvitationMailer.InvitationMail;
 import jakarta.servlet.http.Cookie;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -27,6 +28,8 @@ import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -61,9 +64,21 @@ class StaffManagementIT extends AbstractIntegrationTest {
     @Autowired TokenService tokenService;
     @MockitoBean InvitationMailer mailer;
 
+    /**
+     * Hilos propios para las carreras: el pool común de CompletableFuture tiene núcleos-1 hilos, y en el runner de CI
+     * (2 núcleos) es UNO solo; el reenvío lo ocupaba esperando el correo y la otra petición nunca arrancaba.
+     */
+    private ExecutorService race;
+
     @BeforeEach
     void resetMailer() {
         reset(mailer);
+        race = Executors.newFixedThreadPool(2);
+    }
+
+    @AfterEach
+    void stopRace() {
+        race.shutdownNow();
     }
 
     // ================================================================ Gestión exclusiva del administrador
@@ -342,7 +357,7 @@ class StaffManagementIT extends AbstractIntegrationTest {
             return null;
         }).when(mailer).send(any());
 
-        CompletableFuture<Integer> resend = CompletableFuture.supplyAsync(() -> statusOf(resend(admin, id)));
+        CompletableFuture<Integer> resend = CompletableFuture.supplyAsync(() -> statusOf(resend(admin, id)), race);
         assertThat(resendHoldsLock.await(20, TimeUnit.SECONDS)).isTrue();
         CountDownLatch registerDone = new CountDownLatch(1);
         CompletableFuture<Integer> registration = CompletableFuture.supplyAsync(() -> {
@@ -351,7 +366,7 @@ class StaffManagementIT extends AbstractIntegrationTest {
             } finally {
                 registerDone.countDown();
             }
-        });
+        }, race);
         awaitLockWaitOrFinished(registerDone);
         releaseMail.countDown();
 
@@ -381,7 +396,7 @@ class StaffManagementIT extends AbstractIntegrationTest {
             return null;
         }).when(mailer).send(resent.capture());
 
-        CompletableFuture<Integer> resend = CompletableFuture.supplyAsync(() -> statusOf(resend(admin, id)));
+        CompletableFuture<Integer> resend = CompletableFuture.supplyAsync(() -> statusOf(resend(admin, id)), race);
         assertThat(resendHoldsLock.await(20, TimeUnit.SECONDS)).isTrue();
         CountDownLatch verifyDone = new CountDownLatch(1);
         CompletableFuture<Integer> verification = CompletableFuture.supplyAsync(() -> {
@@ -390,7 +405,7 @@ class StaffManagementIT extends AbstractIntegrationTest {
             } finally {
                 verifyDone.countDown();
             }
-        });
+        }, race);
         awaitLockWaitOrFinished(verifyDone);
         releaseMail.countDown();
 
