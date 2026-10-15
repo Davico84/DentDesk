@@ -120,7 +120,8 @@ Consecuencia (decidida en `add-cloud-deployment`): **toda la API pasa a `/api`**
 | `CORS_ALLOWED_ORIGINS` | origen exacto del frontend | se fija en `add-cloud-deployment` |
 | `DB_POOL_*` | sin definir (valores por defecto) | solo si se mide otra cosa |
 | `MAIL_ENABLED` | `true` | sin correo, **toda invitación se rechaza con 503** (add-platform-admin D7) |
-| `MAIL_HOST` / `MAIL_PORT` | `smtp-relay.brevo.com` / `587` | |
+| `MAIL_HOST` / `MAIL_PORT` | `smtp-relay.brevo.com` / **`2525`** | **Render free bloquea la salida a 25, 465 y 587** (desde 2025-09): con 587 el envío se cuelga. Brevo ofrece 2525 como alternativa; verificado en producción el 2026-10-15 |
+| `MAIL_TIMEOUT` | sin definir (`PT10S`) | tope de conexión SMTP: un puerto bloqueado da 503 rápido en vez de colgar la petición |
 | `MAIL_USERNAME` / `MAIL_PASSWORD` | credenciales SMTP de Brevo | secreto; es la clave SMTP, no la del buzón |
 | `MAIL_FROM` | remitente verificado en Brevo | |
 | `FRONTEND_URL` | `https://dentdeskapp.vercel.app` | base del enlace del correo de invitación |
@@ -268,6 +269,7 @@ crear la clínica**, porque envía un correo real. No guarda el token.
 | 401 en el login | correo o clave incorrectos, no es `PLATFORM_ADMIN`, o bloqueado 15 min tras 5 fallos | revisar; si no existe, §11.1 |
 | 405 | la petición salió como GET (navegador) | usar el script o un POST |
 | 409 | el correo del administrador ya pertenece a una cuenta | usar otro correo (en Gmail, `nombre+clinica@gmail.com`) |
-| 503 | el correo no se pudo enviar, o `MAIL_ENABLED` no es `true` | no se creó nada; revisar `MAIL_*` y reintentar |
+| 503 | el correo no se pudo enviar, o `MAIL_ENABLED` no es `true` | no se creó nada; revisar `MAIL_*` (en Render, `MAIL_PORT=2525`) y reintentar |
+| 502 tras ~2 min | sin `MAIL_TIMEOUT` (versión anterior a los timeouts) y puerto SMTP bloqueado | no se creó nada; usar `MAIL_PORT=2525` |
 | 400 | nombre vacío, de 1 carácter o de más de 120; correo inválido | corregir |
 
