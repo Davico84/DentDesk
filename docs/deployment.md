@@ -43,7 +43,15 @@ Render free da **750 h de instancia al mes por workspace**. Un servicio despiert
   - Aviso de fallo después de 3 fallos seguidos: a las 9:00 el primer ping puede superar los 30 s que espera cron-job.org mientras el servidor despierta.
   - **Encabezado `Accept: application/json`** en cada job (Avanzado → Encabezados). Hallazgo del 2026-10-12: sin él, con el servicio **dormido**, Render le responde a cron-job.org en ~1 s con una página HTML grande ("salida demasiado grande") y **no despierta** el servicio; todos los pings de 9:00 a 10:20 fallaron así y las dos apps siguieron dormidas. Con el servicio despierto el ping funciona igual con o sin el encabezado. `curl` (que no pide HTML) sí lo despierta: tardó 63 s y devolvió el JSON.
   - **El encabezado no alcanzó** (prueba del mismo día tras 20 min de inactividad: mismo fallo). La diferencia con `curl` parece ser el origen de la petición (servidores de datacenter), no las cabeceras. Conclusión: cron-job.org **no despierta** el servicio, solo lo mantiene despierto; el encabezado se deja porque no estorba.
-  - **Despertar diario: GitHub Actions** (`.github/workflows/wake-up.yml`): lunes a sábado 8:45 Lima despierta Dentdesk y HSO (hasta 3 intentos de 150 s) y falla, con aviso de GitHub por correo, si alguna no responde. Se ejecuta también a mano (*Run workflow*). ~1 min de Actions por día. cron-job.org queda para **mantenerlas** despiertas de 9:00 a 21:00. **Verificado el 2026-10-12** (*Run workflow* en `main`, cron de Dentdesk pausado y >20 min sin uso): Dentdesk dormida despertó al primer intento en **63 s** con `{"status":"UP"}`; HSO respondió en 0 s (su cron la mantenía despierta).
+  - **Despertar diario: cron-job.org dispara un workflow de GitHub Actions** (`.github/workflows/wake-up.yml`). El workflow despierta Dentdesk y HSO con `curl` (hasta 3 intentos de 150 s) y falla, con aviso de GitHub por correo, si alguna no responde. ~1 min de Actions por día. **Verificado el 2026-10-12**: Dentdesk dormida despertó en **63 s**.
+  - **El horario de GitHub (`schedule`) no sirve como despertador.** GitHub corre los programados solo desde la rama por defecto (`dev`) y los atrasó **4 a 6 horas** (13/10: 14:57; 14/10: 13:09, en vez de 8:45). Queda en el workflow solo como respaldo.
+  - **Lo que sí dispara a tiempo: un job de cron-job.org que llama a la API de GitHub** (`workflow_dispatch`, que arranca en segundos), lunes a sábado **8:45** `America/Lima`:
+    - URL: `https://api.github.com/repos/Davico84/Odontorisas/actions/workflows/wake-up.yml/dispatches`, método `POST`.
+    - Encabezados (filas Key/Value): `Authorization: Bearer <token>`, `Accept: application/vnd.github+json`, `X-GitHub-Api-Version: 2022-11-28`, `Content-Type: application/json`.
+    - **Cuerpo**: solo `{"ref":"dev"}`. Respuesta esperada: **204**. Un 422 es un cuerpo mal cargado (p. ej., los encabezados pegados en el cuerpo); 401/403, el token.
+    - **Token**: *fine-grained*, solo el repo `Odontorisas`, permiso **Actions: Read and write** y nada más. Guardado solo en cron-job.org. **Vence**: anotar la fecha y renovarlo antes, o el despertador deja de funcionar sin aviso (cron-job.org mostrará 401).
+    - **Verificado el 2026-10-15**: *Test run* → 204 → el workflow arrancó en segundos y despertó HSO en **54 s** y Dentdesk en **74 s** (ambas dormidas).
+    - Un solo job despierta las dos apps: el workflow tiene un trabajo por servicio.
 - **UptimeRobot (el monitor 24/7 que tenía HSO) se pausa**: sin horario en el plan gratuito, despertaría a HSO de noche y agotaría el cupo compartido.
 - **Presupuesto** (peor mes: 27 días hábiles): ~12 h 15 min al día por app ≈ **331 h cada una, ~662 h entre las dos**, de 750. **Margen: ~88 h** para el uso fuera de horario.
 - **Cada ingreso fuera de horario cuesta** ~17 min (arranque + los 15 min hasta la suspensión): el margen alcanza para unos 300 al mes entre las dos apps. Si se agota, Render suspende **los dos** servicios hasta el mes siguiente.
@@ -151,7 +159,7 @@ Los pasos en paneles los hace el responsable; el detalle de cada uno está en la
 4. Si Render le dio otra URL que `dentdesk-api.onrender.com`, corregirla en `vercel.json` (commit en `dev`, PR a `main`).
 5. **Vercel**: importar el repo, *Root Directory* = raíz, rama de producción `main`, sin `VITE_API_URL` (lee `vercel.json`). Copiar el origen de producción (`https://<app>.vercel.app`) a `CORS_ALLOWED_ORIGINS` en Render, sin `/` final.
 6. **cron-job.org**: `GET https://<servicio>.onrender.com/api/actuator/health/liveness` cada 10 min, lunes a sábado, de 9:00 a 20:50 (`America/Lima`), §3. Mantiene despierto el servicio, pero **no lo despierta**.
-7. **Despertar diario**: `.github/workflows/wake-up.yml` ya corre solo desde `main` (lun–sáb 8:45 Lima); probarlo una vez con *Run workflow* tras 20 min sin uso, §3.
+7. **Despertar diario**: job de cron-job.org que dispara `.github/workflows/wake-up.yml` por la API de GitHub (lun–sáb 8:45 Lima), con un token *fine-grained* de alcance mínimo (§3). Probarlo con *Test run* tras 20 min sin uso: 204 y una ejecución nueva en Actions.
 8. **Verificar** con la matriz de `add-cloud-deployment` (design D7) y anotar los resultados aquí, incluida la prueba de que **dos clínicas no se ven entre sí**.
 
 Producción = rama `main`: Render despliega solo con los checks del CI en verde; los pushes a `dev` generan *previews* de Vercel sin sesión (CORS solo admite el origen de producción).
@@ -189,8 +197,8 @@ Notas de la puesta en marcha (para la próxima vez):
 | Actuator | liveness `200 UP` / health `200` sin detalle / info `401` / sin prefijo `404` / api-docs `404` ✅ |
 | Smoke E2E | `E2E_BASE_URL=https://dentdeskapp.vercel.app` `auth.smoke` + `register.smoke`: 5/5 ✅ |
 | Sesión en Safari / iOS | **no probada**: no hay un iPhone disponible (2026-10-12). Riesgo bajo: la cookie es de primera parte (mismo dominio de Vercel, vía el proxy), que es lo que Safari no bloquea. Probar cuando haya un dispositivo o un usuario con iPhone |
-| Arranque en frío | backend dormido → `/api/actuator/health/liveness` respondió en **63,6 s** (bajo los 120 s del proxy de Vercel) ✅; falta medirlo entrando por la app (login) |
-| Monitor | cron-job.org lun–sáb 9:00–21:00 **no despierta** el servicio dormido (Render le devuelve una página HTML, con o sin `Accept: application/json`), solo lo mantiene despierto. El despertar lo hace GitHub Actions (`wake-up.yml`, 8:45): con Dentdesk dormida, **63 s → `UP`** ✅ (2026-10-12); falta ver la primera ejecución programada (2026-10-13 8:45) |
+| Arranque en frío | backend dormido → liveness en **63,6 s** (2026-10-11), **74 s** (2026-10-15), bajo los 120 s del proxy de Vercel ✅. **No medido entrando por la app** (login): queda cubierto por el despertar de las 8:45 y por el aviso "Despertando el servidor…" con reintento (`update-slow-request-notice`) |
+| Monitor | cron-job.org lun–sáb 9:00–21:00 **no despierta** el servicio dormido (Render le devuelve una página HTML, con o sin `Accept: application/json`), solo lo mantiene despierto. El despertar lo hace `wake-up.yml`, **disparado por cron-job.org vía la API de GitHub** porque el `schedule` de GitHub se atrasó 4–6 h: con las dos apps dormidas, HSO **54 s** y Dentdesk **74 s → `UP`** ✅ (2026-10-15) |
 | Soporte | botones de WhatsApp y correo desde el login publicado: abren el chat y el correo ✅ (2026-10-12) |
 
 Datos de la verificación en producción: quedaron dos clínicas de prueba (`Verificación A` y `Verificación B`, correos `verificacion-*@dentdesk.test`, dominio que no recibe correo) con un paciente cada una. Son inofensivas; se pueden borrar con un script probado antes en local.
@@ -198,7 +206,7 @@ Datos de la verificación en producción: quedaron dos clínicas de prueba (`Ver
 ## 10. Pendiente en los changes siguientes
 
 - ~~`add-support-contact`~~ (hecho): una fila compacta "¿Problemas para entrar?" con botones de WhatsApp y correo bajo el formulario de login y registro, y en "Está tardando más de lo normal". Los datos están en `modules/frontend/src/modules/core/config/supportContact.ts`; quedan públicos en la web.
-- `add-cloud-deployment`: hecho en el repo (API bajo `/api`, Dockerfile medido en §7, `render.yaml`, `vercel.json`); falta la puesta en marcha de §8 y su matriz de verificación.
+- ~~`add-cloud-deployment`~~ (archivado 2026-10-15): puesto en marcha (§8) y verificado (§9). Quedan **sin probar**, con riesgo bajo y documentados en la matriz: la sesión en Safari/iOS y el arranque en frío medido entrando por el login.
 - `add-database-backups`: copia diaria cifrada fuera de Neon con restauración verificada. "No caduca" no es una copia de seguridad. **Postergado** (2026-10-12): Dentdesk está en fase de prueba. Es requisito **antes de cargar pacientes reales**: sin copia, un borrado o una corrupción en Neon pierde historias clínicas que hay que conservar 20 años (ADR-0018).
 
 ## 11. Operación de plataforma: administrador global y alta de clínicas

@@ -5,8 +5,10 @@ name: Despertar servicios
 # despertarlos (Render le responde con una página propia sin arrancar el servicio), aunque sí los
 # mantiene despiertos una vez arriba. Este workflow solo hace el primer despertar del día.
 #
-# Horario: lunes a sábado 8:45 en Lima (UTC-5) = 13:45 UTC. GitHub puede atrasar los programados
-# unos minutos; por eso 15 min antes de las 9:00.
+# Disparo: un job de cron-job.org llama a la API de GitHub (workflow_dispatch, ref dev) lunes a sábado
+# a las 8:45 Lima; arranca en segundos. El `schedule` de abajo queda solo de RESPALDO: GitHub corre los
+# programados únicamente desde la rama por defecto (dev) y en la práctica los atrasó 4-6 h
+# (2026-10-13/14), lo que lo vuelve inútil como despertador. Detalle en docs/deployment.md §3.
 
 on:
   schedule:
