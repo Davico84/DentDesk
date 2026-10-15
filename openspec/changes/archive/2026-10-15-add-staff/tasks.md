@@ -45,7 +45,7 @@
 - [x] 5.7 `InvitationsTab`: tabla con `InvitationStatusBadge`, filtro por estado con contadores, reenviar y revocar (con confirmación) solo si `manageable`; estado vacío distinto de "filtro sin resultados". Un componente por archivo
 - [x] 5.8 `StaffManagement` con pestañas en la URL (`?tab=`) y botón Invitar común; `StaffSettingsScreen` en una línea
 - [x] 5.9 Tests Vitest/MSW de cada Scenario visible: búsqueda (incl. tildes), filtro y contadores, confirmaciones (aceptar y cancelar), acciones ocultas en la propia fila y en invitaciones no gestionables, errores 409 mostrados, formulario inválido sin petición
-- [ ] 5.10 `pnpm validate` verde y prueba manual en local (invitar, reenviar con código vencido, revocar, desactivar y reactivar)
+- [x] 5.10 `pnpm validate` verde y prueba manual en local (invitar, reenviar con código vencido, revocar, desactivar y reactivar) — hecha por el usuario el 2026-10-15
 
 ## 6. Docs y cierre
 
