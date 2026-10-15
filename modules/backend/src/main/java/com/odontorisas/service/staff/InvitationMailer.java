@@ -8,6 +8,7 @@ import java.time.Instant;
 public interface InvitationMailer {
     void send(InvitationMail invitation);
 
-    record InvitationMail(String recipient, String organizationName, Role role,
+    /** {@code inviterName}: quien emitió la invitación; el correo lo nombra solo en las de clínica. */
+    record InvitationMail(String recipient, String organizationName, Role role, String inviterName,
                           String rawToken, String verificationCode, Instant expiresAt) {}
 }

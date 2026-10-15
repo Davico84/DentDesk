@@ -119,6 +119,12 @@ Consecuencia (decidida en `add-cloud-deployment`): **toda la API pasa a `/api`**
 | `COOKIE_SECURE` | `true` | |
 | `CORS_ALLOWED_ORIGINS` | origen exacto del frontend | se fija en `add-cloud-deployment` |
 | `DB_POOL_*` | sin definir (valores por defecto) | solo si se mide otra cosa |
+| `MAIL_ENABLED` | `true` | sin correo, **toda invitación se rechaza con 503** (add-platform-admin D7) |
+| `MAIL_HOST` / `MAIL_PORT` | `smtp-relay.brevo.com` / `587` | |
+| `MAIL_USERNAME` / `MAIL_PASSWORD` | credenciales SMTP de Brevo | secreto; es la clave SMTP, no la del buzón |
+| `MAIL_FROM` | remitente verificado en Brevo | |
+| `FRONTEND_URL` | `https://dentdeskapp.vercel.app` | base del enlace del correo de invitación |
+| `PLATFORM_ADMIN_*` | solo durante el bootstrap | ver §11.1; **se retiran** después |
 
 Los secretos se cargan en el panel de Render, **nunca** en el repo.
 
@@ -194,3 +200,74 @@ Datos de la verificación en producción: quedaron dos clínicas de prueba (`Ver
 - ~~`add-support-contact`~~ (hecho): una fila compacta "¿Problemas para entrar?" con botones de WhatsApp y correo bajo el formulario de login y registro, y en "Está tardando más de lo normal". Los datos están en `modules/frontend/src/modules/core/config/supportContact.ts`; quedan públicos en la web.
 - `add-cloud-deployment`: hecho en el repo (API bajo `/api`, Dockerfile medido en §7, `render.yaml`, `vercel.json`); falta la puesta en marcha de §8 y su matriz de verificación.
 - `add-database-backups`: copia diaria cifrada fuera de Neon con restauración verificada. "No caduca" no es una copia de seguridad. **Postergado** (2026-10-12): Dentdesk está en fase de prueba. Es requisito **antes de cargar pacientes reales**: sin copia, un borrado o una corrupción en Neon pierde historias clínicas que hay que conservar 20 años (ADR-0018).
+
+## 11. Operación de plataforma: administrador global y alta de clínicas
+
+Desde `add-platform-admin` el registro público no existe: cada clínica nace de un **`PLATFORM_ADMIN`**, que la
+aprovisiona y emite la invitación de su primer `ADMIN`. **No hay pantalla**: el `PLATFORM_ADMIN` opera solo
+por la API. El login del frontend lo rechaza a propósito, porque no tiene membresía en ninguna clínica.
+
+### 11.1 Crear el `PLATFORM_ADMIN` (una vez por entorno)
+
+No hay endpoint de alta: lo crea el backend **al arrancar**, si lo piden las variables de entorno.
+
+1. **Requisito:** el código de `add-platform-admin` ya está en la rama que despliega el entorno (`main` en
+   producción) y el correo funciona (`MAIL_*` y `FRONTEND_URL` de §6). Sin correo no se puede invitar a nadie.
+2. Elegir el **correo** del `PLATFORM_ADMIN`. Es solo el usuario de login: no recibe nada y puede no tener
+   buzón. **No** puede ser el correo de una cuenta de clínica (el backend no arranca) y conviene que no sea
+   uno que luego quieras usar como administrador de una clínica: una identidad, un correo.
+3. Generar una **clave** larga. En PowerShell:
+   `$b = New-Object byte[] 18; [Security.Cryptography.RandomNumberGenerator]::Create().GetBytes($b); ([Convert]::ToBase64String($b)) -replace '[+/=]','x'`.
+   Guardarla en el gestor de contraseñas. Va **en claro**: el backend la guarda como hash BCrypt.
+4. En el panel de Render, en las variables del servicio:
+
+   | Variable | Valor |
+   |---|---|
+   | `PLATFORM_ADMIN_BOOTSTRAP_ENABLED` | `true` |
+   | `PLATFORM_ADMIN_EMAIL` | el correo del paso 2 |
+   | `PLATFORM_ADMIN_FULL_NAME` | p. ej. `Plataforma Dentdesk` |
+   | `PLATFORM_ADMIN_PASSWORD` | la clave del paso 3 |
+
+   Guardar redespliega. Esperar a que el servicio esté *Live*.
+5. Comprobar el login con el script de §11.2: debe decir "Sesión de plataforma iniciada". Se puede cancelar
+   en la confirmación sin crear nada.
+6. **Retirar el secreto:** `PLATFORM_ADMIN_BOOTSTRAP_ENABLED=false` y **borrar** `PLATFORM_ADMIN_PASSWORD`.
+   Guardar, lo que redespliega otra vez. La clave sigue valiendo: ya está en la base.
+
+Reglas del bootstrap: si el correo ya es `PLATFORM_ADMIN`, no hace nada, **tampoco cambia la clave**. Si
+pertenece a una cuenta de clínica, el backend **no arranca** y lo dice en el log. Hoy no hay forma de cambiar
+la clave de un `PLATFORM_ADMIN` ya creado (open question de `add-platform-admin`).
+
+En **local** es lo mismo con `secrets.properties` (ver `secrets.properties.example`) y reiniciando el backend.
+
+### 11.2 Dar de alta una clínica
+
+Con Windows PowerShell, desde `modules/backend`:
+
+```powershell
+# Producción: la API se llama a través del proxy de Vercel
+.\scripts\new-clinic.ps1 -BaseUrl https://dentdeskapp.vercel.app/api `
+  -PlatformEmail <correo-platform-admin> -ClinicName "Clínica Sonrisas" -AdminEmail <correo-del-dueño>
+
+# Local: -BaseUrl por defecto es http://localhost:8080/api
+.\scripts\new-clinic.ps1 -PlatformEmail admin@dentdesk.local -ClinicName "Clínica Prueba" -AdminEmail ana@correo.com
+```
+
+El script pide la clave por teclado (no queda en el historial), inicia sesión y **pide confirmación antes de
+crear la clínica**, porque envía un correo real. No guarda el token.
+
+- **Producción dormida:** el primer pedido puede tardar ~60 s (§1). Si se corta, repetir: la segunda vez el
+  backend ya está despierto. Abrir antes la app o `/api/actuator/health/liveness` también lo despierta.
+- **El invitado tiene 10 minutos** para ingresar el código desde que sale el correo. Avisarle antes de crear la
+  clínica. Si vence, hoy no se puede reenviar: hay que crear otra clínica con otro correo y borrar la
+  primera a mano.
+- Si la política de ejecución bloquea el script: `powershell -ExecutionPolicy Bypass -File .\scripts\new-clinic.ps1 ...`.
+
+| Respuesta | Qué pasó | Qué hacer |
+|---|---|---|
+| 401 en el login | correo o clave incorrectos, no es `PLATFORM_ADMIN`, o bloqueado 15 min tras 5 fallos | revisar; si no existe, §11.1 |
+| 405 | la petición salió como GET (navegador) | usar el script o un POST |
+| 409 | el correo del administrador ya pertenece a una cuenta | usar otro correo (en Gmail, `nombre+clinica@gmail.com`) |
+| 503 | el correo no se pudo enviar, o `MAIL_ENABLED` no es `true` | no se creó nada; revisar `MAIL_*` y reintentar |
+| 400 | nombre vacío, de 1 carácter o de más de 120; correo inválido | corregir |
+
