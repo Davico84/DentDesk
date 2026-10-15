@@ -27,6 +27,10 @@ odontograma editable y quedar disponible desde un botón. SHALL NOT registrar ni
 - **THEN** la guía va al paso pedido o se cierra
 - **AND** al cerrarla el odontograma queda exactamente como estaba, sin hallazgos nuevos
 
+#### Scenario: Tocar la zona resaltada no registra nada
+- **WHEN** durante la guía el usuario hace click sobre la pieza o la cara resaltada
+- **THEN** no se abre el registro de hallazgos y el odontograma no cambia
+
 #### Scenario: El paso actual se anuncia
 - **WHEN** un usuario de lector de pantalla avanza de paso
 - **THEN** se anuncia el número de paso, el total y la explicación del paso
@@ -53,15 +57,22 @@ se deduce, SHALL explicar qué tocar. SHALL NOT cambiar de localización sin la 
 #### Scenario: Desde una cara, un hallazgo de pieza completa
 - **WHEN** el usuario tocó una cara de la pieza 16 y busca "corona"
 - **THEN** el diálogo explica que la corona se registra sobre la pieza completa
-- **AND** ofrece registrarla en la pieza 16, y al aceptarlo abre el registro de la pieza completa 16 con corona elegida
+- **AND** ofrece registrarla en la pieza 16, y al aceptarlo abre el registro de la pieza completa 16 con corona elegida,
+  directamente en el formulario aunque la pieza 16 ya tenga otros hallazgos
 
 #### Scenario: Desde una pieza, un hallazgo de arco
 - **WHEN** el usuario tocó la pieza 36 y busca un hallazgo que se registra sobre un arco completo
 - **THEN** el diálogo ofrece registrarlo en el arco inferior, que es el de esa pieza
+- **AND** al aceptarlo abre el registro del arco inferior con ese hallazgo elegido
 
 #### Scenario: Desde una pieza, un hallazgo de rango
 - **WHEN** el usuario tocó la pieza 14 y busca un hallazgo que se registra sobre un rango de piezas
 - **THEN** el diálogo ofrece empezar un rango con la pieza 14 como primera, y al aceptarlo solo falta elegir la última
+
+#### Scenario: Cancelar el rango empezado desde el diálogo
+- **WHEN** el usuario aceptó empezar un rango desde la pieza 14 y luego sale del modo rango sin elegir la última pieza
+- **THEN** no se registra ningún hallazgo
+- **AND** la próxima vez que use "Registrar rango" el diálogo no trae el hallazgo que había buscado
 
 #### Scenario: La localización no se puede deducir
 - **WHEN** el usuario tocó una pieza completa y busca un hallazgo de superficie o uno entre piezas

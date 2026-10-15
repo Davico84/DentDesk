@@ -36,8 +36,15 @@ oscurece la pantalla con una capa que deja un **recorte** alrededor del ancla (r
 también para elementos SVG), y muestra una tarjeta junto al recorte con "Paso n de N", Anterior / Siguiente / Cerrar.
 Antes de resaltar, lleva el ancla a la vista con `scrollIntoView({ block: "nearest", inline: "center" })` (el
 odontograma se desliza dentro de su tarjeta en celular, `docs/frontend.md` §4.3) y recalcula al cambiar el tamaño o
-desplazar. Teclado: ← / → / Esc; foco atrapado en la tarjeta (Radix `Dialog` no modal o foco manual); región
-`aria-live` con el paso. Respeta `prefers-reduced-motion` (sin transición del recorte).
+desplazar. El `scroll` se escucha **en fase de captura** (`window.addEventListener("scroll", fn, true)`): el
+desplazamiento del contenedor del odontograma no burbujea hasta `window`. Teclado: ← / → / Esc; foco atrapado en la
+tarjeta; región `aria-live` con el paso; **al cerrar o terminar, el foco vuelve** a quien abrió la guía (el botón, o el
+primer elemento enfocable del odontograma si se abrió sola). Respeta `prefers-reduced-motion` (sin transición del
+recorte).
+
+**La guía no deja interactuar con lo que hay debajo**, tampoco a través del recorte: la capa intercepta todos los
+eventos de puntero (el recorte es solo visual). Un click en la pieza resaltada no abre el diálogo de hallazgo
+(spec: la guía no registra ni modifica nada).
 
 - *Alternativas descartadas:* `react-joyride` / `driver.js`. Suman una dependencia fuera del stack cerrado
   (`docs/architecture.md` §3) y estilos propios que no siguen los tokens del tema de cada clínica (`docs/frontend.md`
@@ -58,8 +65,9 @@ diálogo, sin abrirlo). Cada paso de localización nombra hasta **3** tipos del 
 ### D4 — "Ya la vio", por usuario y navegador
 
 Store Zustand persistido `useGuidanceStore` (`seen: Record<userId, true>`), mismo patrón que `useSidebarStore`. La
-guía se abre sola cuando el odontograma es **editable** y el usuario no la vio; se marca vista al terminarla o
-cerrarla. Lectura y escritura protegidas (sin `localStorage` disponible, la guía se comporta como no vista y no rompe).
+guía se abre sola **solo con el bloque ya cargado y abierto**: `block != null && block.status === "OPEN" && !seen &&
+!dialogLocation`. Mientras React Query carga, `block` es `undefined` y `block?.status === "SEALED"` daría `false`: sin
+esta condición, se abriría un instante sobre un odontograma sellado. Se marca vista al terminarla o cerrarla. Lectura y escritura protegidas (sin `localStorage` disponible, la guía se comporta como no vista y no rompe).
 Es una comodidad del navegador: otro equipo la vuelve a mostrar una vez, lo que se acepta.
 
 ### D5 — Orientación en el diálogo
@@ -70,17 +78,26 @@ registra. Al elegir uno:
 
 | Tocado → alcance del elegido | Resultado |
 |---|---|
-| mismo alcance | se elige en el selector |
+| mismo alcance (tiene precedencia sobre las filas siguientes) | se elige en el selector |
 | SURFACE (pieza N) → TOOTH | "Registrarla en la pieza N" → reabre el diálogo en la pieza N, tipo elegido |
 | SURFACE o TOOTH (pieza N) → ARCH | "Registrarla en el arco superior/inferior" (`isUpperArchTooth(N)`) |
 | SURFACE o TOOTH (pieza N) → TOOTH_RANGE | "Empezar un rango desde la N" → activa el modo rango con N como primera pieza; al elegir la última, el diálogo abre con el tipo elegido |
 | TOOTH → SURFACE | explicación: tocar una cara de la pieza N (no se deduce cuál) |
-| cualquiera → BETWEEN_TEETH | explicación: tocar el espacio entre las dos piezas |
+| otro alcance → BETWEEN_TEETH | explicación: tocar el espacio entre las dos piezas |
 | BETWEEN_TEETH, ARCH o TOOTH_RANGE → otro | explicación de qué tocar (no hay una única pieza de la que deducir) |
 
 Nada cambia sin el click del usuario en la acción ofrecida. La intención pendiente (`{ type, location }` o
 `{ type, rangeStart }`) la guarda `DentalChartEditor`, que ya orquesta el diálogo y el modo rango; `Odontogram` recibe
 un `initialRangeStart` opcional.
+
+- **Abrir el destino directo en el formulario.** `FindingDialog` hoy arranca en la **lista** si la localización ya
+  tiene hallazgos (`editing === undefined`), y la preselección se perdería. Recibe un `initialType` opcional: con él,
+  arranca en modo creación (`editing = null`) aunque haya hallazgos, y `FindingDialogForm` lo usa como valor inicial
+  de `type`.
+- **Ciclo de vida de la intención de rango.** Se descarta al salir del modo rango por cualquier vía (botón "Cancelar
+  rango", Escape que suelta el ancla, cambio de pantalla) y al consumirse (se abre el diálogo con la última pieza). Si
+  el usuario re-ancla en otra pieza (click en otra fila), la intención sigue y el rango empieza en la nueva ancla. Un
+  "Registrar rango" posterior, sin intención, abre el diálogo como hoy.
 
 ### D6 — Dónde vive cada pieza
 
@@ -92,8 +109,11 @@ un `initialRangeStart` opcional.
 
 ## Risks / Trade-offs
 
-- **[Recorte desalineado al desplazar o al cambiar el tamaño]** → recalcular en `resize` y en el `scroll` del
-  contenedor del odontograma; test e2e a 375, 768 y 1280 px.
+- **[Recorte desalineado al desplazar o al cambiar el tamaño]** → recalcular en `resize` y en `scroll` con captura
+  (D1); test e2e a 375, 768 y 1280 px.
+- **[Click a través del recorte]** → la capa intercepta el puntero en toda su superficie (D1).
+- **[Apertura sobre un odontograma sellado durante la carga]** → condición con el bloque cargado y `OPEN` (D4).
+- **[Intención de rango huérfana]** → se descarta al salir del modo rango (D5).
 - **[La guía tapa el diálogo de hallazgo]** → la guía nunca abre el diálogo ni registra; si un diálogo está abierto, la
   guía no se abre sola.
 - **[Odontograma con temporales o sin la pieza 16 dibujada]** → la 16 siempre se dibuja (fila permanente superior); si
