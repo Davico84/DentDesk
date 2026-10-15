@@ -1,5 +1,12 @@
 -- Registro cerrado: el alta de personal se autoriza mediante invitaciones nominativas.
+
+-- memberships tiene RLS FORZADA (V7), que aplica también al dueño: en Neon Flyway migra como dueño
+-- NO superusuario y la policy exige app.user_id, así que un UPDATE de datos fallaba aunque la tabla
+-- estuviera vacía. Una migración de datos debe ver todas las filas: se suelta el FORCE solo durante
+-- el UPDATE y se restaura en la misma transacción (MigrationsAsNonSuperuserOwnerIT).
+ALTER TABLE memberships NO FORCE ROW LEVEL SECURITY;
 UPDATE memberships SET role = 'DENTIST' WHERE role = 'USER';
+ALTER TABLE memberships FORCE ROW LEVEL SECURITY;
 
 ALTER TABLE memberships
     ADD CONSTRAINT ck_memberships_role CHECK (role IN ('ADMIN', 'DENTIST', 'RECEPTIONIST'));

@@ -39,6 +39,11 @@ public abstract class AbstractIntegrationTest {
         POSTGRES.start();
     }
 
+    /** URL JDBC del contenedor (base por defecto), para tests que crean su propia base. */
+    protected String ownerJdbcUrl() {
+        return POSTGRES.getJdbcUrl();
+    }
+
     /** Conexión como superusuario/owner del contenedor (sembrar fixtures, DDL, o probar un CHECK). */
     protected Connection ownerConnection() throws SQLException {
         return DriverManager.getConnection(POSTGRES.getJdbcUrl(), POSTGRES.getUsername(), POSTGRES.getPassword());
