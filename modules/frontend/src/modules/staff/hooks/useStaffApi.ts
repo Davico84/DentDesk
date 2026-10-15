@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { invite, members, revoke } from "@/modules/core/services/generated/staff-controller";
+import { invite, members, revoke } from "@/modules/core/services/generated/staff";
 import type { InvitationRequest, MemberResponseRole } from "@/modules/core/services/generated/model";
 import { getUserFriendlyError } from "@/modules/core/utils/apiError";
 

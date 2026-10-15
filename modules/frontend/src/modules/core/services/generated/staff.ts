@@ -9,7 +9,8 @@ import type {
   InvitationRequest,
   InvitationResponse,
   MemberResponse,
-  MemberStatusRequest
+  MemberStatusRequest,
+  StaffInvitationResponse
 } from './model';
 
 import { customInstance } from '../../config/httpClient';
@@ -17,6 +18,14 @@ import { customInstance } from '../../config/httpClient';
 
 
 
+  export const invitations = (
+    
+ ) => {
+      return customInstance<StaffInvitationResponse[]>(
+      {url: `/staff/invitations`, method: 'GET'
+    },
+      );
+    }
   export const invite = (
     invitationRequest: InvitationRequest,
  ) => {
@@ -24,6 +33,14 @@ import { customInstance } from '../../config/httpClient';
       {url: `/staff/invitations`, method: 'POST',
       headers: {'Content-Type': 'application/json', },
       data: invitationRequest
+    },
+      );
+    }
+  export const resendInvitation = (
+    id: number,
+ ) => {
+      return customInstance<StaffInvitationResponse>(
+      {url: `/staff/invitations/${id}/resend`, method: 'POST'
     },
       );
     }
@@ -54,7 +71,9 @@ import { customInstance } from '../../config/httpClient';
     },
       );
     }
-  export type InviteResult = NonNullable<Awaited<ReturnType<typeof invite>>>
+  export type InvitationsResult = NonNullable<Awaited<ReturnType<typeof invitations>>>
+export type InviteResult = NonNullable<Awaited<ReturnType<typeof invite>>>
+export type ResendInvitationResult = NonNullable<Awaited<ReturnType<typeof resendInvitation>>>
 export type ChangeStatusResult = NonNullable<Awaited<ReturnType<typeof changeStatus>>>
 export type MembersResult = NonNullable<Awaited<ReturnType<typeof members>>>
 export type RevokeResult = NonNullable<Awaited<ReturnType<typeof revoke>>>
