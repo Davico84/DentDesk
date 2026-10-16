@@ -39,49 +39,76 @@ odontograma editable y quedar disponible desde un botón. SHALL NOT registrar ni
 - **WHEN** la zona que resalta un paso está fuera de la vista porque el odontograma se desliza dentro de su tarjeta
 - **THEN** la guía la trae a la vista antes de resaltarla
 
+#### Scenario: Durante el modo ubicar no hay guía
+- **WHEN** el usuario está ubicando un hallazgo en el odontograma
+- **THEN** la guía no se abre sola y su botón no está disponible hasta salir de ese modo
+
 #### Scenario: Con el odontograma sellado no hay guía
 - **WHEN** el usuario abre un odontograma sellado
 - **THEN** la guía no se abre sola y el botón no se ofrece
 
-### Requirement: Orientación cuando el hallazgo se registra en otra localización
+### Requirement: Búsqueda de hallazgos por nombre y modo ubicar
 
-En el diálogo de registro, el sistema SHALL permitir buscar cualquier tipo del catálogo por nombre, sin distinguir
-tildes. Si el tipo admite la localización tocada, SHALL elegirlo. Si no, SHALL indicar dónde se registra y ofrecer ir
-allí cuando se deduce de lo tocado (pieza completa desde una cara, arco de esa pieza, rango que empieza en ella); si no
-se deduce, SHALL explicar qué tocar. SHALL NOT cambiar de localización sin la confirmación del usuario.
+El tipo de hallazgo SHALL elegirse en un selector con búsqueda sin tildes sobre todo el catálogo, que lista primero los
+tipos de la zona tocada. Si el elegido va en otra zona, SHALL ofrecer ir a la ubicación deducible de lo tocado o, si no
+se deduce, elegirla en el odontograma (modo ubicar), donde solo responden las zonas válidas. SHALL poder buscarse desde
+la barra del odontograma. Nada SHALL cambiar sin confirmación. En edición solo SHALL listar tipos de la zona actual.
 
-#### Scenario: El hallazgo buscado admite la localización tocada
-- **WHEN** el usuario tocó una cara y busca "caries"
-- **THEN** el diálogo elige caries para esa cara
+#### Scenario: El tipo buscado va en la zona tocada
+- **WHEN** el usuario tocó una cara y escribe "caries" en el tipo de hallazgo
+- **THEN** caries aparece entre los tipos de esa zona y, al elegirla, queda elegida para esa cara
+
+#### Scenario: Elegir el tipo con el teclado
+- **WHEN** el usuario escribe en el tipo de hallazgo, se mueve con las flechas y confirma con Enter
+- **THEN** queda elegido el tipo resaltado
+- **AND** Escape con la lista abierta cierra solo la lista, sin cerrar el registro
 
 #### Scenario: Desde una cara, un hallazgo de pieza completa
-- **WHEN** el usuario tocó una cara de la pieza 16 y busca "corona"
-- **THEN** el diálogo explica que la corona se registra sobre la pieza completa
-- **AND** ofrece registrarla en la pieza 16, y al aceptarlo abre el registro de la pieza completa 16 con corona elegida,
-  directamente en el formulario aunque la pieza 16 ya tenga otros hallazgos
+- **WHEN** el usuario tocó una cara de la pieza 16 y elige "corona", que figura en otra zona
+- **THEN** el diálogo indica que la corona se registra sobre la pieza completa y ofrece registrarla en la pieza 16
+- **AND** al aceptarlo abre el registro de la pieza 16 con corona elegida, directamente en el formulario aunque la
+  pieza 16 ya tenga otros hallazgos
 
 #### Scenario: Desde una pieza, un hallazgo de arco
-- **WHEN** el usuario tocó la pieza 36 y busca un hallazgo que se registra sobre un arco completo
-- **THEN** el diálogo ofrece registrarlo en el arco inferior, que es el de esa pieza
-- **AND** al aceptarlo abre el registro del arco inferior con ese hallazgo elegido
+- **WHEN** el usuario tocó la pieza 36 y elige un hallazgo que se registra sobre un arco completo
+- **THEN** el diálogo ofrece registrarlo en el arco inferior, y al aceptarlo abre ese registro con el hallazgo elegido
 
 #### Scenario: Desde una pieza, un hallazgo de rango
-- **WHEN** el usuario tocó la pieza 14 y busca un hallazgo que se registra sobre un rango de piezas
+- **WHEN** el usuario tocó la pieza 14 y elige un hallazgo que se registra sobre un rango de piezas
 - **THEN** el diálogo ofrece empezar un rango con la pieza 14 como primera, y al aceptarlo solo falta elegir la última
 
-#### Scenario: Cancelar el rango empezado desde el diálogo
-- **WHEN** el usuario aceptó empezar un rango desde la pieza 14 y luego sale del modo rango sin elegir la última pieza
-- **THEN** no se registra ningún hallazgo
-- **AND** la próxima vez que use "Registrar rango" el diálogo no trae el hallazgo que había buscado
+#### Scenario: Re-anclar el rango conserva el hallazgo
+- **WHEN** el usuario empezó un rango desde la pieza 14 con un hallazgo elegido y toca una pieza de otra fila
+- **THEN** el rango empieza en esa pieza y el hallazgo elegido se conserva
 
-#### Scenario: La localización no se puede deducir
-- **WHEN** el usuario tocó una pieza completa y busca un hallazgo de superficie o uno entre piezas
-- **THEN** el diálogo explica qué tocar (una cara de la pieza, o el espacio junto a ella) sin elegir por el usuario
+#### Scenario: Destino que no se deduce
+- **WHEN** el usuario tocó una pieza completa y elige un hallazgo de superficie o uno entre piezas
+- **THEN** el diálogo ofrece "Elegir en el odontograma"
+- **AND** al aceptarlo el diálogo se cierra, un aviso indica qué hallazgo se ubica y qué tocar, y al tocar una zona
+  válida se abre su registro con ese hallazgo elegido
+
+#### Scenario: En modo ubicar solo responden las zonas válidas
+- **WHEN** el modo ubicar está activo para un hallazgo de superficie
+- **THEN** solo las caras de las piezas responden, con el mouse y con el teclado
+- **AND** los números de pieza, los espacios entre piezas y los botones de arco quedan atenuados y no responden
+
+#### Scenario: Cancelar el modo ubicar
+- **WHEN** el usuario pulsa "Cancelar" en el aviso, presiona Escape o cambia de pantalla
+- **THEN** el modo ubicar termina sin registrar nada
+- **AND** el siguiente registro no trae el hallazgo que se estaba ubicando
+
+#### Scenario: Buscar desde la barra del odontograma
+- **WHEN** el usuario pulsa "Buscar hallazgo" sin haber tocado el gráfico y elige un tipo
+- **THEN** se activa el modo ubicar para ese tipo
 
 #### Scenario: Búsqueda sin resultados
-- **WHEN** el usuario busca un nombre que no está en el catálogo
-- **THEN** el diálogo lo indica y conserva lo que ya se había completado
+- **WHEN** el usuario escribe un nombre que no está en el catálogo
+- **THEN** el selector lo indica y conserva lo que ya se había completado
 
 #### Scenario: Nada cambia sin confirmar
-- **WHEN** el diálogo ofrece ir a otra localización y el usuario no lo acepta
+- **WHEN** el diálogo ofrece ir a otra zona y el usuario no lo acepta
 - **THEN** la localización tocada se mantiene y no se registra ningún hallazgo
+
+#### Scenario: En edición solo los tipos de la zona actual
+- **WHEN** el usuario edita un hallazgo registrado en una cara
+- **THEN** el selector lista solo tipos de superficie y no ofrece tipos de otras zonas
