@@ -318,6 +318,14 @@ export function Odontogram({
       toothCenters.set(fdi, { cx: x + row.size / 2, cy: rowY[i] + crownYOffset + row.size / 2 });
     });
   });
+  // Centro del número FDI de cada pieza: la transposición (6.1.38) se dibuja "a la altura de los números".
+  const numberCenters = new Map<number, { cx: number; cy: number }>();
+  ROWS.forEach((row, i) => {
+    const numY = row.upper ? SIGLA_H + ROW_GAP : row.size + ROW_GAP;
+    row.teeth.forEach((fdi, k) => {
+      numberCenters.set(fdi, { cx: colX(ROW_COL_OFFSET[i] + k) + row.size / 2, cy: rowY[i] + numY + NUM_H / 2 });
+    });
+  });
 
   return (
     <div className="w-full rounded-2xl border px-4 py-3" style={{ background: PAPER, fontFamily: FONT_BODY }}>
@@ -478,7 +486,7 @@ export function Odontogram({
 
               {lane("INFERIOR", height - LANE_H + 4, CHART_WIDTH, lowerLaneFindings, colorOf, siglaOfFinding, responds("ARCH"), inert, selectArch)}
 
-              {betweenFindings.map((f) => betweenMarker(f, toothCenters, colorOf, siglaOfFinding))}
+              {betweenFindings.map((f) => betweenMarker(f, toothCenters, numberCenters, colorOf, siglaOfFinding))}
             </svg>
           </div>
         </div>
@@ -1086,6 +1094,7 @@ const BETWEEN_GLYPH: Record<string, BetweenGlyphKind> = {
 function betweenMarker(
   f: DentalChartFindingResponse,
   toothCenters: Map<number, { cx: number; cy: number }>,
+  numberCenters: Map<number, { cx: number; cy: number }>,
   colorOf: (f: DentalChartFindingResponse) => string,
   siglaOfFinding: (f: DentalChartFindingResponse) => string,
 ) {
@@ -1114,11 +1123,7 @@ function betweenMarker(
           <circle cx={b.cx} cy={b.cy} r={12} />
         </g>
       ) : kind === "crossedArrows" ? (
-        // 6.1.38: 2 flechas curvas entrecruzadas, a la altura de los números.
-        <g stroke={color} strokeWidth={2} fill="none">
-          <path d={`M ${a.cx - 6} ${a.cy + 6} Q ${cx} ${cy - 10} ${b.cx + 6} ${b.cy + 6}`} />
-          <path d={`M ${a.cx - 6} ${a.cy - 6} Q ${cx} ${cy + 10} ${b.cx + 6} ${b.cy - 6}`} />
-        </g>
+        crossedArrows(f, numberCenters, color)
       ) : (
         <>
           <circle cx={cx} cy={cy} r={10} fill={PAPER} stroke={color} strokeWidth={2} />
@@ -1168,6 +1173,56 @@ function rootCanalLine(size: number, upper: boolean, color: string): ReactNode {
       strokeWidth={2.5}
       strokeLinecap="round"
       pointerEvents="none"
+    />
+  );
+}
+
+/**
+ * 6.1.38 Transposición dentaria: "dos flechas curvas de color azul entrecruzadas, a la altura de los números de las
+ * piezas dentarias". Una va de la pieza A a la B y la otra de la B a la A, cada una con su punta; se cruzan entre los
+ * dos números sin taparlos. No capturan el puntero: el espacio entre piezas sigue respondiendo debajo.
+ */
+function crossedArrows(
+  f: DentalChartFindingResponse,
+  numberCenters: Map<number, { cx: number; cy: number }>,
+  color: string,
+): ReactNode {
+  const na = f.location?.toothA != null ? numberCenters.get(f.location.toothA) : undefined;
+  const nb = f.location?.toothB != null ? numberCenters.get(f.location.toothB) : undefined;
+  if (!na || !nb) return null;
+  const [left, right] = na.cx <= nb.cx ? [na, nb] : [nb, na];
+  const y = (left.cy + right.cy) / 2;
+  const mid = (left.cx + right.cx) / 2;
+  const x1 = left.cx + 11; // justo después del número de la izquierda
+  const x2 = right.cx - 11; // justo antes del de la derecha
+  // Una baja y la otra sube: se cruzan dos veces entre los números, dentro de la franja de los números.
+  const toRight = { from: [x1, y - 5], ctrl: [mid, y + 12], to: [x2, y - 5] } as const;
+  const toLeft = { from: [x2, y + 5], ctrl: [mid, y - 12], to: [x1, y + 5] } as const;
+  return (
+    <g stroke={color} fill="none" strokeWidth={2} pointerEvents="none" data-testid="transposition-arrows">
+      {[toRight, toLeft].map((arrow, i) => (
+        <g key={i}>
+          <path d={`M ${arrow.from[0]} ${arrow.from[1]} Q ${arrow.ctrl[0]} ${arrow.ctrl[1]} ${arrow.to[0]} ${arrow.to[1]}`} />
+          {arrowHead(arrow.ctrl, arrow.to, color)}
+        </g>
+      ))}
+    </g>
+  );
+}
+
+/** Punta de flecha al final de una curva cuadrática: sigue la tangente final (del punto de control al extremo). */
+function arrowHead(ctrl: readonly [number, number], tip: readonly [number, number], color: string): ReactNode {
+  const angle = Math.atan2(tip[1] - ctrl[1], tip[0] - ctrl[0]);
+  const len = 7.5;
+  const spread = Math.PI / 6;
+  const p1 = [tip[0] - len * Math.cos(angle - spread), tip[1] - len * Math.sin(angle - spread)];
+  const p2 = [tip[0] - len * Math.cos(angle + spread), tip[1] - len * Math.sin(angle + spread)];
+  return (
+    <polygon
+      data-testid="arrow-head"
+      points={`${tip[0]},${tip[1]} ${p1[0].toFixed(1)},${p1[1].toFixed(1)} ${p2[0].toFixed(1)},${p2[1].toFixed(1)}`}
+      fill={color}
+      stroke="none"
     />
   );
 }

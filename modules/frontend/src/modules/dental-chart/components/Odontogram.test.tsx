@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { describe, it, expect, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { DentalChartFindingResponse, DentalFindingCatalogEntryResponse } from "@/modules/core/services/generated/model";
 import { BLUE, RED } from "@/modules/dental-chart/utils/findingColor";
@@ -42,6 +42,7 @@ const CATALOG: DentalFindingCatalogEntryResponse[] = [
   { type: "APARATO_ORTODONTICO_FIJO", subtype: "", acronym: undefined, scope: "TOOTH_RANGE", colorBehavior: "SEGUN_ESTADO", requiresGrade: false, requiresSpecification: false },
   { type: "PROTESIS_PARCIAL_REMOVIBLE", subtype: "", acronym: undefined, scope: "TOOTH_RANGE", colorBehavior: "SEGUN_ESTADO", requiresGrade: false, requiresSpecification: false },
   { type: "GIROVERSION", subtype: "", acronym: undefined, scope: "TOOTH", colorBehavior: "SIEMPRE_AZUL", requiresGrade: false, requiresSpecification: false },
+  { type: "TRANSPOSICION_DENTARIA", subtype: "", acronym: undefined, scope: "BETWEEN_TEETH", colorBehavior: "SIEMPRE_AZUL", requiresGrade: false, requiresSpecification: false },
   { type: "TRATAMIENTO_CONDUCTO", subtype: "TC", acronym: "TC", scope: "TOOTH", colorBehavior: "SEGUN_ESTADO", requiresGrade: false, requiresSpecification: false },
 ];
 
@@ -699,6 +700,27 @@ describe("Odontogram", () => {
     // La sigla sigue en el recuadro, con el mismo color.
     const siglas = Array.from(container.querySelectorAll("text")).filter((t) => t.textContent === "TC");
     expect(siglas.map((t) => t.getAttribute("fill")).sort()).toEqual([BLUE, RED].sort());
+  });
+
+  it("transposición (6.1.38): dos flechas azules con punta, entrecruzadas a la altura de los números", () => {
+    const transposition: DentalChartFindingResponse = { id: 62, blockId: 1, type: "TRANSPOSICION_DENTARIA", subtype: "", location: { locationKind: "BETWEEN_TEETH", toothA: 13, toothB: 14 } };
+    render(<Odontogram findings={[transposition]} catalog={CATALOG} />);
+
+    const arrows = screen.getByTestId("transposition-arrows");
+    expect(arrows).toHaveAttribute("stroke", BLUE);
+    const heads = within(arrows).getAllByTestId("arrow-head");
+    expect(heads).toHaveLength(2);
+    heads.forEach((h) => expect(h).toHaveAttribute("fill", BLUE));
+    // A la altura de los números: cada extremo de las curvas cae dentro de la franja del número (no en la corona).
+    // El número se dibuja dentro del grupo de su pieza, desplazado con translate(x, y): se pasa a coordenadas absolutas.
+    const toothNumber = screen.getByRole("button", { name: "Pieza 13, sin hallazgos" });
+    const rowOffsetY = Number(toothNumber.parentElement!.getAttribute("transform")!.match(/translate\([^,]+,\s*([-\d.]+)\)/)![1]);
+    const numberY = rowOffsetY + Number(toothNumber.querySelector("text")!.getAttribute("y"));
+    const ys = Array.from(arrows.querySelectorAll("path")).flatMap((p) => {
+      const nums = p.getAttribute("d")!.match(/-?\d+(\.\d+)?/g)!.map(Number);
+      return [nums[1], nums[5]];
+    });
+    ys.forEach((y) => expect(Math.abs(y - numberY)).toBeLessThan(15));
   });
 
   it("la giroversión sigue azul junto a una caries en la misma pieza (el color no se contagia)", () => {
