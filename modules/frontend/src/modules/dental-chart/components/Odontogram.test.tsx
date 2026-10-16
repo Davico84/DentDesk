@@ -1,9 +1,24 @@
+import { useState } from "react";
 import { describe, it, expect, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { DentalChartFindingResponse, DentalFindingCatalogEntryResponse } from "@/modules/core/services/generated/model";
 import { BLUE, RED } from "@/modules/dental-chart/utils/findingColor";
+import type { Placement } from "@/modules/dental-chart/guidance/placement";
 import { Odontogram } from "./Odontogram";
+
+/** El odontograma es controlado en el modo ubicar: el arnés guarda `placement` como lo hace el editor. */
+function Placing({ initial, onSelectLocation }: { initial: Placement | null; onSelectLocation?: (l: unknown) => void }) {
+  const [placement, setPlacement] = useState<Placement | null>(initial);
+  return (
+    <>
+      <Odontogram findings={[]} catalog={CATALOG} placement={placement} onPlacementChange={setPlacement} onSelectLocation={onSelectLocation} />
+      <output data-testid="placement">{JSON.stringify(placement)}</output>
+    </>
+  );
+}
+const RANGE: Placement = { scope: "TOOTH_RANGE" };
+const placementNow = () => JSON.parse(screen.getByTestId("placement").textContent ?? "null") as Placement | null;
 
 /** Alto del dibujo en unidades del SVG: el ancho en pantalla escala, el `viewBox` no. */
 function viewBoxHeight(svg: Element): number {
@@ -268,7 +283,7 @@ describe("Odontogram", () => {
   it("modo rango: dos clicks en la misma fila arman el rango contiguo entre ambos", async () => {
     const onSelect = vi.fn();
     const user = userEvent.setup();
-    render(<Odontogram findings={[]} catalog={CATALOG} rangeMode onSelectLocation={onSelect} />);
+    render(<Placing initial={RANGE} onSelectLocation={onSelect} />);
 
     await user.click(screen.getByRole("button", { name: "Pieza 14, sin hallazgos" }));
     expect(onSelect).not.toHaveBeenCalled();
@@ -281,7 +296,7 @@ describe("Odontogram", () => {
   it("modo rango: segundo click en otra fila re-ancla en vez de romper", async () => {
     const onSelect = vi.fn();
     const user = userEvent.setup();
-    render(<Odontogram findings={[]} catalog={CATALOG} rangeMode onSelectLocation={onSelect} />);
+    render(<Placing initial={RANGE} onSelectLocation={onSelect} />);
 
     await user.click(screen.getByRole("button", { name: "Pieza 14, sin hallazgos" }));
     await user.click(screen.getByRole("button", { name: "Pieza 44, sin hallazgos" })); // otra fila: re-ancla, no dispara
@@ -291,22 +306,80 @@ describe("Odontogram", () => {
     expect(onSelect).toHaveBeenCalledWith({ locationKind: "TOOTH_RANGE", teeth: [44, 43] });
   });
 
-  it("modo rango: Escape cancela el ancla sin disparar onSelectLocation", async () => {
+  it("modo rango: el primer Escape suelta el ancla y el segundo sale del modo, sin disparar onSelectLocation", async () => {
     const onSelect = vi.fn();
     const user = userEvent.setup();
-    render(<Odontogram findings={[]} catalog={CATALOG} rangeMode onSelectLocation={onSelect} />);
+    render(<Placing initial={RANGE} onSelectLocation={onSelect} />);
 
     await user.click(screen.getByRole("button", { name: "Pieza 14, sin hallazgos" }));
+    expect(placementNow()).toEqual({ scope: "TOOTH_RANGE", rangeStart: 14 });
     await user.keyboard("{Escape}");
+    expect(placementNow()).toEqual({ scope: "TOOTH_RANGE" });
     await user.click(screen.getByRole("button", { name: "Pieza 12, sin hallazgos" })); // vuelve a anclar, no cierra rango
+    await user.keyboard("{Escape}");
+    await user.keyboard("{Escape}");
 
+    expect(placementNow()).toBeNull();
     expect(onSelect).not.toHaveBeenCalled();
+  });
+
+  it("modo rango con tipo elegido: re-anclar en otra fila conserva el tipo", async () => {
+    const user = userEvent.setup();
+    render(<Placing initial={{ scope: "TOOTH_RANGE", type: "PROTESIS_PARCIAL_FIJA", rangeStart: 14 }} onSelectLocation={vi.fn()} />);
+
+    await user.click(screen.getByRole("button", { name: "Pieza 44, sin hallazgos" }));
+
+    expect(placementNow()).toEqual({ scope: "TOOTH_RANGE", type: "PROTESIS_PARCIAL_FIJA", rangeStart: 44 });
+  });
+
+  it("modo ubicar de superficie: solo responden las caras; lo demás queda atenuado y fuera del orden de Tab", async () => {
+    const onSelect = vi.fn();
+    const user = userEvent.setup();
+    render(<Placing initial={{ scope: "SURFACE", type: "LESION_CARIES", fromTooth: 36 }} onSelectLocation={onSelect} />);
+
+    const tooth = screen.getByRole("button", { name: "Pieza 36, sin hallazgos" });
+    const gap = screen.getByRole("button", { name: "Entre las piezas 36 y 37" });
+    expect(tooth).toHaveAttribute("tabindex", "-1");
+    expect(tooth).toHaveAttribute("aria-disabled", "true");
+    expect(gap).toHaveAttribute("tabindex", "-1");
+    expect(screen.getByRole("button", { name: "Arco superior" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: /pieza 36, superficie oclusal/i })).toHaveAttribute("tabindex", "0");
+
+    await user.click(tooth);
+    await user.click(gap);
+    expect(onSelect).not.toHaveBeenCalled();
+
+    await user.click(screen.getByRole("button", { name: /pieza 36, superficie oclusal/i }));
+    expect(onSelect).toHaveBeenCalledWith({ locationKind: "SURFACE", toothA: 36, surface: "OCLUSAL" });
+  });
+
+  it("modo ubicar: el aviso dice qué se ubica y qué tocar, y Cancelar sale del modo", async () => {
+    const user = userEvent.setup();
+    render(<Placing initial={{ scope: "SURFACE", type: "LESION_CARIES", fromTooth: 36 }} />);
+
+    expect(screen.getByText("Ubicando: Lesión de caries")).toBeInTheDocument();
+    expect(screen.getByText(/Toca una cara de la pieza 36\./)).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Cancelar" }));
+
+    expect(placementNow()).toBeNull();
+    expect(screen.queryByText("Ubicando: Lesión de caries")).not.toBeInTheDocument();
+  });
+
+  it("modo ubicar de arco: solo responden los botones de arco", async () => {
+    const onSelect = vi.fn();
+    const user = userEvent.setup();
+    render(<Placing initial={{ scope: "ARCH", type: "EDENTULO_TOTAL" }} onSelectLocation={onSelect} />);
+
+    await user.click(screen.getByRole("button", { name: "Pieza 36, sin hallazgos" }));
+    expect(onSelect).not.toHaveBeenCalled();
+    await user.click(screen.getByRole("button", { name: "Arco inferior" }));
+    expect(onSelect).toHaveBeenCalledWith({ locationKind: "ARCH", arch: "INFERIOR" });
   });
 
   it("modo rango: superficie y arco no disparan selección (un solo gesto a la vez)", async () => {
     const onSelect = vi.fn();
     const user = userEvent.setup();
-    render(<Odontogram findings={[]} catalog={CATALOG} rangeMode onSelectLocation={onSelect} />);
+    render(<Placing initial={RANGE} onSelectLocation={onSelect} />);
 
     await user.click(screen.getByRole("button", { name: /pieza 26, superficie oclusal/i }));
     await user.click(screen.getByRole("button", { name: /arco superior[:,]/i }));
@@ -492,23 +565,24 @@ describe("Odontogram", () => {
     expect(onSelect).toHaveBeenCalledWith({ locationKind: "ARCH", arch: "SUPERIOR" });
   });
 
-  it("sin onToggleRangeMode, no muestra el botón de rango (no tendría con qué togglear)", () => {
+  it("sin onPlacementChange, no muestra el botón de rango (no tendría con qué togglear)", () => {
     render(<Odontogram findings={[]} catalog={CATALOG} />);
     expect(screen.queryByRole("button", { name: /registrar rango/i })).not.toBeInTheDocument();
   });
 
-  it("con onToggleRangeMode, el botón de rango lo llama al clickear", async () => {
-    const onToggle = vi.fn();
+  it("el botón de rango entra al modo rango sin tipo, y \"Cancelar rango\" sale", async () => {
     const user = userEvent.setup();
-    render(<Odontogram findings={[]} catalog={CATALOG} onToggleRangeMode={onToggle} />);
+    render(<Placing initial={null} />);
 
     await user.click(screen.getByRole("button", { name: /registrar rango/i }));
+    expect(placementNow()).toEqual({ scope: "TOOTH_RANGE" });
 
-    expect(onToggle).toHaveBeenCalledOnce();
+    await user.click(screen.getByRole("button", { name: "Cancelar rango" }));
+    expect(placementNow()).toBeNull();
   });
 
   it("no interactivo (sellado): la toolbar de botones no se muestra, pero el resumen sí", () => {
-    render(<Odontogram findings={[]} catalog={CATALOG} interactive={false} onToggleRangeMode={vi.fn()} />);
+    render(<Odontogram findings={[]} catalog={CATALOG} interactive={false} onPlacementChange={vi.fn()} />);
 
     expect(screen.queryByRole("button", { name: "Arco superior" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /registrar rango/i })).not.toBeInTheDocument();
@@ -516,13 +590,13 @@ describe("Odontogram", () => {
   });
 
   it("sin modo rango no muestra el aviso de rango", () => {
-    render(<Odontogram findings={[]} catalog={CATALOG} onToggleRangeMode={vi.fn()} />);
+    render(<Odontogram findings={[]} catalog={CATALOG} onPlacementChange={vi.fn()} />);
     expect(screen.queryByText("Registrando un rango de piezas")).not.toBeInTheDocument();
   });
 
   it("modo rango: el aviso guía paso a paso — tras la primera pieza la marca hecha y resalta el paso 2", async () => {
     const user = userEvent.setup();
-    render(<Odontogram findings={[]} catalog={CATALOG} rangeMode onSelectLocation={vi.fn()} onToggleRangeMode={vi.fn()} />);
+    render(<Placing initial={RANGE} onSelectLocation={vi.fn()} />);
 
     expect(screen.getByText("Registrando un rango de piezas")).toBeInTheDocument();
     const firstStep = screen.getByText("Haz click en la primera pieza del tramo.").closest("li");
@@ -536,7 +610,7 @@ describe("Odontogram", () => {
 
   it("el botón \"Registrar rango\" explica para qué sirve en un tooltip, no con el title nativo", async () => {
     const user = userEvent.setup();
-    render(<Odontogram findings={[]} catalog={CATALOG} onToggleRangeMode={vi.fn()} />);
+    render(<Odontogram findings={[]} catalog={CATALOG} onPlacementChange={vi.fn()} />);
     const button = screen.getByRole("button", { name: /registrar rango/i });
     expect(button).not.toHaveAttribute("title");
 
@@ -547,13 +621,13 @@ describe("Odontogram", () => {
 
   it("en modo rango, el botón de arco deshabilitado sigue explicando por qué en su tooltip", async () => {
     const user = userEvent.setup();
-    render(<Odontogram findings={[]} catalog={CATALOG} rangeMode onSelectLocation={vi.fn()} onToggleRangeMode={vi.fn()} />);
+    render(<Placing initial={RANGE} onSelectLocation={vi.fn()} />);
     const button = screen.getByRole("button", { name: "Arco superior" });
     expect(button).toBeDisabled();
 
     await user.hover(button.parentElement!); // el wrapper: un botón deshabilitado no recibe hover
 
-    expect(await screen.findByRole("tooltip")).toHaveTextContent(/No disponible mientras registras un rango/);
+    expect(await screen.findByRole("tooltip")).toHaveTextContent(/No disponible mientras ubicas otro hallazgo/);
   });
 
   // --- 5.7: escenarios del spec que faltaban ---

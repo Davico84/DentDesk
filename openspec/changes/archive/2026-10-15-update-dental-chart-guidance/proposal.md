@@ -12,9 +12,12 @@ una explicación (un tooltip); el resto se aprende por ensayo y error, sobre un 
   hace click para cada alcance (cara, pieza completa, entre piezas, arco, rango), con ejemplos de hallazgos de cada uno
   tomados del catálogo. Se abre sola la primera vez que el usuario tiene un odontograma editable; después queda el botón
   **"¿Cómo registro hallazgos?"** en la barra del odontograma.
-- **"¿No encuentras el hallazgo?" en el diálogo**: busca en **todo** el catálogo. Si el hallazgo elegido se registra en
-  otro alcance, dice dónde y, cuando la ubicación se puede deducir de lo que se tocó, ofrece ir directo (de una cara a
-  la pieza completa, de una pieza a su arco, o empezar un rango desde esa pieza); si no, explica qué tocar.
+- **Buscar el hallazgo por nombre y llegar siempre a dónde se registra**: "Tipo de hallazgo" pasa a ser un selector con
+  búsqueda sobre todo el catálogo (primero los de la zona tocada, después "En otras zonas"). Si el elegido va en otra
+  zona, ofrece ir directo cuando se deduce de lo tocado (de una cara a la pieza completa, de una pieza a su arco, o un
+  rango desde esa pieza) y, si no, **"Elegir en el odontograma"**: un modo ubicar (generalización del modo rango) donde
+  solo responden las zonas válidas para ese tipo. También se puede empezar por el nombre con **"Buscar hallazgo"** en la
+  barra del odontograma.
 - **Solo frontend.** El catálogo ya informa el alcance de cada tipo (`scope`); no cambia la API ni el contrato.
 
 ## Capabilities
@@ -23,7 +26,7 @@ una explicación (un tooltip); el resto se aprende por ensayo y error, sobre un 
 <!-- Ninguna. -->
 
 ### Modified Capabilities
-- `dental-chart`: se agregan dos requirements de orientación al registrar (la guía y la ayuda dentro del diálogo). La
+- `dental-chart`: se agregan dos requirements de orientación al registrar (la guía, y la búsqueda por nombre con el modo ubicar). La
   regla de localización vigente ("Registro de hallazgos con localización precisa") no cambia: la guía la explica, no
   la relaja.
 
@@ -37,8 +40,9 @@ una explicación (un tooltip); el resto se aprende por ensayo y error, sobre un 
 
 ## Impact
 
-- **Frontend**: módulo `dental-chart` (pasos de la guía, botón, ayuda en `FindingDialogForm`); un componente genérico de
+- **Frontend**: módulo `dental-chart` (pasos de la guía, botón, selector con búsqueda en `FindingDialogForm`, modo ubicar que reemplaza el modo rango); un componente genérico de
   recorrido guiado en `core/components` (oscurecer y resaltar un elemento, pasos, teclado), sin librería nueva; un store
   persistido para "ya vio la guía" por usuario.
-- **Odontograma**: marcas de anclaje (`data-*`) en las zonas que la guía resalta; ningún cambio visual fuera de la guía.
-- **Docs**: `docs/frontend.md` (patrón de recorrido guiado reutilizable).
+- **Odontograma**: marcas de anclaje (`data-*`) en las zonas que la guía resalta; el modo rango pasa a ser un caso del
+  modo ubicar (aviso propio y zonas no válidas atenuadas e inertes); botón "Buscar hallazgo" en su barra.
+- **Docs**: `docs/frontend.md` (patrón de recorrido guiado reutilizable y combobox accesible propio).
