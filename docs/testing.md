@@ -178,6 +178,25 @@ Dos lecciones que costaron caro y que ahora son estándar:
 1. **Prueba que la regla falla.** Al escribir una regla de ArchUnit, introduce temporalmente la violación y comprueba que **rompe la build**. Si nunca la has visto fallar, no sabes si protege algo.
 2. **Un importador roto deja la regla verde y vacía.** ArchUnit 1.3.0 no sabía leer el bytecode de Java 25 (*class file major 69*): fallaba **en silencio**, importaba **cero clases**, y el `allowEmptyShould(true)` daba por buenas todas las reglas. Estuvieron verdes meses **sin comprobar nada** — y al arreglarlo aparecieron violaciones de capas que llevaban ahí desde el principio. Por eso cada test de ArchUnit lleva ahora un **guardián del importador** (`the_importer_actually_reads_the_bytecode`) que falla si la lista de clases viene vacía.
 
+### Lo que pasa en local y falla en la CI o en producción
+Tres casos reales del 2026-10-15; cada uno costó un ciclo completo de PR, CI y merge (`docs/commits.md` §5c):
+
+- **Migraciones como dueño NO superusuario.** La suite migra como el superusuario del contenedor, que se salta
+  incluso la RLS forzada; en Neon, Flyway migra como `odontorisas_admin`, que no lo es. Una migración de **datos**
+  sobre una tabla con `FORCE ROW LEVEL SECURITY` pasaba en CI y falló en el deploy. La cubre
+  `MigrationsAsNonSuperuserOwnerIT` (todas las migraciones, con datos previos); una migración nueva que toque datos
+  de una tabla con RLS forzada suelta el `FORCE` solo durante ese `UPDATE` (V23, V25).
+- **Hilos en tests de carreras.** `CompletableFuture.supplyAsync(...)` sin executor usa el pool común, que tiene
+  *núcleos − 1* hilos: en el runner (2 núcleos) es **uno**, y si una tarea espera a la otra, la otra nunca arranca.
+  Siempre un `ExecutorService` propio. Para reproducir la CI en local:
+  `JAVA_TOOL_OPTIONS=-Djava.util.concurrent.ForkJoinPool.common.parallelism=1`. Referencia: `StaffManagementIT`.
+- **Valores buscados como texto.** `assertThat(json).doesNotContain("64")` encontró "64" dentro de una marca de tiempo
+  (`…12.642953Z`): pasó en el PR y falló en `main` según la hora. Un id o un valor se compara en su campo
+  (`JsonPath.read(body, "$[*].id")`), nunca como subcadena del JSON.
+
+Y para las carreras: el test se corre **primero contra el código sin el fix** para verlo fallar (regla de
+`docs/backend.md` §8.3.1); si no falla sin el fix, no prueba nada.
+
 ### Convenciones (backend)
 - Nombre de método de test orientado a comportamiento: `should_<resultado>_when_<condición>` (identificadores en inglés, propios de Java) y/o `@DisplayName` descriptivo en español referenciando el scenario.
 - Estructura AAA con comentarios `// Arrange / // Act / // Assert`.

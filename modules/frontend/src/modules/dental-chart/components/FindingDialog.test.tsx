@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { screen, waitFor } from "@testing-library/react";
+import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { http, HttpResponse } from "msw";
 import { renderWithProviders } from "@/test/utils";
@@ -23,6 +23,12 @@ const EXISTING: DentalChartFindingResponse = {
   location: { locationKind: "SURFACE", toothA: 36, surface: "OCLUSAL" },
 };
 
+/** El tipo se elige en el combobox con búsqueda (update-dental-chart-guidance D5), no en un `<select>`. */
+async function pickType(user: ReturnType<typeof userEvent.setup>, label: string) {
+  await user.click(screen.getByRole("combobox", { name: /tipo de hallazgo/i }));
+  await user.click(screen.getByRole("option", { name: new RegExp(`^${label}`) }));
+}
+
 describe("FindingDialog", () => {
   it("sin hallazgos previos, abre directo el formulario (sin paso de lista)", async () => {
     renderWithProviders(
@@ -37,11 +43,12 @@ describe("FindingDialog", () => {
     );
 
     expect(await screen.findByRole("heading", { name: "Agregar hallazgo" })).toBeInTheDocument();
-    // Solo tipos de alcance TOOTH — SURFACE (LESION_CARIES, SELLANTE) queda afuera.
-    const typeSelect = screen.getByLabelText(/tipo de hallazgo/i) as HTMLSelectElement;
-    const values = Array.from(typeSelect.options).map((o) => o.value);
-    expect(values).toContain("MOVILIDAD_PATOLOGICA");
-    expect(values).not.toContain("LESION_CARIES");
+    // Primero los de alcance TOOTH; los de superficie (LESION_CARIES, SELLANTE) van aparte, en "En otras zonas".
+    await userEvent.setup().click(screen.getByRole("combobox", { name: /tipo de hallazgo/i }));
+    const here = screen.getByRole("group", { name: "Para esta zona" });
+    expect(within(here).getByRole("option", { name: "Movilidad patológica" })).toBeInTheDocument();
+    expect(within(here).queryByRole("option", { name: /Lesión de caries/ })).not.toBeInTheDocument();
+    expect(within(screen.getByRole("group", { name: "En otras zonas" })).getByRole("option", { name: /Lesión de caries/ })).toBeInTheDocument();
   });
 
   it("con un hallazgo existente, primero muestra la lista con editar/eliminar", async () => {
@@ -85,7 +92,7 @@ describe("FindingDialog", () => {
     await user.click(await screen.findByRole("button", { name: "Editar" }));
 
     expect(await screen.findByRole("heading", { name: "Editar hallazgo" })).toBeInTheDocument();
-    expect(screen.getByLabelText(/tipo de hallazgo/i)).toHaveValue("LESION_CARIES");
+    expect(screen.getByRole("combobox", { name: /tipo de hallazgo/i })).toHaveValue("Lesión de caries");
     await user.click(screen.getByRole("button", { name: /guardar cambios/i }));
 
     await waitFor(() => expect(received).not.toBeNull());
@@ -117,7 +124,7 @@ describe("FindingDialog", () => {
     );
 
     await user.click(await screen.findByRole("button", { name: /agregar otro hallazgo/i }));
-    await user.selectOptions(screen.getByLabelText(/tipo de hallazgo/i), "SELLANTE");
+    await pickType(user, "Sellante");
     await user.selectOptions(screen.getByLabelText(/estado de conservación/i), "GOOD");
     await user.click(screen.getByRole("button", { name: /^agregar hallazgo$/i }));
 
@@ -154,7 +161,7 @@ describe("FindingDialog", () => {
     );
 
     expect(await screen.findByText("Entre las piezas 11 y 21")).toBeInTheDocument();
-    await user.selectOptions(screen.getByLabelText(/tipo de hallazgo/i), "DIASTEMA");
+    await pickType(user, "Diastema");
     await user.click(screen.getByRole("button", { name: /^agregar hallazgo$/i }));
 
     await waitFor(() => expect(received).not.toBeNull());
@@ -182,7 +189,7 @@ describe("FindingDialog", () => {
     );
 
     expect(await screen.findByText("Rango: piezas 14, 13, 12")).toBeInTheDocument();
-    await user.selectOptions(screen.getByLabelText(/tipo de hallazgo/i), "PROTESIS_PARCIAL_FIJA");
+    await pickType(user, "Prótesis parcial fija");
     await user.selectOptions(screen.getByLabelText(/estado de conservación/i), "GOOD");
     await user.click(screen.getByRole("button", { name: /^agregar hallazgo$/i }));
 

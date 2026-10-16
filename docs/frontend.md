@@ -371,3 +371,22 @@ Cuando un componente impone **estructura** pero el **contenido** lo decide quien
 
 > [!NOTE]
 > Las **pantallas** (`screens/**`) son hojas de composición: montan una feature en un layout. **No** son lugar para slots/children — el patrón rinde en componentes **reutilizables** de `core`. Señal de mal uso: envolver una **única** vista en un contenedor multivista con `onViewChange={() => {}}` (no-op).
+
+### 4.7 Guía paso a paso sobre la pantalla real (`GuidedTour`)
+Para enseñar **dónde se toca** en una pantalla compleja (el odontograma es el primer caso), `core/components/guided-tour/GuidedTour` oscurece la pantalla, deja un recorte sobre un elemento real y muestra una tarjeta "Paso n de N" con Anterior/Siguiente/Cerrar. Es genérico: recibe `steps: TourStep[]` (`title`, `body`, `examples?`, `anchor?: () => Element | null`) y no conoce la pantalla.
+
+- **Cuándo**: la duda es de *ubicación* ("¿dónde toco para…?") y una ayuda en texto no alcanza. Para explicar un campo, un `hint` o tooltip; para un flujo nuevo, mejor rediseñar que tapar con una guía.
+- **Anclas `data-guide`**: la pantalla marca los elementos a resaltar con `data-guide="…"` (sin cambio visual) y el módulo que arma los pasos los busca con `querySelector`. Las funciones de ancla se crean **una vez** (identidad estable): el recorrido vuelve a medir solo al cambiar de paso. Si un ancla no existe, el paso se muestra centrado, sin recorte.
+- **La capa bloquea el puntero en toda su superficie**, también dentro del recorte (que es solo visual): un click en lo resaltado no llega a lo de abajo. La guía **nunca** ejecuta acciones de la pantalla.
+- **Medición**: `scrollIntoView` del ancla y recálculo en `resize` y en `scroll` **con captura** (el ancla puede estar dentro de un contenedor que se desliza, como el odontograma a 375 px).
+- **Accesibilidad**: la tarjeta es `role="dialog"` modal con foco atrapado; ← → navegan, Esc cierra; el paso se anuncia por `aria-live`; al cerrar, el foco vuelve a donde estaba (capturado en `useLayoutEffect`, antes de que la tarjeta tome el foco).
+- **"Ya la vio"**: `useGuidanceStore` (persistido con `safeStorage`, por usuario y guía) decide la apertura automática de la primera vez; un botón visible la reabre. La apertura automática espera a que la pantalla esté cargada y en un estado donde la guía aplica (p. ej., el odontograma `OPEN`, no mientras carga).
+
+### 4.8 Selector con búsqueda (`GroupedCombobox`)
+Para elegir **un valor entre muchos** (decenas, no cinco) con búsqueda por nombre, `core/components/GroupedCombobox` implementa el patrón combobox de ARIA 1.2 con opciones agrupadas. Para pocas opciones sigue valiendo `SelectField` (`<select>` nativo). Sin librería: `cmdk`/shadcn Command no están en el stack cerrado (`docs/architecture.md` §3).
+
+- **Lista en línea, sin portal**: dentro de un `Dialog` de Radix no compite por el foco, y a 375 px queda en el flujo del diálogo.
+- **Escape dentro de un `Dialog`**: Radix escucha Escape en `document` en **fase de captura**, antes que el campo. Quien monta el combobox en un diálogo guarda si la lista está abierta (`onOpenChange`) y hace `preventDefault()` en el `onEscapeKeyDown` del `DialogContent`; si no, Escape cierra el diálogo entero en vez de la lista.
+- **Con react-hook-form**, vía `Controller`. `onBlur` se dispara solo cuando el foco sale del combobox completo (las opciones hacen `preventDefault` en `mousedown`): la validación "al tocar" no muestra un error mientras el usuario está eligiendo. Al cambiar el valor, limpiar en el mismo handler los campos que dependían del anterior.
+- Teclado: escribir filtra (sin tildes, `normalizeForSearch`), ↑/↓ mueven la opción activa (`aria-activedescendant`), Enter elige sin enviar el formulario, Escape cierra la lista. Al salir sin elegir, el texto vuelve a la etiqueta del valor vigente.
+- Primer uso: el tipo de hallazgo del odontograma ("Para esta zona" / "En otras zonas", `dental-chart/guidance/findingTypeGroups.ts`).

@@ -3,11 +3,7 @@ import type {
   StaffInvitationResponse,
   StaffInvitationResponseState,
 } from "@/modules/core/services/generated/model";
-
-/** Sin tildes ni mayúsculas: "María" y "maria" son la misma búsqueda (spec staff, buscar por nombre o correo). */
-export function normalizeForSearch(value: string): string {
-  return value.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase().trim();
-}
+import { normalizeForSearch } from "@/modules/core/utils/search";
 
 /** Miembros cuyo nombre o correo contienen la búsqueda. Búsqueda vacía: todos. */
 export function filterMembers(members: MemberResponse[], query: string): MemberResponse[] {

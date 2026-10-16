@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
-import { ArrowLeftRight } from "lucide-react";
+import { useEffect, useRef, type KeyboardEvent, type ReactNode } from "react";
+import { ArrowLeftRight, CircleHelp, Search } from "lucide-react";
 import { Button } from "@/modules/core/ui/button";
 import type { DentalChartFindingResponse, DentalFindingCatalogEntryResponse } from "@/modules/core/services/generated/model";
 import { teethInQuadrant, type ToothSurfaceCode } from "@/modules/core/utils/fdiTeeth";
@@ -8,7 +8,10 @@ import { RED, BLUE, findingColor } from "@/modules/dental-chart/utils/findingCol
 import { HintTooltip } from "@/modules/core/components/HintTooltip";
 import { useHorizontalOverflow } from "@/modules/core/hooks/useHorizontalOverflow";
 import { FindingsSummary } from "./FindingsSummary";
-import { RangeModeHint } from "./RangeModeHint";
+import { PlacementHint } from "@/modules/dental-chart/guidance/PlacementHint";
+import type { Placement } from "@/modules/dental-chart/guidance/placement";
+import type { FindingScope } from "@/modules/dental-chart/guidance/chartGuideSteps";
+import { CHART_GUIDE_ANCHOR, GUIDE_GAP, GUIDE_TOOTH } from "@/modules/dental-chart/guidance/chartGuideAnchors";
 import {
   PAPER, INK, INK_2, INK_3, OUTLINE, DIVIDER, SELECTION, FONT_BODY, FONT_MONO,
 } from "@/modules/dental-chart/utils/chartPalette";
@@ -82,6 +85,11 @@ function crownSlots(fdi: number, size: number): { slots: Slot[]; ring: { x: numb
   return { slots, ring: { x: 1, y: 1, wh: size - 2 } };
 }
 
+/** El espacio de referencia de la guía, en cualquier orden (en la fila superior derecha se dibuja 16 → 15). */
+function isGuideGap(a: number, b: number): boolean {
+  return (a === GUIDE_GAP[0] && b === GUIDE_GAP[1]) || (a === GUIDE_GAP[1] && b === GUIDE_GAP[0]);
+}
+
 const SURFACE_LABEL: Record<ToothSurfaceCode, string> = {
   MESIAL: "mesial",
   DISTAL: "distal",
@@ -139,53 +147,57 @@ export function Odontogram({
   findings,
   catalog,
   interactive = true,
-  rangeMode = false,
-  onToggleRangeMode,
+  placement = null,
+  onPlacementChange,
+  onOpenGuide,
+  onSearchFinding,
   onSelectLocation,
 }: {
   findings: DentalChartFindingResponse[];
   catalog: DentalFindingCatalogEntryResponse[] | undefined;
   /** `false` en un odontograma SELLADO: sigue siendo enfocable/legible, pero no ofrece registrar. */
   interactive?: boolean;
-  /** El estado de "modo rango" vive en el llamador (junto con `onToggleRangeMode`, no acá) porque
-   *  sobrevive a un remount de este componente si algún día hiciera falta — acá solo se lee. Con
-   *  `true`, clickear una pieza ya no abre el modal directo — ancla el inicio del rango (resaltado
-   *  con {@link SELECTION}) y espera un segundo click, en la misma fila, para cerrarlo. A
-   *  diferencia del resto de alcances, este SÍ necesita un estado intermedio visible porque son
-   *  dos clicks, no uno. */
-  rangeMode?: boolean;
-  /** Toolbar propia (botón "Registrar rango" + "Arco superior/inferior"), visible solo si
-   *  `interactive` — el user pidió que dejara de sentirse "ajena" al odontograma, viviendo afuera
-   *  en la pantalla que lo aloja. Sin este callback, el botón de rango no se muestra (no tiene
-   *  sentido sin poder togglear el estado que el llamador posee). */
-  onToggleRangeMode?: () => void;
+  /** Modo ubicar (update-dental-chart-guidance D5), controlado por el llamador: solo responden las zonas de
+   *  `placement.scope`; el resto se atenúa y sale del orden de Tab. El rango es un caso (`TOOTH_RANGE`): dos clicks en
+   *  la misma fila, con el ancla en `placement.rangeStart` — este componente no guarda estado de rango propio. */
+  placement?: Placement | null;
+  /** Cambia el modo ubicar: "Registrar rango"/"Cancelar rango", el ancla del rango, Escape y "Cancelar" del aviso.
+   *  Sin él, el botón de rango no se muestra. */
+  onPlacementChange?: (placement: Placement | null) => void;
+  /** Abre la guía "¿Cómo registro hallazgos?" (update-dental-chart-guidance). Sin él, el botón no se muestra. */
+  onOpenGuide?: () => void;
+  /** Abre "Buscar hallazgo" por nombre (D5). Sin él, el botón no se muestra. */
+  onSearchFinding?: () => void;
   /** Click en pieza/superficie/arco/rango/entre-piezas: dispara
    *  {@link import("./FindingDialog").FindingDialog} en el llamador, con esa localización ya fija
    *  — no hay resaltado propio para un click único porque el modal se abre en el acto, sin un
-   *  estado intermedio que resaltar (la excepción es `rangeMode`, ver arriba). */
+   *  estado intermedio que resaltar (la excepción es el rango, ver `placement`). */
   onSelectLocation?: (location: LocationUpdate) => void;
 }) {
   const colorOf = (f: DentalChartFindingResponse) => findingColor(f, catalog);
   const siglaOfFinding = (f: DentalChartFindingResponse) => siglaOf(f, catalog);
-  const [rangeStart, setRangeStart] = useState<number | null>(null);
-  // Ajuste de estado derivado durante el render (no en un efecto): si el llamador apaga
-  // rangeMode a mitad de selección, el ancla no debe sobrevivir a la próxima vez que lo prenda.
-  const [prevRangeMode, setPrevRangeMode] = useState(rangeMode);
   const scrollRef = useRef<HTMLDivElement>(null);
   const overflow = useHorizontalOverflow(scrollRef);
-  if (rangeMode !== prevRangeMode) {
-    setPrevRangeMode(rangeMode);
-    if (!rangeMode) setRangeStart(null);
-  }
+  const rangeMode = placement?.scope === "TOOTH_RANGE";
+  const rangeStart = rangeMode ? (placement?.rangeStart ?? null) : null;
+  /** Si un tipo de zona responde ahora: siempre fuera del modo ubicar; dentro, solo la de su alcance. */
+  const responds = (scope: FindingScope) => interactive && (placement == null || placement.scope === scope);
+  const toothResponds = responds("TOOTH") || (interactive && rangeMode);
+  /** En modo ubicar, lo que no responde queda atenuado y fuera del orden de Tab (no solo sin puntero). */
+  const inert = placement != null;
 
+  // Escape en el modo ubicar: en un rango con ancla, primero suelta el ancla; si no, sale del modo.
   useEffect(() => {
-    if (!rangeMode || rangeStart == null) return;
+    if (!placement || !onPlacementChange) return;
+    const current = placement;
+    const change = onPlacementChange;
     function onKeyDown(e: globalThis.KeyboardEvent) {
-      if (e.key === "Escape") setRangeStart(null);
+      if (e.key !== "Escape") return;
+      change(current.scope === "TOOTH_RANGE" && current.rangeStart != null ? { ...current, rangeStart: undefined } : null);
     }
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [rangeMode, rangeStart]);
+  }, [placement, onPlacementChange]);
 
   const toothFindings = new Map<number, DentalChartFindingResponse[]>();
   const surfaceFindings = new Map<string, DentalChartFindingResponse[]>();
@@ -218,38 +230,38 @@ export function Odontogram({
 
   function selectTooth(fdi: number) {
     if (!interactive || !onSelectLocation) return;
-    if (rangeMode) {
+    if (placement && rangeMode) {
       if (rangeStart == null) {
-        setRangeStart(fdi);
+        onPlacementChange?.({ ...placement, rangeStart: fdi });
         return;
       }
       // El rango exige dos piezas de la MISMA fila (norma: prótesis/aparato sobre piezas
       // contiguas). Si el segundo click no forma un rango válido con el ancla, no es un error —
-      // re-ancla ahí mismo, para no dejar al user en un callejón sin salida.
+      // re-ancla ahí mismo (conservando el tipo elegido), para no dejar al user en un callejón sin salida.
       const row = ROWS.find((r) => r.teeth.includes(rangeStart) && r.teeth.includes(fdi));
       if (!row || rangeStart === fdi) {
-        setRangeStart(fdi);
+        onPlacementChange?.({ ...placement, rangeStart: fdi });
         return;
       }
       const i1 = row.teeth.indexOf(rangeStart);
       const i2 = row.teeth.indexOf(fdi);
       const teeth = row.teeth.slice(Math.min(i1, i2), Math.max(i1, i2) + 1);
       onSelectLocation({ locationKind: "TOOTH_RANGE", teeth });
-      setRangeStart(null);
       return;
     }
+    if (!responds("TOOTH")) return;
     onSelectLocation({ locationKind: "TOOTH", toothA: fdi });
   }
   function selectSurface(fdi: number, surface: ToothSurfaceCode) {
-    if (!interactive || !onSelectLocation || rangeMode) return;
+    if (!onSelectLocation || !responds("SURFACE")) return;
     onSelectLocation({ locationKind: "SURFACE", toothA: fdi, surface });
   }
   function selectArch(arch: "SUPERIOR" | "INFERIOR") {
-    if (!interactive || !onSelectLocation || rangeMode) return;
+    if (!onSelectLocation || !responds("ARCH")) return;
     onSelectLocation({ locationKind: "ARCH", arch });
   }
   function selectBetween(toothA: number, toothB: number) {
-    if (!interactive || !onSelectLocation || rangeMode) return;
+    if (!onSelectLocation || !responds("BETWEEN_TEETH")) return;
     onSelectLocation({ locationKind: "BETWEEN_TEETH", toothA, toothB });
   }
 
@@ -318,20 +330,27 @@ export function Odontogram({
               return (
                 <HintTooltip
                   key={arch}
-                  triggerDisabled={rangeMode}
+                  triggerDisabled={!responds("ARCH")}
                   content={
-                    rangeMode
-                      ? "No disponible mientras registras un rango. Termina o cancela el rango primero."
+                    !responds("ARCH")
+                      ? "No disponible mientras ubicas otro hallazgo. Termina o cancela primero."
                       : `Registra un hallazgo que abarca toda la arcada ${arcada}: edéntulo total, prótesis completa o aparato ortodóntico removible.`
                   }
                 >
-                  <Button type="button" size="sm" variant="outline" disabled={rangeMode} onClick={() => selectArch(arch)}>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    disabled={!responds("ARCH")}
+                    onClick={() => selectArch(arch)}
+                    data-guide={arch === "SUPERIOR" ? CHART_GUIDE_ANCHOR.arch : undefined}
+                  >
                     {label}
                   </Button>
                 </HintTooltip>
               );
             })}
-            {onToggleRangeMode ? (
+            {onPlacementChange ? (
               <HintTooltip
                 content={
                   rangeMode
@@ -344,18 +363,39 @@ export function Odontogram({
                   size="sm"
                   variant={rangeMode ? "default" : "outline"}
                   aria-pressed={rangeMode}
-                  onClick={onToggleRangeMode}
+                  disabled={placement != null && !rangeMode}
+                  onClick={() => onPlacementChange(rangeMode ? null : { scope: "TOOTH_RANGE" })}
+                  data-guide={CHART_GUIDE_ANCHOR.range}
                 >
                   <ArrowLeftRight className="mr-2 size-4" />
                   {rangeMode ? "Cancelar rango" : "Registrar rango"}
                 </Button>
               </HintTooltip>
             ) : null}
+            {onSearchFinding ? (
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={onSearchFinding}
+                disabled={placement != null || catalog == null}
+                data-guide={CHART_GUIDE_ANCHOR.search}
+              >
+                <Search className="mr-2 size-4" />
+                Buscar hallazgo
+              </Button>
+            ) : null}
+            {onOpenGuide ? (
+              <Button type="button" size="sm" variant="outline" onClick={onOpenGuide} disabled={placement != null}>
+                <CircleHelp className="mr-2 size-4" />
+                ¿Cómo registro hallazgos?
+              </Button>
+            ) : null}
           </div>
         ) : null}
         <FindingsSummary findings={findings} catalog={catalog} />
       </div>
-      {interactive && rangeMode ? <RangeModeHint rangeStart={rangeStart} /> : null}
+      {interactive && placement && onPlacementChange ? <PlacementHint placement={placement} onCancel={() => onPlacementChange(null)} /> : null}
       <div className="mb-1 flex justify-between px-14 text-xs" style={{ color: INK_2 }}>
         <span>← Derecha del paciente</span>
         <span>Izquierda del paciente →</span>
@@ -394,7 +434,7 @@ export function Odontogram({
               <line x1={colX(7) + CROWN_PERM + MIDLINE_GAP / 2} y1={LANE_H} x2={colX(7) + CROWN_PERM + MIDLINE_GAP / 2} y2={height - LANE_H} stroke={DIVIDER} strokeDasharray="2 3" />
               <line x1={0} y1={rowY[2]} x2={CHART_WIDTH} y2={rowY[2]} stroke={DIVIDER} />
 
-              {lane("SUPERIOR", 4, CHART_WIDTH, upperLaneFindings, colorOf, siglaOfFinding, interactive && !rangeMode, selectArch)}
+              {lane("SUPERIOR", 4, CHART_WIDTH, upperLaneFindings, colorOf, siglaOfFinding, responds("ARCH"), inert, selectArch)}
 
               {rangesByRow[0].length > 0
                 ? rangeMarkers(rangesByRow[0], rangeLanes[0], (i) => rangeStrips[0].bottom - 16 - i * RANGE_STACK_STEP, toothCenters, colorOf, siglaOfFinding)
@@ -413,8 +453,7 @@ export function Odontogram({
                   surfaceFindings,
                   colorOf,
                   siglaOfFinding,
-                  interactive,
-                  interactive && !rangeMode,
+                  { tooth: toothResponds, surface: responds("SURFACE"), between: responds("BETWEEN_TEETH"), inert },
                   selectTooth,
                   selectSurface,
                   rangeStart,
@@ -430,7 +469,7 @@ export function Odontogram({
                 ? rangeMarkers(rangesByRow[3], rangeLanes[3], (i) => rangeStrips[3].top + 16 + i * RANGE_STACK_STEP, toothCenters, colorOf, siglaOfFinding)
                 : null}
 
-              {lane("INFERIOR", height - LANE_H + 4, CHART_WIDTH, lowerLaneFindings, colorOf, siglaOfFinding, interactive && !rangeMode, selectArch)}
+              {lane("INFERIOR", height - LANE_H + 4, CHART_WIDTH, lowerLaneFindings, colorOf, siglaOfFinding, responds("ARCH"), inert, selectArch)}
 
               {betweenFindings.map((f) => betweenMarker(f, toothCenters, colorOf, siglaOfFinding))}
             </svg>
@@ -452,7 +491,13 @@ export function Odontogram({
       ) : null}
 
       <div aria-live="polite" className="sr-only">
-        {rangeMode ? (rangeStart == null ? "Modo rango activo. Selecciona la primera pieza del rango." : `Primera pieza del rango: ${rangeStart}. Selecciona la última pieza, en la misma fila. Escape para cancelar.`) : ""}
+        {rangeMode
+          ? rangeStart == null
+            ? "Modo rango activo. Selecciona la primera pieza del rango."
+            : `Primera pieza del rango: ${rangeStart}. Selecciona la última pieza, en la misma fila. Escape para cancelar.`
+          : placement
+            ? "Modo ubicar activo: solo responden los lugares donde se registra ese hallazgo. Escape para cancelar."
+            : ""}
       </div>
 
       <div className="mt-3 flex flex-wrap items-start gap-x-8 gap-y-2 text-xs" style={{ color: INK_2 }}>
@@ -532,10 +577,9 @@ function toothRow(
   surfaceFindings: Map<string, DentalChartFindingResponse[]>,
   colorOf: (f: DentalChartFindingResponse) => string,
   siglaOfFinding: (f: DentalChartFindingResponse) => string,
-  interactive: boolean,
-  /** Superficie y entre-piezas se desactivan en modo rango (un solo gesto a la vez) — la pieza
-   *  sigue activa (`interactive`) porque el click de pieza ES el gesto del rango. */
-  surfaceInteractive: boolean,
+  /** Qué responde ahora (modo ubicar, D5): la pieza también responde en rango, porque su click ES el gesto del rango.
+   *  Con `inert`, lo que no responde se atenúa y sale del orden de Tab. */
+  active: { tooth: boolean; surface: boolean; between: boolean; inert: boolean },
   selectTooth: (fdi: number) => void,
   selectSurface: (fdi: number, surface: ToothSurfaceCode) => void,
   rangeStart: number | null,
@@ -562,13 +606,14 @@ function toothRow(
               height={rowHeight}
               fill="transparent"
               role="button"
-              tabIndex={0}
+              {...zoneProps(active.between, active.inert)}
               aria-label={`Entre las piezas ${fdiA} y ${fdiB}`}
+              data-guide={isGuideGap(fdiA, fdiB) ? CHART_GUIDE_ANCHOR.betweenTeeth : undefined}
               onClick={() => selectBetween(fdiA, fdiB)}
               onKeyDown={(e) => activateOnEnterOrSpace(e, () => selectBetween(fdiA, fdiB))}
-              className={surfaceInteractive ? "cursor-pointer focus:outline-hidden" : "focus:outline-hidden"}
+              className={active.between ? "cursor-pointer focus:outline-hidden" : "focus:outline-hidden"}
             />
-            <circle cx={(xA + xB) / 2} cy={rowHeight / 2} r={2.5} fill={DIVIDER} pointerEvents="none" />
+            <circle cx={(xA + xB) / 2} cy={rowHeight / 2} r={2.5} fill={DIVIDER} pointerEvents="none" opacity={dimmed(active.between, active.inert)} />
           </g>
         );
       })}
@@ -622,11 +667,13 @@ function toothRow(
 
             <g
               role="button"
-              tabIndex={0}
+              {...zoneProps(active.tooth, active.inert)}
+              opacity={dimmed(active.tooth, active.inert)}
               aria-label={toothLabel(fdi, toothList, surfacesOnTooth)}
+              data-guide={fdi === GUIDE_TOOTH ? CHART_GUIDE_ANCHOR.toothNumber : undefined}
               onClick={() => selectTooth(fdi)}
               onKeyDown={(e) => activateOnEnterOrSpace(e, () => selectTooth(fdi))}
-              className={interactive ? "cursor-pointer focus:outline-hidden" : "focus:outline-hidden"}
+              className={active.tooth ? "cursor-pointer focus:outline-hidden" : "focus:outline-hidden"}
             >
               <rect x={0} y={numY} width={size} height={NUM_H} rx={3} fill="transparent" />
               {numberCircle ? (
@@ -653,7 +700,7 @@ function toothRow(
               </text>
             </g>
 
-            <g transform={`translate(0, ${crownY})`}>
+            <g transform={`translate(0, ${crownY})`} opacity={dimmed(active.surface, active.inert)}>
               {slots.map((slot) => {
                 const list = surfaceFindings.get(`${fdi}-${slot.surface}`) ?? [];
                 const fill = list.length > 0 ? colorOf(list[list.length - 1]) : PAPER;
@@ -661,11 +708,12 @@ function toothRow(
                   <polygon
                     key={slot.surface}
                     role="button"
-                    tabIndex={0}
+                    {...zoneProps(active.surface, active.inert)}
                     aria-label={`Pieza ${fdi}, superficie ${SURFACE_LABEL[slot.surface]}${list.length > 0 ? `: ${list.length} hallazgo(s)` : ", sin hallazgos"}`}
+                    data-guide={fdi === GUIDE_TOOTH && slot.surface === "OCLUSAL" ? CHART_GUIDE_ANCHOR.toothSurface : undefined}
                     onClick={() => selectSurface(fdi, slot.surface)}
                     onKeyDown={(e) => activateOnEnterOrSpace(e, () => selectSurface(fdi, slot.surface))}
-                    className={surfaceInteractive ? "cursor-pointer focus:outline-hidden" : "focus:outline-hidden"}
+                    className={active.surface ? "cursor-pointer focus:outline-hidden" : "focus:outline-hidden"}
                     points={slot.points}
                     fill={fill}
                     stroke={OUTLINE}
@@ -839,6 +887,7 @@ function lane(
   colorOf: (f: DentalChartFindingResponse) => string,
   siglaOfFinding: (f: DentalChartFindingResponse) => string,
   interactive: boolean,
+  inert: boolean,
   selectArch: (arch: "SUPERIOR" | "INFERIOR") => void,
 ) {
   const lastArch = archFindings[archFindings.length - 1];
@@ -849,7 +898,8 @@ function lane(
   return (
     <g
       role="button"
-      tabIndex={0}
+      {...zoneProps(interactive, inert)}
+      opacity={dimmed(interactive, inert)}
       aria-label={`Arco ${arch.toLowerCase()}${archFindings.length > 0 ? `: ${archFindings.map(siglaOfFinding).join(", ")}` : ", sin hallazgos de arco completo"}`}
       onClick={() => selectArch(arch)}
       onKeyDown={(e) => activateOnEnterOrSpace(e, () => selectArch(arch))}
@@ -1071,4 +1121,15 @@ function activateOnEnterOrSpace(e: KeyboardEvent<SVGGElement>, action: () => voi
     e.preventDefault();
     action();
   }
+}
+
+/** Una zona clickeable del dibujo: fuera del modo ubicar, siempre enfocable (también sellado, para leerla); dentro,
+ *  la que no responde sale del orden de Tab y se anuncia deshabilitada (D5). */
+function zoneProps(responds: boolean, inert: boolean): { tabIndex: number; "aria-disabled"?: true } {
+  return inert && !responds ? { tabIndex: -1, "aria-disabled": true } : { tabIndex: 0 };
+}
+
+/** Opacidad de una zona en el modo ubicar: atenuada si no responde. */
+function dimmed(responds: boolean, inert: boolean): number | undefined {
+  return inert && !responds ? 0.3 : undefined;
 }

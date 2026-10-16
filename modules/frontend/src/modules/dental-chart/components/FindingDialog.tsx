@@ -6,6 +6,7 @@ import type { DentalChartFindingResponse, DentalFindingCatalogEntryResponse } fr
 import type { FindingFormValues } from "@/modules/dental-chart/schemas/dentalChart";
 import { findingTypeLabel } from "@/modules/dental-chart/schemas/findingTypeLabels";
 import { useRemoveFinding } from "@/modules/dental-chart/hooks/useDentalChartApi";
+import type { AcceptedRelocation } from "@/modules/dental-chart/guidance/relocation";
 import { FindingDialogForm } from "./FindingDialogForm";
 
 export type ClickedLocation = {
@@ -32,6 +33,8 @@ export function FindingDialog({
   catalog,
   location,
   existingFindings,
+  initialType,
+  onRelocate,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -39,8 +42,14 @@ export function FindingDialog({
   catalog: DentalFindingCatalogEntryResponse[] | undefined;
   location: ClickedLocation;
   existingFindings: DentalChartFindingResponse[];
+  /** Con tipo elegido de antemano (desde el buscador de otra localización, design D5) arranca en el formulario,
+   *  aunque acá ya haya hallazgos: si arrancara en la lista, la preselección se perdería. */
+  initialType?: string;
+  onRelocate?: (accepted: AcceptedRelocation) => void;
 }) {
-  const [editing, setEditing] = useState<DentalChartFindingResponse | null | undefined>(existingFindings.length === 0 ? null : undefined);
+  const [editing, setEditing] = useState<DentalChartFindingResponse | null | undefined>(
+    existingFindings.length === 0 || initialType ? null : undefined,
+  );
   const removeFinding = useRemoveFinding(patientId);
 
   const locationText = locationLabel(location);
@@ -98,6 +107,8 @@ export function FindingDialog({
       location={location}
       locationText={locationText}
       editingFinding={editing}
+      initialType={editing === null ? initialType : undefined}
+      onRelocate={onRelocate}
       onBack={existingFindings.length > 0 ? () => setEditing(undefined) : undefined}
     />
   );

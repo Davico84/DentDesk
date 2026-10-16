@@ -1,5 +1,5 @@
-import { useMemo } from "react";
-import { useForm, useWatch } from "react-hook-form";
+import { useMemo, useState } from "react";
+import { Controller, useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Loader2 } from "lucide-react";
 import { Button } from "@/modules/core/ui/button";
@@ -16,7 +16,10 @@ import {
   type FindingFormValues,
 } from "@/modules/dental-chart/schemas/dentalChart";
 import { findingTypeLabel, subtypeOptionLabel } from "@/modules/dental-chart/schemas/findingTypeLabels";
+import { GroupedCombobox } from "@/modules/core/components/GroupedCombobox";
 import { useAddFinding, useUpdateFinding } from "@/modules/dental-chart/hooks/useDentalChartApi";
+import { findingTypeGroups, scopeOfType } from "@/modules/dental-chart/guidance/findingTypeGroups";
+import { relocate, SCOPE_PLACE, type AcceptedRelocation } from "@/modules/dental-chart/guidance/relocation";
 import type { ClickedLocation } from "./FindingDialog";
 
 const CONDITION_OPTIONS: SelectOption[] = [
@@ -26,8 +29,10 @@ const CONDITION_OPTIONS: SelectOption[] = [
 
 /** El formulario propiamente dicho, dentro de {@link import("./FindingDialog").FindingDialog}: la
  *  localización ya está decidida por el click y no se muestra como campo editable — solo
- *  tipo/subtipo/estado/grado, según lo que ese tipo exija (el catálogo filtra las opciones por
- *  `location.locationKind`, así que no se puede elegir un tipo de otro alcance). */
+ *  tipo/subtipo/estado/grado, según lo que ese tipo exija. El tipo se elige en un selector con
+ *  búsqueda sobre todo el catálogo (update-dental-chart-guidance D5): primero los de esta zona; uno
+ *  de otra zona no se elige acá, se ofrece ir a donde se registra (nunca se guarda en una zona que
+ *  no le corresponde). */
 export function FindingDialogForm({
   open,
   onOpenChange,
@@ -36,7 +41,9 @@ export function FindingDialogForm({
   location,
   locationText,
   editingFinding,
+  initialType,
   onBack,
+  onRelocate,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -45,7 +52,11 @@ export function FindingDialogForm({
   location: ClickedLocation;
   locationText: string;
   editingFinding: DentalChartFindingResponse | null;
+  /** Tipo ya elegido al llegar desde "¿No encuentras el hallazgo?" de otra localización (design D5). */
+  initialType?: string;
   onBack?: () => void;
+  /** El usuario aceptó ir a otra localización desde el buscador (design D5). */
+  onRelocate?: (accepted: AcceptedRelocation) => void;
 }) {
   const addFinding = useAddFinding(patientId);
   const updateFinding = useUpdateFinding(patientId);
@@ -59,13 +70,14 @@ export function FindingDialogForm({
         grade: editingFinding.grade ?? "",
         location: { ...findingFormDefaults().location, ...location },
       }
-    : findingFormDefaults(location);
+    : { ...findingFormDefaults(location), type: initialType ?? "" };
 
   const {
     register,
     handleSubmit,
     control,
     setError,
+    setValue,
     formState: { errors },
   } = useForm<FindingFormValues>({
     resolver: zodResolver(buildFindingSchema(catalog)),
@@ -76,13 +88,28 @@ export function FindingDialogForm({
   const type = useWatch({ control, name: "type" });
   const subtype = useWatch({ control, name: "subtype" });
 
-  const typeOptions: SelectOption[] = useMemo(() => {
-    const types = new Set<string>();
-    for (const e of catalog ?? []) {
-      if (e.type && e.scope === location.locationKind) types.add(e.type);
+  // Abierta la lista del selector, Escape la cierra a ella y no al diálogo (ver GroupedCombobox).
+  const [typeListOpen, setTypeListOpen] = useState(false);
+  // Tipo de otra zona elegido en el selector: se muestra dónde va y la acción, sin tocar el formulario.
+  const [elsewhere, setElsewhere] = useState<AcceptedRelocation | null>(null);
+  const typeGroups = useMemo(
+    () => findingTypeGroups(catalog, location.locationKind, !isEditing),
+    [catalog, location.locationKind, isEditing],
+  );
+  const onPickType = (picked: string, setType: (value: string) => void) => {
+    const scope = scopeOfType(catalog, picked);
+    const relocation = scope ? relocate(location, scope) : ({ kind: "select" } as const);
+    if (relocation.kind !== "select") {
+      setElsewhere({ type: picked, relocation });
+      return;
     }
-    return [...types].map((t) => ({ value: t, label: findingTypeLabel(t) }));
-  }, [catalog, location.locationKind]);
+    setElsewhere(null);
+    // Lo que depende del tipo anterior deja de valer con el nuevo.
+    setValue("subtype", "");
+    setValue("condition", "");
+    setValue("grade", "");
+    setType(picked);
+  };
   const subtypeOptions: SelectOption[] = useMemo(
     () =>
       subtypesFor(catalog, type).map((e) => {
@@ -113,14 +140,52 @@ export function FindingDialogForm({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent
+        className="sm:max-w-md"
+        onEscapeKeyDown={(e) => {
+          if (typeListOpen) e.preventDefault();
+        }}
+      >
         <DialogHeader>
           <DialogTitle>{isEditing ? "Editar hallazgo" : "Agregar hallazgo"}</DialogTitle>
           <DialogDescription>{locationText}</DialogDescription>
         </DialogHeader>
 
         <form onSubmit={handleSubmit(onSubmit)} className="grid gap-4 sm:grid-cols-2" noValidate>
-          <SelectField label="Tipo de hallazgo" name="type" register={register} error={errors.type} options={typeOptions} required wide />
+          <Controller
+            control={control}
+            name="type"
+            render={({ field }) => (
+              <GroupedCombobox
+                id="type"
+                label="Tipo de hallazgo"
+                required
+                groups={typeGroups}
+                value={field.value}
+                onSelect={(picked) => onPickType(picked, field.onChange)}
+                onBlur={field.onBlur}
+                onOpenChange={setTypeListOpen}
+                error={errors.type?.message}
+                disabled={catalog == null}
+                placeholder={catalog == null ? "Cargando…" : "Escribe o elige, ej.: caries"}
+                emptyMessage="No hay ningún hallazgo con ese nombre en el catálogo."
+              />
+            )}
+          />
+          {elsewhere ? (
+            <div role="status" className="flex flex-col gap-2 rounded-xl border bg-muted/40 p-3 text-sm sm:col-span-2">
+              <p>
+                <span className="font-medium">{findingTypeLabel(elsewhere.type)}</span> se registra{" "}
+                {SCOPE_PLACE[scopeOfType(catalog, elsewhere.type) ?? location.locationKind]}, no{" "}
+                {SCOPE_PLACE[location.locationKind]}.
+              </p>
+              <div>
+                <Button type="button" size="sm" onClick={() => onRelocate?.(elsewhere)}>
+                  {elsewhere.relocation.action}
+                </Button>
+              </div>
+            </div>
+          ) : null}
           {subtypeOptions.length > 0 ? (
             <SelectField label="Subtipo" name="subtype" register={register} error={errors.subtype} options={subtypeOptions} required wide />
           ) : null}
