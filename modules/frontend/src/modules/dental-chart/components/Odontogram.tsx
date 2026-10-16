@@ -631,6 +631,9 @@ function toothRow(
         const crossOut = toothList.find((f) => glyphOf(f) === "crossOut");
         const outsideFinding = toothList.find((f) => OUTSIDE_KINDS.has(glyphOf(f)));
         const crownOverlay = toothList.find((f) => CROWN_OVERLAY_KINDS.has(glyphOf(f)));
+        // 6.1.37: además de la sigla TC/PC, una línea recta vertical (azul o roja según el estado). Convive con los
+        // demás símbolos de la pieza, por eso no entra en TOOTH_GLYPH (que elige uno solo por categoría).
+        const rootCanal = toothList.find((f) => f.type === "TRATAMIENTO_CONDUCTO");
 
         return (
           <g key={fdi} transform={`translate(${x}, ${y})`}>
@@ -733,6 +736,7 @@ function toothRow(
                 </g>
               ) : null}
               {crownOverlay ? crownOverlayGlyph(glyphOf(crownOverlay), size, colorOf(crownOverlay)) : null}
+              {rootCanal ? rootCanalLine(size, row.upper, colorOf(rootCanal)) : null}
             </g>
           </g>
         );
@@ -1132,4 +1136,27 @@ function zoneProps(responds: boolean, inert: boolean): { tabIndex: number; "aria
 /** Opacidad de una zona en el modo ubicar: atenuada si no responde. */
 function dimmed(responds: boolean, inert: boolean): number | undefined {
   return inert && !responds ? 0.3 : undefined;
+}
+
+/**
+ * 6.1.37 Tratamiento de conducto: "una línea recta vertical de color azul si se encuentra en buen estado; de no ser
+ * así, se pinta de color rojo". En la figura de la norma la línea nace en el centro de la corona y sigue hacia la raíz.
+ * El gráfico no dibuja raíces: la línea va del centro de la corona a su borde del lado de la raíz (arriba en las filas
+ * superiores, abajo en las inferiores).
+ */
+function rootCanalLine(size: number, upper: boolean, color: string): ReactNode {
+  const cx = size / 2;
+  return (
+    <line
+      data-testid="root-canal-line"
+      x1={cx}
+      y1={size / 2}
+      x2={cx}
+      y2={upper ? 0 : size}
+      stroke={color}
+      strokeWidth={2.5}
+      strokeLinecap="round"
+      pointerEvents="none"
+    />
+  );
 }

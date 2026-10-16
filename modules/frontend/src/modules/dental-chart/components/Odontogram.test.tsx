@@ -42,6 +42,7 @@ const CATALOG: DentalFindingCatalogEntryResponse[] = [
   { type: "APARATO_ORTODONTICO_FIJO", subtype: "", acronym: undefined, scope: "TOOTH_RANGE", colorBehavior: "SEGUN_ESTADO", requiresGrade: false, requiresSpecification: false },
   { type: "PROTESIS_PARCIAL_REMOVIBLE", subtype: "", acronym: undefined, scope: "TOOTH_RANGE", colorBehavior: "SEGUN_ESTADO", requiresGrade: false, requiresSpecification: false },
   { type: "GIROVERSION", subtype: "", acronym: undefined, scope: "TOOTH", colorBehavior: "SIEMPRE_AZUL", requiresGrade: false, requiresSpecification: false },
+  { type: "TRATAMIENTO_CONDUCTO", subtype: "TC", acronym: "TC", scope: "TOOTH", colorBehavior: "SEGUN_ESTADO", requiresGrade: false, requiresSpecification: false },
 ];
 
 const FINDINGS: DentalChartFindingResponse[] = [
@@ -677,6 +678,26 @@ describe("Odontogram", () => {
 
     // La sigla "CM" de cada pieza lleva el color de SU hallazgo.
     const siglas = Array.from(container.querySelectorAll("text")).filter((t) => t.textContent === "CM");
+    expect(siglas.map((t) => t.getAttribute("fill")).sort()).toEqual([BLUE, RED].sort());
+  });
+
+  it("tratamiento de conducto (6.1.37): sigla TC y línea vertical desde el centro hacia la raíz, del color de su estado", () => {
+    const lowerGood: DentalChartFindingResponse = { id: 60, blockId: 1, type: "TRATAMIENTO_CONDUCTO", subtype: "TC", condition: "GOOD", location: { locationKind: "TOOTH", toothA: 36 } };
+    const upperPoor: DentalChartFindingResponse = { id: 61, blockId: 1, type: "TRATAMIENTO_CONDUCTO", subtype: "TC", condition: "POOR", location: { locationKind: "TOOTH", toothA: 16 } };
+    const { container } = render(<Odontogram findings={[lowerGood, upperPoor]} catalog={CATALOG} />);
+
+    const lines = screen.getAllByTestId("root-canal-line");
+    expect(lines).toHaveLength(2);
+    const byColor = (color: string) => lines.find((l) => l.getAttribute("stroke") === color)!;
+    // Pieza inferior (36), buen estado: azul, del centro hacia abajo (la raíz).
+    const blue = byColor(BLUE);
+    expect(Number(blue.getAttribute("y2"))).toBeGreaterThan(Number(blue.getAttribute("y1")));
+    // Pieza superior (16), mal estado: roja, del centro hacia arriba.
+    const red = byColor(RED);
+    expect(Number(red.getAttribute("y2"))).toBeLessThan(Number(red.getAttribute("y1")));
+    expect(blue.getAttribute("x1")).toBe(blue.getAttribute("x2"));
+    // La sigla sigue en el recuadro, con el mismo color.
+    const siglas = Array.from(container.querySelectorAll("text")).filter((t) => t.textContent === "TC");
     expect(siglas.map((t) => t.getAttribute("fill")).sort()).toEqual([BLUE, RED].sort());
   });
 
