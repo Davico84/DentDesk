@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { MemberResponse, StaffInvitationResponse } from "@/modules/core/services/generated/model";
-import { countByFilter, filterInvitations, filterMembers, normalizeForSearch } from "./staffFilters";
+import { countByFilter, filterInvitations, filterMembers } from "./staffFilters";
 
 const MEMBERS: MemberResponse[] = [
   { id: 1, fullName: "María Ruiz", email: "maria@clinica.test", role: "MEMBER", status: "ACTIVE" },
@@ -14,10 +14,6 @@ const invitation = (id: number, state: StaffInvitationResponse["state"]): StaffI
 });
 
 describe("staffFilters", () => {
-  it("normaliza tildes y mayúsculas", () => {
-    expect(normalizeForSearch("  María PÉREZ ")).toBe("maria perez");
-  });
-
   it("busca por nombre sin distinguir tildes ni mayúsculas", () => {
     expect(filterMembers(MEMBERS, "MARIA").map((m) => m.id)).toEqual([1]);
     expect(filterMembers(MEMBERS, "perez").map((m) => m.id)).toEqual([2]);
