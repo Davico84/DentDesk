@@ -386,10 +386,17 @@ export function Odontogram({
               </Button>
             ) : null}
             {onOpenGuide ? (
-              <Button type="button" size="sm" variant="outline" onClick={onOpenGuide} disabled={placement != null}>
-                <CircleHelp className="mr-2 size-4" />
+              // Ayuda, no acción: enlace en el violeta del papel (fijo, no del tema: se lee igual en modo oscuro).
+              <button
+                type="button"
+                onClick={onOpenGuide}
+                disabled={placement != null}
+                className="ml-1 inline-flex h-9 items-center gap-1.5 rounded-md px-2 text-sm font-medium underline-offset-4 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:no-underline"
+                style={{ color: SELECTION, outlineColor: SELECTION }}
+              >
+                <CircleHelp aria-hidden="true" className="size-4" />
                 ¿Cómo registro hallazgos?
-              </Button>
+              </button>
             ) : null}
           </div>
         ) : null}
