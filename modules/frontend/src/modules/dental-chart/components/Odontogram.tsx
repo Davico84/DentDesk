@@ -1117,11 +1117,7 @@ function betweenMarker(
           <path d={`M ${cx + 6} ${cy - 8} Q ${cx + 1} ${cy} ${cx + 6} ${cy + 8}`} />
         </g>
       ) : kind === "doubleCircle" ? (
-        // 6.1.11: 2 circunferencias interceptadas, encerrando el número de cada pieza.
-        <g stroke={color} strokeWidth={1.5} fill="none">
-          <circle cx={a.cx} cy={a.cy} r={12} />
-          <circle cx={b.cx} cy={b.cy} r={12} />
-        </g>
+        fusionRings(f, numberCenters, color)
       ) : kind === "crossedArrows" ? (
         crossedArrows(f, numberCenters, color)
       ) : (
@@ -1224,5 +1220,30 @@ function arrowHead(ctrl: readonly [number, number], tip: readonly [number, numbe
       fill={color}
       stroke="none"
     />
+  );
+}
+
+/**
+ * 6.1.11 Fusión: "2 circunferencias interceptadas de color azul, encerrando los números que corresponden a las piezas".
+ * Los números de dos piezas vecinas están a un paso de columna (~68): dos círculos que los encierren y se corten
+ * necesitarían más de 34 de radio y taparían coronas y recuadros. Se usan elipses horizontales, una por número (como la
+ * geminación, 6.1.12), lo bastante anchas para cortarse en el medio y lo bastante bajas para quedar en la franja de los
+ * números.
+ */
+function fusionRings(
+  f: DentalChartFindingResponse,
+  numberCenters: Map<number, { cx: number; cy: number }>,
+  color: string,
+): ReactNode {
+  const na = f.location?.toothA != null ? numberCenters.get(f.location.toothA) : undefined;
+  const nb = f.location?.toothB != null ? numberCenters.get(f.location.toothB) : undefined;
+  if (!na || !nb) return null;
+  const rx = Math.abs(nb.cx - na.cx) / 2 + 8; // pasa la mitad: las dos elipses se cortan entre los números
+  const ry = NUM_H / 2 + 2;
+  return (
+    <g stroke={color} strokeWidth={1.5} fill="none" pointerEvents="none" data-testid="fusion-rings">
+      <ellipse cx={na.cx} cy={na.cy} rx={rx} ry={ry} />
+      <ellipse cx={nb.cx} cy={nb.cy} rx={rx} ry={ry} />
+    </g>
   );
 }

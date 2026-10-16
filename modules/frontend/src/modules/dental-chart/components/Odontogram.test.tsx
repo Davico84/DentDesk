@@ -42,6 +42,7 @@ const CATALOG: DentalFindingCatalogEntryResponse[] = [
   { type: "APARATO_ORTODONTICO_FIJO", subtype: "", acronym: undefined, scope: "TOOTH_RANGE", colorBehavior: "SEGUN_ESTADO", requiresGrade: false, requiresSpecification: false },
   { type: "PROTESIS_PARCIAL_REMOVIBLE", subtype: "", acronym: undefined, scope: "TOOTH_RANGE", colorBehavior: "SEGUN_ESTADO", requiresGrade: false, requiresSpecification: false },
   { type: "GIROVERSION", subtype: "", acronym: undefined, scope: "TOOTH", colorBehavior: "SIEMPRE_AZUL", requiresGrade: false, requiresSpecification: false },
+  { type: "FUSION", subtype: "", acronym: undefined, scope: "BETWEEN_TEETH", colorBehavior: "SIEMPRE_AZUL", requiresGrade: false, requiresSpecification: false },
   { type: "TRANSPOSICION_DENTARIA", subtype: "", acronym: undefined, scope: "BETWEEN_TEETH", colorBehavior: "SIEMPRE_AZUL", requiresGrade: false, requiresSpecification: false },
   { type: "TRATAMIENTO_CONDUCTO", subtype: "TC", acronym: "TC", scope: "TOOTH", colorBehavior: "SEGUN_ESTADO", requiresGrade: false, requiresSpecification: false },
 ];
@@ -700,6 +701,29 @@ describe("Odontogram", () => {
     // La sigla sigue en el recuadro, con el mismo color.
     const siglas = Array.from(container.querySelectorAll("text")).filter((t) => t.textContent === "TC");
     expect(siglas.map((t) => t.getAttribute("fill")).sort()).toEqual([BLUE, RED].sort());
+  });
+
+  it("fusión (6.1.11): dos elipses azules que encierran los números de las dos piezas y se cortan entre ellos", () => {
+    const fusion: DentalChartFindingResponse = { id: 63, blockId: 1, type: "FUSION", subtype: "", location: { locationKind: "BETWEEN_TEETH", toothA: 31, toothB: 32 } };
+    render(<Odontogram findings={[fusion]} catalog={CATALOG} />);
+
+    const rings = screen.getByTestId("fusion-rings");
+    expect(rings).toHaveAttribute("stroke", BLUE);
+    const [r1, r2] = Array.from(rings.querySelectorAll("ellipse")).map((e) => ({
+      cx: Number(e.getAttribute("cx")),
+      cy: Number(e.getAttribute("cy")),
+      rx: Number(e.getAttribute("rx")),
+    }));
+    // Se cortan: la suma de los semiejes supera la distancia entre centros.
+    expect(r1.rx + r2.rx).toBeGreaterThan(Math.abs(r2.cx - r1.cx));
+    // Cada una va centrada en su número (no en la corona).
+    const numberY = (fdi: number) => {
+      const g = screen.getByRole("button", { name: `Pieza ${fdi}, sin hallazgos` });
+      const rowY = Number(g.parentElement!.getAttribute("transform")!.match(/translate\([^,]+,\s*([-\d.]+)\)/)![1]);
+      return rowY + Number(g.querySelector("text")!.getAttribute("y"));
+    };
+    expect(Math.abs(r1.cy - numberY(31))).toBeLessThan(8);
+    expect(Math.abs(r2.cy - numberY(32))).toBeLessThan(8);
   });
 
   it("transposición (6.1.38): dos flechas azules con punta, entrecruzadas a la altura de los números", () => {
