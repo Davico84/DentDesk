@@ -720,7 +720,17 @@ describe("Odontogram", () => {
     const byTooth = (fdi: number) => arrows.find((a) => a.closest("g[transform^='translate']")?.parentElement?.querySelector(`[aria-label^="Pieza ${fdi},"]`))!;
     expect(direction(byTooth(24))).toBeGreaterThan(0);
     expect(direction(byTooth(34))).toBeLessThan(0);
-    arrows.forEach((a) => expect(within(a).getByTestId("arrow-head")).toHaveAttribute("fill", BLUE));
+    arrows.forEach((a) => {
+      expect(within(a).getByTestId("arrow-head")).toHaveAttribute("fill", BLUE);
+      // La punta sigue la dirección de la última línea del zigzag.
+      const pts = a.querySelector("polyline")!.getAttribute("points")!.split(" ").map((p) => p.split(",").map(Number));
+      const [from, tip] = pts.slice(-2);
+      const line = Math.atan2(tip[1] - from[1], tip[0] - from[0]);
+      const head = within(a).getByTestId("arrow-head").getAttribute("points")!.split(" ").map((p) => p.split(",").map(Number));
+      const base = [(head[1][0] + head[2][0]) / 2, (head[1][1] + head[2][1]) / 2];
+      const headAngle = Math.atan2(head[0][1] - base[1], head[0][0] - base[0]);
+      expect(Math.abs(headAngle - line)).toBeLessThan(0.01);
+    });
   });
 
   it("pulpotomía (6.1.27): sigla PP y la pulpa coronal pintada dentro de la cara central, del color de su estado", () => {

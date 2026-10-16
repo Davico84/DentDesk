@@ -842,12 +842,13 @@ function crownOverlayGlyph(kind: ToothGlyphKind, size: number, upper: boolean, c
       // arcada: en las piezas superiores la flecha baja, en las inferiores sube. Nace en el borde del lado de la raíz.
       // Se arma para una inferior (raíz abajo, punta arriba) y se refleja en las superiores.
       const fy = (t: number) => (upper ? size * (1 - t) : size * t);
-      const zig = [0.9, 0.74, 0.58, 0.42, 0.26].map((t, i) => `${c + (i % 2 === 0 ? -6 : 6)},${fy(t)}`);
-      const tip: [number, number] = [c, fy(0.08)];
-      const last: [number, number] = [c + 6, fy(0.26)];
+      const zig: [number, number][] = [0.9, 0.74, 0.58, 0.42, 0.26].map((t, i) => [c + (i % 2 === 0 ? -6 : 6), fy(t)]);
+      const tip: [number, number] = [c + 6, fy(0.1)];
+      // La punta sigue la dirección de la última línea: se calcula desde el último vértice real del zigzag.
+      const last = zig[zig.length - 1];
       return (
         <g key="glyph" pointerEvents="none" data-testid="eruption-arrow">
-          <polyline points={`${zig.join(" ")} ${tip[0]},${tip[1]}`} fill="none" stroke={color} strokeWidth={2} strokeLinejoin="round" />
+          <polyline points={[...zig, tip].map(([x, y]) => `${x},${y}`).join(" ")} fill="none" stroke={color} strokeWidth={2} strokeLinejoin="round" />
           {arrowHead(last, tip, color)}
         </g>
       );
