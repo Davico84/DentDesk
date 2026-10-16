@@ -703,7 +703,12 @@ function toothRow(
               </text>
             </g>
 
-            <g transform={`translate(0, ${crownY})`} opacity={dimmed(active.surface, active.inert)}>
+            <g
+              transform={`translate(0, ${crownY})`}
+              opacity={dimmed(active.surface, active.inert)}
+              // La guía enmarca la corona entera: el paso de caras explica las 5, no solo la central.
+              data-guide={fdi === GUIDE_TOOTH ? CHART_GUIDE_ANCHOR.toothSurface : undefined}
+            >
               {slots.map((slot) => {
                 const list = surfaceFindings.get(`${fdi}-${slot.surface}`) ?? [];
                 const fill = list.length > 0 ? colorOf(list[list.length - 1]) : PAPER;
@@ -713,7 +718,6 @@ function toothRow(
                     role="button"
                     {...zoneProps(active.surface, active.inert)}
                     aria-label={`Pieza ${fdi}, superficie ${SURFACE_LABEL[slot.surface]}${list.length > 0 ? `: ${list.length} hallazgo(s)` : ", sin hallazgos"}`}
-                    data-guide={fdi === GUIDE_TOOTH && slot.surface === "OCLUSAL" ? CHART_GUIDE_ANCHOR.toothSurface : undefined}
                     onClick={() => selectSurface(fdi, slot.surface)}
                     onKeyDown={(e) => activateOnEnterOrSpace(e, () => selectSurface(fdi, slot.surface))}
                     className={active.surface ? "cursor-pointer focus:outline-hidden" : "focus:outline-hidden"}
