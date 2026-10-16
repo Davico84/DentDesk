@@ -42,6 +42,7 @@ const CATALOG: DentalFindingCatalogEntryResponse[] = [
   { type: "APARATO_ORTODONTICO_FIJO", subtype: "", acronym: undefined, scope: "TOOTH_RANGE", colorBehavior: "SEGUN_ESTADO", requiresGrade: false, requiresSpecification: false },
   { type: "PROTESIS_PARCIAL_REMOVIBLE", subtype: "", acronym: undefined, scope: "TOOTH_RANGE", colorBehavior: "SEGUN_ESTADO", requiresGrade: false, requiresSpecification: false },
   { type: "GIROVERSION", subtype: "", acronym: undefined, scope: "TOOTH", colorBehavior: "SIEMPRE_AZUL", requiresGrade: false, requiresSpecification: false },
+  { type: "PIEZA_EN_ERUPCION", subtype: "", acronym: undefined, scope: "TOOTH", colorBehavior: "SIEMPRE_AZUL", requiresGrade: false, requiresSpecification: false },
   { type: "PULPOTOMIA", subtype: "", acronym: "PP", scope: "TOOTH", colorBehavior: "SEGUN_ESTADO", requiresGrade: false, requiresSpecification: false },
   { type: "FUSION", subtype: "", acronym: undefined, scope: "BETWEEN_TEETH", colorBehavior: "SIEMPRE_AZUL", requiresGrade: false, requiresSpecification: false },
   { type: "TRANSPOSICION_DENTARIA", subtype: "", acronym: undefined, scope: "BETWEEN_TEETH", colorBehavior: "SIEMPRE_AZUL", requiresGrade: false, requiresSpecification: false },
@@ -702,6 +703,24 @@ describe("Odontogram", () => {
     // La sigla sigue en el recuadro, con el mismo color.
     const siglas = Array.from(container.querySelectorAll("text")).filter((t) => t.textContent === "TC");
     expect(siglas.map((t) => t.getAttribute("fill")).sort()).toEqual([BLUE, RED].sort());
+  });
+
+  it("pieza en erupción (5.2.23): el zigzag apunta al plano oclusal — baja en una superior y sube en una inferior", () => {
+    const upper: DentalChartFindingResponse = { id: 66, blockId: 1, type: "PIEZA_EN_ERUPCION", subtype: "", location: { locationKind: "TOOTH", toothA: 24 } };
+    const lower: DentalChartFindingResponse = { id: 67, blockId: 1, type: "PIEZA_EN_ERUPCION", subtype: "", location: { locationKind: "TOOTH", toothA: 34 } };
+    render(<Odontogram findings={[upper, lower]} catalog={CATALOG} />);
+
+    // Cada flecha se dibuja dentro del grupo de su pieza: la punta es el último punto del zigzag.
+    const direction = (arrow: Element) => {
+      const pts = arrow.querySelector("polyline")!.getAttribute("points")!.split(" ").map((p) => Number(p.split(",")[1]));
+      return pts[pts.length - 1] - pts[0]; // > 0: baja; < 0: sube
+    };
+    const arrows = screen.getAllByTestId("eruption-arrow");
+    expect(arrows).toHaveLength(2);
+    const byTooth = (fdi: number) => arrows.find((a) => a.closest("g[transform^='translate']")?.parentElement?.querySelector(`[aria-label^="Pieza ${fdi},"]`))!;
+    expect(direction(byTooth(24))).toBeGreaterThan(0);
+    expect(direction(byTooth(34))).toBeLessThan(0);
+    arrows.forEach((a) => expect(within(a).getByTestId("arrow-head")).toHaveAttribute("fill", BLUE));
   });
 
   it("pulpotomía (6.1.27): sigla PP y la pulpa coronal pintada dentro de la cara central, del color de su estado", () => {

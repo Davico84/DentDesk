@@ -756,7 +756,7 @@ function toothRow(
                   <line x1={size - 4} y1={4} x2={4} y2={size - 4} />
                 </g>
               ) : null}
-              {crownOverlay ? crownOverlayGlyph(glyphOf(crownOverlay), size, colorOf(crownOverlay)) : null}
+              {crownOverlay ? crownOverlayGlyph(glyphOf(crownOverlay), size, row.upper, colorOf(crownOverlay)) : null}
               {pulpotomy ? pulpChamber(slots, colorOf(pulpotomy)) : null}
               {rootCanal ? rootCanalLine(size, row.upper, colorOf(rootCanal)) : null}
             </g>
@@ -823,7 +823,7 @@ function arrow(x1: number, y1: number, x2: number, y2: number, color: string): R
 /** Los 3 glifos que sí van "sobre la figura de la corona" (fractura, giroversión, erupción) —
  *  trazos finos que cruzan la corona entera, nunca un relleno: no se confunden con una cara de
  *  superficie porque no ocupan la forma de ninguna cara específica. */
-function crownOverlayGlyph(kind: ToothGlyphKind, size: number, color: string): ReactNode {
+function crownOverlayGlyph(kind: ToothGlyphKind, size: number, upper: boolean, color: string): ReactNode {
   const c = size / 2;
   switch (kind) {
     case "crownFracture":
@@ -837,14 +837,21 @@ function crownOverlayGlyph(kind: ToothGlyphKind, size: number, color: string): R
           <polyline points={`${c + 2},${c - 14} ${c + 6},${c - 10} ${c + 1},${c - 6}`} fill="none" stroke={color} strokeWidth={2} />
         </g>
       );
-    case "crownEruption":
-      // 6.1.23: flecha en zigzag dirigida hacia el plano oclusal (hacia el centro).
+    case "crownEruption": {
+      // 5.2.23 (6.1.23): flecha en zigzag "dirigida hacia el plano oclusal". El plano oclusal mira hacia la otra
+      // arcada: en las piezas superiores la flecha baja, en las inferiores sube. Nace en el borde del lado de la raíz.
+      // Se arma para una inferior (raíz abajo, punta arriba) y se refleja en las superiores.
+      const fy = (t: number) => (upper ? size * (1 - t) : size * t);
+      const zig = [0.9, 0.74, 0.58, 0.42, 0.26].map((t, i) => `${c + (i % 2 === 0 ? -6 : 6)},${fy(t)}`);
+      const tip: [number, number] = [c, fy(0.08)];
+      const last: [number, number] = [c + 6, fy(0.26)];
       return (
-        <g key="glyph" pointerEvents="none" stroke={color} strokeWidth={2} fill="none">
-          <polyline points={`${c - 6},${size - 8} ${c + 6},${size - 18} ${c - 6},${size - 28} ${c},${8}`} />
-          <polyline points={`${c - 4},${13} ${c},${8} ${c + 4},${13}`} />
+        <g key="glyph" pointerEvents="none" data-testid="eruption-arrow">
+          <polyline points={`${zig.join(" ")} ${tip[0]},${tip[1]}`} fill="none" stroke={color} strokeWidth={2} strokeLinejoin="round" />
+          {arrowHead(last, tip, color)}
         </g>
       );
+    }
     default:
       return null;
   }
