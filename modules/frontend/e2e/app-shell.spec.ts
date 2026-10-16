@@ -101,6 +101,8 @@ const PRIVATE = [
 
 for (const width of [375, 768, 1280]) {
   test(`a ${width} px ninguna pantalla privada se desplaza de costado y la navegación es alcanzable`, async ({ page }) => {
+    // Recorre todas las pantallas privadas esperando `networkidle` en cada una: más que los 30 s por defecto.
+    test.setTimeout(90_000);
     await page.setViewportSize({ width, height: 900 });
     await mockApi(page, { authed: true, preset: null });
     for (const url of PRIVATE) {
@@ -157,8 +159,12 @@ for (const width of [768, 1280]) {
 // update-responsive-layout: el odontograma conserva un ancho mínimo legible y se desliza dentro de
 // su tarjeta; sus rótulos de fila quedan a la altura de su fila a cualquier ancho.
 test.describe("odontograma en pantallas angostas", () => {
-  test.beforeEach(() => {
+  test.beforeEach(async ({ page }) => {
     CHART.status = "OPEN";
+    // La guía ya vista: estos tests miden el dibujo, no el recorrido (update-dental-chart-guidance).
+    await page.addInitScript(() =>
+      localStorage.setItem("odr-guidance", JSON.stringify({ state: { seen: { "dental-chart": [7] } }, version: 0 })),
+    );
   });
 
   test("a 375 px el dibujo mide al menos 600 px, se desliza dentro de su tarjeta y lo indica", async ({ page }) => {
@@ -212,6 +218,75 @@ test.describe("odontograma en pantallas angostas", () => {
         });
       }, rows);
       expect(misaligned).toEqual([]);
+    });
+  }
+});
+
+// update-dental-chart-guidance: la guía se abre sola sobre un odontograma abierto la primera vez, y el recorte de
+// cada paso queda sobre su ancla, a la vista y sin desplazar la página de costado.
+test.describe("guía del odontograma", () => {
+  test.beforeEach(() => {
+    CHART.status = "OPEN";
+  });
+
+  for (const width of [375, 768, 1280]) {
+    test(`a ${width} px el recorte queda sobre la pieza resaltada y la página no se desplaza de costado`, async ({ page }) => {
+      await page.setViewportSize({ width, height: 900 });
+      await mockApi(page, { authed: true, preset: null });
+      await page.goto("/patients/1/dental-chart");
+      const tour = page.getByRole("dialog", { name: "¿Dónde registro un hallazgo?" });
+      await expect(tour).toBeVisible();
+      // El catálogo del mock solo trae CORONA (pieza) y DIASTEMA (entre piezas): el paso 2 es "Toda la pieza".
+      await page.getByRole("button", { name: "Siguiente" }).click();
+      await expect(page.getByRole("dialog", { name: "Toda la pieza" })).toBeVisible();
+
+      const anchor = page.locator('[data-guide="tooth-number"]');
+      const ring = page.locator("[data-testid=tour-shield] rect.stroke-primary");
+      await expect(ring).toHaveCount(1);
+      await expect
+        .poll(async () => {
+          const [a, r] = await Promise.all([anchor.boundingBox(), ring.boundingBox()]);
+          if (!a || !r) return false;
+          const slack = 2;
+          return r.x <= a.x + slack && r.y <= a.y + slack && r.x + r.width >= a.x + a.width - slack && r.y + r.height >= a.y + a.height - slack;
+        }, { message: "el recorte no rodea el número de la pieza 16" })
+        .toBe(true);
+
+      const anchorBox = (await anchor.boundingBox())!;
+      expect(anchorBox.x).toBeGreaterThanOrEqual(0);
+      expect(anchorBox.x + anchorBox.width).toBeLessThanOrEqual(width);
+      const card = (await page.getByRole("dialog", { name: "Toda la pieza" }).boundingBox())!;
+      expect(card.x).toBeGreaterThanOrEqual(0);
+      expect(card.x + card.width).toBeLessThanOrEqual(width);
+      const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+      expect(overflow).toBeLessThanOrEqual(0);
+    });
+  }
+
+  for (const width of [375, 1280]) {
+    test(`a ${width} px el selector de tipo y el modo ubicar caben sin desplazar la página de costado`, async ({ page }) => {
+      await page.addInitScript(() =>
+        localStorage.setItem("odr-guidance", JSON.stringify({ state: { seen: { "dental-chart": [7] } }, version: 0 })),
+      );
+      await page.setViewportSize({ width, height: 900 });
+      await mockApi(page, { authed: true, preset: null });
+      await page.goto("/patients/1/dental-chart");
+      await page.getByRole("button", { name: "Pieza 15, sin hallazgos" }).click();
+      const dialog = page.getByRole("dialog", { name: "Agregar hallazgo" });
+      await expect(dialog).toBeVisible();
+      // Un solo click abre la lista: el error de validación no aparece mientras se elige (D5).
+      await page.getByRole("combobox", { name: /Tipo de hallazgo/ }).click();
+      await expect(page.getByRole("listbox")).toBeVisible();
+      await expect(page.getByRole("alert")).toHaveCount(0);
+      const list = (await page.getByRole("listbox").boundingBox())!;
+      expect(list.x).toBeGreaterThanOrEqual(0);
+      expect(list.x + list.width).toBeLessThanOrEqual(width);
+
+      await page.getByRole("option", { name: /^Diastema/ }).click();
+      await page.getByRole("button", { name: "Elegir en el odontograma" }).click();
+      await expect(page.getByText("Ubicando: Diastema")).toBeVisible();
+      const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+      expect(overflow).toBeLessThanOrEqual(0);
     });
   }
 });

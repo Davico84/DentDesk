@@ -24,6 +24,11 @@ import { Odontogram } from "./Odontogram";
 import { FindingList } from "./FindingList";
 import { FindingDialog, type ClickedLocation } from "./FindingDialog";
 import { DentalChartStatusBadge } from "./DentalChartStatusBadge";
+import { DentalChartGuide } from "@/modules/dental-chart/guidance/DentalChartGuide";
+import { useDentalChartGuide } from "@/modules/dental-chart/guidance/useDentalChartGuide";
+import type { AcceptedRelocation } from "@/modules/dental-chart/guidance/relocation";
+import type { Placement } from "@/modules/dental-chart/guidance/placement";
+import { FindingSearchDialog } from "@/modules/dental-chart/guidance/FindingSearchDialog";
 
 /** Edición del odontograma ya creado (OPEN editable, SEALED de solo lectura — el sellado se hace junto con la Historia). */
 export function DentalChartEditor({ patientId }: { patientId: number }) {
@@ -32,13 +37,33 @@ export function DentalChartEditor({ patientId }: { patientId: number }) {
   const setSpecifications = useSetSpecifications(patientId);
   const setObservations = useSetObservations(patientId);
   // Clickear una pieza/superficie/arco/entre-piezas abre el modal ahí mismo (sin perder de vista
-  // el gráfico) en vez de precargar un formulario lejano. Rango es el único que exige dos clicks
-  // (dos piezas), por eso necesita un modo explícito — mientras está activo, el odontograma
-  // resalta la primera pieza elegida y espera la segunda en la misma fila (Escape cancela).
-  const [dialogLocation, setDialogLocation] = useState<ClickedLocation | null>(null);
-  const [rangeMode, setRangeMode] = useState(false);
+  // el gráfico) en vez de precargar un formulario lejano. El modo ubicar (update-dental-chart-guidance D5)
+  // generaliza el rango: el odontograma espera un toque en las zonas de un alcance (rango = dos clicks en
+  // la misma fila), opcionalmente con el tipo ya elegido. Es un solo estado, también el ancla del rango: no
+  // queda ninguna intención pendiente fuera del modo, y desmontar la pantalla la descarta.
+  const [dialog, setDialog] = useState<{ location: ClickedLocation; type?: string } | null>(null);
+  const [placement, setPlacement] = useState<Placement | null>(null);
+  const [searchOpen, setSearchOpen] = useState(false);
+
+  const relocateTo = ({ type, relocation }: AcceptedRelocation) => {
+    if (relocation.kind === "goTo") {
+      setDialog({ location: relocation.location, type });
+      return;
+    }
+    setDialog(null);
+    setPlacement(
+      relocation.kind === "startRange"
+        ? { scope: "TOOTH_RANGE", type, rangeStart: relocation.from }
+        : { scope: relocation.scope, type, fromTooth: relocation.fromTooth },
+    );
+  };
 
   const sealed = block?.status === "SEALED";
+  const guide = useDentalChartGuide({
+    block,
+    catalogReady: catalog != null,
+    busy: dialog != null || placement != null || searchOpen,
+  });
   const missing = missingDentalChartFields(block, catalog);
   const requiredBy = typesRequiringSpecification(block, catalog).map(findingTypeLabel);
   const findings = block?.findings ?? [];
@@ -66,12 +91,13 @@ export function DentalChartEditor({ patientId }: { patientId: number }) {
         findings={findings}
         catalog={catalog}
         interactive={!sealed}
-        rangeMode={rangeMode}
-        onToggleRangeMode={() => setRangeMode((v) => !v)}
+        placement={placement}
+        onPlacementChange={setPlacement}
+        onOpenGuide={guide.available ? guide.openGuide : undefined}
+        onSearchFinding={sealed ? undefined : () => setSearchOpen(true)}
         onSelectLocation={(location) => {
-          const l = location as ClickedLocation;
-          if (l.locationKind === "TOOTH_RANGE") setRangeMode(false);
-          setDialogLocation(l);
+          setDialog({ location: location as ClickedLocation, type: placement?.type });
+          setPlacement(null);
         }}
       />
 
@@ -147,17 +173,31 @@ export function DentalChartEditor({ patientId }: { patientId: number }) {
         </p>
       ) : null}
 
-      {dialogLocation ? (
+      <DentalChartGuide open={guide.open} catalog={catalog} onClose={guide.closeGuide} />
+
+      <FindingSearchDialog
+        open={searchOpen}
+        onOpenChange={setSearchOpen}
+        catalog={catalog}
+        onPick={(type, scope) => {
+          setSearchOpen(false);
+          setPlacement({ scope, type });
+        }}
+      />
+
+      {dialog ? (
         <FindingDialog
-          key={locationKey(dialogLocation)}
+          key={`${locationKey(dialog.location)}:${dialog.type ?? ""}`}
           open
           onOpenChange={(open) => {
-            if (!open) setDialogLocation(null);
+            if (!open) setDialog(null);
           }}
           patientId={patientId}
           catalog={catalog}
-          location={dialogLocation}
-          existingFindings={findingsAt(findings, dialogLocation)}
+          location={dialog.location}
+          existingFindings={findingsAt(findings, dialog.location)}
+          initialType={dialog.type}
+          onRelocate={relocateTo}
         />
       ) : null}
     </div>
