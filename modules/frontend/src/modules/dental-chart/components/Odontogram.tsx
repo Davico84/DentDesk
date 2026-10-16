@@ -649,6 +649,8 @@ function toothRow(
         // 6.1.37: además de la sigla TC/PC, una línea recta vertical (azul o roja según el estado). Convive con los
         // demás símbolos de la pieza, por eso no entra en TOOTH_GLYPH (que elige uno solo por categoría).
         const rootCanal = toothList.find((f) => f.type === "TRATAMIENTO_CONDUCTO");
+        // 6.1.27: además de la sigla PP, la pulpa coronal pintada (azul o roja según el estado).
+        const pulpotomy = toothList.find((f) => f.type === "PULPOTOMIA");
 
         return (
           <g key={fdi} transform={`translate(${x}, ${y})`}>
@@ -755,6 +757,7 @@ function toothRow(
                 </g>
               ) : null}
               {crownOverlay ? crownOverlayGlyph(glyphOf(crownOverlay), size, colorOf(crownOverlay)) : null}
+              {pulpotomy ? pulpChamber(slots, colorOf(pulpotomy)) : null}
               {rootCanal ? rootCanalLine(size, row.upper, colorOf(rootCanal)) : null}
             </g>
           </g>
@@ -1246,4 +1249,28 @@ function fusionRings(
       <ellipse cx={nb.cx} cy={nb.cy} rx={rx} ry={ry} />
     </g>
   );
+}
+
+/**
+ * 6.1.27 Pulpotomía: "se dibuja la representación de la pulpa dentaria coronal de color azul si se encuentra en buen
+ * estado; de no ser así, se pinta de color rojo". En la figura de la norma es un rectángulo relleno dentro de la cara
+ * central, con margen respecto de sus bordes. El margen y la sigla PP la distinguen de un hallazgo de la cara oclusal o
+ * incisal, que pinta la cara entera. No captura el puntero: la cara de abajo sigue respondiendo.
+ */
+function pulpChamber(slots: Slot[], color: string): ReactNode {
+  const center = slots[slots.length - 1]; // la cara central (oclusal o incisal) es la última de crownSlots
+  const pts = center.points.split(" ").map((p) => p.split(",").map(Number));
+  const xs = pts.map(([x]) => x);
+  const ys = pts.map(([, y]) => y);
+  const w = Math.max(...xs) - Math.min(...xs);
+  const h = Math.max(...ys) - Math.min(...ys);
+  // En las anteriores la cara central (incisal) es una franja baja: el margen vertical escala con ella.
+  const insetX = 3;
+  const insetY = Math.min(3, h * 0.15);
+  const x = Math.min(...xs) + insetX;
+  const y = Math.min(...ys) + insetY;
+  const width = w - insetX * 2;
+  const height = h - insetY * 2;
+  if (width <= 0 || height <= 0) return null;
+  return <rect data-testid="pulp-chamber" x={x} y={y} width={width} height={height} rx={1.5} fill={color} pointerEvents="none" />;
 }

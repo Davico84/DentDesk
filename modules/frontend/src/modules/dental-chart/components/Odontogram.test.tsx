@@ -42,6 +42,7 @@ const CATALOG: DentalFindingCatalogEntryResponse[] = [
   { type: "APARATO_ORTODONTICO_FIJO", subtype: "", acronym: undefined, scope: "TOOTH_RANGE", colorBehavior: "SEGUN_ESTADO", requiresGrade: false, requiresSpecification: false },
   { type: "PROTESIS_PARCIAL_REMOVIBLE", subtype: "", acronym: undefined, scope: "TOOTH_RANGE", colorBehavior: "SEGUN_ESTADO", requiresGrade: false, requiresSpecification: false },
   { type: "GIROVERSION", subtype: "", acronym: undefined, scope: "TOOTH", colorBehavior: "SIEMPRE_AZUL", requiresGrade: false, requiresSpecification: false },
+  { type: "PULPOTOMIA", subtype: "", acronym: "PP", scope: "TOOTH", colorBehavior: "SEGUN_ESTADO", requiresGrade: false, requiresSpecification: false },
   { type: "FUSION", subtype: "", acronym: undefined, scope: "BETWEEN_TEETH", colorBehavior: "SIEMPRE_AZUL", requiresGrade: false, requiresSpecification: false },
   { type: "TRANSPOSICION_DENTARIA", subtype: "", acronym: undefined, scope: "BETWEEN_TEETH", colorBehavior: "SIEMPRE_AZUL", requiresGrade: false, requiresSpecification: false },
   { type: "TRATAMIENTO_CONDUCTO", subtype: "TC", acronym: "TC", scope: "TOOTH", colorBehavior: "SEGUN_ESTADO", requiresGrade: false, requiresSpecification: false },
@@ -701,6 +702,23 @@ describe("Odontogram", () => {
     // La sigla sigue en el recuadro, con el mismo color.
     const siglas = Array.from(container.querySelectorAll("text")).filter((t) => t.textContent === "TC");
     expect(siglas.map((t) => t.getAttribute("fill")).sort()).toEqual([BLUE, RED].sort());
+  });
+
+  it("pulpotomía (6.1.27): sigla PP y la pulpa coronal pintada dentro de la cara central, del color de su estado", () => {
+    const good: DentalChartFindingResponse = { id: 64, blockId: 1, type: "PULPOTOMIA", subtype: "", condition: "GOOD", location: { locationKind: "TOOTH", toothA: 64 } };
+    const poor: DentalChartFindingResponse = { id: 65, blockId: 1, type: "PULPOTOMIA", subtype: "", condition: "POOR", location: { locationKind: "TOOTH", toothA: 36 } };
+    const { container } = render(<Odontogram findings={[good, poor]} catalog={CATALOG} />);
+
+    const pulps = screen.getAllByTestId("pulp-chamber");
+    expect(pulps.map((p) => p.getAttribute("fill")).sort()).toEqual([BLUE, RED].sort());
+    // Dentro de la cara central, con margen: no la cubre entera (eso sería un hallazgo de la cara oclusal).
+    const central = screen.getByRole("button", { name: "Pieza 36, superficie oclusal, sin hallazgos" });
+    const xs = central.getAttribute("points")!.split(" ").map((p) => Number(p.split(",")[0]));
+    const pulp36 = pulps.find((p) => p.getAttribute("fill") === RED)!;
+    expect(Number(pulp36.getAttribute("x"))).toBeGreaterThan(Math.min(...xs));
+    expect(Number(pulp36.getAttribute("x")) + Number(pulp36.getAttribute("width"))).toBeLessThan(Math.max(...xs));
+    const siglas = Array.from(container.querySelectorAll("text")).filter((t) => t.textContent === "PP");
+    expect(siglas).toHaveLength(2);
   });
 
   it("fusión (6.1.11): dos elipses azules que encierran los números de las dos piezas y se cortan entre ellos", () => {
