@@ -829,14 +829,21 @@ function crownOverlayGlyph(kind: ToothGlyphKind, size: number, upper: boolean, c
     case "crownFracture":
       // 6.1.10: línea representando la fractura sobre la corona y/o la raíz.
       return <line key="glyph" x1={size * 0.2} y1={size * 0.15} x2={size * 0.8} y2={size * 0.85} stroke={color} strokeWidth={2} pointerEvents="none" />;
-    case "crownGiroversion":
-      // 6.1.13: flecha curva a nivel de la zona oclusal.
+    case "crownGiroversion": {
+      // 6.1.13: "flecha curva a nivel de la zona oclusal". En la figura de la norma (vista lateral) es un arco
+      // horizontal suave que va de un lado al otro de la pieza y sube al final. El gráfico ve la corona desde
+      // oclusal y no tiene lugar fuera de ella (las filas vecinas están pegadas): el arco cruza la corona por la
+      // cara central, que es la zona oclusal. La punta sigue la tangente final de la curva.
+      const from: [number, number] = [size * 0.12, c];
+      const ctrl: [number, number] = [size * 0.5, c + size * 0.3];
+      const to: [number, number] = [size * 0.86, c - size * 0.1];
       return (
-        <g key="glyph" pointerEvents="none">
-          <path d={`M ${c - 10} ${c + 6} A 12 12 0 1 1 ${c + 6} ${c - 10}`} fill="none" stroke={color} strokeWidth={2} />
-          <polyline points={`${c + 2},${c - 14} ${c + 6},${c - 10} ${c + 1},${c - 6}`} fill="none" stroke={color} strokeWidth={2} />
+        <g key="glyph" pointerEvents="none" data-testid="giroversion-arrow">
+          <path d={`M ${from[0]} ${from[1]} Q ${ctrl[0]} ${ctrl[1]} ${to[0]} ${to[1]}`} fill="none" stroke={color} strokeWidth={2} strokeLinecap="round" />
+          {arrowHead(ctrl, to, color)}
         </g>
       );
+    }
     case "crownEruption": {
       // 5.2.23 (6.1.23): flecha en zigzag "dirigida hacia el plano oclusal". El plano oclusal mira hacia la otra
       // arcada: en las piezas superiores la flecha baja, en las inferiores sube. Nace en el borde del lado de la raíz.

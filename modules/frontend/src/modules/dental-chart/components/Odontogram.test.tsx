@@ -705,6 +705,19 @@ describe("Odontogram", () => {
     expect(siglas.map((t) => t.getAttribute("fill")).sort()).toEqual([BLUE, RED].sort());
   });
 
+  it("giroversión (6.1.13): arco horizontal que cruza la corona por la zona oclusal, con la punta en la dirección de la curva", () => {
+    const g: DentalChartFindingResponse = { id: 68, blockId: 1, type: "GIROVERSION", subtype: "", location: { locationKind: "TOOTH", toothA: 44 } };
+    render(<Odontogram findings={[g]} catalog={CATALOG} />);
+
+    const arrow = screen.getByTestId("giroversion-arrow");
+    const [x1, , cx, cy, x2, y2] = arrow.querySelector("path")!.getAttribute("d")!.match(/-?\d+(\.\d+)?/g)!.map(Number);
+    expect(x2 - x1).toBeGreaterThan(30); // horizontal: cruza casi todo el ancho de la corona
+    const head = within(arrow).getByTestId("arrow-head").getAttribute("points")!.split(" ").map((p) => p.split(",").map(Number));
+    const base = [(head[1][0] + head[2][0]) / 2, (head[1][1] + head[2][1]) / 2];
+    const headAngle = Math.atan2(head[0][1] - base[1], head[0][0] - base[0]);
+    expect(Math.abs(headAngle - Math.atan2(y2 - cy, x2 - cx))).toBeLessThan(0.01);
+  });
+
   it("pieza en erupción (5.2.23): el zigzag apunta al plano oclusal — baja en una superior y sube en una inferior", () => {
     const upper: DentalChartFindingResponse = { id: 66, blockId: 1, type: "PIEZA_EN_ERUPCION", subtype: "", location: { locationKind: "TOOTH", toothA: 24 } };
     const lower: DentalChartFindingResponse = { id: 67, blockId: 1, type: "PIEZA_EN_ERUPCION", subtype: "", location: { locationKind: "TOOTH", toothA: 34 } };
@@ -797,10 +810,10 @@ describe("Odontogram", () => {
   it("la giroversión sigue azul junto a una caries en la misma pieza (el color no se contagia)", () => {
     const giroversion: DentalChartFindingResponse = { id: 52, blockId: 1, type: "GIROVERSION", subtype: "", location: { locationKind: "TOOTH", toothA: 21 } };
     const caries: DentalChartFindingResponse = { id: 53, blockId: 1, type: "LESION_CARIES", subtype: "CD", location: { locationKind: "SURFACE", toothA: 21, surface: "INCISAL" } };
-    const { container } = render(<Odontogram findings={[giroversion, caries]} catalog={CATALOG} />);
+    render(<Odontogram findings={[giroversion, caries]} catalog={CATALOG} />);
 
     // Flecha curva de la giroversión (6.1.13): azul.
-    const arrow = container.querySelector('path[d*="A 12 12"]');
+    const arrow = screen.getByTestId("giroversion-arrow").querySelector("path");
     expect(arrow?.getAttribute("stroke")).toBe(BLUE);
     // La superficie con caries de la MISMA pieza: roja.
     // (el botón de la superficie ES el polígono de la cara).
