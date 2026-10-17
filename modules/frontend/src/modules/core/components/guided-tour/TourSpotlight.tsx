@@ -5,8 +5,14 @@ import type { SpotRect } from "./tourTypes";
  * Capa que oscurece la pantalla y deja un recorte sobre el ancla. **Intercepta todo el puntero**, también en el
  * recorte (que es solo visual): un click en lo resaltado no llega a lo que hay debajo (design D1). Primitivo genérico.
  */
-export function TourSpotlight({ rect }: { rect: SpotRect | null }) {
+/** Aire alrededor del ancla: el borde resaltado no pisa el contorno de lo que enmarca. */
+const PAD = 4;
+
+export function TourSpotlight({ rect: anchor }: { rect: SpotRect | null }) {
   const maskId = useId();
+  const rect = anchor
+    ? { left: anchor.left - PAD, top: anchor.top - PAD, width: anchor.width + PAD * 2, height: anchor.height + PAD * 2 }
+    : null;
   return (
     <div
       data-testid="tour-shield"
