@@ -5,6 +5,7 @@ import com.odontorisas.presentation.controller.Cie10Controller;
 import com.odontorisas.service.clinicalhistory.Cie10SearchResult;
 import com.odontorisas.service.clinicalhistory.Cie10SearchResult.Cie10PathSegment;
 import com.odontorisas.service.clinicalhistory.Cie10SearchService;
+import com.odontorisas.service.clinicalhistory.Cie10SuggestionService;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
@@ -32,6 +33,10 @@ class Cie10ControllerTest {
 
     @MockitoBean
     private Cie10SearchService searchService;
+
+    /** Las sugerencias por hallazgo se prueban contra el catálogo real en {@code Cie10SuggestionServiceIT}. */
+    @MockitoBean
+    private Cie10SuggestionService suggestionService;
 
     @Test
     void search_returns_results_with_their_hierarchical_path() throws Exception {

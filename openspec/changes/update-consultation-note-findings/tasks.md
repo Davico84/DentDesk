@@ -6,13 +6,13 @@
 
 ## 1. Backend — hallazgos atendidos en la nota
 
-- [ ] 1.1 Migración `V29`: `consultation_note_finding` (design D1) con FK compuestas a `consultation_note` y `dental_chart_finding`, `UNIQUE (note_id, finding_id)`, `description VARCHAR(300) NOT NULL CHECK (btrim(description) <> '')`, autoría completa, RLS forzada `organization_isolation`, trigger `consultation_note_child_seal_guard` en `BEFORE INSERT OR UPDATE OR DELETE` y `GRANT` defensivo a `odontorisas_app` como `V26`
-- [ ] 1.2 Entidad + repositorio (con `findByNoteIdInOrderByIdAsc`); servicio para marcar y desmarcar con el bloqueo de la nota abierta como el resto de las escrituras, y la matriz de errores de design D1: 404 nota/hallazgo inexistente, de otra clínica u otro paciente; 409 nota sellada, bloque no sellado o duplicado; 400 descripción inválida
-- [ ] 1.3 Endpoints `POST /patients/{patientId}/consultation-notes/{noteId}/findings` y `DELETE …/findings/{id}`; `ConsultationNoteResponse` incluye `attendedFindings` (`id`, `findingId`, `description`, `createdAt`, `createdBy`), cargados en bloque en `list` junto con diagnósticos y antecedentes (sin N+1)
-- [ ] 1.4 `discard` cuenta los hallazgos atendidos como contenido (design D7)
-- [ ] 1.5 `GET /cie10/suggestions?findingType=&subtype=` con el mapa de design D4; la descripción sale de `cie10_code`
-- [ ] 1.6 Tests (IT con Postgres real) de cada Scenario: marcar, desmarcar, duplicado, otro paciente, otra clínica (404), nota sellada por API directa (también desde la base: el trigger), marcar concurrente con el sellado, descartar con hallazgos, la nota sellada devuelve las descripciones; sugerencias: caries en dentina → `K021`, tipo sin sugerencia → lista vacía, **cada código del mapa existe en `cie10_code`**
-- [ ] 1.7 `ContractDriftIT`/OpenAPI al día; `mvn verify` verde
+- [x] 1.1 Migración `V29`: `consultation_note_finding` (design D1) con FK compuestas a `consultation_note` y `dental_chart_finding`, `UNIQUE (note_id, finding_id)`, `description VARCHAR(300) NOT NULL CHECK (btrim(description) <> '')`, autoría completa, RLS forzada `organization_isolation`, trigger `consultation_note_child_seal_guard` en `BEFORE INSERT OR UPDATE OR DELETE` y `GRANT` defensivo a `odontorisas_app` como `V26`
+- [x] 1.2 Entidad + repositorio (con `findByNoteIdInOrderByIdAsc`); servicio para marcar y desmarcar con el bloqueo de la nota abierta como el resto de las escrituras, y la matriz de errores de design D1: 404 nota/hallazgo inexistente, de otra clínica u otro paciente; 409 nota sellada, bloque no sellado o duplicado; 400 descripción inválida
+- [x] 1.3 Endpoints `POST /patients/{patientId}/consultation-notes/{noteId}/findings` y `DELETE …/findings/{id}`; `ConsultationNoteResponse` incluye `attendedFindings` (`id`, `findingId`, `description`, `createdAt`, `createdBy`), cargados en bloque en `list` junto con diagnósticos y antecedentes (sin N+1)
+- [x] 1.4 `discard` cuenta los hallazgos atendidos como contenido (design D7)
+- [x] 1.5 `GET /cie10/suggestions?findingType=&subtype=` con el mapa de design D4; la descripción sale de `cie10_code`
+- [x] 1.6 Tests (IT con Postgres real) de cada Scenario: marcar, desmarcar, duplicado, otro paciente, otra clínica (404), nota sellada por API directa (también desde la base: el trigger), marcar concurrente con el sellado, descartar con hallazgos, la nota sellada devuelve las descripciones; sugerencias: caries en dentina → `K021`, tipo sin sugerencia → lista vacía, **cada código del mapa existe en `cie10_code`**
+- [x] 1.7 `ContractDriftIT`/OpenAPI al día; `mvn verify` verde
 
 ## 2. Frontend — panel de hallazgos y diagnóstico propuesto
 

@@ -3,14 +3,20 @@ package com.odontorisas.consultationnote;
 import com.odontorisas.common.BackgroundCategory;
 import com.odontorisas.common.BackgroundEntryKind;
 import com.odontorisas.common.ConsultationNoteStatus;
+import com.odontorisas.common.FindingType;
+import com.odontorisas.common.LocationKind;
 import com.odontorisas.common.TipoDiagnostico;
+import com.odontorisas.common.ToothSurface;
 import com.odontorisas.service.consultationnote.BackgroundEntryData;
 import com.odontorisas.service.consultationnote.BackgroundEntryNotActiveException;
 import com.odontorisas.service.consultationnote.ClinicalBackgroundService;
 import com.odontorisas.service.consultationnote.ConsultationNoteAlreadyOpenException;
 import com.odontorisas.service.consultationnote.ConsultationNoteData;
+import com.odontorisas.service.consultationnote.ConsultationNoteFindingService;
 import com.odontorisas.service.consultationnote.ConsultationNoteSealedException;
 import com.odontorisas.service.consultationnote.ConsultationNoteView;
+import com.odontorisas.service.dentalchart.DentalChartFindingData;
+import com.odontorisas.service.dentalchart.FindingLocationData;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -28,6 +34,7 @@ import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
  * Concurrencia de la nota de consulta (design.md D1/D2), con hilos reales contra PostgreSQL:
@@ -45,6 +52,8 @@ class ConsultationNoteConcurrencyIT extends AbstractConsultationNoteIT {
     private PlatformTransactionManager transactionManager;
     @Autowired
     private ClinicalBackgroundService backgroundService;
+    @Autowired
+    private ConsultationNoteFindingService findingService;
 
     /** Corre {@code task} en {@code threads} hilos liberados a la vez; devuelve lo que lanzó cada uno ({@code null} = bien). */
     private List<Throwable> concurrently(int threads, Callable<?> task) throws Exception {
@@ -190,6 +199,34 @@ class ConsultationNoteConcurrencyIT extends AbstractConsultationNoteIT {
 
         assertThat(result).isInstanceOf(ConsultationNoteSealedException.class);
         assertThat(noteService.get(patientId, noteId).diagnoses()).extracting(d -> d.cie10Code()).containsExactly("K02");
+    }
+
+    // --- scenario: Marcar o desmarcar en paralelo con el sellado (update-consultation-note-findings) ---
+
+    @Test
+    void attending_or_removing_a_finding_while_the_note_is_being_sealed_is_rejected() throws Exception {
+        var caries = new DentalChartFindingData(
+            FindingType.LESION_CARIES, "MB", null, null,
+            new FindingLocationData(LocationKind.SURFACE,
+                16, null, ToothSurface.OCLUSAL, null, null));
+        var fracture = new DentalChartFindingData(
+            FindingType.FRACTURA_DENTAL, "", null, null,
+            new FindingLocationData(LocationKind.TOOTH,
+                21, null, null, null, null));
+        PatientWithFindings p = aPatientWithSealedFindings(caries, fracture);
+        Long patientId = p.patientId();
+        Long noteId = aNoteReadyToSeal(patientId, hoursAgo(1));
+        Long attendedId = findingService.attend(patientId, noteId, p.findingIds().get(0), "Pieza 16: caries").id();
+
+        Throwable attend = whileSealing(patientId, noteId,
+            () -> findingService.attend(patientId, noteId, p.findingIds().get(1), "Pieza 21: fractura"));
+
+        assertThat(attend).isInstanceOf(ConsultationNoteSealedException.class);
+        asUser(someUser);
+        assertThatThrownBy(() -> findingService.remove(patientId, noteId, attendedId))
+            .isInstanceOf(ConsultationNoteSealedException.class);
+        assertThat(noteService.get(patientId, noteId).attendedFindings())
+            .extracting(f -> f.findingId()).containsExactly(p.findingIds().get(0));
     }
 
     // --- scenario: Rechazar la baja de un asiento que no está vigente (bajo concurrencia) ---

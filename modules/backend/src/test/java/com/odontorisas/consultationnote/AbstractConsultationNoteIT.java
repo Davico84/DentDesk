@@ -16,6 +16,8 @@ import com.odontorisas.service.clinicalhistory.DiagnosisData;
 import com.odontorisas.service.consultationnote.ConsultationNoteData;
 import com.odontorisas.service.consultationnote.ConsultationNoteDiagnosisService;
 import com.odontorisas.service.consultationnote.ConsultationNoteService;
+import com.odontorisas.service.dentalchart.DentalChartFindingData;
+import com.odontorisas.service.dentalchart.DentalChartFindingService;
 import com.odontorisas.service.dentalchart.DentalChartService;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -27,6 +29,7 @@ import java.sql.Statement;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
+import java.util.Arrays;
 import java.util.List;
 import java.util.UUID;
 
@@ -50,6 +53,8 @@ abstract class AbstractConsultationNoteIT extends AbstractTenantAwareIntegration
     @Autowired
     protected DentalChartService dentalChartService;
     @Autowired
+    protected DentalChartFindingService dentalChartFindingService;
+    @Autowired
     protected CloseAdmissionService closeAdmissionService;
     @Autowired
     protected ConsultationNoteService noteService;
@@ -71,7 +76,7 @@ abstract class AbstractConsultationNoteIT extends AbstractTenantAwareIntegration
     @BeforeEach
     void seedClinic() throws SQLException {
         try (Connection owner = ownerConnection(); Statement s = owner.createStatement()) {
-            s.execute("TRUNCATE consultation_note_correction, clinical_background_entry, consultation_note_diagnosis, "
+            s.execute("TRUNCATE consultation_note_finding, consultation_note_correction, clinical_background_entry, consultation_note_diagnosis, "
                 + "consultation_note, dental_chart_finding_tooth, dental_chart_finding, dental_chart_block, "
                 + "clinical_history_diagnosis, historia_clinica, patients RESTART IDENTITY CASCADE");
             String suffix = UUID.randomUUID().toString();
@@ -116,15 +121,27 @@ abstract class AbstractConsultationNoteIT extends AbstractTenantAwareIntegration
 
     /** Paciente con la Historia Clínica {@code COMPLETED} (diagnóstico {@link #HC_CODE}) y odontograma inicial sellados. */
     protected Long aPatientWithSealedHistory() {
+        return aPatientWithSealedFindings().patientId();
+    }
+
+    /** Un paciente sembrado y los ids de los hallazgos de su odontograma inicial, en el orden dado. */
+    protected record PatientWithFindings(Long patientId, List<Long> findingIds) {
+    }
+
+    /** Como {@link #aPatientWithSealedHistory()}, con estos hallazgos en el odontograma inicial (sellado con la admisión). */
+    protected PatientWithFindings aPatientWithSealedFindings(DentalChartFindingData... findings) {
         Long patientId = aPatient();
         clinicalHistoryService.create(patientId);
         clinicalHistoryService.update(patientId, FULL_HC);
         historyDiagnosisService.add(patientId, diagnosis(HC_CODE, TipoDiagnostico.DEFINITIVO));
         dentalChartService.createInitial(patientId, LocalDate.now());
-        dentalChartService.setSpecifications(patientId, null);
+        List<Long> ids = Arrays.stream(findings)
+            .map(f -> dentalChartFindingService.add(patientId, f).finding().id())
+            .toList();
+        dentalChartService.setSpecifications(patientId, "Sin especificaciones adicionales");
         dentalChartService.setObservations(patientId, null);
         closeAdmissionService.close(patientId);
-        return patientId;
+        return new PatientWithFindings(patientId, ids);
     }
 
     protected static Instant hoursAgo(long hours) {
