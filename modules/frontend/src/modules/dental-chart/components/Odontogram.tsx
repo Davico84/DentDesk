@@ -318,6 +318,14 @@ export function Odontogram({
       toothCenters.set(fdi, { cx: x + row.size / 2, cy: rowY[i] + crownYOffset + row.size / 2 });
     });
   });
+  // Centro del número FDI de cada pieza: la transposición (6.1.38) se dibuja "a la altura de los números".
+  const numberCenters = new Map<number, { cx: number; cy: number }>();
+  ROWS.forEach((row, i) => {
+    const numY = row.upper ? SIGLA_H + ROW_GAP : row.size + ROW_GAP;
+    row.teeth.forEach((fdi, k) => {
+      numberCenters.set(fdi, { cx: colX(ROW_COL_OFFSET[i] + k) + row.size / 2, cy: rowY[i] + numY + NUM_H / 2 });
+    });
+  });
 
   return (
     <div className="w-full rounded-2xl border px-4 py-3" style={{ background: PAPER, fontFamily: FONT_BODY }}>
@@ -386,10 +394,17 @@ export function Odontogram({
               </Button>
             ) : null}
             {onOpenGuide ? (
-              <Button type="button" size="sm" variant="outline" onClick={onOpenGuide} disabled={placement != null}>
-                <CircleHelp className="mr-2 size-4" />
+              // Ayuda, no acción: enlace en el violeta del papel (fijo, no del tema: se lee igual en modo oscuro).
+              <button
+                type="button"
+                onClick={onOpenGuide}
+                disabled={placement != null}
+                className="ml-1 inline-flex h-9 items-center gap-1.5 rounded-md px-2 text-sm font-medium underline-offset-4 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:no-underline"
+                style={{ color: SELECTION, outlineColor: SELECTION }}
+              >
+                <CircleHelp aria-hidden="true" className="size-4" />
                 ¿Cómo registro hallazgos?
-              </Button>
+              </button>
             ) : null}
           </div>
         ) : null}
@@ -471,7 +486,7 @@ export function Odontogram({
 
               {lane("INFERIOR", height - LANE_H + 4, CHART_WIDTH, lowerLaneFindings, colorOf, siglaOfFinding, responds("ARCH"), inert, selectArch)}
 
-              {betweenFindings.map((f) => betweenMarker(f, toothCenters, colorOf, siglaOfFinding))}
+              {betweenFindings.map((f) => betweenMarker(f, toothCenters, numberCenters, colorOf, siglaOfFinding))}
             </svg>
           </div>
         </div>
@@ -631,6 +646,11 @@ function toothRow(
         const crossOut = toothList.find((f) => glyphOf(f) === "crossOut");
         const outsideFinding = toothList.find((f) => OUTSIDE_KINDS.has(glyphOf(f)));
         const crownOverlay = toothList.find((f) => CROWN_OVERLAY_KINDS.has(glyphOf(f)));
+        // 6.1.37: además de la sigla TC/PC, una línea recta vertical (azul o roja según el estado). Convive con los
+        // demás símbolos de la pieza, por eso no entra en TOOTH_GLYPH (que elige uno solo por categoría).
+        const rootCanal = toothList.find((f) => f.type === "TRATAMIENTO_CONDUCTO");
+        // 6.1.27: además de la sigla PP, la pulpa coronal pintada (azul o roja según el estado).
+        const pulpotomy = toothList.find((f) => f.type === "PULPOTOMIA");
 
         return (
           <g key={fdi} transform={`translate(${x}, ${y})`}>
@@ -700,7 +720,12 @@ function toothRow(
               </text>
             </g>
 
-            <g transform={`translate(0, ${crownY})`} opacity={dimmed(active.surface, active.inert)}>
+            <g
+              transform={`translate(0, ${crownY})`}
+              opacity={dimmed(active.surface, active.inert)}
+              // La guía enmarca la corona entera: el paso de caras explica las 5, no solo la central.
+              data-guide={fdi === GUIDE_TOOTH ? CHART_GUIDE_ANCHOR.toothSurface : undefined}
+            >
               {slots.map((slot) => {
                 const list = surfaceFindings.get(`${fdi}-${slot.surface}`) ?? [];
                 const fill = list.length > 0 ? colorOf(list[list.length - 1]) : PAPER;
@@ -710,7 +735,6 @@ function toothRow(
                     role="button"
                     {...zoneProps(active.surface, active.inert)}
                     aria-label={`Pieza ${fdi}, superficie ${SURFACE_LABEL[slot.surface]}${list.length > 0 ? `: ${list.length} hallazgo(s)` : ", sin hallazgos"}`}
-                    data-guide={fdi === GUIDE_TOOTH && slot.surface === "OCLUSAL" ? CHART_GUIDE_ANCHOR.toothSurface : undefined}
                     onClick={() => selectSurface(fdi, slot.surface)}
                     onKeyDown={(e) => activateOnEnterOrSpace(e, () => selectSurface(fdi, slot.surface))}
                     className={active.surface ? "cursor-pointer focus:outline-hidden" : "focus:outline-hidden"}
@@ -732,7 +756,9 @@ function toothRow(
                   <line x1={size - 4} y1={4} x2={4} y2={size - 4} />
                 </g>
               ) : null}
-              {crownOverlay ? crownOverlayGlyph(glyphOf(crownOverlay), size, colorOf(crownOverlay)) : null}
+              {crownOverlay ? crownOverlayGlyph(glyphOf(crownOverlay), size, row.upper, colorOf(crownOverlay)) : null}
+              {pulpotomy ? pulpChamber(slots, colorOf(pulpotomy)) : null}
+              {rootCanal ? rootCanalLine(size, row.upper, colorOf(rootCanal)) : null}
             </g>
           </g>
         );
@@ -797,28 +823,43 @@ function arrow(x1: number, y1: number, x2: number, y2: number, color: string): R
 /** Los 3 glifos que sí van "sobre la figura de la corona" (fractura, giroversión, erupción) —
  *  trazos finos que cruzan la corona entera, nunca un relleno: no se confunden con una cara de
  *  superficie porque no ocupan la forma de ninguna cara específica. */
-function crownOverlayGlyph(kind: ToothGlyphKind, size: number, color: string): ReactNode {
+function crownOverlayGlyph(kind: ToothGlyphKind, size: number, upper: boolean, color: string): ReactNode {
   const c = size / 2;
   switch (kind) {
     case "crownFracture":
       // 6.1.10: línea representando la fractura sobre la corona y/o la raíz.
       return <line key="glyph" x1={size * 0.2} y1={size * 0.15} x2={size * 0.8} y2={size * 0.85} stroke={color} strokeWidth={2} pointerEvents="none" />;
-    case "crownGiroversion":
-      // 6.1.13: flecha curva a nivel de la zona oclusal.
+    case "crownGiroversion": {
+      // 6.1.13: "flecha curva a nivel de la zona oclusal". En la figura de la norma (vista lateral) es un arco
+      // horizontal suave que va de un lado al otro de la pieza y sube al final. El gráfico ve la corona desde
+      // oclusal y no tiene lugar fuera de ella (las filas vecinas están pegadas): el arco cruza la corona por la
+      // cara central, que es la zona oclusal. La punta sigue la tangente final de la curva.
+      const from: [number, number] = [size * 0.12, c];
+      const ctrl: [number, number] = [size * 0.5, c + size * 0.3];
+      const to: [number, number] = [size * 0.86, c - size * 0.1];
       return (
-        <g key="glyph" pointerEvents="none">
-          <path d={`M ${c - 10} ${c + 6} A 12 12 0 1 1 ${c + 6} ${c - 10}`} fill="none" stroke={color} strokeWidth={2} />
-          <polyline points={`${c + 2},${c - 14} ${c + 6},${c - 10} ${c + 1},${c - 6}`} fill="none" stroke={color} strokeWidth={2} />
+        <g key="glyph" pointerEvents="none" data-testid="giroversion-arrow">
+          <path d={`M ${from[0]} ${from[1]} Q ${ctrl[0]} ${ctrl[1]} ${to[0]} ${to[1]}`} fill="none" stroke={color} strokeWidth={2} strokeLinecap="round" />
+          {arrowHead(ctrl, to, color)}
         </g>
       );
-    case "crownEruption":
-      // 6.1.23: flecha en zigzag dirigida hacia el plano oclusal (hacia el centro).
+    }
+    case "crownEruption": {
+      // 5.2.23 (6.1.23): flecha en zigzag "dirigida hacia el plano oclusal". El plano oclusal mira hacia la otra
+      // arcada: en las piezas superiores la flecha baja, en las inferiores sube. Nace en el borde del lado de la raíz.
+      // Se arma para una inferior (raíz abajo, punta arriba) y se refleja en las superiores.
+      const fy = (t: number) => (upper ? size * (1 - t) : size * t);
+      const zig: [number, number][] = [0.9, 0.74, 0.58, 0.42, 0.26].map((t, i) => [c + (i % 2 === 0 ? -6 : 6), fy(t)]);
+      const tip: [number, number] = [c + 6, fy(0.1)];
+      // La punta sigue la dirección de la última línea: se calcula desde el último vértice real del zigzag.
+      const last = zig[zig.length - 1];
       return (
-        <g key="glyph" pointerEvents="none" stroke={color} strokeWidth={2} fill="none">
-          <polyline points={`${c - 6},${size - 8} ${c + 6},${size - 18} ${c - 6},${size - 28} ${c},${8}`} />
-          <polyline points={`${c - 4},${13} ${c},${8} ${c + 4},${13}`} />
+        <g key="glyph" pointerEvents="none" data-testid="eruption-arrow">
+          <polyline points={[...zig, tip].map(([x, y]) => `${x},${y}`).join(" ")} fill="none" stroke={color} strokeWidth={2} strokeLinejoin="round" />
+          {arrowHead(last, tip, color)}
         </g>
       );
+    }
     default:
       return null;
   }
@@ -1071,6 +1112,7 @@ const BETWEEN_GLYPH: Record<string, BetweenGlyphKind> = {
 function betweenMarker(
   f: DentalChartFindingResponse,
   toothCenters: Map<number, { cx: number; cy: number }>,
+  numberCenters: Map<number, { cx: number; cy: number }>,
   colorOf: (f: DentalChartFindingResponse) => string,
   siglaOfFinding: (f: DentalChartFindingResponse) => string,
 ) {
@@ -1093,17 +1135,9 @@ function betweenMarker(
           <path d={`M ${cx + 6} ${cy - 8} Q ${cx + 1} ${cy} ${cx + 6} ${cy + 8}`} />
         </g>
       ) : kind === "doubleCircle" ? (
-        // 6.1.11: 2 circunferencias interceptadas, encerrando el número de cada pieza.
-        <g stroke={color} strokeWidth={1.5} fill="none">
-          <circle cx={a.cx} cy={a.cy} r={12} />
-          <circle cx={b.cx} cy={b.cy} r={12} />
-        </g>
+        fusionRings(f, numberCenters, color)
       ) : kind === "crossedArrows" ? (
-        // 6.1.38: 2 flechas curvas entrecruzadas, a la altura de los números.
-        <g stroke={color} strokeWidth={2} fill="none">
-          <path d={`M ${a.cx - 6} ${a.cy + 6} Q ${cx} ${cy - 10} ${b.cx + 6} ${b.cy + 6}`} />
-          <path d={`M ${a.cx - 6} ${a.cy - 6} Q ${cx} ${cy + 10} ${b.cx + 6} ${b.cy - 6}`} />
-        </g>
+        crossedArrows(f, numberCenters, color)
       ) : (
         <>
           <circle cx={cx} cy={cy} r={10} fill={PAPER} stroke={color} strokeWidth={2} />
@@ -1132,4 +1166,126 @@ function zoneProps(responds: boolean, inert: boolean): { tabIndex: number; "aria
 /** Opacidad de una zona en el modo ubicar: atenuada si no responde. */
 function dimmed(responds: boolean, inert: boolean): number | undefined {
   return inert && !responds ? 0.3 : undefined;
+}
+
+/**
+ * 6.1.37 Tratamiento de conducto: "una línea recta vertical de color azul si se encuentra en buen estado; de no ser
+ * así, se pinta de color rojo". En la figura de la norma la línea nace en el centro de la corona y sigue hacia la raíz.
+ * El gráfico no dibuja raíces: la línea va del centro de la corona a su borde del lado de la raíz (arriba en las filas
+ * superiores, abajo en las inferiores).
+ */
+function rootCanalLine(size: number, upper: boolean, color: string): ReactNode {
+  const cx = size / 2;
+  return (
+    <line
+      data-testid="root-canal-line"
+      x1={cx}
+      y1={size / 2}
+      x2={cx}
+      y2={upper ? 0 : size}
+      stroke={color}
+      strokeWidth={2.5}
+      strokeLinecap="round"
+      pointerEvents="none"
+    />
+  );
+}
+
+/**
+ * 6.1.38 Transposición dentaria: "dos flechas curvas de color azul entrecruzadas, a la altura de los números de las
+ * piezas dentarias". Una va de la pieza A a la B y la otra de la B a la A, cada una con su punta; se cruzan entre los
+ * dos números sin taparlos. No capturan el puntero: el espacio entre piezas sigue respondiendo debajo.
+ */
+function crossedArrows(
+  f: DentalChartFindingResponse,
+  numberCenters: Map<number, { cx: number; cy: number }>,
+  color: string,
+): ReactNode {
+  const na = f.location?.toothA != null ? numberCenters.get(f.location.toothA) : undefined;
+  const nb = f.location?.toothB != null ? numberCenters.get(f.location.toothB) : undefined;
+  if (!na || !nb) return null;
+  const [left, right] = na.cx <= nb.cx ? [na, nb] : [nb, na];
+  const y = (left.cy + right.cy) / 2;
+  const mid = (left.cx + right.cx) / 2;
+  const x1 = left.cx + 11; // justo después del número de la izquierda
+  const x2 = right.cx - 11; // justo antes del de la derecha
+  // Una baja y la otra sube: se cruzan dos veces entre los números, dentro de la franja de los números.
+  const toRight = { from: [x1, y - 5], ctrl: [mid, y + 12], to: [x2, y - 5] } as const;
+  const toLeft = { from: [x2, y + 5], ctrl: [mid, y - 12], to: [x1, y + 5] } as const;
+  return (
+    <g stroke={color} fill="none" strokeWidth={2} pointerEvents="none" data-testid="transposition-arrows">
+      {[toRight, toLeft].map((arrow, i) => (
+        <g key={i}>
+          <path d={`M ${arrow.from[0]} ${arrow.from[1]} Q ${arrow.ctrl[0]} ${arrow.ctrl[1]} ${arrow.to[0]} ${arrow.to[1]}`} />
+          {arrowHead(arrow.ctrl, arrow.to, color)}
+        </g>
+      ))}
+    </g>
+  );
+}
+
+/** Punta de flecha al final de una curva cuadrática: sigue la tangente final (del punto de control al extremo). */
+function arrowHead(ctrl: readonly [number, number], tip: readonly [number, number], color: string): ReactNode {
+  const angle = Math.atan2(tip[1] - ctrl[1], tip[0] - ctrl[0]);
+  const len = 7.5;
+  const spread = Math.PI / 6;
+  const p1 = [tip[0] - len * Math.cos(angle - spread), tip[1] - len * Math.sin(angle - spread)];
+  const p2 = [tip[0] - len * Math.cos(angle + spread), tip[1] - len * Math.sin(angle + spread)];
+  return (
+    <polygon
+      data-testid="arrow-head"
+      points={`${tip[0]},${tip[1]} ${p1[0].toFixed(1)},${p1[1].toFixed(1)} ${p2[0].toFixed(1)},${p2[1].toFixed(1)}`}
+      fill={color}
+      stroke="none"
+    />
+  );
+}
+
+/**
+ * 6.1.11 Fusión: "2 circunferencias interceptadas de color azul, encerrando los números que corresponden a las piezas".
+ * Los números de dos piezas vecinas están a un paso de columna (~68): dos círculos que los encierren y se corten
+ * necesitarían más de 34 de radio y taparían coronas y recuadros. Se usan elipses horizontales, una por número (como la
+ * geminación, 6.1.12), lo bastante anchas para cortarse en el medio y lo bastante bajas para quedar en la franja de los
+ * números.
+ */
+function fusionRings(
+  f: DentalChartFindingResponse,
+  numberCenters: Map<number, { cx: number; cy: number }>,
+  color: string,
+): ReactNode {
+  const na = f.location?.toothA != null ? numberCenters.get(f.location.toothA) : undefined;
+  const nb = f.location?.toothB != null ? numberCenters.get(f.location.toothB) : undefined;
+  if (!na || !nb) return null;
+  const rx = Math.abs(nb.cx - na.cx) / 2 + 8; // pasa la mitad: las dos elipses se cortan entre los números
+  const ry = NUM_H / 2 + 2;
+  return (
+    <g stroke={color} strokeWidth={1.5} fill="none" pointerEvents="none" data-testid="fusion-rings">
+      <ellipse cx={na.cx} cy={na.cy} rx={rx} ry={ry} />
+      <ellipse cx={nb.cx} cy={nb.cy} rx={rx} ry={ry} />
+    </g>
+  );
+}
+
+/**
+ * 6.1.27 Pulpotomía: "se dibuja la representación de la pulpa dentaria coronal de color azul si se encuentra en buen
+ * estado; de no ser así, se pinta de color rojo". En la figura de la norma es un rectángulo relleno dentro de la cara
+ * central, con margen respecto de sus bordes. El margen y la sigla PP la distinguen de un hallazgo de la cara oclusal o
+ * incisal, que pinta la cara entera. No captura el puntero: la cara de abajo sigue respondiendo.
+ */
+function pulpChamber(slots: Slot[], color: string): ReactNode {
+  const center = slots[slots.length - 1]; // la cara central (oclusal o incisal) es la última de crownSlots
+  const pts = center.points.split(" ").map((p) => p.split(",").map(Number));
+  const xs = pts.map(([x]) => x);
+  const ys = pts.map(([, y]) => y);
+  const w = Math.max(...xs) - Math.min(...xs);
+  const h = Math.max(...ys) - Math.min(...ys);
+  // En las anteriores la cara central (incisal) es una franja baja: el margen vertical escala con ella.
+  const insetX = 3;
+  const insetY = Math.min(3, h * 0.15);
+  const x = Math.min(...xs) + insetX;
+  const y = Math.min(...ys) + insetY;
+  const width = w - insetX * 2;
+  const height = h - insetY * 2;
+  if (width <= 0 || height <= 0) return null;
+  return <rect data-testid="pulp-chamber" x={x} y={y} width={width} height={height} rx={1.5} fill={color} pointerEvents="none" />;
 }

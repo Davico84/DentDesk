@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { describe, it, expect, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { DentalChartFindingResponse, DentalFindingCatalogEntryResponse } from "@/modules/core/services/generated/model";
 import { BLUE, RED } from "@/modules/dental-chart/utils/findingColor";
@@ -42,6 +42,11 @@ const CATALOG: DentalFindingCatalogEntryResponse[] = [
   { type: "APARATO_ORTODONTICO_FIJO", subtype: "", acronym: undefined, scope: "TOOTH_RANGE", colorBehavior: "SEGUN_ESTADO", requiresGrade: false, requiresSpecification: false },
   { type: "PROTESIS_PARCIAL_REMOVIBLE", subtype: "", acronym: undefined, scope: "TOOTH_RANGE", colorBehavior: "SEGUN_ESTADO", requiresGrade: false, requiresSpecification: false },
   { type: "GIROVERSION", subtype: "", acronym: undefined, scope: "TOOTH", colorBehavior: "SIEMPRE_AZUL", requiresGrade: false, requiresSpecification: false },
+  { type: "PIEZA_EN_ERUPCION", subtype: "", acronym: undefined, scope: "TOOTH", colorBehavior: "SIEMPRE_AZUL", requiresGrade: false, requiresSpecification: false },
+  { type: "PULPOTOMIA", subtype: "", acronym: "PP", scope: "TOOTH", colorBehavior: "SEGUN_ESTADO", requiresGrade: false, requiresSpecification: false },
+  { type: "FUSION", subtype: "", acronym: undefined, scope: "BETWEEN_TEETH", colorBehavior: "SIEMPRE_AZUL", requiresGrade: false, requiresSpecification: false },
+  { type: "TRANSPOSICION_DENTARIA", subtype: "", acronym: undefined, scope: "BETWEEN_TEETH", colorBehavior: "SIEMPRE_AZUL", requiresGrade: false, requiresSpecification: false },
+  { type: "TRATAMIENTO_CONDUCTO", subtype: "TC", acronym: "TC", scope: "TOOTH", colorBehavior: "SEGUN_ESTADO", requiresGrade: false, requiresSpecification: false },
 ];
 
 const FINDINGS: DentalChartFindingResponse[] = [
@@ -680,13 +685,135 @@ describe("Odontogram", () => {
     expect(siglas.map((t) => t.getAttribute("fill")).sort()).toEqual([BLUE, RED].sort());
   });
 
+  it("tratamiento de conducto (6.1.37): sigla TC y línea vertical desde el centro hacia la raíz, del color de su estado", () => {
+    const lowerGood: DentalChartFindingResponse = { id: 60, blockId: 1, type: "TRATAMIENTO_CONDUCTO", subtype: "TC", condition: "GOOD", location: { locationKind: "TOOTH", toothA: 36 } };
+    const upperPoor: DentalChartFindingResponse = { id: 61, blockId: 1, type: "TRATAMIENTO_CONDUCTO", subtype: "TC", condition: "POOR", location: { locationKind: "TOOTH", toothA: 16 } };
+    const { container } = render(<Odontogram findings={[lowerGood, upperPoor]} catalog={CATALOG} />);
+
+    const lines = screen.getAllByTestId("root-canal-line");
+    expect(lines).toHaveLength(2);
+    const byColor = (color: string) => lines.find((l) => l.getAttribute("stroke") === color)!;
+    // Pieza inferior (36), buen estado: azul, del centro hacia abajo (la raíz).
+    const blue = byColor(BLUE);
+    expect(Number(blue.getAttribute("y2"))).toBeGreaterThan(Number(blue.getAttribute("y1")));
+    // Pieza superior (16), mal estado: roja, del centro hacia arriba.
+    const red = byColor(RED);
+    expect(Number(red.getAttribute("y2"))).toBeLessThan(Number(red.getAttribute("y1")));
+    expect(blue.getAttribute("x1")).toBe(blue.getAttribute("x2"));
+    // La sigla sigue en el recuadro, con el mismo color.
+    const siglas = Array.from(container.querySelectorAll("text")).filter((t) => t.textContent === "TC");
+    expect(siglas.map((t) => t.getAttribute("fill")).sort()).toEqual([BLUE, RED].sort());
+  });
+
+  it("giroversión (6.1.13): arco horizontal que cruza la corona por la zona oclusal, con la punta en la dirección de la curva", () => {
+    const g: DentalChartFindingResponse = { id: 68, blockId: 1, type: "GIROVERSION", subtype: "", location: { locationKind: "TOOTH", toothA: 44 } };
+    render(<Odontogram findings={[g]} catalog={CATALOG} />);
+
+    const arrow = screen.getByTestId("giroversion-arrow");
+    const [x1, , cx, cy, x2, y2] = arrow.querySelector("path")!.getAttribute("d")!.match(/-?\d+(\.\d+)?/g)!.map(Number);
+    expect(x2 - x1).toBeGreaterThan(30); // horizontal: cruza casi todo el ancho de la corona
+    const head = within(arrow).getByTestId("arrow-head").getAttribute("points")!.split(" ").map((p) => p.split(",").map(Number));
+    const base = [(head[1][0] + head[2][0]) / 2, (head[1][1] + head[2][1]) / 2];
+    const headAngle = Math.atan2(head[0][1] - base[1], head[0][0] - base[0]);
+    expect(Math.abs(headAngle - Math.atan2(y2 - cy, x2 - cx))).toBeLessThan(0.01);
+  });
+
+  it("pieza en erupción (5.2.23): el zigzag apunta al plano oclusal — baja en una superior y sube en una inferior", () => {
+    const upper: DentalChartFindingResponse = { id: 66, blockId: 1, type: "PIEZA_EN_ERUPCION", subtype: "", location: { locationKind: "TOOTH", toothA: 24 } };
+    const lower: DentalChartFindingResponse = { id: 67, blockId: 1, type: "PIEZA_EN_ERUPCION", subtype: "", location: { locationKind: "TOOTH", toothA: 34 } };
+    render(<Odontogram findings={[upper, lower]} catalog={CATALOG} />);
+
+    // Cada flecha se dibuja dentro del grupo de su pieza: la punta es el último punto del zigzag.
+    const direction = (arrow: Element) => {
+      const pts = arrow.querySelector("polyline")!.getAttribute("points")!.split(" ").map((p) => Number(p.split(",")[1]));
+      return pts[pts.length - 1] - pts[0]; // > 0: baja; < 0: sube
+    };
+    const arrows = screen.getAllByTestId("eruption-arrow");
+    expect(arrows).toHaveLength(2);
+    const byTooth = (fdi: number) => arrows.find((a) => a.closest("g[transform^='translate']")?.parentElement?.querySelector(`[aria-label^="Pieza ${fdi},"]`))!;
+    expect(direction(byTooth(24))).toBeGreaterThan(0);
+    expect(direction(byTooth(34))).toBeLessThan(0);
+    arrows.forEach((a) => {
+      expect(within(a).getByTestId("arrow-head")).toHaveAttribute("fill", BLUE);
+      // La punta sigue la dirección de la última línea del zigzag.
+      const pts = a.querySelector("polyline")!.getAttribute("points")!.split(" ").map((p) => p.split(",").map(Number));
+      const [from, tip] = pts.slice(-2);
+      const line = Math.atan2(tip[1] - from[1], tip[0] - from[0]);
+      const head = within(a).getByTestId("arrow-head").getAttribute("points")!.split(" ").map((p) => p.split(",").map(Number));
+      const base = [(head[1][0] + head[2][0]) / 2, (head[1][1] + head[2][1]) / 2];
+      const headAngle = Math.atan2(head[0][1] - base[1], head[0][0] - base[0]);
+      expect(Math.abs(headAngle - line)).toBeLessThan(0.01);
+    });
+  });
+
+  it("pulpotomía (6.1.27): sigla PP y la pulpa coronal pintada dentro de la cara central, del color de su estado", () => {
+    const good: DentalChartFindingResponse = { id: 64, blockId: 1, type: "PULPOTOMIA", subtype: "", condition: "GOOD", location: { locationKind: "TOOTH", toothA: 64 } };
+    const poor: DentalChartFindingResponse = { id: 65, blockId: 1, type: "PULPOTOMIA", subtype: "", condition: "POOR", location: { locationKind: "TOOTH", toothA: 36 } };
+    const { container } = render(<Odontogram findings={[good, poor]} catalog={CATALOG} />);
+
+    const pulps = screen.getAllByTestId("pulp-chamber");
+    expect(pulps.map((p) => p.getAttribute("fill")).sort()).toEqual([BLUE, RED].sort());
+    // Dentro de la cara central, con margen: no la cubre entera (eso sería un hallazgo de la cara oclusal).
+    const central = screen.getByRole("button", { name: "Pieza 36, superficie oclusal, sin hallazgos" });
+    const xs = central.getAttribute("points")!.split(" ").map((p) => Number(p.split(",")[0]));
+    const pulp36 = pulps.find((p) => p.getAttribute("fill") === RED)!;
+    expect(Number(pulp36.getAttribute("x"))).toBeGreaterThan(Math.min(...xs));
+    expect(Number(pulp36.getAttribute("x")) + Number(pulp36.getAttribute("width"))).toBeLessThan(Math.max(...xs));
+    const siglas = Array.from(container.querySelectorAll("text")).filter((t) => t.textContent === "PP");
+    expect(siglas).toHaveLength(2);
+  });
+
+  it("fusión (6.1.11): dos elipses azules que encierran los números de las dos piezas y se cortan entre ellos", () => {
+    const fusion: DentalChartFindingResponse = { id: 63, blockId: 1, type: "FUSION", subtype: "", location: { locationKind: "BETWEEN_TEETH", toothA: 31, toothB: 32 } };
+    render(<Odontogram findings={[fusion]} catalog={CATALOG} />);
+
+    const rings = screen.getByTestId("fusion-rings");
+    expect(rings).toHaveAttribute("stroke", BLUE);
+    const [r1, r2] = Array.from(rings.querySelectorAll("ellipse")).map((e) => ({
+      cx: Number(e.getAttribute("cx")),
+      cy: Number(e.getAttribute("cy")),
+      rx: Number(e.getAttribute("rx")),
+    }));
+    // Se cortan: la suma de los semiejes supera la distancia entre centros.
+    expect(r1.rx + r2.rx).toBeGreaterThan(Math.abs(r2.cx - r1.cx));
+    // Cada una va centrada en su número (no en la corona).
+    const numberY = (fdi: number) => {
+      const g = screen.getByRole("button", { name: `Pieza ${fdi}, sin hallazgos` });
+      const rowY = Number(g.parentElement!.getAttribute("transform")!.match(/translate\([^,]+,\s*([-\d.]+)\)/)![1]);
+      return rowY + Number(g.querySelector("text")!.getAttribute("y"));
+    };
+    expect(Math.abs(r1.cy - numberY(31))).toBeLessThan(8);
+    expect(Math.abs(r2.cy - numberY(32))).toBeLessThan(8);
+  });
+
+  it("transposición (6.1.38): dos flechas azules con punta, entrecruzadas a la altura de los números", () => {
+    const transposition: DentalChartFindingResponse = { id: 62, blockId: 1, type: "TRANSPOSICION_DENTARIA", subtype: "", location: { locationKind: "BETWEEN_TEETH", toothA: 13, toothB: 14 } };
+    render(<Odontogram findings={[transposition]} catalog={CATALOG} />);
+
+    const arrows = screen.getByTestId("transposition-arrows");
+    expect(arrows).toHaveAttribute("stroke", BLUE);
+    const heads = within(arrows).getAllByTestId("arrow-head");
+    expect(heads).toHaveLength(2);
+    heads.forEach((h) => expect(h).toHaveAttribute("fill", BLUE));
+    // A la altura de los números: cada extremo de las curvas cae dentro de la franja del número (no en la corona).
+    // El número se dibuja dentro del grupo de su pieza, desplazado con translate(x, y): se pasa a coordenadas absolutas.
+    const toothNumber = screen.getByRole("button", { name: "Pieza 13, sin hallazgos" });
+    const rowOffsetY = Number(toothNumber.parentElement!.getAttribute("transform")!.match(/translate\([^,]+,\s*([-\d.]+)\)/)![1]);
+    const numberY = rowOffsetY + Number(toothNumber.querySelector("text")!.getAttribute("y"));
+    const ys = Array.from(arrows.querySelectorAll("path")).flatMap((p) => {
+      const nums = p.getAttribute("d")!.match(/-?\d+(\.\d+)?/g)!.map(Number);
+      return [nums[1], nums[5]];
+    });
+    ys.forEach((y) => expect(Math.abs(y - numberY)).toBeLessThan(15));
+  });
+
   it("la giroversión sigue azul junto a una caries en la misma pieza (el color no se contagia)", () => {
     const giroversion: DentalChartFindingResponse = { id: 52, blockId: 1, type: "GIROVERSION", subtype: "", location: { locationKind: "TOOTH", toothA: 21 } };
     const caries: DentalChartFindingResponse = { id: 53, blockId: 1, type: "LESION_CARIES", subtype: "CD", location: { locationKind: "SURFACE", toothA: 21, surface: "INCISAL" } };
-    const { container } = render(<Odontogram findings={[giroversion, caries]} catalog={CATALOG} />);
+    render(<Odontogram findings={[giroversion, caries]} catalog={CATALOG} />);
 
     // Flecha curva de la giroversión (6.1.13): azul.
-    const arrow = container.querySelector('path[d*="A 12 12"]');
+    const arrow = screen.getByTestId("giroversion-arrow").querySelector("path");
     expect(arrow?.getAttribute("stroke")).toBe(BLUE);
     // La superficie con caries de la MISMA pieza: roja.
     // (el botón de la superficie ES el polígono de la cara).

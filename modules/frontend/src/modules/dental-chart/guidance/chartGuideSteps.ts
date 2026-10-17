@@ -38,7 +38,7 @@ const LOCATION_STEPS: { scope: FindingScope; anchor: ChartGuideAnchor; title: st
     scope: "SURFACE",
     anchor: CHART_GUIDE_ANCHOR.toothSurface,
     title: SCOPE_TITLE.SURFACE,
-    body: `Toca una de las caras de la corona (por ejemplo, la central de la ${GUIDE_TOOTH}) para lo que afecta solo esa superficie.`,
+    body: `Cada pieza tiene 5 caras: la central (oclusal o incisal) y las 4 de alrededor (vestibular, palatina o lingual, mesial y distal). Toca la cara afectada, por ejemplo la central de la ${GUIDE_TOOTH}. Puedes registrar hallazgos en cualquiera de las 5, y más de uno en la misma cara.`,
   },
   {
     scope: "TOOTH",

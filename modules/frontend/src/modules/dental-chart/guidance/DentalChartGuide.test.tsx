@@ -53,6 +53,17 @@ describe("Guía del odontograma", { timeout: 20_000 }, () => {
     expect(document.querySelector('[data-guide="tooth-number"]')).toHaveAttribute("aria-label", expect.stringMatching(/16/));
   });
 
+  it("el paso de caras resalta la corona entera de la pieza, con sus 5 caras", async () => {
+    server.use(...dentalChartHandlers());
+    const user = userEvent.setup();
+    renderWithProviders(<DentalChartEditor patientId={1} />);
+    await guide();
+    await user.click(screen.getByRole("button", { name: "Siguiente" }));
+    expect(screen.getByRole("dialog", { name: "Una cara de la pieza" })).toHaveTextContent("5 caras");
+    const crown = document.querySelector('[data-guide="tooth-surface"]')!;
+    expect(crown.querySelectorAll('[aria-label^="Pieza 16, superficie"]')).toHaveLength(5);
+  });
+
   it("tocar la zona resaltada no abre el registro de hallazgos", async () => {
     server.use(...dentalChartHandlers());
     const user = userEvent.setup();
