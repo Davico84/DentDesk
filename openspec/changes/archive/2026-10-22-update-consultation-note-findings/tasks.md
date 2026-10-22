@@ -16,16 +16,16 @@
 
 ## 2. Frontend — panel de hallazgos y diagnóstico propuesto
 
-- [ ] 2.1 Regenerar el cliente (orval) y hooks de React Query: marcar, desmarcar, sugerencias (con invalidación de la nota)
-- [ ] 2.2 Panel "Hallazgos del odontograma" en `OpenNoteEditor` (design D6), con estado vacío ("Sin hallazgos en el odontograma") sin romper la nota: pendientes (`findingColor === RED`) con "Atendido el …" si una nota sellada anterior los marcó, atendidos en esta consulta con "Proponer diagnóstico" y "Quitar", y "Ver los demás hallazgos" plegado
-- [ ] 2.3 Descripción del hallazgo (pieza, cara, hallazgo, subtipo, estado) con las etiquetas existentes; al marcar, se envía y se agrega como línea al **Examen** del formulario con `shouldDirty` (sellar queda bloqueado hasta guardar) (design D2, D3)
-- [ ] 2.4 `DiagnosisForm` con valores iniciales (ubicación `PIEZA`+FDI o `GENERAL` según la localización) y sugerencias como opciones rápidas encima de `Cie10SearchField`, que sigue buscando en todo el catálogo (design D5)
-- [ ] 2.5 `SealedNoteCard` muestra "Hallazgos atendidos" con las descripciones guardadas; `empty` de la nota cuenta los hallazgos atendidos (design D7)
-- [ ] 2.6 Tests (Vitest/MSW) de cada Scenario: pendientes primero y demás plegados, "Atendido el …", marcar agrega la línea al examen, quitar, propuesta con la pieza y la sugerencia `K021`, hallazgo entre piezas → general, sin sugerencia → buscador, elegir otro código del buscador, cerrar sin confirmar no registra, nota sellada con descripciones, nota con hallazgos no ofrece descartar
-- [ ] 2.7 e2e: el panel a 375 y 1280 px sin desplazamiento lateral
+- [x] 2.1 Regenerar el cliente (orval) y hooks de React Query: marcar, desmarcar, sugerencias (con invalidación de la nota)
+- [x] 2.2 Panel "Hallazgos del odontograma" en `OpenNoteEditor` (design D6), con estado vacío ("Sin hallazgos en el odontograma") sin romper la nota: pendientes (`findingColor === RED`) con "Atendido el …" si una nota sellada anterior los marcó, atendidos en esta consulta con "Proponer diagnóstico" y "Quitar", y "Ver los demás hallazgos" plegado
+- [x] 2.3 Descripción del hallazgo (pieza, cara, hallazgo, subtipo, estado) con las etiquetas existentes; al marcar, se envía y se agrega como línea al **Examen** del formulario con `shouldDirty` (sellar queda bloqueado hasta guardar) (design D2, D3)
+- [x] 2.4 `DiagnosisForm` con valores iniciales (ubicación `PIEZA`+FDI o `GENERAL` según la localización) y sugerencias como opciones rápidas encima de `Cie10SearchField`, que sigue buscando en todo el catálogo (design D5)
+- [x] 2.5 `SealedNoteCard` muestra "Hallazgos atendidos" con las descripciones guardadas; `empty` de la nota cuenta los hallazgos atendidos (design D7)
+- [x] 2.6 Tests (Vitest/MSW) de cada Scenario: pendientes primero y demás plegados, "Atendido el …", marcar agrega la línea al examen, quitar, propuesta con la pieza y la sugerencia `K021`, hallazgo entre piezas → general, sin sugerencia → buscador, elegir otro código del buscador, cerrar sin confirmar no registra, nota sellada con descripciones, nota con hallazgos no ofrece descartar
+- [x] 2.7 e2e: el panel a 375 y 1280 px sin desplazamiento lateral
 
 ## 3. Cierre
 
-- [ ] 3.1 `pnpm validate` (con `--maxWorkers=8` en local) y `mvn verify` verdes; captura para el usuario antes de commitear; prueba manual en local
-- [ ] 3.2 `openspec validate update-consultation-note-findings --strict` y medir a mano los requirements (incluido el MODIFIED) ≤ 500 caracteres
+- [x] 3.1 `pnpm validate` (con `--maxWorkers=8` en local) y `mvn verify` verdes; captura para el usuario antes de commitear; prueba manual en local
+- [x] 3.2 `openspec validate update-consultation-note-findings --strict` y medir a mano los requirements (incluido el MODIFIED) ≤ 500 caracteres
 - [ ] 3.3 Al archivar: `docs/domain.md` (la nota referencia hallazgos del odontograma) y `docs/vision.md` (marcar construido)
