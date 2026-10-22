@@ -28,6 +28,20 @@ export const NOTE_TEXT_FIELDS = [
 
 export type NoteTextKey = (typeof NOTE_TEXT_FIELDS)[number]["key"];
 
+/** Campos de texto que el sellado no exige (spec: <i>Contenido mínimo de la nota de consulta</i>): van plegados. */
+export const OPTIONAL_TEXT_KEYS: NoteTextKey[] = [
+  "illnessDuration",
+  "symptomsAndSigns",
+  "previousTreatment",
+  "biologicalFunctions",
+  "auxiliaryExams",
+  "referral",
+];
+
+export function labelOfField(key: NoteTextKey): string {
+  return NOTE_TEXT_FIELDS.find((f) => f.key === key)?.label ?? key;
+}
+
 /** Lo que exige el sellado, con los nombres que devuelve el servidor en `missingFields`. */
 export const NOTE_CHECKLIST_LABELS: Record<NoteChecklistField, string> = {
   reason: "Motivo de consulta",

@@ -12,7 +12,8 @@ import type {
   DiagnosisRequest,
   DiagnosisResponse,
   EnablementResponse,
-  Search1Params
+  Search1Params,
+  SuggestionsParams
 } from './model';
 
 import { customInstance } from '../../config/httpClient';
@@ -104,6 +105,15 @@ import { customInstance } from '../../config/httpClient';
     },
       );
     }
+  export const suggestions = (
+    params: SuggestionsParams,
+ ) => {
+      return customInstance<Cie10SearchResultResponse[]>(
+      {url: `/cie10/suggestions`, method: 'GET',
+        params
+    },
+      );
+    }
   export type GetResult = NonNullable<Awaited<ReturnType<typeof get>>>
 export type UpdateResult = NonNullable<Awaited<ReturnType<typeof update>>>
 export type CreateResult = NonNullable<Awaited<ReturnType<typeof create>>>
@@ -113,3 +123,4 @@ export type AddDiagnosisResult = NonNullable<Awaited<ReturnType<typeof addDiagno
 export type CompleteResult = NonNullable<Awaited<ReturnType<typeof complete>>>
 export type EnablementResult = NonNullable<Awaited<ReturnType<typeof enablement>>>
 export type Search1Result = NonNullable<Awaited<ReturnType<typeof search1>>>
+export type SuggestionsResult = NonNullable<Awaited<ReturnType<typeof suggestions>>>

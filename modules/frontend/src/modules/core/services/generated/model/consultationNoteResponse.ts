@@ -9,6 +9,7 @@ import type { ConsultationNoteResponseStatus } from './consultationNoteResponseS
 import type { NoteDiagnosisResponse } from './noteDiagnosisResponse';
 import type { BackgroundEntryResponse } from './backgroundEntryResponse';
 import type { CorrectionResponse } from './correctionResponse';
+import type { NoteFindingResponse } from './noteFindingResponse';
 
 export interface ConsultationNoteResponse {
   id?: number;
@@ -35,4 +36,6 @@ export interface ConsultationNoteResponse {
   diagnoses?: NoteDiagnosisResponse[];
   backgroundEntries?: BackgroundEntryResponse[];
   corrections?: CorrectionResponse[];
+  /** Hallazgos del odontograma atendidos en esta consulta. */
+  attendedFindings?: NoteFindingResponse[];
 }

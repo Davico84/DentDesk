@@ -4,7 +4,11 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { Plus, Loader2 } from "lucide-react";
 import { Button } from "@/modules/core/ui/button";
 import { FormField, SelectField } from "@/modules/core/ui/form-field";
-import { DiagnosisRequestUbicacion, type DiagnosisRequest } from "@/modules/core/services/generated/model";
+import {
+  DiagnosisRequestUbicacion,
+  type Cie10SearchResultResponse,
+  type DiagnosisRequest,
+} from "@/modules/core/services/generated/model";
 import {
   diagnosisSchema,
   diagnosisDefaults,
@@ -17,13 +21,21 @@ import { ubicacionOptions, tipoDiagnosticoOptions } from "./diagnosisOptions";
 /**
  * Agrega un diagnóstico CIE10 (spec: diagnóstico CIE10). No sabe a qué documento: la Historia en
  * DRAFT o una nota de consulta abierta le pasan su propia mutación (`update-clinical-history`).
+ *
+ * Propuesto desde un hallazgo del odontograma (`update-consultation-note-findings` D5) llega con la
+ * ubicación ya cargada (`initial`) y, si el hallazgo las tiene, con códigos sugeridos que se eligen
+ * igual que un resultado del buscador — que sigue disponible siempre. Nada se registra sin "Agregar".
  */
 export function DiagnosisForm({
   onAdd,
   pending,
+  initial,
+  suggestions = [],
 }: {
   onAdd: (request: DiagnosisRequest, onSuccess: () => void) => void;
   pending: boolean;
+  initial?: Partial<DiagnosisValues>;
+  suggestions?: Cie10SearchResultResponse[];
 }) {
   const [cie10Description, setCie10Description] = useState<string>();
 
@@ -37,7 +49,7 @@ export function DiagnosisForm({
   } = useForm<DiagnosisValues>({
     resolver: zodResolver(diagnosisSchema),
     mode: "onTouched",
-    defaultValues: diagnosisDefaults(),
+    defaultValues: { ...diagnosisDefaults(), ...initial },
   });
 
   const ubicacion = useWatch({ control, name: "ubicacion" });
@@ -52,6 +64,31 @@ export function DiagnosisForm({
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="grid gap-4 sm:grid-cols-2" noValidate>
+      {suggestions.length > 0 && !cie10Code ? (
+        <div className="flex flex-col gap-1.5 sm:col-span-2">
+          <p className="text-xs font-medium text-muted-foreground">Sugeridos para este hallazgo</p>
+          <ul className="flex flex-wrap gap-2" aria-label="Códigos sugeridos">
+            {suggestions.map((s) => (
+              <li key={s.code}>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="h-auto rounded-xl py-1.5 text-left"
+                  onClick={() => {
+                    setValue("cie10Code", s.code ?? "", { shouldValidate: true });
+                    setCie10Description(s.descripcion);
+                  }}
+                >
+                  <span className="font-semibold">{s.code}</span>
+                  <span className="ml-1.5 font-normal text-muted-foreground">{s.descripcion}</span>
+                </Button>
+              </li>
+            ))}
+          </ul>
+          <p className="text-xs text-muted-foreground">O busca cualquier otro código del catálogo:</p>
+        </div>
+      ) : null}
       <Cie10SearchField
         selectedCode={cie10Code || undefined}
         selectedDescription={cie10Description}

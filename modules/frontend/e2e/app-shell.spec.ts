@@ -290,3 +290,34 @@ test.describe("guía del odontograma", () => {
     });
   }
 });
+
+// update-consultation-note-findings: el panel de hallazgos de la nota abierta, con un pendiente rojo, cabe a cualquier
+// ancho. Las rutas se agregan después de mockApi: Playwright usa la última que coincide.
+for (const width of [375, 1280]) {
+  test(`a ${width} px el panel de hallazgos de la nota cabe sin desplazar la página de costado`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 900 });
+    await mockApi(page, { authed: true, preset: null });
+    const json = (body: unknown) => ({ status: 200, contentType: "application/json", body: JSON.stringify(body) });
+    await page.route("**/patients/1/dental-chart", (route) =>
+      route.fulfill(json({
+        ...CHART,
+        findings: [
+          ...CHART.findings,
+          { id: 3, blockId: 1, type: "LESION_CARIES", subtype: "CD", location: { locationKind: "SURFACE", toothA: 46, surface: "OCLUSAL" } },
+        ],
+      })),
+    );
+    await page.route("**/dental-chart/catalog", (route) =>
+      route.fulfill(json([...CATALOG, { type: "LESION_CARIES", subtype: "CD", acronym: "CD", scope: "SURFACE", colorBehavior: "SIEMPRE_ROJO", requiresGrade: false, requiresSpecification: false }])),
+    );
+    await page.goto("/patients/1/consultations");
+
+    const pending = page.getByRole("list", { name: "Hallazgos pendientes" });
+    await expect(pending).toContainText("Pieza 46, cara oclusal");
+    await page.getByRole("button", { name: /Ver los demás hallazgos/ }).click();
+    await expect(page.getByRole("list", { name: "Otros hallazgos del odontograma" })).toBeVisible();
+
+    const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+    expect(overflow, `se desplaza ${overflow} px de costado`).toBeLessThanOrEqual(0);
+  });
+}

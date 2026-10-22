@@ -86,16 +86,25 @@ export function TextareaField<T extends FieldValues>({
   hint,
   wide,
   rows = 3,
-}: BaseProps<T> & { placeholder?: string; rows?: number }) {
+  required = false,
+  autoGrow = false,
+}: BaseProps<T> & {
+  placeholder?: string;
+  rows?: number;
+  /** Solo marca el campo con `*`: la obligatoriedad la decide el schema o el servidor. */
+  required?: boolean;
+  /** Crece con el texto (CSS `field-sizing`; donde no hay soporte, queda en `rows` y se redimensiona a mano). */
+  autoGrow?: boolean;
+}) {
   const errorId = `${name}-error`;
   const hintId = `${name}-hint`;
   return (
-    <FieldShell label={label} name={name} required={false} error={error} hint={hint} wide={wide}>
+    <FieldShell label={label} name={name} required={required} error={error} hint={hint} wide={wide}>
       <textarea
         id={name}
         rows={rows}
         placeholder={placeholder}
-        className="w-full resize-y rounded-xl border border-input bg-card px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 aria-invalid:border-destructive aria-invalid:focus-visible:ring-destructive"
+        className={`${autoGrow ? "[field-sizing:content] max-h-80 " : ""}w-full resize-y rounded-xl border border-input bg-card px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 aria-invalid:border-destructive aria-invalid:focus-visible:ring-destructive`}
         aria-invalid={error ? true : undefined}
         aria-describedby={describedBy(error ? errorId : undefined, hint ? hintId : undefined)}
         {...register(name)}

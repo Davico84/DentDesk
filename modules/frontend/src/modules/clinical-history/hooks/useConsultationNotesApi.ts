@@ -4,16 +4,19 @@ import {
   addBackgroundEntry,
   addNoteCorrection,
   addNoteDiagnosis,
+  attendFinding,
   discardConsultationNote,
   getActiveBackground,
   listConsultationNotes,
   openConsultationNote,
+  removeAttendedFinding,
   removeBackgroundEntry,
   removeNoteDiagnosis,
   sealConsultationNote,
   updateConsultationNote,
 } from "@/modules/core/services/generated/consultation-notes";
 import type {
+  AttendFindingRequest,
   BackgroundEntryRequest,
   ConsultationNoteRequest,
   CorrectionRequest,
@@ -98,6 +101,15 @@ export function useAddBackgroundEntry(patientId: number, noteId: number) {
 
 export function useRemoveBackgroundEntry(patientId: number, noteId: number) {
   return useNoteMutation(patientId, (entryId: number) => removeBackgroundEntry(patientId, noteId, entryId), "Antecedente quitado");
+}
+
+/** Marca un hallazgo del odontograma como atendido en la nota abierta (update-consultation-note-findings D1). */
+export function useAttendFinding(patientId: number, noteId: number) {
+  return useNoteMutation(patientId, (data: AttendFindingRequest) => attendFinding(patientId, noteId, data), "Hallazgo marcado como atendido");
+}
+
+export function useRemoveAttendedFinding(patientId: number, noteId: number) {
+  return useNoteMutation(patientId, (noteFindingId: number) => removeAttendedFinding(patientId, noteId, noteFindingId), "Hallazgo quitado de la nota");
 }
 
 export function useAddCorrection(patientId: number, noteId: number) {
