@@ -1,4 +1,4 @@
-import { useEffect, useRef, type KeyboardEvent, type ReactNode } from "react";
+import { useEffect, useRef, useState, type KeyboardEvent, type MouseEvent, type PointerEvent, type ReactNode } from "react";
 import { ArrowLeftRight, CircleHelp, Search } from "lucide-react";
 import { Button } from "@/modules/core/ui/button";
 import type { DentalChartFindingResponse, DentalFindingCatalogEntryResponse } from "@/modules/core/services/generated/model";
@@ -9,8 +9,10 @@ import { HintTooltip } from "@/modules/core/components/HintTooltip";
 import { useHorizontalOverflow } from "@/modules/core/hooks/useHorizontalOverflow";
 import { FindingsSummary } from "./FindingsSummary";
 import { PlacementHint } from "@/modules/dental-chart/guidance/PlacementHint";
+import { ToothMagnifier, type MagnifierAllowed } from "./ToothMagnifier";
 import type { Placement } from "@/modules/dental-chart/guidance/placement";
 import type { FindingScope } from "@/modules/dental-chart/guidance/chartGuideSteps";
+import { crownSlots, SURFACE_LABEL, type Slot } from "@/modules/dental-chart/utils/toothGeometry";
 import { CHART_GUIDE_ANCHOR, GUIDE_GAP, GUIDE_TOOTH } from "@/modules/dental-chart/guidance/chartGuideAnchors";
 import {
   PAPER, INK, INK_2, INK_3, OUTLINE, DIVIDER, SELECTION, FONT_BODY, FONT_MONO,
@@ -48,57 +50,11 @@ type LocationUpdate = Partial<FindingFormValues["location"]> & {
   locationKind: FindingFormValues["location"]["locationKind"];
 };
 
-type Slot = { surface: ToothSurfaceCode; points: string };
-
-/** La corona: 5 polígonos reales (no un simple cuadrado con cruz), M siempre hacia la línea media
- *  y V siempre hacia afuera — mismo cálculo que la referencia de diseño (Celda.dc.html). */
-function crownSlots(fdi: number, size: number): { slots: Slot[]; ring: { x: number; y: number; wh: number } } {
-  const q = Math.floor(fdi / 10);
-  const upper = q === 1 || q === 2 || q === 5 || q === 6;
-  const leftHalf = q === 1 || q === 4 || q === 5 || q === 8;
-  const anterior = fdi % 10 <= 3;
-
-  const pad = 4;
-  const S = size - pad * 2;
-  const a = S * 0.28;
-  const y1 = anterior ? S / 2 - S * 0.08 : a;
-  const y2 = anterior ? S / 2 + S * 0.08 : S - a;
-
-  const raw: [number, number][][] = [
-    [[0, 0], [S, 0], [S - a, y1], [a, y1]],
-    [[S, 0], [S, S], [S - a, y2], [S - a, y1]],
-    [[a, y2], [S - a, y2], [S, S], [0, S]],
-    [[0, 0], [a, y1], [a, y2], [0, S]],
-    [[a, y1], [S - a, y1], [S - a, y2], [a, y2]],
-  ];
-  const surfaces: ToothSurfaceCode[] = [
-    upper ? "VESTIBULAR" : "LINGUAL",
-    leftHalf ? "MESIAL" : "DISTAL",
-    upper ? "PALATINO" : "VESTIBULAR",
-    leftHalf ? "DISTAL" : "MESIAL",
-    anterior ? "INCISAL" : "OCLUSAL",
-  ];
-  const slots = raw.map((shape, i) => ({
-    surface: surfaces[i],
-    points: shape.map(([x, y]) => `${(x + pad).toFixed(1)},${(y + pad).toFixed(1)}`).join(" "),
-  }));
-  return { slots, ring: { x: 1, y: 1, wh: size - 2 } };
-}
-
 /** El espacio de referencia de la guía, en cualquier orden (en la fila superior derecha se dibuja 16 → 15). */
 function isGuideGap(a: number, b: number): boolean {
   return (a === GUIDE_GAP[0] && b === GUIDE_GAP[1]) || (a === GUIDE_GAP[1] && b === GUIDE_GAP[0]);
 }
 
-const SURFACE_LABEL: Record<ToothSurfaceCode, string> = {
-  MESIAL: "mesial",
-  DISTAL: "distal",
-  VESTIBULAR: "vestibular",
-  PALATINO: "palatino",
-  LINGUAL: "lingual",
-  OCLUSAL: "oclusal",
-  INCISAL: "incisal",
-};
 
 type Row = { teeth: number[]; upper: boolean; size: number };
 
@@ -185,6 +141,34 @@ export function Odontogram({
   const toothResponds = responds("TOOTH") || (interactive && rangeMode);
   /** En modo ubicar, lo que no responde queda atenuado y fuera del orden de Tab (no solo sin puntero). */
   const inert = placement != null;
+
+  // Con el dedo, la pieza entera es una sola zona y se elige en la pieza ampliada (update-dental-chart-touch D1/D2).
+  // Se decide por cada toque: el pointerdown guarda su tipo en la propia pieza (dataset) y el click lo consume. El
+  // teclado no pasa por acá (activateOnEnterOrSpace va directo), y un click sin pointerdown previo no hereda un
+  // "touch" anterior.
+  const [magnified, setMagnified] = useState<number | null>(null);
+  const magnifierAllowed: MagnifierAllowed =
+    placement == null
+      ? { surface: true, tooth: true, between: true }
+      : { surface: placement.scope === "SURFACE", tooth: false, between: placement.scope === "BETWEEN_TEETH" };
+  const touch = {
+    down: (e: PointerEvent<SVGGElement>) => {
+      e.currentTarget.dataset.pointer = e.pointerType;
+    },
+    /** Fase de captura del click de la pieza: solo actúa si el toque fue con el dedo; si no, el click sigue su camino. */
+    clickCapture: (fdi: number, e: MouseEvent<SVGGElement>) => {
+      const kind = e.currentTarget.dataset.pointer;
+      delete e.currentTarget.dataset.pointer;
+      if (kind !== "touch" || !interactive || !onSelectLocation) return;
+      if (placement?.scope === "ARCH") return; // la pieza no responde, como con mouse
+      e.stopPropagation();
+      if (rangeMode || placement?.scope === "TOOTH") {
+        selectTooth(fdi); // rango: ancla o cierra (D4); ubicar pieza completa: directo
+        return;
+      }
+      setMagnified(fdi);
+    },
+  };
 
   // Escape en el modo ubicar: en un rango con ancla, primero suelta el ancla; si no, sale del modo.
   useEffect(() => {
@@ -469,6 +453,7 @@ export function Odontogram({
                   colorOf,
                   siglaOfFinding,
                   { tooth: toothResponds, surface: responds("SURFACE"), between: responds("BETWEEN_TEETH"), inert },
+                  touch,
                   selectTooth,
                   selectSurface,
                   rangeStart,
@@ -503,6 +488,18 @@ export function Odontogram({
           <ArrowLeftRight aria-hidden="true" className="size-3.5" />
           Desliza para ver toda la boca
         </p>
+      ) : null}
+
+      {magnified != null ? (
+        <ToothMagnifier
+          fdi={magnified}
+          neighbors={neighborsOf(magnified)}
+          findings={findings}
+          catalog={catalog}
+          allowed={magnifierAllowed}
+          onSelect={(location) => onSelectLocation?.(location)}
+          onClose={() => setMagnified(null)}
+        />
       ) : null}
 
       <div aria-live="polite" className="sr-only">
@@ -595,6 +592,11 @@ function toothRow(
   /** Qué responde ahora (modo ubicar, D5): la pieza también responde en rango, porque su click ES el gesto del rango.
    *  Con `inert`, lo que no responde se atenúa y sale del orden de Tab. */
   active: { tooth: boolean; surface: boolean; between: boolean; inert: boolean },
+  /** Toque con el dedo sobre la pieza (update-dental-chart-touch): abre la pieza ampliada o va directo según el modo. */
+  touch: {
+    down: (e: PointerEvent<SVGGElement>) => void;
+    clickCapture: (fdi: number, e: MouseEvent<SVGGElement>) => void;
+  },
   selectTooth: (fdi: number) => void,
   selectSurface: (fdi: number, surface: ToothSurfaceCode) => void,
   rangeStart: number | null,
@@ -653,7 +655,12 @@ function toothRow(
         const pulpotomy = toothList.find((f) => f.type === "PULPOTOMIA");
 
         return (
-          <g key={fdi} transform={`translate(${x}, ${y})`}>
+          <g
+            key={fdi}
+            transform={`translate(${x}, ${y})`}
+            onPointerDown={touch.down}
+            onClickCapture={(e) => touch.clickCapture(fdi, e)}
+          >
             {rangeStart === fdi ? (
               <rect x={-2} y={-2} width={size + 4} height={rowHeight + 4} rx={6} fill="none" stroke={SELECTION} strokeWidth={2} strokeDasharray="4 3" pointerEvents="none" />
             ) : null}
@@ -1288,4 +1295,12 @@ function pulpChamber(slots: Slot[], color: string): ReactNode {
   const height = h - insetY * 2;
   if (width <= 0 || height <= 0) return null;
   return <rect data-testid="pulp-chamber" x={x} y={y} width={width} height={height} rx={1.5} fill={color} pointerEvents="none" />;
+}
+
+/** Las vecinas de una pieza en su fila del dibujo (una sola en los extremos), para la pieza ampliada. */
+function neighborsOf(fdi: number): number[] {
+  const row = ROWS.find((r) => r.teeth.includes(fdi));
+  if (!row) return [];
+  const i = row.teeth.indexOf(fdi);
+  return [row.teeth[i - 1], row.teeth[i + 1]].filter((n): n is number => n != null);
 }
