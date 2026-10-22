@@ -265,7 +265,7 @@ export const useSortingStore = createSelectors(useSortingStoreBase);
 
 **Estado actual de `modules/core/ui/`** (lo que HAY hoy): `button` (+ `button-variants`), `card`, `input`, `icon-input`, `password-input`, `label`, `logo`, `theme-toggle`, `form-field` (`FormField`/`SelectField`/`FormSection`, genéricos sobre react-hook-form), `dialog` (shadcn/Radix), `confirm-dialog` y `tooltip` (shadcn/Radix). Para un tooltip de ayuda sobre un control usa **`HintTooltip`** (`core/components`): trae su propio `TooltipProvider` y, con `triggerDisabled`, envuelve un botón deshabilitado para que el tooltip se siga abriendo (un `disabled` no recibe hover) — justo cuando más falta explicar por qué no está disponible.
 
-**Por incorporar** (aún NO existen; añádelos con `pnpm dlx shadcn@latest add <componente>` desde el registro oficial, la **primera vez que una pantalla los necesite**): `sheet`, `popover`, `dropdown-menu`, `select`, `table`, `badge`.
+**Por incorporar** (aún NO existen; añádelos con `pnpm dlx shadcn@latest add <componente>` desde el registro oficial, la **primera vez que una pantalla los necesite**): `popover`, `dropdown-menu`, `select`, `table`, `badge`. (`sheet` ya existe: lo usan el menú del celular y la pieza ampliada del odontograma.)
 
 > **`@base-ui/react` (headless, del stack §1) tampoco está instalado.** El único primitivo headless
 > hoy es `@radix-ui/react-dialog` (vía shadcn). Instala `@base-ui/react` recién cuando un componente
@@ -313,6 +313,13 @@ export const useSortingStore = createSelectors(useSortingStoreBase);
   importante, se indica que hay más (`useHorizontalOverflow` de `core/hooks`). Una tabla de varias
   columnas pasa a bloques bajo 640 px con `useMediaQuery`, pintando **una** de las dos vistas (no
   ambas ocultando una con CSS). Ejemplo: el odontograma (ancho mínimo 600 px) y su lista de hallazgos.
+- **Zonas táctiles chicas en un dibujo denso** (las caras del odontograma miden 4-10 px en un celular): no se agranda
+  el dibujo; **el toque con el dedo abre un panel con la parte ampliada** (`Sheet` inferior) donde cada opción mide al
+  menos 44 px. Se decide **por cada toque** (`pointerType` del `pointerdown`, guardado en el elemento y consumido por
+  el `click`), no por el tipo de pantalla: en una laptop táctil el mouse sigue yendo directo y el dedo abre el panel;
+  el teclado no pasa por esa decisión. Ejemplo: `ToothMagnifier` (`update-dental-chart-touch`). En los tests, el toque
+  se simula con `fireEvent.pointerDown(el, { pointerType: "touch" })` + `fireEvent.click(el)`, y en Playwright con
+  `test.use({ hasTouch: true })` y `locator.tap()`.
 - Prueba cambios de navegación/estilos en móvil, tablet y escritorio. `e2e/app-shell.spec.ts`
   falla si alguna pantalla privada se desplaza de costado a 375, 768 o 1280 px: una pantalla nueva
   se agrega a su lista.

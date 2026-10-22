@@ -38,7 +38,7 @@ const LOCATION_STEPS: { scope: FindingScope; anchor: ChartGuideAnchor; title: st
     scope: "SURFACE",
     anchor: CHART_GUIDE_ANCHOR.toothSurface,
     title: SCOPE_TITLE.SURFACE,
-    body: `Cada pieza tiene 5 caras: la central (oclusal o incisal) y las 4 de alrededor (vestibular, palatina o lingual, mesial y distal). Toca la cara afectada, por ejemplo la central de la ${GUIDE_TOOTH}. Puedes registrar hallazgos en cualquiera de las 5, y más de uno en la misma cara.`,
+    body: `Cada pieza tiene 5 caras: la central (oclusal o incisal) y las 4 de alrededor (vestibular, palatina o lingual, mesial y distal). Toca la cara afectada, por ejemplo la central de la ${GUIDE_TOOTH}. Puedes registrar hallazgos en cualquiera de las 5, y más de uno en la misma cara. En el celular, toca la pieza y elige la cara en la pieza ampliada.`,
   },
   {
     scope: "TOOTH",

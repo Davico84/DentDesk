@@ -321,3 +321,41 @@ for (const width of [375, 1280]) {
     expect(overflow, `se desplaza ${overflow} px de costado`).toBeLessThanOrEqual(0);
   });
 }
+
+// update-dental-chart-touch: con pantalla táctil, tocar una pieza abre la pieza ampliada; cada opción mide >= 44 px y
+// elegir una cara abre su registro. Con la guía ya vista para que no tape el gráfico.
+test.describe("odontograma con el dedo", () => {
+  test.use({ hasTouch: true });
+
+  test.beforeEach(async ({ page }) => {
+    CHART.status = "OPEN";
+    await page.addInitScript(() =>
+      localStorage.setItem("odr-guidance", JSON.stringify({ state: { seen: { "dental-chart": [7] } }, version: 0 })),
+    );
+  });
+
+  test("a 375 px tocar una pieza la amplía con zonas de al menos 44 px y elegir una cara abre su registro", async ({ page }) => {
+    await page.setViewportSize({ width: 375, height: 800 });
+    await mockApi(page, { authed: true, preset: null });
+    await page.goto("/patients/1/dental-chart");
+    await page.getByRole("button", { name: /^Pieza 15, superficie oclusal/ }).tap();
+
+    const panel = page.getByRole("dialog", { name: "Pieza 15" });
+    await expect(panel).toBeVisible();
+    const targets = [
+      ...(await panel.getByRole("button", { name: /^Cara / }).all()),
+      ...(await panel.getByRole("button", { name: /^Toda la pieza|^Entre la/ }).all()),
+    ];
+    expect(targets.length).toBe(8); // 5 caras + pieza completa + 2 espacios
+    for (const target of targets) {
+      const box = (await target.boundingBox())!;
+      expect(Math.min(box.width, box.height), await target.getAttribute("aria-label") ?? await target.textContent() ?? "").toBeGreaterThanOrEqual(44);
+    }
+    const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+    expect(overflow).toBeLessThanOrEqual(0);
+
+    await panel.getByRole("button", { name: /^Cara oclusal de la 15/ }).tap();
+    await expect(page.getByRole("dialog", { name: "Agregar hallazgo" })).toBeVisible();
+    await expect(page.getByRole("dialog", { name: "Agregar hallazgo" })).toContainText("Pieza 15, superficie oclusal");
+  });
+});
