@@ -125,6 +125,12 @@ de `Cie10SearchField`, que sigue buscando en todo el catálogo. Elegir una suger
 del buscador; el tipo P/D/R lo elige el usuario y la regla del `R` no cambia. Nada se registra hasta "Agregar
 diagnóstico". Sin sugerencias, el formulario es el de hoy con la ubicación precargada.
 
+*Ajuste del apply:* "Proponer diagnóstico" **precarga el formulario de diagnóstico de la nota** (con un aviso
+"Propuesto desde: …" y "Descartar propuesta") en vez de abrir un diálogo con un segundo `DiagnosisForm`. Dos
+formularios a la vez repetían los `id` de sus campos (`ubicacion`, `fdiNumber`, `cie10-search`) y los `<label>` del
+diálogo apuntaban a los campos de la nota. Uno solo en la página evita el problema; descartar la propuesta es el
+"cerrar sin confirmar" del Scenario.
+
 ### D6 — Panel de hallazgos en la nota abierta
 
 `OpenNoteEditor` suma una sección **"Hallazgos del odontograma"** antes de "Diagnóstico":

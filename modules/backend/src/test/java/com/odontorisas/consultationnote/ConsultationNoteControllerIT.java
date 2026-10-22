@@ -152,8 +152,39 @@ class ConsultationNoteControllerIT extends AbstractIntegrationTest {
         call(post(note + "/diagnoses"), A00).andExpect(status().isConflict());
         call(post(note + "/background-entries"), "{\"kind\":\"ALTA\",\"category\":\"MEDICACION\",\"description\":\"X\"}")
             .andExpect(status().isConflict());
+        call(post(note + "/findings"), "{\"findingId\":1,\"description\":\"Pieza 16: caries\"}")
+            .andExpect(status().isConflict());
         call(delete(note), null).andExpect(status().isConflict());
         call(post(note + "/seal"), null).andExpect(status().isConflict());
+    }
+
+    @Test
+    void attended_findings_are_validated_over_http_and_listed_in_the_note() throws Exception {
+        token = registerAdmin();
+        long patientId = patientWithSealedHistory();
+        String notes = "/patients/" + patientId + "/consultation-notes";
+        long noteId = idOf(call(post(notes), "{\"attendedAt\":\"" + attendedAt(1) + "\"}").andExpect(status().isCreated()));
+        String note = notes + "/" + noteId;
+
+        call(get(note), null).andExpect(status().isOk()).andExpect(jsonPath("$.attendedFindings").isArray());
+        call(post(note + "/findings"), "{\"description\":\"Pieza 16\"}").andExpect(status().isBadRequest());
+        call(post(note + "/findings"), "{\"findingId\":1,\"description\":\"   \"}").andExpect(status().isBadRequest());
+        call(post(note + "/findings"), "{\"findingId\":1,\"description\":\"" + "x".repeat(301) + "\"}")
+            .andExpect(status().isBadRequest());
+        call(post(note + "/findings"), "{\"findingId\":999999,\"description\":\"Pieza 16\"}")
+            .andExpect(status().isNotFound())
+            .andExpect(jsonPath("$.type").value("/errors/consultation-note-finding-not-found"));
+    }
+
+    @Test
+    void cie10_suggestions_are_served_for_a_finding_type() throws Exception {
+        token = registerAdmin();
+        call(get("/cie10/suggestions").param("findingType", "LESION_CARIES").param("subtype", "CD"), null)
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$[0].code").value("K021"));
+        call(get("/cie10/suggestions").param("findingType", "CORONA"), null)
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$").isEmpty());
     }
 
     @Test

@@ -33,14 +33,16 @@ public record ConsultationNoteView(
     Instant updatedAt,
     List<NoteDiagnosisView> diagnoses,
     List<BackgroundEntryView> backgroundEntries,
-    List<CorrectionView> corrections) {
+    List<CorrectionView> corrections,
+    List<NoteFindingView> attendedFindings) {
 
     public static ConsultationNoteView from(ConsultationNote n, List<NoteDiagnosisView> diagnoses,
-                                            List<BackgroundEntryView> entries, List<CorrectionView> corrections) {
+                                            List<BackgroundEntryView> entries, List<CorrectionView> corrections,
+                                            List<NoteFindingView> attendedFindings) {
         return new ConsultationNoteView(n.getId(), n.getPatientId(), n.getStatus(), n.getAttendedAt(),
             n.getReason(), n.getIllnessDuration(), n.getSymptomsAndSigns(), n.getPreviousTreatment(),
             n.getBiologicalFunctions(), n.getExamination(), n.getTreatment(), n.getAuxiliaryExams(),
             n.getReferral(), n.getNextAppointmentOn(), n.getSealedAt(), n.getSealedBy(), n.getCreatedAt(),
-            n.getCreatedBy(), n.getUpdatedAt(), diagnoses, entries, corrections);
+            n.getCreatedBy(), n.getUpdatedAt(), diagnoses, entries, corrections, attendedFindings);
     }
 }

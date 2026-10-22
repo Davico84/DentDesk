@@ -75,9 +75,10 @@ export function ConsultationNotes({ patientId }: { patientId: number }) {
 
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_18rem]">
         <div className="flex flex-col gap-5">
-          {open ? <OpenNoteEditor key={open.id} patientId={patientId} note={open} /> : null}
-          {sealed.map((note) => (
-            <SealedNoteCard key={note.id} patientId={patientId} note={note} />
+          {open ? <OpenNoteEditor key={open.id} patientId={patientId} note={open} notes={notes ?? []} /> : null}
+          {sealed.map((note, i) => (
+            // Sin nota abierta, la consulta más reciente arranca desplegada; las demás, plegadas.
+            <SealedNoteCard key={note.id} patientId={patientId} note={note} defaultExpanded={!open && i === 0} />
           ))}
           {!open && sealed.length === 0 && historySealed ? (
             <div className="flex flex-col items-center gap-2 rounded-2xl border border-dashed p-10 text-center text-sm text-muted-foreground">

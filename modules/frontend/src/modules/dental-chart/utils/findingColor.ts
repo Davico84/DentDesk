@@ -17,3 +17,8 @@ export function findingColor(f: DentalChartFindingResponse, catalog: DentalFindi
 export function findingStatusLabel(f: DentalChartFindingResponse, catalog: DentalFindingCatalogEntryResponse[] | undefined): "Por hacer" | "Realizado" {
   return findingColor(f, catalog) === RED ? "Por hacer" : "Realizado";
 }
+
+/** Se ve rojo en el odontograma: lo pendiente que una consulta puede atender (update-consultation-note-findings D6). */
+export function isSeenRed(f: DentalChartFindingResponse, catalog: DentalFindingCatalogEntryResponse[] | undefined): boolean {
+  return findingColor(f, catalog) === RED;
+}

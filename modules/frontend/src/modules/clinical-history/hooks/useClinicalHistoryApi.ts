@@ -8,6 +8,7 @@ import {
   get,
   removeDiagnosis,
   search1,
+  suggestions,
   update,
   updateDiagnosis,
 } from "@/modules/core/services/generated/clinical-history";
@@ -112,6 +113,19 @@ export function useRemoveDiagnosis(patientId: number) {
 }
 
 /** Búsqueda CIE10 (jerárquica): cada resultado trae su ruta capítulo→grupo→categoría→subcategoría. */
+/**
+ * Códigos CIE10 sugeridos para un hallazgo del odontograma (update-consultation-note-findings D4). Lista vacía si
+ * el hallazgo no tiene sugerencias; el buscador del catálogo sigue disponible siempre.
+ */
+export function useCie10Suggestions(findingType: string | undefined, subtype: string | undefined) {
+  return useQuery({
+    queryKey: ["cie10", "suggestions", findingType, subtype ?? ""],
+    queryFn: () => suggestions({ findingType: findingType as string, subtype: subtype ?? "" }),
+    enabled: Boolean(findingType),
+    staleTime: Infinity,
+  });
+}
+
 export function useCie10Search(query: string) {
   return useQuery({
     queryKey: ["cie10", "search", query],
