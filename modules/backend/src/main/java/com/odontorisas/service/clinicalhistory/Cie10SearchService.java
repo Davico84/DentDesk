@@ -7,6 +7,7 @@ import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 
 /**
  * Búsqueda del catálogo CIE10 respetando la jerarquía (spec: búsqueda jerárquica, design.md D6).
@@ -31,6 +32,11 @@ public class Cie10SearchService {
     /** {@code true} si el código existe en el catálogo (validación de diagnóstico, D5). */
     public boolean exists(String code) {
         return repository.existsById(code);
+    }
+
+    /** Un código del catálogo con su ruta, si existe (sugerencias por hallazgo, update-consultation-note-findings D4). */
+    public Optional<Cie10SearchResult> find(String code) {
+        return repository.findById(code).map(this::toResult);
     }
 
     private Cie10SearchResult toResult(Cie10Code code) {

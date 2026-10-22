@@ -7,6 +7,7 @@
  */
 import type {
   ActiveBackgroundResponse,
+  AttendFindingRequest,
   BackgroundEntryRequest,
   BackgroundEntryResponse,
   ConsultationNoteRequest,
@@ -15,6 +16,7 @@ import type {
   CorrectionResponse,
   DiagnosisRequest,
   NoteDiagnosisResponse,
+  NoteFindingResponse,
   OpenConsultationNoteRequest
 } from './model';
 
@@ -104,6 +106,18 @@ import { customInstance } from '../../config/httpClient';
     },
       );
     }
+  export const attendFinding = (
+    patientId: number,
+    noteId: number,
+    attendFindingRequest: AttendFindingRequest,
+ ) => {
+      return customInstance<NoteFindingResponse>(
+      {url: `/patients/${patientId}/consultation-notes/${noteId}/findings`, method: 'POST',
+      headers: {'Content-Type': 'application/json', },
+      data: attendFindingRequest
+    },
+      );
+    }
   export const addNoteDiagnosis = (
     patientId: number,
     noteId: number,
@@ -148,6 +162,16 @@ import { customInstance } from '../../config/httpClient';
     },
       );
     }
+  export const removeAttendedFinding = (
+    patientId: number,
+    noteId: number,
+    noteFindingId: number,
+ ) => {
+      return customInstance<void>(
+      {url: `/patients/${patientId}/consultation-notes/${noteId}/findings/${noteFindingId}`, method: 'DELETE'
+    },
+      );
+    }
   export const removeBackgroundEntry = (
     patientId: number,
     noteId: number,
@@ -166,8 +190,10 @@ export type RemoveNoteDiagnosisResult = NonNullable<Awaited<ReturnType<typeof re
 export type ListConsultationNotesResult = NonNullable<Awaited<ReturnType<typeof listConsultationNotes>>>
 export type OpenConsultationNoteResult = NonNullable<Awaited<ReturnType<typeof openConsultationNote>>>
 export type SealConsultationNoteResult = NonNullable<Awaited<ReturnType<typeof sealConsultationNote>>>
+export type AttendFindingResult = NonNullable<Awaited<ReturnType<typeof attendFinding>>>
 export type AddNoteDiagnosisResult = NonNullable<Awaited<ReturnType<typeof addNoteDiagnosis>>>
 export type AddNoteCorrectionResult = NonNullable<Awaited<ReturnType<typeof addNoteCorrection>>>
 export type AddBackgroundEntryResult = NonNullable<Awaited<ReturnType<typeof addBackgroundEntry>>>
 export type GetActiveBackgroundResult = NonNullable<Awaited<ReturnType<typeof getActiveBackground>>>
+export type RemoveAttendedFindingResult = NonNullable<Awaited<ReturnType<typeof removeAttendedFinding>>>
 export type RemoveBackgroundEntryResult = NonNullable<Awaited<ReturnType<typeof removeBackgroundEntry>>>

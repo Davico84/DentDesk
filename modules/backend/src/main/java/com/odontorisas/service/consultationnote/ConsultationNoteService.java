@@ -11,6 +11,7 @@ import com.odontorisas.persistence.entity.Patient;
 import com.odontorisas.persistence.repository.ClinicalBackgroundEntryRepository;
 import com.odontorisas.persistence.repository.ConsultationNoteCorrectionRepository;
 import com.odontorisas.persistence.repository.ConsultationNoteDiagnosisRepository;
+import com.odontorisas.persistence.repository.ConsultationNoteFindingRepository;
 import com.odontorisas.persistence.repository.ConsultationNoteRepository;
 import com.odontorisas.persistence.repository.HistoriaClinicaRepository;
 import com.odontorisas.persistence.repository.OrganizationSettingsRepository;
@@ -52,6 +53,7 @@ public class ConsultationNoteService {
     private final ConsultationNoteDiagnosisRepository diagnosisRepository;
     private final ClinicalBackgroundEntryRepository entryRepository;
     private final ConsultationNoteCorrectionRepository correctionRepository;
+    private final ConsultationNoteFindingRepository noteFindingRepository;
     private final HistoriaClinicaRepository historiaClinicaRepository;
     private final PatientRepository patientRepository;
     private final OrganizationSettingsRepository organizationSettingsRepository;
@@ -61,6 +63,7 @@ public class ConsultationNoteService {
                                    ConsultationNoteDiagnosisRepository diagnosisRepository,
                                    ClinicalBackgroundEntryRepository entryRepository,
                                    ConsultationNoteCorrectionRepository correctionRepository,
+                                   ConsultationNoteFindingRepository noteFindingRepository,
                                    HistoriaClinicaRepository historiaClinicaRepository,
                                    PatientRepository patientRepository,
                                    OrganizationSettingsRepository organizationSettingsRepository,
@@ -69,6 +72,7 @@ public class ConsultationNoteService {
         this.diagnosisRepository = diagnosisRepository;
         this.entryRepository = entryRepository;
         this.correctionRepository = correctionRepository;
+        this.noteFindingRepository = noteFindingRepository;
         this.historiaClinicaRepository = historiaClinicaRepository;
         this.patientRepository = patientRepository;
         this.organizationSettingsRepository = organizationSettingsRepository;
@@ -124,11 +128,15 @@ public class ConsultationNoteService {
         Map<Long, List<CorrectionView>> corrections = byNote(
             correctionRepository.findByNoteIdInOrderByIdAsc(ids).stream().map(CorrectionView::from).toList(),
             CorrectionView::noteId);
+        Map<Long, List<NoteFindingView>> attended = byNote(
+            noteFindingRepository.findByNoteIdInOrderByIdAsc(ids).stream().map(NoteFindingView::from).toList(),
+            NoteFindingView::noteId);
         return notes.stream()
             .map(n -> ConsultationNoteView.from(n,
                 diagnoses.getOrDefault(n.getId(), List.of()),
                 entries.getOrDefault(n.getId(), List.of()),
-                corrections.getOrDefault(n.getId(), List.of())))
+                corrections.getOrDefault(n.getId(), List.of()),
+                attended.getOrDefault(n.getId(), List.of())))
             .toList();
     }
 
@@ -163,7 +171,8 @@ public class ConsultationNoteService {
         ConsultationNote note = lockOpenNote(noteRepository, patientId, noteId);
         boolean empty = NoteTextFields.hasNoContent(note)
             && diagnosisRepository.countByNoteId(noteId) == 0
-            && entryRepository.countByNoteId(noteId) == 0;
+            && entryRepository.countByNoteId(noteId) == 0
+            && noteFindingRepository.countByNoteId(noteId) == 0;
         if (!empty) {
             throw new ConsultationNoteNotEmptyException();
         }
@@ -237,7 +246,8 @@ public class ConsultationNoteService {
         return ConsultationNoteView.from(note,
             diagnosisRepository.findByNoteIdOrderByIdAsc(id).stream().map(NoteDiagnosisView::from).toList(),
             entryRepository.findByNoteIdOrderByIdAsc(id).stream().map(BackgroundEntryView::from).toList(),
-            correctionRepository.findByNoteIdOrderByIdAsc(id).stream().map(CorrectionView::from).toList());
+            correctionRepository.findByNoteIdOrderByIdAsc(id).stream().map(CorrectionView::from).toList(),
+            noteFindingRepository.findByNoteIdOrderByIdAsc(id).stream().map(NoteFindingView::from).toList());
     }
 
     private static <T> Map<Long, List<T>> byNote(Collection<T> items, Function<T, Long> noteId) {

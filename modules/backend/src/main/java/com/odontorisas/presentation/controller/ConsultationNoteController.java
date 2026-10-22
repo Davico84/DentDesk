@@ -1,6 +1,7 @@
 package com.odontorisas.presentation.controller;
 
 import com.odontorisas.presentation.dto.ActiveBackgroundResponse;
+import com.odontorisas.presentation.dto.AttendFindingRequest;
 import com.odontorisas.presentation.dto.ApiProblem;
 import com.odontorisas.presentation.dto.BackgroundEntryRequest;
 import com.odontorisas.presentation.dto.BackgroundEntryResponse;
@@ -10,6 +11,7 @@ import com.odontorisas.presentation.dto.CorrectionRequest;
 import com.odontorisas.presentation.dto.CorrectionResponse;
 import com.odontorisas.presentation.dto.DiagnosisRequest;
 import com.odontorisas.presentation.dto.NoteDiagnosisResponse;
+import com.odontorisas.presentation.dto.NoteFindingResponse;
 import com.odontorisas.presentation.dto.OpenConsultationNoteRequest;
 import com.odontorisas.presentation.dto.ValidationProblem;
 import com.odontorisas.service.clinicalhistory.DiagnosisData;
@@ -18,6 +20,7 @@ import com.odontorisas.service.consultationnote.ClinicalBackgroundService;
 import com.odontorisas.service.consultationnote.ConsultationNoteCorrectionService;
 import com.odontorisas.service.consultationnote.ConsultationNoteData;
 import com.odontorisas.service.consultationnote.ConsultationNoteDiagnosisService;
+import com.odontorisas.service.consultationnote.ConsultationNoteFindingService;
 import com.odontorisas.service.consultationnote.ConsultationNoteService;
 import com.odontorisas.service.consultationnote.CorrectionData;
 import io.swagger.v3.oas.annotations.media.ArraySchema;
@@ -56,15 +59,18 @@ public class ConsultationNoteController {
     private final ConsultationNoteDiagnosisService diagnosisService;
     private final ConsultationNoteCorrectionService correctionService;
     private final ClinicalBackgroundService backgroundService;
+    private final ConsultationNoteFindingService findingService;
 
     public ConsultationNoteController(ConsultationNoteService noteService,
                                       ConsultationNoteDiagnosisService diagnosisService,
                                       ConsultationNoteCorrectionService correctionService,
-                                      ClinicalBackgroundService backgroundService) {
+                                      ClinicalBackgroundService backgroundService,
+                                      ConsultationNoteFindingService findingService) {
         this.noteService = noteService;
         this.diagnosisService = diagnosisService;
         this.correctionService = correctionService;
         this.backgroundService = backgroundService;
+        this.findingService = findingService;
     }
 
     @PostMapping("/consultation-notes")
@@ -199,6 +205,37 @@ public class ConsultationNoteController {
     public void removeNoteDiagnosis(@PathVariable Long patientId, @PathVariable Long noteId,
                                 @PathVariable Long diagnosisId) {
         diagnosisService.remove(patientId, noteId, diagnosisId);
+    }
+
+    @PostMapping("/consultation-notes/{noteId}/findings")
+    @ResponseStatus(HttpStatus.CREATED)
+    @ApiResponses({
+        @ApiResponse(responseCode = "201", description = "Hallazgo marcado como atendido en la nota.",
+            content = @Content(schema = @Schema(implementation = NoteFindingResponse.class))),
+        @ApiResponse(responseCode = "400", description = "Falta el hallazgo, o la descripción está vacía o pasa de 300 caracteres.",
+            content = @Content(mediaType = PROBLEM, schema = @Schema(implementation = ValidationProblem.class))),
+        @ApiResponse(responseCode = "404", description = "No existe la nota, o el hallazgo no existe para este paciente.",
+            content = @Content(mediaType = PROBLEM, schema = @Schema(implementation = ApiProblem.class))),
+        @ApiResponse(responseCode = "409", description = "La nota está sellada, el odontograma no está sellado o el hallazgo ya está marcado en la nota.",
+            content = @Content(mediaType = PROBLEM, schema = @Schema(implementation = ApiProblem.class)))
+    })
+    public NoteFindingResponse attendFinding(@PathVariable Long patientId, @PathVariable Long noteId,
+                                             @Valid @RequestBody AttendFindingRequest request) {
+        return NoteFindingResponse.from(findingService.attend(patientId, noteId, request.findingId(), request.description()));
+    }
+
+    @DeleteMapping("/consultation-notes/{noteId}/findings/{noteFindingId}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    @ApiResponses({
+        @ApiResponse(responseCode = "204", description = "Hallazgo desmarcado de la nota abierta."),
+        @ApiResponse(responseCode = "404", description = "No existe la nota o el hallazgo no está marcado en ella.",
+            content = @Content(mediaType = PROBLEM, schema = @Schema(implementation = ApiProblem.class))),
+        @ApiResponse(responseCode = "409", description = "La nota está sellada.",
+            content = @Content(mediaType = PROBLEM, schema = @Schema(implementation = ApiProblem.class)))
+    })
+    public void removeAttendedFinding(@PathVariable Long patientId, @PathVariable Long noteId,
+                                      @PathVariable Long noteFindingId) {
+        findingService.remove(patientId, noteId, noteFindingId);
     }
 
     @PostMapping("/consultation-notes/{noteId}/background-entries")

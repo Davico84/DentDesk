@@ -202,6 +202,8 @@ El documento médico-legal inicial de la atención: **una por paciente, de por v
 
 **ConsultationNoteDiagnosis** — misma forma y reglas que `ClinicalHistoryDiagnosis`, en tabla propia. Un `REPETIDO` exige que el código ya figure en la Historia o en una nota **sellada** del paciente (NTS 139 §4.2.9).
 
+**ConsultationNoteFinding** *(`update-consultation-note-findings`)* — un hallazgo del odontograma **atendido** en la nota: `findingId` → `DentalChartFinding` del mismo paciente y de un odontograma sellado, más una `description` propia (pieza, cara, hallazgo, estado) guardada al marcarlo, para que la nota sellada se lea sin el odontograma. Se marca y desmarca solo con la nota abierta; al sellarla queda fijo. No cambia el hallazgo: sigue rojo hasta el odontograma de evolución (corte B). Desde un hallazgo atendido se **propone** un diagnóstico (ubicación desde el hallazgo + códigos CIE10 sugeridos para los patológicos siempre rojos), que el odontólogo confirma o cambia.
+
 **ConsultationNoteCorrection** — `field` (solo campos de texto), `correctedText`, `reason`; solo sobre nota sellada, solo por `sealedBy`, no sobre un campo vacío. Nunca se modifica ni se borra.
 
 **ClinicalBackgroundEntry** — asiento `ALTA` (categoría `ALERGIA_RAM` | `ANTECEDENTE_PATOLOGICO` | `MEDICACION` + descripción) o `BAJA` (`closesEntryId` → un alta vigente de una nota sellada). **Antecedentes vigentes** = texto de la Historia sellada + altas sin baja + anamnesis de la ficha, cada uno con su origen; se calcula en cada lectura.
@@ -324,6 +326,8 @@ erDiagram
     ConsultationNote ||--o{ ConsultationNoteDiagnosis : "registra"
     ConsultationNote ||--o{ ConsultationNoteCorrection : "se corrige con"
     ConsultationNote ||--o{ ClinicalBackgroundEntry : "registra"
+    ConsultationNote ||--o{ ConsultationNoteFinding : "atiende"
+    DentalChartFinding ||--o{ ConsultationNoteFinding : "atendido en"
     ClinicalBackgroundEntry |o--o| ClinicalBackgroundEntry : "baja cierra alta"
     Cie10Code ||--o{ ConsultationNoteDiagnosis : "clasifica"
     Cie10Code ||--o{ ClinicalHistoryDiagnosis : "clasifica"
@@ -449,6 +453,14 @@ erDiagram
         Date nextAppointmentOn
         DateTime sealedAt
         Long sealedBy
+    }
+    ConsultationNoteFinding {
+        Long id PK
+        Long noteId FK
+        Long findingId FK
+        String description
+        DateTime createdAt
+        Long createdBy
     }
     ConsultationNoteCorrection {
         Long id PK

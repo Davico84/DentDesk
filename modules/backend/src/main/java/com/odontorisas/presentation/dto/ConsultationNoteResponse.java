@@ -33,7 +33,9 @@ public record ConsultationNoteResponse(
     Instant updatedAt,
     List<NoteDiagnosisResponse> diagnoses,
     List<BackgroundEntryResponse> backgroundEntries,
-    List<CorrectionResponse> corrections) {
+    List<CorrectionResponse> corrections,
+    @Schema(description = "Hallazgos del odontograma atendidos en esta consulta.")
+    List<NoteFindingResponse> attendedFindings) {
 
     public static ConsultationNoteResponse from(ConsultationNoteView v) {
         return new ConsultationNoteResponse(v.id(), v.patientId(), v.status(), v.attendedAt(), v.reason(),
@@ -42,6 +44,7 @@ public record ConsultationNoteResponse(
             v.sealedBy(), v.createdAt(), v.createdBy(), v.updatedAt(),
             v.diagnoses().stream().map(NoteDiagnosisResponse::from).toList(),
             v.backgroundEntries().stream().map(BackgroundEntryResponse::from).toList(),
-            v.corrections().stream().map(CorrectionResponse::from).toList());
+            v.corrections().stream().map(CorrectionResponse::from).toList(),
+            v.attendedFindings().stream().map(NoteFindingResponse::from).toList());
     }
 }
