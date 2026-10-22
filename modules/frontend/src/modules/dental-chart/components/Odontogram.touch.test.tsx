@@ -8,8 +8,8 @@ import { Odontogram } from "./Odontogram";
 
 /**
  * Scenarios de <i>Elegir la localización en pantallas táctiles</i> (update-dental-chart-touch). El toque se simula con
- * `pointerdown` de tipo "touch" seguido del `click`, como lo emite el navegador: determinista en jsdom, que no tiene
- * layout para el SVG (design D1, tasks 3.1).
+ * la secuencia de punteros del navegador (`pointerdown` "touch", `pointerup`, `click`; sin los eventos de mouse
+ * de compatibilidad, que el código no escucha): determinista en jsdom, que no tiene layout para el SVG (design D1).
  */
 const CATALOG: DentalFindingCatalogEntryResponse[] = [
   { type: "LESION_CARIES", subtype: "CD", acronym: "CD", scope: "SURFACE", colorBehavior: "SIEMPRE_ROJO", requiresGrade: false, requiresSpecification: false },
@@ -49,9 +49,10 @@ function Harness({
   );
 }
 
-/** Un toque con el dedo: pointerdown "touch" y su click. */
+/** Un toque con el dedo: pointerdown y pointerup "touch", y su click. */
 function tap(el: Element) {
   fireEvent.pointerDown(el, { pointerType: "touch" });
+  fireEvent.pointerUp(el, { pointerType: "touch" });
   fireEvent.click(el);
 }
 
@@ -155,6 +156,23 @@ describe("Odontograma con el dedo (update-dental-chart-touch)", () => {
     // …y luego Enter sobre una cara de esa misma pieza.
     face(16, "mesial").focus();
     await user.keyboard("{Enter}");
+
+    expect(onSelect).toHaveBeenCalledWith({ locationKind: "SURFACE", toothA: 16, surface: "MESIAL" });
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  });
+
+  it("un click sin pointerdown previo no hereda el toque anterior y va directo", async () => {
+    const onSelect = vi.fn();
+    const user = userEvent.setup();
+    render(<Harness onSelect={onSelect} />);
+
+    // Un toque completo abre el panel y consume el tipo guardado…
+    tap(face(16, "oclusal"));
+    await magnifier();
+    await user.keyboard("{Escape}");
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+    // …y un click suelto después (sintético, de accesibilidad) va directo a la cara.
+    fireEvent.click(face(16, "mesial"));
 
     expect(onSelect).toHaveBeenCalledWith({ locationKind: "SURFACE", toothA: 16, surface: "MESIAL" });
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
