@@ -58,7 +58,9 @@ Motivación y alcance: ver `proposal.md`. Lo que condiciona el cómo:
   choca aunque la otra fila sea invisible. El servicio captura **esa** restricción por su nombre y lanza una
   excepción tipada (`credential-number-taken`, 409) con un texto fijo y **sin la causa SQL**. El manejador
   genérico de `DataIntegrityViolationException` lee el mensaje de PostgreSQL, que trae el valor (`Key
-  (cop_number)=(…)`), y no debe ver este caso. Queda un oráculo de existencia (se puede saber si un número ya está
+  (cop_number)=(…)`), y no debe ver este caso. *Apply:* en los logs de Hibernate el valor tampoco aparece,
+  porque PostgreSQL omite el `Detail` de una violación de unicidad cuando la tabla tiene RLS (para no revelar
+  filas invisibles). Lo verifica `ProfessionalCredentialIT` con captura de la salida. Queda un oráculo de existencia (se puede saber si un número ya está
   en Dentdesk); se acepta en Risks.
 
 **Alternativa descartada: columnas en `users`.** `users` no tiene RLS y la leen los flujos de autenticación y de
