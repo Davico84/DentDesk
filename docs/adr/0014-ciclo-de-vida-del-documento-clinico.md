@@ -172,7 +172,7 @@ Cumplidos los 20 años, la norma permite destruir con acta del Comité de Histor
 | Borrado indirecto por FK (sin `ON DELETE CASCADE`) | **Purgas de infraestructura**: retención de backups, políticas del proveedor cloud |
 | | **Cancelación del tenant** — sin decisión tomada (Open Question 3) |
 
-Es decir: **v1 no puede destruir por sí mismo, pero el dato sigue siendo destruible desde fuera del dominio.** Cerrar eso pertenece a infraestructura y a la política de backups. Las **copias** ya tienen dueño (`add-database-backups`): retención de 90 días en GitHub más las copias mensuales a disco, que son también una vía por la que el dato sobrevive fuera del dominio. Las operaciones administrativas directas sobre la base y la cancelación del tenant siguen sin dueño.
+Es decir: **v1 no puede destruir por sí mismo, pero el dato sigue siendo destruible desde fuera del dominio.** Cerrar eso pertenece a infraestructura y a la política de backups. Las **copias** ya tienen dueño (`add-database-backups`): retención de 90 días en GitHub más la copia mensual a disco prevista en la revisión mensual de `docs/deployment.md` §4.3, que son también una vía por la que el dato sobrevive fuera del dominio. Las operaciones administrativas directas sobre la base y la cancelación del tenant siguen sin dueño.
 
 ⚠️ Consecuencia asumida: **el almacenamiento solo crece.** Es el precio correcto para un registro médico-legal.
 
