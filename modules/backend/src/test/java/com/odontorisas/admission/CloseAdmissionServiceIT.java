@@ -200,7 +200,9 @@ class CloseAdmissionServiceIT extends AbstractTenantAwareIntegrationTest {
         // sin pasar por el coordinador ni tener nunca un odontograma.
         Long patientId = aPatientWithReadyClinicalHistory("Historica");
         try (Connection owner = ownerConnection(); Statement s = owner.createStatement()) {
-            s.execute("UPDATE historia_clinica SET status = 'COMPLETED', completed_at = now() "
+            // Con la foto del firmante: desde V30 la base exige la foto en todo sellado nuevo (design.md D5).
+            s.execute("UPDATE historia_clinica SET status = 'COMPLETED', completed_at = now(), completed_by = created_by"
+                + ", signer_full_name = 'Dra. Prueba', signer_cop_number = '12345', signer_licensed_until = current_date "
                 + "WHERE patient_id = " + patientId);
         }
 

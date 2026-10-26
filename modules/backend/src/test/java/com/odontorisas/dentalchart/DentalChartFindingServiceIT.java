@@ -345,7 +345,9 @@ class DentalChartFindingServiceIT extends AbstractTenantAwareIntegrationTest {
      *  para poner una fila en el estado que este test necesita. */
     void sealBlock(Long patientId) throws SQLException {
         try (Connection owner = ownerConnection(); Statement s = owner.createStatement()) {
-            s.execute("UPDATE dental_chart_block SET status = 'SEALED', sealed_at = now() "
+            // Con la foto del firmante: desde V30 la base exige la foto en todo sellado nuevo (design.md D5).
+            s.execute("UPDATE dental_chart_block SET status = 'SEALED', sealed_at = now(), sealed_by = created_by"
+                + ", signer_full_name = 'Dra. Prueba', signer_cop_number = '12345', signer_licensed_until = current_date "
                 + "WHERE patient_id = " + patientId);
         }
     }
