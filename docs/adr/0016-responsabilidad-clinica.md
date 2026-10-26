@@ -166,6 +166,6 @@ Es una simplificación, no una pérdida: tres roles con significado ambiguo pasa
 ## Open Questions
 
 1. ✅ **¿`ADMIN` es un rol clínico? — RESUELTO** (D7): **ni sí ni no, la pregunta estaba mal planteada**. `ADMIN` es capacidad administrativa; lo clínico lo habilita la colegiatura. Un odontólogo dueño tiene ambas; un gerente administrativo, solo la primera.
-2. **¿Quién es el dueño técnico del cifrado de backups e infraestructura?** Heredada de `ADR-0014`: no cae en integridad ni en confidencialidad de aplicación, y sigue sin asignar.
+2. ✅ **¿Quién es el dueño técnico del cifrado de backups e infraestructura? — RESUELTO para las copias** (2026-10-26): el change `add-database-backups`, con el mismo modelo de amenaza que D5 (*un volcado o un backup filtrado*): la copia sale cifrada con una clave que solo tiene el responsable. El rol de la copia salta RLS a propósito (lee todas las clínicas) pero no escribe. El **cifrado en reposo** de columnas (D5) sigue pendiente.
 3. **¿La auditoría de acceso se conserva 15 años como el expediente?** La Ley 29733 exige el registro pero no fija el plazo. Si se conserva igual que la historia, su volumen supera al del dato clínico.
 4. **¿El paciente puede consultar quién vio su historia?** La Ley 29733 da derechos de acceso al titular. Está fuera de alcance hoy —el paciente no es usuario del sistema—, pero el registro de D4 es lo que haría posible responderlo.

@@ -2,9 +2,7 @@
 
 > Guía viva. Se escribe a medida que avanzan los changes de despliegue (`docs/vision.md` §8):
 > `add-cold-start-warmup` (este documento) → `add-support-contact` → `add-cloud-deployment` →
-> `add-database-backups`. **Hasta `add-cloud-deployment` el sistema no es desplegable de extremo a
-> extremo** (falta la imagen del backend, la configuración de los servicios y la cookie entre
-> dominios, §5).
+> `add-database-backups` (copias, §4.3 y §4.4).
 >
 > Las cifras de los planes gratuitos son de **octubre de 2026** y cambian: revísalas al desplegar.
 
@@ -106,6 +104,139 @@ Si `rolbypassrls` es `true` o `hereda_neon_superuser` es `true` para `odontorisa
 
 La app usa `odontorisas_app` (`DB_USERNAME` / `DB_PASSWORD`); Flyway, `odontorisas_admin` (`DB_ADMIN_USERNAME` / `DB_ADMIN_PASSWORD`).
 
+> ⚠️ **Después del `ALTER DATABASE … OWNER`, el SQL Editor de Neon entra como el dueño de la base**
+> (`odontorisas_admin`), no como el dueño del proyecto, y su selector solo cambia de base, no de rol.
+> `odontorisas_admin` no puede crear roles. Para crear o tocar roles hay que conectarse como
+> `dentdeskdb_owner` desde un cliente externo (psql de Docker o Beekeeper, URL directa del botón
+> *Connect* con ese rol).
+
+### 4.3 Copias de la base (`add-database-backups`)
+
+Una copia diaria **fuera de Neon**, cifrada y verificada por restauración antes de guardarse. Workflow:
+`.github/workflows/db-backup.yml` (script de verificación: `.github/scripts/db-backup-verify.sh`).
+
+| | |
+|---|---|
+| Cuándo | todos los días a las 08:00 UTC (03:00 en Lima) y a pedido (*Actions → DB backup → Run workflow*) |
+| Qué | `pg_dump` completo de la base de producción, con el rol `odontorisas_backup` |
+| Verificación | antes de guardar, la restaura en una PostgreSQL 16 vacía: la última migración del repo está aplicada y están todas las tablas de la copia. Si algo falla o no se puede verificar, el workflow queda rojo y no guarda nada (GitHub avisa por correo) |
+| Cifrado | `age` con la clave pública de la variable `BACKUP_AGE_RECIPIENT`. Solo la clave privada la descifra |
+| Dónde | artifact `db-backup-<AAAA-MM-DD>` del workflow, **90 días** |
+| Configuración | secreto `BACKUP_DATABASE_URL` + variable `BACKUP_AGE_RECIPIENT`. Si falta alguno, la copia se omite en verde |
+
+**El rol de la copia salta RLS y no escribe.** Las tablas clínicas tienen RLS forzada, y `pg_dump` **falla** si una policy le escondería filas: la copia sale completa o no sale. Por eso `odontorisas_backup` lleva `BYPASSRLS` (lee todas las clínicas) y solo `pg_read_all_data` (no escribe nada). Se crea conectado como `dentdeskdb_owner` (ver el aviso de §4.2), que tiene `BYPASSRLS` propio:
+
+```sql
+-- Contraseña larga y aleatoria, solo letras y números (va dentro de una URL). Fuera del repo.
+CREATE ROLE odontorisas_backup LOGIN NOSUPERUSER BYPASSRLS NOCREATEDB NOCREATEROLE PASSWORD '<clave-backup>';
+GRANT CONNECT ON DATABASE dentdeskdb TO odontorisas_backup;
+GRANT pg_read_all_data TO odontorisas_backup;
+```
+
+**Verificación obligatoria** (hecha el 2026-10-26). La primera consulta: `rolbypassrls` en `true` y el resto en `false`. La segunda: todas las `*_alguna` y `crea_en_public` en `false` y `lee_todas` en `true`:
+
+```sql
+SELECT rolname, rolsuper, rolbypassrls, rolcreaterole, rolcreatedb,
+       pg_has_role('odontorisas_backup', 'neon_superuser', 'member')    AS hereda_neon_superuser,
+       pg_has_role('odontorisas_backup', 'pg_write_all_data', 'member') AS escribe
+FROM pg_roles WHERE rolname = 'odontorisas_backup';
+
+SELECT
+  bool_or(has_table_privilege('odontorisas_backup', c.oid, 'INSERT'))   AS insert_alguna,
+  bool_or(has_table_privilege('odontorisas_backup', c.oid, 'UPDATE'))   AS update_alguna,
+  bool_or(has_table_privilege('odontorisas_backup', c.oid, 'DELETE'))   AS delete_alguna,
+  bool_or(has_table_privilege('odontorisas_backup', c.oid, 'TRUNCATE')) AS truncate_alguna,
+  bool_or(pg_has_role('odontorisas_backup', c.relowner, 'MEMBER'))      AS dueno_alguna,
+  bool_and(has_table_privilege('odontorisas_backup', c.oid, 'SELECT'))  AS lee_todas,
+  has_schema_privilege('odontorisas_backup', 'public', 'CREATE')        AS crea_en_public
+FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
+WHERE n.nspname = 'public' AND c.relkind IN ('r', 'p');
+```
+
+> Para probar permisos, mejor esta consulta que intentar escrituras: cubre todas las tablas, y en
+> clientes como Beekeeper un intento fallido deja la transacción abortada y tapa el resultado de la
+> siguiente prueba.
+
+El secreto `BACKUP_DATABASE_URL` es la URL libpq **directa** del rol (sin `-pooler`):
+`postgresql://odontorisas_backup:<clave>@<host-directo>/dentdeskdb?sslmode=require`. **Nunca** la de `odontorisas_app`: la RLS la filtra y el volcado falla (a propósito).
+
+**La clave privada** (`dentdesk-backup.key`, generada con `age-keygen` en la PC del responsable, **propia de Dentdesk**, distinta de la de HSO) está en **dos lugares**: Bitwarden (nota segura) y un disco externo. Nunca entra a GitHub ni al repo. Si se pierden las dos, las copias quedan ilegibles para siempre.
+
+**Supuestos operativos** (si cambia alguno, las copias pueden parar sin aviso):
+- el repositorio sigue **privado** (si pasa a público, GitHub desactiva los programados tras 60 días sin actividad y los logs quedan a la vista);
+- `dev` sigue siendo la rama por defecto: los programados corren desde ahí;
+- Actions sigue habilitado en el repositorio.
+
+**Cupo gratuito del repo privado** (500 MB de artifacts, 2.000 min/mes de Actions). Medido en la primera copia: *pendiente (tarea 3.4)*. La cuenta: `tamaño del artifact × 90` contra 500 MB y `minutos por corrida × 30` contra 2.000. Al pasar el **80 %** de cualquiera de los dos, se baja la retención o se mueve la copia a otro almacenamiento, en un change. Si el cupo se llena, la subida falla y el workflow queda rojo. Uso actual: *Settings → Billing and plans*.
+
+**Revisión mensual** — el **primer día hábil de cada mes**, quien opera el despliegue:
+1. Descarga la copia más reciente (*Actions → DB backup → último run verde → Artifacts*, o `gh run download <id>`) y la guarda en el disco externo. Así se conserva más allá de los 90 días.
+2. Comprueba que descifra y que se lee: `age -d -i dentdesk-backup.key -o db.dump db-backup-<fecha>.dump.age` y `pg_restore --list db.dump` (con el `pg_restore` de Docker). Borra el `db.dump` descifrado al terminar.
+3. Mira la fecha del último artifact (si no es de ayer o de hoy, el programado dejó de correr) y el uso del cupo.
+
+### 4.4 Restaurar una copia
+
+**Descifrar** (en la PC del responsable, con la clave privada):
+
+```powershell
+gh run download <run-id> -n db-backup-<AAAA-MM-DD>
+age -d -i dentdesk-backup.key -o db.dump db-backup-<AAAA-MM-DD>.dump.age
+```
+
+El volcado descifrado tiene historias clínicas en claro: se borra al terminar y nunca se sube a ningún lado.
+
+**Caso 1 — revisar datos** (lo normal). PostgreSQL 16 local en Docker, nunca producción:
+
+```powershell
+docker run -d --name restore-db -e POSTGRES_PASSWORD=restore -p 5433:5432 postgres:16
+docker run --rm --network host -v "${PWD}:/backup" postgres:16 pg_restore --no-owner --no-acl --exit-on-error --dbname=postgresql://postgres:restore@localhost:5433/postgres /backup/db.dump
+```
+
+(En Windows sin red `host` en Docker, usar una red de Docker compartida y el nombre del contenedor como host.)
+
+**Caso 2 — reemplazar producción.** Solo si la base de producción se perdió o se dañó. La copia va **sin dueños ni permisos** (`--no-owner --no-acl`): restaurarla "tal cual" deja a `odontorisas_app` sin acceso o, peor, a la app conectada con un rol que salta RLS, y entonces **una clínica ve los datos de otra**. En orden:
+
+1. En Neon, una **rama nueva**. En ella, una base vacía cuyo dueño sea `odontorisas_admin`.
+2. Restaurar **conectado como `odontorisas_admin`**, así las tablas y la función `SECURITY DEFINER` de `V24` quedan con el mismo dueño que en producción:
+   `pg_restore --no-owner --no-acl --exit-on-error --dbname=<URL directa de odontorisas_admin en la rama> db.dump`
+3. Devolver los permisos a la app, como `odontorisas_admin`. Flyway **no** vuelve a correr `V6` (la tabla de migraciones restaurada ya está al día) y `ALTER DEFAULT PRIVILEGES` solo cubre tablas futuras:
+   ```sql
+   GRANT CONNECT ON DATABASE <base> TO odontorisas_app;
+   GRANT USAGE ON SCHEMA public TO odontorisas_app;
+   GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO odontorisas_app;
+   GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO odontorisas_app;
+   ALTER DEFAULT PRIVILEGES FOR ROLE odontorisas_admin IN SCHEMA public
+     GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO odontorisas_app;
+   ALTER DEFAULT PRIVILEGES FOR ROLE odontorisas_admin IN SCHEMA public
+     GRANT USAGE, SELECT ON SEQUENCES TO odontorisas_app;
+   ```
+4. Verificar, todo con el resultado esperado, **antes** de tocar Render:
+   ```sql
+   -- (a) La app puede todo lo que necesita: sin filas.
+   SELECT c.relname FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
+   WHERE n.nspname = 'public' AND c.relkind IN ('r', 'p')
+     AND NOT has_table_privilege('odontorisas_app', c.oid, 'SELECT, INSERT, UPDATE, DELETE')
+   UNION ALL
+   SELECT c.relname FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
+   WHERE n.nspname = 'public' AND c.relkind = 'S'
+     AND NOT has_sequence_privilege('odontorisas_app', c.oid, 'USAGE, SELECT');
+
+   -- (b) Función de V24: dueño odontorisas_admin, prosecdef true, proconfig {search_path=public}.
+   SELECT r.rolname AS dueno, p.prosecdef, p.proconfig
+   FROM pg_proc p JOIN pg_roles r ON r.oid = p.proowner
+   WHERE p.proname = 'current_user_is_org_admin';
+
+   -- (c) RLS intacta: compara esta lista con la misma consulta en producción (o en la copia anterior).
+   SELECT c.relname, c.relrowsecurity, c.relforcerowsecurity, string_agg(p.policyname, ',' ORDER BY p.policyname)
+   FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
+   LEFT JOIN pg_policies p ON p.schemaname = 'public' AND p.tablename = c.relname
+   WHERE n.nspname = 'public' AND c.relkind = 'r' AND c.relrowsecurity
+   GROUP BY 1, 2, 3 ORDER BY 1;
+   ```
+   Y la verificación de roles de §4.2 (`odontorisas_app` sin `rolbypassrls` ni `neon_superuser`).
+5. Levantar el backend **local** contra la rama, con `odontorisas_app`, y comprobar el aislamiento: con dos clínicas (si producción tiene una sola, crear una de prueba **en la rama**), cada una ve solo lo suyo y pedir lo de la otra responde "no encontrado".
+6. Recién entonces, apuntar `DB_URL` de Render a la rama restaurada.
+
 ## 5. Condición previa: la cookie de sesión entre dominios
 
 El refresh token viaja en una cookie `HttpOnly; Secure; SameSite=Lax`, que es además la protección CSRF del backend. `*.vercel.app` y `*.onrender.com` son *sites* distintos (ambos sufijos están en la Public Suffix List): con `SameSite=Lax` el navegador **no envía** la cookie y la sesión no se restaura al recargar. `withCredentials` y CORS no lo compensan.
@@ -180,7 +311,7 @@ Notas de la puesta en marcha (para la próxima vez):
 - `DB_URL` va en formato **JDBC** (`jdbc:postgresql://<host>/dentdeskdb?sslmode=require`), **sin** usuario ni clave dentro y sin `channel_binding`. Pegar la cadena de Neon tal cual falla con `'url' must start with "jdbc"`.
 - En Render, el **valor** de cada variable es el dato, no el nombre de la variable (un `DB_ADMIN_USERNAME=DB_ADMIN_USERNAME` dio `password authentication failed for user 'DB_ADMIN_USERNAME'`).
 - Neon crea en la base una tabla de ejemplo `playing_with_neon`: Flyway se niega a migrar un esquema no vacío. Se borra (`DROP TABLE public.playing_with_neon;`) antes del primer deploy. **Nunca** usar `baselineOnMigrate`.
-- El rol dueño del proyecto en Neon (el del SQL Editor) se llama `dentdeskdb_owner`.
+- El rol dueño del proyecto en Neon se llama `dentdeskdb_owner`. El SQL Editor ya **no** entra con él, sino con `odontorisas_admin` (ver el aviso de §4.2).
 - `dentdesk.vercel.app` estaba tomado por otro proyecto: los `.vercel.app` son globales.
 
 ### Matriz de verificación (design D7 de `add-cloud-deployment`)
@@ -202,13 +333,13 @@ Notas de la puesta en marcha (para la próxima vez):
 | Monitor | cron-job.org lun–sáb 9:00–21:00 **no despierta** el servicio dormido (Render le devuelve una página HTML, con o sin `Accept: application/json`), solo lo mantiene despierto. El despertar lo hace `wake-up.yml`, **disparado por cron-job.org vía la API de GitHub** porque el `schedule` de GitHub se atrasó 4–6 h: con las dos apps dormidas, HSO **54 s** y Dentdesk **74 s → `UP`** ✅ (2026-10-15) |
 | Soporte | botones de WhatsApp y correo desde el login publicado: abren el chat y el correo ✅ (2026-10-12) |
 
-Datos de la verificación en producción: quedaron dos clínicas de prueba (`Verificación A` y `Verificación B`, correos `verificacion-*@dentdesk.test`, dominio que no recibe correo) con un paciente cada una. Son inofensivas; se pueden borrar con un script probado antes en local.
+Datos de la verificación en producción: las dos clínicas de prueba (`Verificación A` y `Verificación B`, correos `verificacion-*@dentdesk.test`) ya no existen; al 2026-10-26 producción tiene una sola organización.
 
 ## 10. Pendiente en los changes siguientes
 
 - ~~`add-support-contact`~~ (hecho): una fila compacta "¿Problemas para entrar?" con botones de WhatsApp y correo bajo el formulario de login y registro, y en "Está tardando más de lo normal". Los datos están en `modules/frontend/src/modules/core/config/supportContact.ts`; quedan públicos en la web.
 - ~~`add-cloud-deployment`~~ (archivado 2026-10-15): puesto en marcha (§8) y verificado (§9). Quedan **sin probar**, con riesgo bajo y documentados en la matriz: la sesión en Safari/iOS y el arranque en frío medido entrando por el login.
-- `add-database-backups`: copia diaria cifrada fuera de Neon con restauración verificada. "No caduca" no es una copia de seguridad. **Postergado** (2026-10-12): Dentdesk está en fase de prueba. Es requisito **antes de cargar pacientes reales**: sin copia, un borrado o una corrupción en Neon pierde historias clínicas que hay que conservar 20 años (ADR-0018).
+- ~~`add-database-backups`~~ (2026-10-26): copia diaria cifrada fuera de Neon con restauración verificada (§4.3 y §4.4). Era requisito **antes de cargar pacientes reales**: sin copia, un borrado o una corrupción en Neon pierde historias clínicas que hay que conservar 20 años (ADR-0018).
 
 ## 11. Operación de plataforma: administrador global y alta de clínicas
 
