@@ -133,14 +133,15 @@ Acordado el **2026-10-15**, después de un día con cinco PRs a `main` (#89, #91
 arreglar el anterior, y cuatro fallos que aparecieron recién en la CI o en producción.
 
 ```
-propose → PR (+ prompt para Codex) → revisión → merge a dev
+propose → prompt para Codex (en el chat) → revisión incorporada → PR → merge a dev
 apply   → antes del PR: tests nuevos en condiciones de CI + suite completa
-        → PR (+ prompt para Codex) → revisión → merge a dev
+        → prompt para Codex (en el chat) → revisión incorporada → PR → merge a dev
 release → PR dev → main solo cuando hay algo para producción, con la CI de dev en verde sobre el merge
 ```
 
-- **La revisión de Codex va antes del merge.** Cada PR sale con el prompt de revisión listo para pegar. Mergear antes
-  obliga a incorporar la revisión en la rama siguiente.
+- **La revisión de Codex va antes del PR.** El prompt de revisión se pasa en el chat, no en la descripción del PR;
+  lo que Codex encuentre se incorpora en la misma rama y recién entonces se abre el PR (corregido el 2026-10-26).
+  Mergear sin revisión obliga a incorporarla en la rama siguiente.
 - **Changes chicos: un solo PR** con propuesta y apply. Los grandes (varias decisiones de diseño, concurrencia, API
   nueva) mantienen los dos: la revisión previa de `add-staff` cerró tres carreras antes de escribir código.
 - **Antes de abrir un PR con tests nuevos, correrlos como en la CI**: el runner tiene 2 núcleos, así que el pool común
