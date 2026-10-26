@@ -171,7 +171,8 @@ El secreto `BACKUP_DATABASE_URL` es la URL libpq **directa** del rol (sin `-pool
 
 **Revisión mensual** — el **primer día hábil de cada mes**, quien opera el despliegue:
 1. Descarga la copia más reciente (*Actions → DB backup → último run verde → Artifacts*, o `gh run download <id>`) y la guarda en el disco externo. Así se conserva más allá de los 90 días.
-2. Comprueba que descifra y que se lee: `age -d -i dentdesk-backup.key -o db.dump db-backup-<fecha>.dump.age` y `pg_restore --list db.dump` (con el `pg_restore` de Docker). Borra el `db.dump` descifrado al terminar.
+2. Comprueba que descifra y que se restaura completa con el script (desde `modules/backend`):
+   `.\scripts\verify-backup-restore.ps1 -RunId <id> -KeyPath <ruta de dentdesk-backup.key>`. Restaura en un PostgreSQL 16 local como rol no superusuario y compara con producción (pide la URL de `odontorisas_backup`, sin mostrarla): conteos por tabla, permisos, función de V24, huella de RLS y aislamiento. Solo imprime PASA / FALLA y borra todo lo descifrado al terminar. Si hubo actividad en producción después de la copia, los conteos pueden diferir sin que sea un error.
 3. Mira la fecha del último artifact (si no es de ayer o de hoy, el programado dejó de correr) y el uso del cupo.
 
 ### 4.4 Restaurar una copia
@@ -185,7 +186,7 @@ age -d -i dentdesk-backup.key -o db.dump db-backup-<AAAA-MM-DD>.dump.age
 
 El volcado descifrado tiene historias clínicas en claro: se borra al terminar y nunca se sube a ningún lado.
 
-**Caso 1 — revisar datos** (lo normal). PostgreSQL 16 local en Docker, nunca producción:
+**Caso 1 — revisar datos** (lo normal). PostgreSQL 16 local en Docker, nunca producción. Para **verificar** una copia alcanza con el script de la revisión mensual (§4.3); a mano, para mirar los datos:
 
 ```powershell
 docker run -d --name restore-db -e POSTGRES_PASSWORD=restore -p 5433:5432 postgres:16
@@ -196,7 +197,10 @@ docker run --rm --network host -v "${PWD}:/backup" postgres:16 pg_restore --no-o
 
 **Caso 2 — reemplazar producción.** Solo si la base de producción se perdió o se dañó. La copia va **sin dueños ni permisos** (`--no-owner --no-acl`): restaurarla "tal cual" deja a `odontorisas_app` sin acceso o, peor, a la app conectada con un rol que salta RLS, y entonces **una clínica ve los datos de otra**. En orden:
 
-1. En Neon, una **rama nueva**. En ella, una base vacía cuyo dueño sea `odontorisas_admin`.
+1. En Neon, una **rama nueva** desde `production` (*Branches → New branch*). En ella, una base vacía cuyo dueño sea `odontorisas_admin`, creada **conectado como `dentdeskdb_owner`** desde un cliente externo (el SQL Editor entra como `odontorisas_admin`, que no puede crear bases): `CREATE DATABASE restored OWNER odontorisas_admin;`. El host de la rama es distinto del de producción (*Connect* con la rama elegida, sin pooling).
+
+   Los pasos 2 a 4 los hace y verifica el script, que se niega a restaurar sobre una base que no esté vacía:
+   `.\scripts\verify-backup-restore.ps1 -RunId <id> -KeyPath <clave> -Remote -RemoteDatabase restored` (pide la URL de `odontorisas_backup` de producción, el host de la rama y las claves de `odontorisas_admin` y `odontorisas_app`). A mano:
 2. Restaurar **conectado como `odontorisas_admin`**, así las tablas y la función `SECURITY DEFINER` de `V24` quedan con el mismo dueño que en producción:
    `pg_restore --no-owner --no-acl --exit-on-error --dbname=<URL directa de odontorisas_admin en la rama> db.dump`
 3. Devolver los permisos a la app, como `odontorisas_admin`. Flyway **no** vuelve a correr `V6` (la tabla de migraciones restaurada ya está al día) y `ALTER DEFAULT PRIVILEGES` solo cubre tablas futuras:
@@ -240,7 +244,15 @@ docker run --rm --network host -v "${PWD}:/backup" postgres:16 pg_restore --no-o
    ) f;
    ```
    **Referencia** para la huella: la misma consulta en producción, si sigue accesible; si no, en una base local migrada por Flyway desde el repo **a la misma versión** que la copia (el backend local contra una PostgreSQL vacía). Si las huellas difieren, correr solo la subconsulta `f` en las dos bases y comparar las filas: una tabla con RLS en `false`, una policy que falta o una expresión cambiada (p. ej. `USING (true)`) bloquean el reemplazo. Y la verificación de roles de §4.2 (`odontorisas_app` sin `rolbypassrls` ni `neon_superuser`).
-5. Levantar el backend **local** contra la rama, con `odontorisas_app`, y comprobar el aislamiento: con dos clínicas (si producción tiene una sola, crear una de prueba **en la rama**), cada una ve solo lo suyo y pedir lo de la otra responde "no encontrado".
+5. Levantar el backend **local** contra la rama y entrar con una cuenta real. En una terminal nueva, en `modules/backend`, **una línea por vez** (si se pega todo junto, cada `Read-Host` toma la línea siguiente del pegado como respuesta):
+   ```powershell
+   $h = Read-Host "Host de la rama"
+   $env:DB_PASSWORD = [Runtime.InteropServices.Marshal]::PtrToStringAuto([Runtime.InteropServices.Marshal]::SecureStringToBSTR((Read-Host -AsSecureString "Clave de odontorisas_app")))
+   $env:DB_ADMIN_PASSWORD = [Runtime.InteropServices.Marshal]::PtrToStringAuto([Runtime.InteropServices.Marshal]::SecureStringToBSTR((Read-Host -AsSecureString "Clave de odontorisas_admin")))
+   $env:DB_URL = "jdbc:postgresql://$h/restored?sslmode=require"; $env:DB_USERNAME = "odontorisas_app"; $env:DB_ADMIN_USERNAME = "odontorisas_admin"
+   mvn spring-boot:run
+   ```
+   (JDBC **sin** `channel_binding`.) Esperado: Flyway `Successfully validated N migrations` y `Schema "public" is up to date`, y con el frontend local se entra y se ven los datos de la clínica. El aislamiento ya lo comprobó el script (paso anterior); si se quiere verlo en la app, con dos clínicas cada una ve solo lo suyo (si producción tiene una sola, crear una de prueba **en la rama**).
 6. Recién entonces, apuntar `DB_URL` de Render a la rama restaurada y **redesplegar** el servicio (*Manual Deploy* o reinicio): una instancia vieja puede conservar conexiones a la base anterior. Después, `/api/actuator/health/liveness` en `200 UP` y un login con una cuenta real para confirmar que la app lee la base nueva.
 
 ## 5. Condición previa: la cookie de sesión entre dominios
