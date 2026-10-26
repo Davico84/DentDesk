@@ -47,7 +47,7 @@ El sistema SHALL permitir a cada usuario declarar, solo para sí mismo, su núme
 
 ### Requirement: Capacidad clínica efectiva en la clínica activa
 
-Un usuario SHALL tener capacidad clínica en la clínica activa solo si tiene credencial declarada, su fecha "habilitado hasta" no pasó en la hora de Perú y su capacidad no fue retirada en esa membresía. El usuario SHALL poder consultar su propia credencial y su capacidad clínica, con el motivo cuando no la tiene: sin credencial, habilitación vencida o capacidad retirada.
+Un usuario SHALL tener capacidad clínica en la clínica activa solo si su membresía está activa, tiene credencial declarada, su fecha "habilitado hasta" no pasó en la hora de Perú y su capacidad no fue retirada en esa membresía. El usuario SHALL poder consultar su propia credencial y su capacidad clínica, con el motivo cuando no la tiene: membresía inactiva, sin credencial, habilitación vencida o capacidad retirada.
 
 #### Scenario: Habilitado y sin retiro
 - **WHEN** un usuario con credencial vigente y sin retiro en la clínica activa consulta su capacidad clínica
@@ -73,7 +73,11 @@ Un usuario SHALL tener capacidad clínica en la clínica activa solo si tiene cr
 #### Scenario: Consultar la credencial sin clínica activa
 - **WHEN** un usuario sin clínica activa consulta o declara su credencial
 - **THEN** el sistema la muestra o la guarda
-- **AND** no informa capacidad clínica, porque esa depende de una clínica
+- **AND** la capacidad clínica viene vacía, porque depende de una clínica
+
+#### Scenario: Miembro desactivado con la sesión todavía abierta
+- **WHEN** el `ADMIN` desactiva a un miembro y ese miembro, con su sesión aún vigente, consulta su capacidad o intenta firmar
+- **THEN** el sistema indica que no tiene capacidad clínica porque su membresía está inactiva
 
 #### Scenario: Retirada en una clínica, vigente en otra
 - **WHEN** a un usuario le retiraron la capacidad clínica en la clínica A y consulta su capacidad con la clínica B activa
@@ -108,6 +112,10 @@ El sistema SHALL permitir al `ADMIN` retirar, con confirmación, la capacidad cl
 #### Scenario: Un miembro intenta retirar la capacidad
 - **WHEN** un `MEMBER` intenta retirar o restituir la capacidad clínica de alguien
 - **THEN** el sistema responde con acceso denegado
+
+#### Scenario: Una membresía no nace retirada
+- **WHEN** se intenta crear una membresía que ya trae la capacidad clínica retirada, aun escribiendo directo en la base
+- **THEN** la base lo rechaza
 
 #### Scenario: Un miembro intenta levantar su propio retiro
 - **WHEN** un miembro al que le retiraron la capacidad clínica intenta levantar el retiro, aun escribiendo directo en la base con su sesión

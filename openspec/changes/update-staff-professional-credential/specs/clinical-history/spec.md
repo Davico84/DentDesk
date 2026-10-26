@@ -25,7 +25,7 @@ Cerrar la admisión (sellar la Historia Clínica a `COMPLETED` junto con el odon
 - **THEN** el sistema responde con acceso denegado e indica que la clínica retiró su capacidad clínica
 
 #### Scenario: Retiro confirmado mientras se sella
-- **WHEN** el `ADMIN` retira la capacidad clínica de un miembro mientras ese miembro sella una nota o cierra una admisión
+- **WHEN** el `ADMIN` retira la capacidad clínica de un miembro, o lo desactiva, mientras ese miembro sella una nota o cierra una admisión
 - **THEN** o el sellado termina primero y queda con la credencial vigente en ese momento, o el retiro termina primero y el sellado se rechaza
 - **AND** nunca queda sellado un registro después de que el retiro se confirmó
 

@@ -47,6 +47,11 @@ Motivación y alcance: ver `proposal.md`. Lo que condiciona el cómo:
   control. La policy de `SELECT` no reemplaza al `USING` del `UPDATE`.
 - Sin policy de `DELETE`: el rol de la app no borra credenciales.
 - Una policy por comando (no `FOR ALL`), para que ninguna rama de lectura del `ADMIN` se cuele en la escritura.
+- **Sin upsert.** Primera declaración = `INSERT`; renovación = `UPDATE ... WHERE user_id = <sesión>`. Ni
+  `INSERT ... ON CONFLICT DO UPDATE` ni `merge` genérico de JPA: un upsert contra el COP de otro usuario podría
+  terminar en un rechazo de RLS en vez de en la violación de unicidad, y el 409 dejaría de ser el único camino. Con
+  `INSERT` o `UPDATE` explícitos, un COP ajeno siempre llega como violación del índice único, en cualquiera de los
+  dos casos.
 - **Unicidad del COP:** índice único con nombre propio. La RLS no oculta una violación de unicidad: el `INSERT`
   choca aunque la otra fila sea invisible. El servicio captura **esa** restricción por su nombre y lanza una
   excepción tipada (`credential-number-taken`, 409) con un texto fijo y **sin la causa SQL**. El manejador
@@ -67,8 +72,18 @@ mismo ni a otro `ADMIN`) van en el servicio, igual que `PATCH /staff/members/{id
 **Y además en la base.** `membership_identity_isolation` (V28) es una policy para todos los comandos con solo
 `USING`, que vale también como `WITH CHECK`: un usuario puede hacer `UPDATE` sobre **su propia** membresía. Con el
 retiro en esa fila, un miembro podría levantarse su propio retiro con una escritura directa. Por eso un trigger
-`BEFORE UPDATE OF clinical_capacity_revoked_at, clinical_capacity_revoked_by` exige que quien escribe sea `ADMIN`
-activo de esa organización (`current_user_is_org_admin`), que la fila no sea la suya y que su rol sea `MEMBER`.
+`BEFORE INSERT OR UPDATE` (sin `OF <columnas>`, para no depender de qué nombra el `SET`):
+
+- **`INSERT`:** la membresía nace **sin** retiro (`clinical_capacity_revoked_at` y `_by` nulos). Nadie da de alta
+  una membresía ya retirada.
+- **`UPDATE`** en el que el retiro cambia (`OLD` distinto de `NEW` en cualquiera de las dos columnas): valida el
+  **estado final**. Quien escribe debe ser `ADMIN` activo de esa organización (`current_user_is_org_admin`), la
+  fila no debe ser la suya, y `NEW.role` debe ser `MEMBER`. Así un `UPDATE` que cambie el rol y el retiro a la vez
+  no se cuela validando el rol viejo.
+- Es el **único** trigger de `memberships` y se nombra para correr último (`zz_…`), de modo que valida lo que
+  dejen otros triggers `BEFORE` que pudieran agregarse después. Un `CHECK` de coherencia (`_at` y `_by` nulos o
+  no nulos a la vez) completa la regla.
+
 Así la asimetría "otorgar nunca, retirar sí" vive también en la base.
 
 ⚠️ La policy de V28 deja abierto de la misma forma el resto de las columnas de la propia membresía (`role`,
@@ -77,9 +92,14 @@ revisa los permisos de `memberships`.
 
 ### D3 — Capacidad clínica efectiva: un solo servicio
 
-`ClinicalCapacityService` resuelve, para el usuario de la sesión y la organización activa, uno de cuatro
-resultados: `ENABLED` (con la credencial), `NO_CREDENTIAL`, `EXPIRED` (con la fecha) o `REVOKED`. La vigencia
-se compara con la **fecha de hoy en `America/Lima`** e incluye el último día.
+`ClinicalCapacityService` resuelve, para el usuario de la sesión y la organización activa, uno de cinco
+resultados, evaluados en este orden: `INACTIVE_MEMBERSHIP` (la membresía no está `ACTIVE`), `REVOKED`,
+`NO_CREDENTIAL`, `EXPIRED` (con la fecha) o `ENABLED` (con la credencial). La vigencia se compara con la **fecha
+de hoy en `America/Lima`** e incluye el último día.
+
+**Membresía activa.** Un miembro desactivado con un token de acceso todavía vigente no debe poder firmar: el
+estado `ACTIVE` de la membresía es parte de la capacidad, leído con el mismo `FOR SHARE` de D4. Así la
+desactivación concurrente con un sellado se comporta igual que el retiro.
 
 **Por qué Lima y no la zona de la clínica.** La fecha "habilitado hasta" la fija el COP, que es peruano: es una
 fecha de Perú, sea cual sea la zona de la clínica. Evaluarla en la zona de cada clínica haría que la misma
@@ -88,8 +108,9 @@ una sola zona, la credencial, que es global, tiene un solo vencimiento. La valid
 `PUT` usa la misma zona, así que no depende de tener clínica activa.
 
 **Sin clínica activa.** La credencial es del usuario: `GET` y `PUT /me/professional-credential` funcionan sin
-organización activa. La **capacidad** depende de la membresía: sin clínica activa la respuesta no la trae y
-`require()` no se puede llamar (las dos firmas exigen clínica activa por su propia ruta).
+organización activa. La **capacidad** depende de la membresía: sin clínica activa la respuesta trae
+`clinicalCapacity: null` (campo nulo y documentado así en OpenAPI, el DTO y el schema Zod), y `require()` no se
+puede llamar, porque las dos firmas exigen clínica activa por su propia ruta.
 
 `require()` lanza
 `ClinicalCapacityRequiredException` (403 RFC 9457 con la propiedad `reason`, `docs/backend.md`) o devuelve la
@@ -101,8 +122,8 @@ el mismo cálculo.
 - **Cierre de la admisión:** en `CloseAdmissionService`, **dentro de la misma transacción y antes** de
   `complete`/`sealInitial`. La misma foto se pasa a los dos, así que la Historia y el odontograma guardan
   exactamente los mismos datos.
-- **Sellado de la nota:** en `ConsultationNoteService.seal`, dentro de su transacción, después de bloquear la
-  nota y antes de validar su contenido.
+- **Sellado de la nota:** en `ConsultationNoteService.seal`, dentro de su transacción, **antes** de bloquear la
+  nota y de validar su contenido.
 - Ningún otro endpoint clínico cambia (borradores: non-goal).
 
 **Bloqueo contra el retiro y la renovación concurrentes.** Comprobar dentro de la transacción no basta: el sellado
@@ -117,9 +138,10 @@ podría leer la membresía sin retiro, el `ADMIN` retirar y confirmar, y el sell
   en la foto.
 - `FOR SHARE` y no `FOR UPDATE`: dos sellados del mismo profesional (dos pacientes a la vez) no se bloquean entre
   sí.
-- **Orden de bloqueo:** primero las filas clínicas (como hoy: Historia → odontograma en la admisión, la nota en su
-  sellado), después la membresía y por último la credencial. El retiro solo toma la membresía y la renovación
-  solo la credencial, así que no hay ciclo posible.
+- **Orden de bloqueo, único para las dos firmas:** **membresía → credencial → filas clínicas** en su orden actual
+  (Historia → odontograma en la admisión; la nota en su sellado). `require()` es lo primero de la transacción. El
+  retiro, la restitución y la desactivación solo toman la membresía, y la renovación solo la credencial, así que no
+  hay ciclo posible.
 - `FOR SHARE` exige el privilegio `UPDATE` (lo tiene `odontorisas_app`, V6) y pasar el `USING` de la policy: la
   membresía y la credencial propias lo pasan.
 
@@ -173,7 +195,9 @@ afecta a la verificación de copias de `add-database-backups`.
 ### D7 — Frontend
 
 - **Pantalla "Mi credencial profesional"**, accesible a toda membresía (no solo `ADMIN`), con el estado de su
-  capacidad en la clínica activa y el formulario con la casilla de declaración jurada.
+  capacidad en la clínica activa y el formulario con la casilla de declaración jurada. La ayuda del campo de fecha
+  dice que la vigencia se cuenta en la hora de Perú; un rechazo del servidor por fecha pasada se muestra en el campo
+  aunque el navegador, en otra zona, la viera válida.
 - **Personal:** columna de capacidad clínica y acción retirar/restituir con confirmación, con el patrón de
   desactivar/reactivar. No se ofrece sobre la propia fila ni sobre otro `ADMIN`.
 - **Botones de firma** (cerrar admisión, sellar nota): un hook de React Query sobre
@@ -187,8 +211,8 @@ afecta a la verificación de copias de `add-database-backups`.
   verificar contra el registro del COP después, sin cambiar de forma (`ADR-0018` D6).
 - [Al desplegar, nadie puede firmar hasta declarar su credencial] → Hoy es una sola clínica con datos de prueba.
   El botón deshabilitado lleva a la pantalla de declaración. Va en las notas del release.
-- [Un retiro o una renovación concurrentes con un sellado] → `FOR SHARE` sobre la membresía y la credencial
-  (D4). Nunca queda sellado un registro después de un retiro ya confirmado. Costo: un retiro espera a que
+- [Un retiro, una desactivación o una renovación concurrentes con un sellado] → `FOR SHARE` sobre la membresía y
+  la credencial (D4). Nunca queda sellado un registro después de un retiro ya confirmado. Costo: un retiro espera a que
   terminen los sellados en curso de ese profesional, que duran milisegundos.
 - [El 409 por COP duplicado es un oráculo de existencia: dice si un número ya está en Dentdesk] → Se acepta. El
   padrón del COP es público, y la respuesta no dice quién ni en qué clínica. A cambio, impide usar el número de
