@@ -41,4 +41,4 @@
 - [x] 4.2 `docs/compliance/regulatory-matrix.md`: filas de respaldos (art. 48.1 num. 3) y F9 con este change como dueño y su estado; GitHub como sub-encargado con copias cifradas
 - [x] 4.3 Open Questions de `ADR-0014` (4) y `ADR-0016` (2): resueltas para las copias, con enlace; el cifrado en reposo de columnas sigue abierto
 - [ ] 4.4 `docs/vision.md` §8: marcar "Gestión de cuentas" (ya la hizo `add-staff`) *(hecho)*; al archivar, `add-database-backups` ✅
-- [ ] 4.5 `openspec validate add-database-backups --strict` y medir a mano los requirements (≤ 500 caracteres)
+- [x] 4.5 `openspec validate add-database-backups --strict` y medir a mano los requirements (≤ 500 caracteres) — *apply 2026-10-26: válido; los 5 ADDED miden 300–380*
