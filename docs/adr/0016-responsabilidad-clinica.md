@@ -80,7 +80,7 @@ No es un log técnico. Es un **registro clínico de quién vio qué**, exigido p
 
 | Nivel | Alcance | Dueño |
 |---|---|---|
-| **Base** | disco, backups, réplicas | **infraestructura** — sin dueño técnico asignado hoy (ver Open Questions) |
+| **Base** | disco, backups, réplicas | **infraestructura** — las **copias** las cifra `add-database-backups` (`age`, clave solo del responsable); disco y réplicas, el proveedor (ver Open Questions) |
 | **Dominio** | columnas de **clase clínica** (D2) | esta decisión |
 
 **Qué se cifra**: texto libre clínico — motivo de consulta, antecedentes, anamnesis, notas, evolución, especificaciones.
@@ -150,7 +150,7 @@ Es una simplificación, no una pérdida: tres roles con significado ambiguo pasa
 - ⚠️ **D4 acopla disponibilidad a auditoría**: si la tabla de auditoría no acepta escrituras, la lectura clínica se detiene. Es deliberado y acotado a datos clínicos.
 - ⚠️ **El cifrado de columnas rompe la búsqueda sobre ellas.** Hoy no se busca por texto clínico; si mañana se quisiera, hay que resolverlo con otra técnica (índices cifrados, búsqueda fuera de la base) y no revirtiendo el cifrado.
 - ⚠️ **Toca capacidades construidas**: `clinical-history` y `patients` ganan cifrado en columnas existentes (migración con datos), y toda lectura clínica gana auditoría.
-- ⚠️ **El nivel base del cifrado (backups, disco) no tiene dueño.** No es de este ADR ni de `ADR-0014`: es de despliegue, y está sin asignar.
+- ⚠️ **El nivel base del cifrado (backups, disco) no es de este ADR ni de `ADR-0014`**: es de despliegue. Las **copias** ya tienen dueño (`add-database-backups`, 2026-10-26); el disco y las réplicas del proveedor no tienen una decisión propia.
 
 ## Alternativas descartadas
 

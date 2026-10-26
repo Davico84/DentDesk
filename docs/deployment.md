@@ -226,16 +226,18 @@ docker run --rm --network host -v "${PWD}:/backup" postgres:16 pg_restore --no-o
    FROM pg_proc p JOIN pg_roles r ON r.oid = p.proowner
    WHERE p.proname = 'current_user_is_org_admin';
 
-   -- (c) RLS intacta: compara esta lista con la misma consulta en producción (o en la copia anterior).
-   SELECT c.relname, c.relrowsecurity, c.relforcerowsecurity, string_agg(p.policyname, ',' ORDER BY p.policyname)
+   -- (c) RLS intacta: huella de TODAS las tablas (también las que no tienen RLS), con sus flags y
+   --     cada policy con su comando, roles y expresiones. Tiene que ser IGUAL a la de la referencia.
+   SELECT md5(string_agg(format('%s|%s|%s|%s|%s|%s|%s|%s', c.relname, c.relrowsecurity, c.relforcerowsecurity,
+                                p.policyname, p.cmd, p.roles, p.qual, p.with_check),
+                         E'\n' ORDER BY c.relname, p.policyname)) AS huella_rls
    FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
    LEFT JOIN pg_policies p ON p.schemaname = 'public' AND p.tablename = c.relname
-   WHERE n.nspname = 'public' AND c.relkind = 'r' AND c.relrowsecurity
-   GROUP BY 1, 2, 3 ORDER BY 1;
+   WHERE n.nspname = 'public' AND c.relkind IN ('r', 'p');
    ```
-   Y la verificación de roles de §4.2 (`odontorisas_app` sin `rolbypassrls` ni `neon_superuser`).
+   **Referencia** para la huella: la misma consulta en producción, si sigue accesible; si no, en una base local migrada por Flyway desde el repo **a la misma versión** que la copia (el backend local contra una PostgreSQL vacía). Si las huellas difieren, quitar el `md5(…)` y comparar las filas: una tabla con RLS en `false`, una policy que falta o una expresión cambiada (p. ej. `USING (true)`) bloquean el reemplazo. Y la verificación de roles de §4.2 (`odontorisas_app` sin `rolbypassrls` ni `neon_superuser`).
 5. Levantar el backend **local** contra la rama, con `odontorisas_app`, y comprobar el aislamiento: con dos clínicas (si producción tiene una sola, crear una de prueba **en la rama**), cada una ve solo lo suyo y pedir lo de la otra responde "no encontrado".
-6. Recién entonces, apuntar `DB_URL` de Render a la rama restaurada.
+6. Recién entonces, apuntar `DB_URL` de Render a la rama restaurada y **redesplegar** el servicio (*Manual Deploy* o reinicio): una instancia vieja puede conservar conexiones a la base anterior. Después, `/api/actuator/health/liveness` en `200 UP` y un login con una cuenta real para confirmar que la app lee la base nueva.
 
 ## 5. Condición previa: la cookie de sesión entre dominios
 

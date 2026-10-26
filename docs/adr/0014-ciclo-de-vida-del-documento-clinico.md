@@ -30,7 +30,7 @@ Hoy el sellado garantiza que *el sistema* no permita modificar. No garantiza que
 >
 > **El corte entre ambos ADR**: acá se decide la **integridad** (que el documento no cambió: hash y firma); en `ADR-0016`, la **confidencialidad** (que solo quien corresponde lo vea: cifrado y control de acceso). Son propiedades independientes — un documento puede estar íntegro y expuesto, o cifrado y adulterado.
 >
-> ⚠️ El **cifrado de backups y de la infraestructura** no cae en ninguno de los dos: es responsabilidad de despliegue y **no tiene dueño técnico asignado**. Está anotado como hueco en la matriz.
+> ⚠️ El **cifrado de backups y de la infraestructura** no cae en ninguno de los dos: es responsabilidad de despliegue. **Las copias** ya tienen dueño (`add-database-backups`, 2026-10-26: copia cifrada con `age` fuera del proveedor, ver Open Question 4); el **cifrado del disco** del proveedor sigue siendo del proveedor y sin decisión propia.
 
 ### D1 — Hash de integridad al sellar, sobre una representación canónica
 
@@ -172,7 +172,7 @@ Cumplidos los 20 años, la norma permite destruir con acta del Comité de Histor
 | Borrado indirecto por FK (sin `ON DELETE CASCADE`) | **Purgas de infraestructura**: retención de backups, políticas del proveedor cloud |
 | | **Cancelación del tenant** — sin decisión tomada (Open Question 3) |
 
-Es decir: **v1 no puede destruir por sí mismo, pero el dato sigue siendo destruible desde fuera del dominio.** Cerrar eso pertenece a infraestructura y a la política de backups, que necesitan un dueño técnico explícito y no lo tienen.
+Es decir: **v1 no puede destruir por sí mismo, pero el dato sigue siendo destruible desde fuera del dominio.** Cerrar eso pertenece a infraestructura y a la política de backups. Las **copias** ya tienen dueño (`add-database-backups`): retención de 90 días en GitHub más las copias mensuales a disco, que son también una vía por la que el dato sobrevive fuera del dominio. Las operaciones administrativas directas sobre la base y la cancelación del tenant siguen sin dueño.
 
 ⚠️ Consecuencia asumida: **el almacenamiento solo crece.** Es el precio correcto para un registro médico-legal.
 
@@ -204,5 +204,5 @@ Es decir: **v1 no puede destruir por sí mismo, pero el dato sigue siendo destru
 1. ✅ **Canonicalización — RESUELTO** en D1: **RFC 8785 (JCS)**, versionada, con contexto del documento incluido en el hash. Queda como detalle de implementación elegir la librería.
 2. **¿El hash cubre los adjuntos?** Si mañana se suben radiografías (`images`, fila 9 del roadmap), ¿forman parte del documento sellado o son anexos con su propio hash? Afecta qué se firma.
 3. **⚠️ ¿Qué pasa con el expediente al dar de baja un tenant?** — es también el principal hueco de D7. El análisis de retención plantea que las historias **no se borran** aunque la clínica cancele la suscripción: quedarían accesibles en modo lectura para cumplir la custodia. Es una decisión de negocio con implicaciones de coste, y no está tomada.
-4. ✅ **¿Quién es el dueño técnico del cifrado de backups e infraestructura? — RESUELTO para las copias** (2026-10-26): el change `add-database-backups` (copia diaria cifrada con `age`, restaurada y verificada antes de guardarse; guía en `docs/deployment.md` §4.3–4.4). Sigue abierto el **cifrado en reposo** de columnas (`ADR-0016` D5), que es de la aplicación. Ojo con D7: la copia es otra vía por la que el dato **sobrevive** fuera del dominio (90 días en GitHub más las copias mensuales a disco); la destrucción, cuando se construya, tiene que alcanzarlas.
+4. ✅ **¿Quién es el dueño técnico del cifrado de backups e infraestructura? — RESUELTO para las copias** (2026-10-26): el change `add-database-backups` (el workflow implementa la copia diaria cifrada con `age`, restaurada y verificada antes de guardarse; guía en `docs/deployment.md` §4.3–4.4; verificación operativa en curso). El cifrado del disco del proveedor no es nuestro. Sigue abierto el **cifrado en reposo** de columnas (`ADR-0016` D5), que es de la aplicación. Ojo con D7: la copia es otra vía por la que el dato **sobrevive** fuera del dominio (90 días en GitHub más las copias mensuales a disco); la destrucción, cuando se construya, tiene que alcanzarlas.
 5. **¿Qué formato tiene la exportación además de PDF?** D3 fija que el documento canónico es JSON determinista y el PDF un render. Falta decidir si la exportación para auditoría entrega **ambos** (el canónico para verificar el hash, el PDF para leer) o solo uno.
