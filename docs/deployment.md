@@ -167,7 +167,7 @@ El secreto `BACKUP_DATABASE_URL` es la URL libpq **directa** del rol (sin `-pool
 - `dev` sigue siendo la rama por defecto: los programados corren desde ahí;
 - Actions sigue habilitado en el repositorio.
 
-**Cupo gratuito del repo privado** (500 MB de artifacts, 2.000 min/mes de Actions). Medido en la primera copia: *pendiente (tarea 3.4)*. La cuenta: `tamaño del artifact × 90` contra 500 MB y `minutos por corrida × 30` contra 2.000. Al pasar el **80 %** de cualquiera de los dos, se baja la retención o se mueve la copia a otro almacenamiento, en un change. Si el cupo se llena, la subida falla y el workflow queda rojo. Uso actual: *Settings → Billing and plans*.
+**Cupo gratuito del repo privado** (500 MB de artifacts, 2.000 min/mes de Actions). Medido en la primera copia (2026-10-26, base en V29): artifact de **304 KB** y job de **51 s**, o sea ≈ 27 MB (5 %) y ≈ 26 min/mes (1,3 %). La cuenta: `tamaño del artifact × 90` contra 500 MB y `minutos por corrida × 30` contra 2.000. Al pasar el **80 %** de cualquiera de los dos, se baja la retención o se mueve la copia a otro almacenamiento, en un change. Si el cupo se llena, la subida falla y el workflow queda rojo. Uso actual: *Settings → Billing and plans*.
 
 **Revisión mensual** — el **primer día hábil de cada mes**, quien opera el despliegue:
 1. Descarga la copia más reciente (*Actions → DB backup → último run verde → Artifacts*, o `gh run download <id>`) y la guarda en el disco externo. Así se conserva más allá de los 90 días.
@@ -212,14 +212,13 @@ docker run --rm --network host -v "${PWD}:/backup" postgres:16 pg_restore --no-o
    ```
 4. Verificar, todo con el resultado esperado, **antes** de tocar Render:
    ```sql
-   -- (a) La app puede todo lo que necesita: sin filas.
+   -- (a) La app puede todo lo que necesita: sin filas. El CASE evita que PostgreSQL evalúe la función
+   --     sobre otro tipo de relación antes de filtrar (has_sequence_privilege falla con una tabla TOAST).
    SELECT c.relname FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
-   WHERE n.nspname = 'public' AND c.relkind IN ('r', 'p')
-     AND NOT has_table_privilege('odontorisas_app', c.oid, 'SELECT, INSERT, UPDATE, DELETE')
-   UNION ALL
-   SELECT c.relname FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
-   WHERE n.nspname = 'public' AND c.relkind = 'S'
-     AND NOT has_sequence_privilege('odontorisas_app', c.oid, 'USAGE, SELECT');
+   WHERE n.nspname = 'public'
+     AND CASE WHEN c.relkind IN ('r', 'p') THEN NOT has_table_privilege('odontorisas_app', c.oid, 'SELECT, INSERT, UPDATE, DELETE')
+              WHEN c.relkind = 'S' THEN NOT has_sequence_privilege('odontorisas_app', c.oid, 'USAGE, SELECT')
+              ELSE false END;
 
    -- (b) Función de V24: dueño odontorisas_admin, prosecdef true, proconfig {search_path=public}.
    SELECT r.rolname AS dueno, p.prosecdef, p.proconfig
