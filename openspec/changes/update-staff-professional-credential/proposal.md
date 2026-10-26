@@ -14,7 +14,7 @@ para que no crezca lo firmado sin credencial.
 - **Credencial profesional del usuario.** Cada profesional declara **él mismo** su número de colegiatura COP y
   la fecha hasta la que está habilitado, con una declaración jurada explícita. Nadie declara la credencial de
   otro. La credencial es de la persona y vale en todas sus clínicas; renovarla es declarar la fecha nueva.
-- **La habilitación vence sola.** Pasada la fecha "habilitado hasta" (en la zona horaria de la clínica), el
+- **La habilitación vence sola.** Pasada la fecha "habilitado hasta" (en la hora de Perú, la del COP que la emite), el
   profesional deja de poder firmar sin que nadie toque nada.
 - **Retiro por clínica.** El `ADMIN` puede **retirar** la capacidad clínica de un `MEMBER` en su clínica, y
   restituirla; nunca otorgarla. El retiro vive en la membresía: no afecta a otras clínicas del mismo profesional.

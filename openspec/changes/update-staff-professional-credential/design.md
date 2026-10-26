@@ -41,9 +41,18 @@ Motivación y alcance: ver `proposal.md`. Lo que condiciona el cómo:
 - `SELECT`: la propia (`user_id = app.user_id`) **o** la de un miembro de la organización activa si quien lee es
   su `ADMIN` activo: el mismo patrón que `membership_identity_isolation`, con una función `SECURITY DEFINER`
   nueva (`current_user_is_org_admin_of_user`), para no recursar sobre la RLS de `memberships`.
-- `INSERT`/`UPDATE`: `WITH CHECK (user_id = app.user_id)`. Sin `DELETE` para el rol de la app.
-- **Unicidad del COP:** índice único. La RLS no oculta una violación de unicidad: el `INSERT` choca aunque la otra
-  fila sea invisible, y el servicio lo traduce a un 409 genérico, sin datos de la otra fila.
+- `INSERT`: `WITH CHECK (user_id = app.user_id)`.
+- `UPDATE`: `USING (user_id = app.user_id) WITH CHECK (user_id = app.user_id)`. El `USING` es imprescindible: con
+  solo `WITH CHECK`, un `UPDATE` sobre una fila ajena podría reescribir su `user_id` al propio y pasar el
+  control. La policy de `SELECT` no reemplaza al `USING` del `UPDATE`.
+- Sin policy de `DELETE`: el rol de la app no borra credenciales.
+- Una policy por comando (no `FOR ALL`), para que ninguna rama de lectura del `ADMIN` se cuele en la escritura.
+- **Unicidad del COP:** índice único con nombre propio. La RLS no oculta una violación de unicidad: el `INSERT`
+  choca aunque la otra fila sea invisible. El servicio captura **esa** restricción por su nombre y lanza una
+  excepción tipada (`credential-number-taken`, 409) con un texto fijo y **sin la causa SQL**. El manejador
+  genérico de `DataIntegrityViolationException` lee el mensaje de PostgreSQL, que trae el valor (`Key
+  (cop_number)=(…)`), y no debe ver este caso. Queda un oráculo de existencia (se puede saber si un número ya está
+  en Dentdesk); se acepta en Risks.
 
 **Alternativa descartada: columnas en `users`.** `users` no tiene RLS y la leen los flujos de autenticación y de
 personal; la garantía de "solo la propia" quedaría solo en el servicio. La tabla aparte la pone en la base, que
@@ -52,15 +61,37 @@ es donde la capacidad clínica tiene que estar asegurada.
 ### D2 — El retiro en la membresía
 
 `memberships` suma `clinical_capacity_revoked_at` (`TIMESTAMPTZ`, nulo si no hay retiro) y
-`clinical_capacity_revoked_by`. Restituir los vuelve a nulo. La escritura usa la misma RLS que ya permite al
-`ADMIN` desactivar miembros. Las reglas sobre a quién (solo `MEMBER`, ni a sí mismo ni a otro `ADMIN`) van en el
-servicio, igual que `PATCH /staff/members/{id}/status`.
+`clinical_capacity_revoked_by`. Restituir los vuelve a nulo. Las reglas sobre a quién (solo `MEMBER`, ni a sí
+mismo ni a otro `ADMIN`) van en el servicio, igual que `PATCH /staff/members/{id}/status`.
+
+**Y además en la base.** `membership_identity_isolation` (V28) es una policy para todos los comandos con solo
+`USING`, que vale también como `WITH CHECK`: un usuario puede hacer `UPDATE` sobre **su propia** membresía. Con el
+retiro en esa fila, un miembro podría levantarse su propio retiro con una escritura directa. Por eso un trigger
+`BEFORE UPDATE OF clinical_capacity_revoked_at, clinical_capacity_revoked_by` exige que quien escribe sea `ADMIN`
+activo de esa organización (`current_user_is_org_admin`), que la fila no sea la suya y que su rol sea `MEMBER`.
+Así la asimetría "otorgar nunca, retirar sí" vive también en la base.
+
+⚠️ La policy de V28 deja abierto de la misma forma el resto de las columnas de la propia membresía (`role`,
+`status`). Es previo a este change y no se toca acá; queda anotado para el change de la puerta de lectura, que
+revisa los permisos de `memberships`.
 
 ### D3 — Capacidad clínica efectiva: un solo servicio
 
 `ClinicalCapacityService` resuelve, para el usuario de la sesión y la organización activa, uno de cuatro
 resultados: `ENABLED` (con la credencial), `NO_CREDENTIAL`, `EXPIRED` (con la fecha) o `REVOKED`. La vigencia
-se compara con la **fecha de hoy en la zona horaria de la clínica**, e incluye el último día. `require()` lanza
+se compara con la **fecha de hoy en `America/Lima`** e incluye el último día.
+
+**Por qué Lima y no la zona de la clínica.** La fecha "habilitado hasta" la fija el COP, que es peruano: es una
+fecha de Perú, sea cual sea la zona de la clínica. Evaluarla en la zona de cada clínica haría que la misma
+credencial estuviera vigente en una clínica y vencida en otra cerca de medianoche, por un dato que no cambió. Con
+una sola zona, la credencial, que es global, tiene un solo vencimiento. La validación "no anterior a hoy" del
+`PUT` usa la misma zona, así que no depende de tener clínica activa.
+
+**Sin clínica activa.** La credencial es del usuario: `GET` y `PUT /me/professional-credential` funcionan sin
+organización activa. La **capacidad** depende de la membresía: sin clínica activa la respuesta no la trae y
+`require()` no se puede llamar (las dos firmas exigen clínica activa por su propia ruta).
+
+`require()` lanza
 `ClinicalCapacityRequiredException` (403 RFC 9457 con la propiedad `reason`, `docs/backend.md`) o devuelve la
 foto (`SignerSnapshot`: id, nombre, COP, `licensed_until`). La consulta del usuario y la columna de Personal usan
 el mismo cálculo.
@@ -73,6 +104,24 @@ el mismo cálculo.
 - **Sellado de la nota:** en `ConsultationNoteService.seal`, dentro de su transacción, después de bloquear la
   nota y antes de validar su contenido.
 - Ningún otro endpoint clínico cambia (borradores: non-goal).
+
+**Bloqueo contra el retiro y la renovación concurrentes.** Comprobar dentro de la transacción no basta: el sellado
+podría leer la membresía sin retiro, el `ADMIN` retirar y confirmar, y el sellado confirmar después. Por eso
+`require()` lee la membresía y la credencial con **`SELECT ... FOR SHARE`**:
+
+- **Retiro o restitución** (`UPDATE` de `memberships`) y **renovación** (`UPDATE` de `professional_credential`)
+  esperan a que el sellado confirme. Entonces el sellado queda con la capacidad que era válida en su momento, y el
+  cambio se aplica después.
+- Si el retiro o la renovación confirmaron **antes**, el `FOR SHARE` espera su commit y, en `READ COMMITTED`,
+  vuelve a leer la versión nueva: un retiro rechaza el sellado, y una renovación lo deja pasar con la fecha nueva
+  en la foto.
+- `FOR SHARE` y no `FOR UPDATE`: dos sellados del mismo profesional (dos pacientes a la vez) no se bloquean entre
+  sí.
+- **Orden de bloqueo:** primero las filas clínicas (como hoy: Historia → odontograma en la admisión, la nota en su
+  sellado), después la membresía y por último la credencial. El retiro solo toma la membresía y la renovación
+  solo la credencial, así que no hay ciclo posible.
+- `FOR SHARE` exige el privilegio `UPDATE` (lo tiene `odontorisas_app`, V6) y pasar el `USING` de la policy: la
+  membresía y la credencial propias lo pasan.
 
 ### D5 — La foto en el registro firmado, y lo viejo protegido con `NOT VALID`
 
@@ -97,6 +146,13 @@ filas existentes. Resultado:
 reescribir filas selladas, desactivando a mano las guardas de V20/V22, y deja una columna que habría que
 proteger para que la app no la pueda poner en `true`. `NOT VALID` da la misma garantía sin reescribir nada.
 
+**Consecuencia buscada: lo viejo queda inmutable también en la base.** PostgreSQL vuelve a evaluar el `CHECK` en
+cada `UPDATE` de una fila, aunque se haya agregado `NOT VALID`. Una Historia `COMPLETED` sin foto ya no admite
+ningún `UPDATE`, ni de metadatos ni de una migración futura. El odontograma y la nota ya eran así por sus triggers
+(V20/V22); la Historia, que solo tenía la guarda del servicio, gana una en la base. Una migración futura que
+necesite tocar esas filas tendrá que decidirlo explícitamente, y esa es la fricción correcta para un libro de
+actas.
+
 ⚠️ `NOT VALID` sobrevive a `pg_dump`/`pg_restore` tal cual. Al restaurar no se valida, igual que en el origen; no
 afecta a la verificación de copias de `add-database-backups`.
 
@@ -112,7 +168,7 @@ afecta a la verificación de copias de `add-database-backups`.
   `licensedUntil`) y `signedBeforeCredentials` (derivado, D5).
 - Paridad Zod ↔ Bean Validation (`docs/coding-style.md` §7): COP solo dígitos (1 a 10, como cota de
   almacenamiento, no como formato del COP) y fecha no anterior a hoy. En el front, "hoy" es la fecha local; el
-  servidor decide con la de la clínica.
+  servidor decide con la de `America/Lima` (D3).
 
 ### D7 — Frontend
 
@@ -131,11 +187,13 @@ afecta a la verificación de copias de `add-database-backups`.
   verificar contra el registro del COP después, sin cambiar de forma (`ADR-0018` D6).
 - [Al desplegar, nadie puede firmar hasta declarar su credencial] → Hoy es una sola clínica con datos de prueba.
   El botón deshabilitado lleva a la pantalla de declaración. Va en las notas del release.
-- [Un retiro concurrente con un sellado] → La comprobación ocurre dentro de la transacción del sellado. Si el
-  retiro confirma antes, el sellado se rechaza; si confirma después, el sellado ya quedó con una capacidad que
-  era válida en ese momento. Los dos órdenes son correctos, no se bloquea `memberships`.
-- [El 409 por COP duplicado revela que ese número ya está en Dentdesk] → Se acepta: el padrón del COP es público
-  y la respuesta no dice quién ni en qué clínica. A cambio impide usar el número de otro profesional.
+- [Un retiro o una renovación concurrentes con un sellado] → `FOR SHARE` sobre la membresía y la credencial
+  (D4). Nunca queda sellado un registro después de un retiro ya confirmado. Costo: un retiro espera a que
+  terminen los sellados en curso de ese profesional, que duran milisegundos.
+- [El 409 por COP duplicado es un oráculo de existencia: dice si un número ya está en Dentdesk] → Se acepta. El
+  padrón del COP es público, y la respuesta no dice quién ni en qué clínica. A cambio, impide usar el número de
+  otro profesional. El texto es fijo y la causa SQL, que trae el valor, no llega ni a la respuesta ni a los logs
+  (D1).
 - [`NOT VALID` deja filas que no cumplen el `CHECK`] → Es intencional, y solo son las selladas antes del cambio,
   que no se pueden modificar: las guardas de V20/V22 en la base para el odontograma y la nota, y el servicio
   para la Historia (`historia_clinica` no tiene trigger de sellado). Si alguna vez se intentara un `UPDATE` sobre
@@ -143,8 +201,8 @@ afecta a la verificación de copias de `add-database-backups`.
 
 ## Migration Plan
 
-1. `V30`: tabla `professional_credential` con su RLS, función `SECURITY DEFINER`, columnas de retiro en
-   `memberships`, columnas de la foto y los `CHECK ... NOT VALID`. Permisos para `odontorisas_app` como en V6.
+1. `V30`: tabla `professional_credential` con su RLS por comando, función `SECURITY DEFINER`, columnas de retiro en
+   `memberships` con su trigger de guarda, columnas de la foto y los `CHECK ... NOT VALID`. Permisos para `odontorisas_app` como en V6.
    ⚠️ En Neon la migración corre como `odontorisas_admin`, con RLS forzada: no lee filas de otras clínicas, y no
    lo necesita (no hay `UPDATE` de datos).
 2. Desplegar backend y frontend juntos (el front nuevo lee `signer` y `clinicalCapacity`).

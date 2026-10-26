@@ -11,6 +11,10 @@ El sistema SHALL permitir a cada usuario declarar, solo para sí mismo, su núme
 - **THEN** el sistema guarda la credencial a su nombre
 - **AND** la credencial vale en todas las clínicas a las que pertenece
 
+#### Scenario: La misma credencial al cambiar de clínica
+- **WHEN** un usuario que declaró su credencial con la clínica A activa cambia a la clínica B
+- **THEN** con la clínica B activa ve la misma credencial, sin volver a declararla
+
 #### Scenario: Renovar la habilitación
 - **WHEN** un usuario con la habilitación vencida declara una fecha de habilitación nueva
 - **THEN** el sistema actualiza la fecha y el usuario vuelve a estar habilitado
@@ -30,8 +34,8 @@ El sistema SHALL permitir a cada usuario declarar, solo para sí mismo, su núme
 
 #### Scenario: Número declarado por otro usuario
 - **WHEN** un usuario declara un número COP que ya figura en la credencial de otro usuario
-- **THEN** el sistema responde con un conflicto
-- **AND** la respuesta no revela quién lo declaró ni en qué clínica
+- **THEN** el sistema responde con un conflicto de texto fijo
+- **AND** ni la respuesta ni los registros del servidor revelan quién lo declaró, en qué clínica ni el número en conflicto
 
 #### Scenario: Intentar declarar la credencial de otro usuario
 - **WHEN** una petición intenta crear o modificar la credencial de un usuario distinto al de la sesión, aun por API directa y aun siendo `ADMIN`
@@ -43,7 +47,7 @@ El sistema SHALL permitir a cada usuario declarar, solo para sí mismo, su núme
 
 ### Requirement: Capacidad clínica efectiva en la clínica activa
 
-Un usuario SHALL tener capacidad clínica en la clínica activa solo si tiene credencial declarada, su fecha "habilitado hasta" no pasó en la zona horaria de esa clínica y su capacidad no fue retirada en esa membresía. El usuario SHALL poder consultar su propia credencial y su capacidad clínica, con el motivo cuando no la tiene: sin credencial, habilitación vencida o capacidad retirada.
+Un usuario SHALL tener capacidad clínica en la clínica activa solo si tiene credencial declarada, su fecha "habilitado hasta" no pasó en la hora de Perú y su capacidad no fue retirada en esa membresía. El usuario SHALL poder consultar su propia credencial y su capacidad clínica, con el motivo cuando no la tiene: sin credencial, habilitación vencida o capacidad retirada.
 
 #### Scenario: Habilitado y sin retiro
 - **WHEN** un usuario con credencial vigente y sin retiro en la clínica activa consulta su capacidad clínica
@@ -54,13 +58,22 @@ Un usuario SHALL tener capacidad clínica en la clínica activa solo si tiene cr
 - **THEN** el sistema indica que no tiene capacidad clínica porque no declaró su credencial
 
 #### Scenario: La habilitación vence sola
-- **WHEN** un usuario consulta su capacidad clínica el día siguiente a su fecha "habilitado hasta" en la zona horaria de la clínica
+- **WHEN** un usuario consulta su capacidad clínica el día siguiente a su fecha "habilitado hasta" en la hora de Perú
 - **THEN** el sistema indica que no tiene capacidad clínica porque su habilitación venció en esa fecha
 - **AND** nadie tuvo que cambiar nada para que deje de tenerla
 
 #### Scenario: Último día de habilitación
-- **WHEN** un usuario consulta su capacidad clínica en su fecha "habilitado hasta", en la zona horaria de la clínica
+- **WHEN** un usuario consulta su capacidad clínica en su fecha "habilitado hasta", en la hora de Perú
 - **THEN** el sistema indica que tiene capacidad clínica
+
+#### Scenario: Clínicas con otra zona horaria
+- **WHEN** un usuario de dos clínicas con zonas horarias distintas consulta su capacidad en las dos en el mismo instante
+- **THEN** el vencimiento es el mismo en las dos, porque se evalúa en la hora de Perú
+
+#### Scenario: Consultar la credencial sin clínica activa
+- **WHEN** un usuario sin clínica activa consulta o declara su credencial
+- **THEN** el sistema la muestra o la guarda
+- **AND** no informa capacidad clínica, porque esa depende de una clínica
 
 #### Scenario: Retirada en una clínica, vigente en otra
 - **WHEN** a un usuario le retiraron la capacidad clínica en la clínica A y consulta su capacidad con la clínica B activa
@@ -95,6 +108,10 @@ El sistema SHALL permitir al `ADMIN` retirar, con confirmación, la capacidad cl
 #### Scenario: Un miembro intenta retirar la capacidad
 - **WHEN** un `MEMBER` intenta retirar o restituir la capacidad clínica de alguien
 - **THEN** el sistema responde con acceso denegado
+
+#### Scenario: Un miembro intenta levantar su propio retiro
+- **WHEN** un miembro al que le retiraron la capacidad clínica intenta levantar el retiro, aun escribiendo directo en la base con su sesión
+- **THEN** el sistema lo rechaza y el retiro sigue vigente
 
 #### Scenario: El miembro no pertenece a la clínica
 - **WHEN** el `ADMIN` intenta retirar la capacidad de alguien que no es miembro de su clínica
