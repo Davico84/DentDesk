@@ -53,9 +53,9 @@
 
 ## 8. Frontend: firmar
 
-- [ ] 8.1 Botones de cerrar la admisión y de sellar la nota deshabilitados sin capacidad clínica, con el motivo y el enlace a la pantalla de credencial; el 403 del servidor muestra el mismo texto *(La interfaz explica por qué no se puede firmar)*
-- [ ] 8.2 Historia `COMPLETED`, odontograma sellado y nota sellada muestran "Firmado por <nombre> · COP <número>" o "Firmado antes del registro de credenciales". Verificar con Vitest/MSW, incluidos los tests existentes de `SealedNoteCard` y del cierre de la admisión
-- [ ] 8.3 `pnpm validate` en verde
+- [x] 8.1 Botones de cerrar la admisión y de sellar la nota deshabilitados sin capacidad clínica, con el motivo y el enlace a la pantalla de credencial; el 403 del servidor muestra el mismo texto *(La interfaz explica por qué no se puede firmar)*
+- [x] 8.2 Historia `COMPLETED`, odontograma sellado y nota sellada muestran "Firmado por <nombre> · COP <número>" o "Firmado antes del registro de credenciales". Verificar con Vitest/MSW, incluidos los tests existentes de `SealedNoteCard` y del cierre de la admisión
+- [x] 8.3 `pnpm validate` en verde
 
 ## 9. Integración
 

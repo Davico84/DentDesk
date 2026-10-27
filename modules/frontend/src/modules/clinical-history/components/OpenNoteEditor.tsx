@@ -33,6 +33,8 @@ import { DiagnosisForm } from "./DiagnosisForm";
 import { DiagnosisList } from "./DiagnosisList";
 import { NoteFindingsPanel } from "./NoteFindingsPanel";
 import { NOTE_CHECKLIST_LABELS, NOTE_TEXT_FIELDS, OPTIONAL_TEXT_KEYS, labelOfField, type NoteTextKey } from "./noteOptions";
+import { useMyClinicalCapacity } from "@/modules/staff/hooks/useProfessionalCredential";
+import { SigningCapacityNotice } from "@/modules/staff/components/SigningCapacityNotice";
 
 /**
  * La nota abierta (spec: <i>Nota abierta editable y descartable solo vacía</i> y <i>Sellado
@@ -76,6 +78,9 @@ export function OpenNoteEditor({
   });
 
   const missing = missingNoteFields(note);
+  // Sellar es firmar: exige capacidad clínica (update-staff-professional-credential D7).
+  const { capacity } = useMyClinicalCapacity();
+  const canSign = capacity?.state === "ENABLED";
   const empty =
     NOTE_TEXT_FIELDS.every(({ key }) => !note[key]?.trim()) &&
     !note.nextAppointmentOn &&
@@ -255,6 +260,7 @@ ${line}` : line, { shouldDirty: true });
             </p>
           ) : null}
         </div>
+        <SigningCapacityNotice capacity={capacity} />
         <div className="flex flex-wrap items-center justify-end gap-2">
           {empty ? (
             <Button variant="ghost" onClick={() => setConfirming("discard")}>
@@ -265,7 +271,11 @@ ${line}` : line, { shouldDirty: true });
             {updateNote.isPending ? <Loader2 className="mr-2 size-4 animate-spin" /> : null}
             Guardar avance
           </Button>
-          <Button className="rounded-xl" disabled={isDirty || missing.length > 0} onClick={() => setConfirming("seal")}>
+          <Button
+            className="rounded-xl"
+            disabled={isDirty || missing.length > 0 || !canSign}
+            onClick={() => setConfirming("seal")}
+          >
             Sellar nota
           </Button>
         </div>

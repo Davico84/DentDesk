@@ -23,6 +23,7 @@ import type {
   DiagnosisRequest,
 } from "@/modules/core/services/generated/model";
 import { getUserFriendlyError } from "@/modules/core/utils/apiError";
+import { refreshCapacityIfDenied } from "@/modules/staff/hooks/useProfessionalCredential";
 
 const NOTES_KEY = ["consultation-notes"] as const;
 const BACKGROUND_KEY = ["clinical-background"] as const;
@@ -61,7 +62,10 @@ function useNoteMutation<TVars, TResult>(
       if (refreshBackground) queryClient.invalidateQueries({ queryKey: [...BACKGROUND_KEY, patientId] });
       toast.success(success);
     },
-    onError: (error) => toast.error(getUserFriendlyError(error)),
+    onError: (error) => {
+      refreshCapacityIfDenied(queryClient, error);
+      toast.error(getUserFriendlyError(error));
+    },
   });
 }
 

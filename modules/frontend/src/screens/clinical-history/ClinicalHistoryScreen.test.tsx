@@ -1,11 +1,16 @@
-import { describe, it, expect } from "vitest";
+import { beforeEach, describe, it, expect } from "vitest";
 import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { Link, Routes, Route } from "react-router-dom";
 import { http, HttpResponse } from "msw";
 import { renderWithProviders } from "@/test/utils";
 import { server } from "@/test/mocks/server";
+import { credentialHandlers, ENABLED, EXPIRED } from "@/modules/staff/test/credentialApiMocks";
 import { ClinicalHistoryScreen } from "./ClinicalHistoryScreen";
+
+// Firmar exige capacidad clínica (update-staff-professional-credential): salvo que un test diga otra cosa, quien usa
+// la pantalla puede firmar.
+beforeEach(() => server.use(...credentialHandlers({ current: ENABLED }).handlers));
 
 const EMPTY_DRAFT = {
   id: 1,
@@ -174,6 +179,30 @@ describe("ClinicalHistoryScreen — historia sellada en modo lectura", () => {
     expect(screen.getByLabelText(/motivo de consulta/i)).toBeDisabled();
     expect(screen.queryByRole("button", { name: /guardar avance/i })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /completar historia clínica/i })).not.toBeInTheDocument();
+  });
+});
+
+// Scenarios de clinical-history: La interfaz explica por qué no se puede firmar · Ver quién firmó · Ver una Historia
+// sellada antes del cambio.
+describe("ClinicalHistoryScreen — firma con credencial", () => {
+  it("con la habilitación vencida, completar está deshabilitado y ofrece renovarla", async () => {
+    server.use(...credentialHandlers({ current: EXPIRED }).handlers);
+    renderScreen(EMPTY_DRAFT);
+
+    expect(await screen.findByText(/Tu habilitación venció el 20 oct\.? 2026/)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /completar historia clínica/i })).toBeDisabled();
+    expect(screen.getByRole("link", { name: "Renovar credencial" })).toHaveAttribute("href", "/profile/credential");
+  });
+
+  it("una historia completada muestra a quién la firmó y su COP", async () => {
+    renderScreen({ ...COMPLETED_HISTORY, signer: { fullName: "Dra. Ana Ruiz", copNumber: "12345", licensedUntil: "2099-12-31" },
+      signedBeforeCredentials: false });
+    expect(await screen.findByText("Firmado por Dra. Ana Ruiz · COP 12345")).toBeInTheDocument();
+  });
+
+  it("una historia completada antes del registro de credenciales lo indica", async () => {
+    renderScreen({ ...COMPLETED_HISTORY, signer: null, signedBeforeCredentials: true });
+    expect(await screen.findByText("Firmado antes del registro de credenciales")).toBeInTheDocument();
   });
 });
 

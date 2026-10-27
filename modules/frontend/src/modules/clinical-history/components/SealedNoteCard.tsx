@@ -8,6 +8,7 @@ import { CorrectionDialog } from "./CorrectionDialog";
 import { DiagnosisList } from "./DiagnosisList";
 import { NOTE_TEXT_FIELDS, backgroundCategoryOptions } from "./noteOptions";
 import { labelOf } from "./diagnosisOptions";
+import { SignedByLine } from "@/modules/staff/components/SignedByLine";
 
 /**
  * Una nota sellada, en lectura (spec: <i>Sellado irreversible de la nota</i>). Cada corrección se
@@ -57,6 +58,9 @@ export function SealedNoteCard({
             Sellada el {dateLabel(note.sealedAt)}
             {note.nextAppointmentOn ? ` · Próxima cita: ${dateLabel(note.nextAppointmentOn)}` : null}
           </p>
+          <div className="ml-6">
+            <SignedByLine signer={note.signer} signedBeforeCredentials={note.signedBeforeCredentials} />
+          </div>
           {!expanded ? (
             <p className="ml-6 mt-1 truncate text-sm">
               {note.reason ?? "Sin motivo"}

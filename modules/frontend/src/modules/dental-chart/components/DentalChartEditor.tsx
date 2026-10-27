@@ -29,6 +29,7 @@ import { useDentalChartGuide } from "@/modules/dental-chart/guidance/useDentalCh
 import type { AcceptedRelocation } from "@/modules/dental-chart/guidance/relocation";
 import type { Placement } from "@/modules/dental-chart/guidance/placement";
 import { FindingSearchDialog } from "@/modules/dental-chart/guidance/FindingSearchDialog";
+import { SignedByLine } from "@/modules/staff/components/SignedByLine";
 
 /** Edición del odontograma ya creado (OPEN editable, SEALED de solo lectura — el sellado se hace junto con la Historia). */
 export function DentalChartEditor({ patientId }: { patientId: number }) {
@@ -85,6 +86,7 @@ export function DentalChartEditor({ patientId }: { patientId: number }) {
           <DentalChartStatusBadge status={block?.status} />
         </div>
         <p className="text-sm text-muted-foreground">Examinado el {block?.examinedOn}</p>
+        {sealed ? <SignedByLine signer={block?.signer} signedBeforeCredentials={block?.signedBeforeCredentials} /> : null}
       </div>
 
       <Odontogram

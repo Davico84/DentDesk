@@ -1,8 +1,21 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { type QueryClient, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { declare, mine } from "@/modules/core/services/generated/staff";
 import type { ProfessionalCredentialRequest } from "@/modules/core/services/generated/model";
+import { getApiProblem } from "@/modules/core/utils/apiError";
 import { STAFF_KEYS } from "./useStaffApi";
+
+const CAPACITY_REQUIRED = "/errors/clinical-capacity-required";
+
+/**
+ * Si el servidor rechazó una firma por capacidad clínica (`403`), la capacidad cambió desde que se leyó (venció, la
+ * retiraron): se vuelve a pedir para que el aviso junto al botón lo diga. El mensaje lo da el toast del llamador.
+ */
+export function refreshCapacityIfDenied(queryClient: QueryClient, error: unknown) {
+  if (getApiProblem(error)?.type === CAPACITY_REQUIRED) {
+    void queryClient.invalidateQueries({ queryKey: CREDENTIAL_KEY });
+  }
+}
 
 /** La credencial propia y la capacidad en la clínica activa (update-staff-professional-credential D6). */
 export const CREDENTIAL_KEY = ["me", "professional-credential"] as const;
