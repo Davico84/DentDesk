@@ -172,7 +172,7 @@ El secreto `BACKUP_DATABASE_URL` es la URL libpq **directa** del rol (sin `-pool
 **Revisión mensual** — el **primer día hábil de cada mes**, quien opera el despliegue:
 1. Descarga la copia más reciente (*Actions → DB backup → último run verde → Artifacts*, o `gh run download <id>`) y la guarda en el disco externo. Así se conserva más allá de los 90 días.
 2. Comprueba que descifra y que se restaura completa con el script (desde `modules/backend`):
-   `.\scripts\verify-backup-restore.ps1 -RunId <id> -KeyPath <ruta de dentdesk-backup.key>`. Restaura en un PostgreSQL 16 local como rol no superusuario y compara con producción (pide la URL de `odontorisas_backup`, sin mostrarla): conteos por tabla, permisos, función de V24, huella de RLS y aislamiento. Solo imprime PASA / FALLA y borra todo lo descifrado al terminar. Si hubo actividad en producción después de la copia, los conteos pueden diferir sin que sea un error.
+   `.\scripts\verify-backup-restore.ps1 -RunId <id> -KeyPath <ruta de dentdesk-backup.key>`. Restaura en un PostgreSQL 16 local como rol no superusuario y compara con producción (pide la URL de `odontorisas_backup`, sin mostrarla): conteos por tabla, permisos, función de V24, huella de RLS y aislamiento (con una clínica inexistente y, solo en este modo local, con una segunda clínica de prueba: cada una ve solo lo suyo). Falla si la copia no tiene tablas o pacientes, porque entonces no hay nada que comprobar. Solo imprime PASA / FALLA y borra todo lo descifrado al terminar. Si hubo actividad en producción después de la copia, los conteos pueden diferir sin que sea un error.
 3. Mira la fecha del último artifact (si no es de ayer o de hoy, el programado dejó de correr) y el uso del cupo.
 
 ### 4.4 Restaurar una copia
@@ -243,6 +243,7 @@ docker run --rm --network host -v "${PWD}:/backup" postgres:16 pg_restore --no-o
      WHERE n.nspname = 'public' AND c.relkind IN ('r', 'p')
    ) f;
    ```
+   Una huella vacía (`NULL`) significa que la base no tiene tablas: es una falla, aunque coincida en las dos.
    **Referencia** para la huella: la misma consulta en producción, si sigue accesible; si no, en una base local migrada por Flyway desde el repo **a la misma versión** que la copia (el backend local contra una PostgreSQL vacía). Si las huellas difieren, correr solo la subconsulta `f` en las dos bases y comparar las filas: una tabla con RLS en `false`, una policy que falta o una expresión cambiada (p. ej. `USING (true)`) bloquean el reemplazo. Y la verificación de roles de §4.2 (`odontorisas_app` sin `rolbypassrls` ni `neon_superuser`).
 5. Levantar el backend **local** contra la rama y entrar con una cuenta real. En una terminal nueva, en `modules/backend`, **una línea por vez** (si se pega todo junto, cada `Read-Host` toma la línea siguiente del pegado como respuesta):
    ```powershell

@@ -12,7 +12,8 @@
       - los permisos de la guía alcanzan a odontorisas_app en todas las tablas y secuencias;
       - la función SECURITY DEFINER de V24 queda con el dueño que restauró y search_path=public;
       - huella de RLS (tablas, flags, policies y expresiones) igual a la de producción;
-      - odontorisas_app sin BYPASSRLS y aislado: con una clínica inexistente ve 0 pacientes.
+      - odontorisas_app sin BYPASSRLS y aislado: con una clínica inexistente ve 0 pacientes y con la propia, solo
+        los suyos; en local, además, con una segunda clínica de prueba cada una ve solo lo suyo.
 
     Dos destinos:
       - local (por defecto): PostgreSQL 16 en Docker, rol `restorer`. Para la revisión mensual.
@@ -66,12 +67,14 @@ function UrlSql($envName, $sql) {
     if ($code -ne 0) { throw "psql falló contra $envName (detalle oculto)" }
     return $out
 }
-# SQL en el contenedor local, como $user, en la base restore.
+# SQL en el contenedor local, como $user, en la base restore. El stderr se descarta: un error de PostgreSQL puede
+# traer valores de filas en su DETAIL (p. ej. una violación de unicidad).
 function LocalSql($user, $sql) {
     WriteLf (Join-Path $work "q.sql") $sql
-    docker cp (Join-Path $work "q.sql") "${ctr}:/tmp/q.sql" | Out-Null
-    $out = docker exec -e PGPASSWORD=local $ctr psql -X -q -At -v ON_ERROR_STOP=1 -h localhost -U $user -d restore -f /tmp/q.sql
-    if ($LASTEXITCODE -ne 0) { throw "psql local falló ($user)" }
+    docker cp (Join-Path $work "q.sql") "${ctr}:/tmp/q.sql" 2>$null | Out-Null
+    if ($LASTEXITCODE -ne 0) { throw "no se pudo copiar el SQL al contenedor" }
+    $out = docker exec -e PGPASSWORD=local $ctr psql -X -q -At -v ON_ERROR_STOP=1 -h localhost -U $user -d restore -f /tmp/q.sql 2>$null
+    if ($LASTEXITCODE -ne 0) { throw "psql local falló ($user, detalle oculto)" }
     return $out
 }
 # Tres papeles en la base restaurada: el dueño (restaura y concede), el lector (catálogo y conteos, salta RLS)
@@ -184,7 +187,8 @@ done
     $prodCounts = ProdSql $countsSql
     $restCounts = ReaderSql $countsSql
     $diff = Compare-Object @($prodCounts) @($restCounts)
-    if (-not $diff) { Ok "conteos por tabla iguales a producción ($(@($restCounts).Count) tablas)" }
+    if (@($restCounts).Count -eq 0) { Bad "la copia restaurada no tiene tablas" }
+    elseif (-not $diff) { Ok "conteos por tabla iguales a producción ($(@($restCounts).Count) tablas)" }
     else { Bad "conteos distintos en: $((($diff | ForEach-Object { ($_.InputObject -split '\|')[0] }) | Sort-Object -Unique) -join ', ') (si hubo actividad en producción después de la copia, es esperable)" }
 
     # --- Permisos de la guía (§4.4 paso 3), como el dueño --------------------------------------------
@@ -202,7 +206,8 @@ ALTER DEFAULT PRIVILEGES FOR ROLE $owner IN SCHEMA public GRANT USAGE, SELECT ON
 
     # --- Función de V24, huella de RLS, rol de la app y aislamiento -----------------------------------
     $fn = ReaderSql "SELECT r.rolname || '|' || p.prosecdef || '|' || array_to_string(p.proconfig, ',') FROM pg_proc p JOIN pg_roles r ON r.oid = p.proowner WHERE p.proname = 'current_user_is_org_admin'"
-    if ($fn -eq "$owner|true|search_path=public") { Ok "función de V24: dueño $owner, SECURITY DEFINER, search_path=public" } else { Bad "función de V24: $fn" }
+    # @(...).Count: con dos filas, -eq sobre un array filtra en vez de comparar y pasaría igual.
+    if (@($fn).Count -eq 1 -and $fn -eq "$owner|true|search_path=public") { Ok "función de V24: dueño $owner, SECURITY DEFINER, search_path=public" } else { Bad "función de V24: $fn" }
 
     $hProd = ProdSql $huellaSql
     $hRest = ReaderSql $huellaSql
@@ -211,20 +216,50 @@ ALTER DEFAULT PRIVILEGES FOR ROLE $owner IN SCHEMA public GRANT USAGE, SELECT ON
     $rolApp = ReaderSql "SELECT rolsuper OR rolbypassrls FROM pg_roles WHERE rolname = 'odontorisas_app'"
     if ($rolApp -eq "f") { Ok "odontorisas_app sin SUPERUSER ni BYPASSRLS" } else { Bad "odontorisas_app salta RLS ($rolApp)" }
 
-    $total = ReaderSql "SELECT count(*) FROM patients"
-    $org = ReaderSql "SELECT organization_id FROM patients LIMIT 1"
-    $veOtra = AppSql "BEGIN; SET LOCAL app.user_id = '0'; SET LOCAL app.organization_id = '999999999'; SELECT count(*) FROM patients; COMMIT;"
-    $veSuya = if ($org) { AppSql "BEGIN; SET LOCAL app.user_id = '0'; SET LOCAL app.organization_id = '$org'; SELECT count(*) FROM patients; COMMIT;" } else { "0" }
-    if ($veOtra -eq "0" -and $veSuya -eq $total) { Ok "aislamiento: otra clínica ve 0 pacientes; la propia ve los suyos ($veSuya de $total)" }
-    else { Bad "aislamiento: otra clínica ve $veOtra; la propia ve $veSuya de $total" }
+    # Sin pacientes no hay nada que aislar: contar 0 en todas partes no prueba nada.
+    function AppCount($orgId) { AppSql "BEGIN; SET LOCAL app.user_id = '0'; SET LOCAL app.organization_id = '$orgId'; SELECT count(*) FROM patients; COMMIT;" }
+    $org = ReaderSql "SELECT organization_id FROM patients ORDER BY id LIMIT 1"
+    if (-not $org) { Bad "aislamiento: la copia no tiene pacientes, no se puede verificar" }
+    else {
+        $deOrg = ReaderSql "SELECT count(*) FROM patients WHERE organization_id = $org"
+        $veOtra = AppCount 999999999
+        $veSuya = AppCount $org
+        if ($veOtra -eq "0" -and $veSuya -eq $deOrg) { Ok "aislamiento: una clínica inexistente ve 0 pacientes; la propia ve los suyos ($veSuya de $deOrg)" }
+        else { Bad "aislamiento: una clínica inexistente ve $veOtra; la propia ve $veSuya de $deOrg" }
+
+        # Dos clínicas reales, solo en local (el contenedor se descarta; en -Remote la base puede pasar a ser
+        # producción y no se le escriben datos de prueba). Producción tiene una sola clínica: se crea la segunda
+        # copiando un paciente de la primera, como superusuario (salta RLS), y se cuenta como la app en los dos
+        # sentidos. La huella de RLS ya probó que las policies son las de producción.
+        if (-not $Remote) {
+            $orgB = LocalSql "postgres" "INSERT INTO organizations (name, slug) VALUES ('Prueba de aislamiento', 'prueba-aislamiento-' || md5(random()::text)) RETURNING id;"
+            LocalSql "postgres" @"
+CREATE TEMP TABLE copia AS SELECT * FROM patients WHERE organization_id = $org ORDER BY id LIMIT 1;
+UPDATE copia SET id = (SELECT max(id) + 1 FROM patients), organization_id = $orgB;
+INSERT INTO patients SELECT * FROM copia;
+"@ | Out-Null
+            $aVe = AppCount $org
+            $bVe = AppCount $orgB
+            if ($aVe -eq $deOrg -and $bVe -eq "1") { Ok "dos clínicas: cada una ve solo lo suyo (A $aVe de $deOrg, B $bVe de 1)" }
+            else { Bad "dos clínicas: A ve $aVe (esperado $deOrg), B ve $bVe (esperado 1)" }
+        }
+    }
 }
 catch {
     Bad $_.Exception.Message
 }
 finally {
     foreach ($v in "VBR_PROD_URL", "VBR_ADMIN_URL", "VBR_APP_URL", "VBR_READER_URL") { Remove-Item "env:$v" -ErrorAction SilentlyContinue }
-    if (-not $Remote) { docker rm -f $ctr 2>$null | Out-Null }
-    Remove-Item -Recurse -Force $work -ErrorAction SilentlyContinue
-    Write-Host "Limpieza: archivos descifrados borrados$(if (-not $Remote) { ' y contenedor eliminado' })."
+    if (-not $Remote) {
+        docker rm -f $ctr 2>$null | Out-Null
+        if (docker ps -a -q -f "name=^${ctr}$" 2>$null) { Bad "Limpieza: el contenedor $ctr sigue existiendo y tiene la copia restaurada: docker rm -f $ctr" }
+    }
+    # Un archivo bloqueado (antivirus, un editor abierto) puede impedir el borrado: se reintenta y se comprueba.
+    for ($i = 0; $i -lt 5 -and (Test-Path $work); $i++) {
+        Remove-Item -Recurse -Force $work -ErrorAction SilentlyContinue
+        if (Test-Path $work) { Start-Sleep 1 }
+    }
+    if (Test-Path $work) { Bad "Limpieza: NO se pudo borrar $work, que puede tener la copia descifrada: borrarlo a mano" }
+    else { Write-Host "Limpieza: archivos descifrados borrados$(if (-not $Remote) { ' y contenedor eliminado' })." }
 }
 if ($script:fails -eq 0) { Write-Host "`nTodo OK." -ForegroundColor Green } else { Write-Host "`n$($script:fails) falla(s)." -ForegroundColor Red; exit 1 }
