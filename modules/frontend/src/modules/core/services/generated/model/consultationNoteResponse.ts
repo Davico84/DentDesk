@@ -6,6 +6,7 @@
  * OpenAPI spec version: v1
  */
 import type { ConsultationNoteResponseStatus } from './consultationNoteResponseStatus';
+import type { SignerResponse } from './signerResponse';
 import type { NoteDiagnosisResponse } from './noteDiagnosisResponse';
 import type { BackgroundEntryResponse } from './backgroundEntryResponse';
 import type { CorrectionResponse } from './correctionResponse';
@@ -29,6 +30,10 @@ export interface ConsultationNoteResponse {
   sealedAt?: string;
   /** Quien selló (firmante); el único que puede corregir la nota. */
   sealedBy?: number;
+  /** Credencial del firmante, copiada al sellar; null si está ABIERTA o se firmó antes del registro de credenciales. */
+  signer?: SignerResponse;
+  /** true si está SELLADA pero se firmó antes del registro de credenciales (sin firmante). */
+  signedBeforeCredentials?: boolean;
   /** Cuándo se escribió la nota (distinto de attendedAt). */
   createdAt?: string;
   createdBy?: number;

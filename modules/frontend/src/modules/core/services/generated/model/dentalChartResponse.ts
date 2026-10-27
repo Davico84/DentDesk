@@ -11,6 +11,7 @@ import type { DentalChartResponseSealedAt } from './dentalChartResponseSealedAt'
 import type { DentalChartResponseSpecifications } from './dentalChartResponseSpecifications';
 import type { DentalChartResponseObservations } from './dentalChartResponseObservations';
 import type { DentalChartFindingResponse } from './dentalChartFindingResponse';
+import type { SignerResponse } from './signerResponse';
 
 export interface DentalChartResponse {
   id?: number;
@@ -31,4 +32,8 @@ export interface DentalChartResponse {
   observations?: DentalChartResponseObservations;
   observationsReviewed?: boolean;
   findings?: DentalChartFindingResponse[];
+  /** Credencial de quien lo selló al cerrar la admisión; null si está OPEN o se firmó antes del registro de credenciales. */
+  signer?: SignerResponse;
+  /** true si está SEALED pero se firmó antes del registro de credenciales (sin firmante). */
+  signedBeforeCredentials?: boolean;
 }

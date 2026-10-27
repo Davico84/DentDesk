@@ -9,6 +9,7 @@ import type { ClinicalHistoryResponseStatus } from './clinicalHistoryResponseSta
 import type { ClinicalHistoryResponseSex } from './clinicalHistoryResponseSex';
 import type { ClinicalHistoryResponseSignosVitales } from './clinicalHistoryResponseSignosVitales';
 import type { DiagnosisResponse } from './diagnosisResponse';
+import type { SignerResponse } from './signerResponse';
 
 export interface ClinicalHistoryResponse {
   id?: number;
@@ -34,4 +35,8 @@ export interface ClinicalHistoryResponse {
   diagnosticos?: DiagnosisResponse[];
   /** Momento del sellado a COMPLETED; null mientras esté en DRAFT. */
   completedAt?: string;
+  /** Credencial de quien cerró la admisión, copiada al firmar; null en DRAFT o si se firmó antes del registro de credenciales. */
+  signer?: SignerResponse;
+  /** true si está COMPLETED pero se firmó antes del registro de credenciales (sin firmante). */
+  signedBeforeCredentials?: boolean;
 }
