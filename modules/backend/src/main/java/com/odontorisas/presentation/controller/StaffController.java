@@ -3,6 +3,7 @@ package com.odontorisas.presentation.controller;
 import com.odontorisas.presentation.dto.ApiProblem;
 import com.odontorisas.presentation.dto.InvitationRequest;
 import com.odontorisas.presentation.dto.InvitationResponse;
+import com.odontorisas.presentation.dto.MemberClinicalCapacityRequest;
 import com.odontorisas.presentation.dto.MemberResponse;
 import com.odontorisas.presentation.dto.MemberStatusRequest;
 import com.odontorisas.presentation.dto.StaffInvitationResponse;
@@ -119,6 +120,21 @@ public class StaffController {
     @PatchMapping("/members/{id}/status")
     public ResponseEntity<Void> changeStatus(@PathVariable Long id, @Valid @RequestBody MemberStatusRequest request) {
         staffService.changeStatus(id, request.status());
+        return ResponseEntity.noContent().build();
+    }
+
+    @ApiResponses({
+        @ApiResponse(responseCode = "204", description = "Capacidad clínica retirada o restituida. Restituir solo levanta "
+            + "el retiro: la capacidad sigue dependiendo de la credencial del profesional."),
+        @ApiResponse(responseCode = "400", description = "Cuerpo inválido.",
+            content = @Content(mediaType = PROBLEM_JSON, schema = @Schema(implementation = ValidationProblem.class))),
+        @ApiResponse(responseCode = "404", description = "La persona no es miembro de la clínica (`/errors/member-not-found`).",
+            content = @Content(mediaType = PROBLEM_JSON, schema = @Schema(implementation = ApiProblem.class)))
+    })
+    @PatchMapping("/members/{id}/clinical-capacity")
+    public ResponseEntity<Void> changeClinicalCapacity(@PathVariable Long id,
+                                                       @Valid @RequestBody MemberClinicalCapacityRequest request) {
+        staffService.changeClinicalCapacity(id, request.revoked());
         return ResponseEntity.noContent().build();
     }
 }

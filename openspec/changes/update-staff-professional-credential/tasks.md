@@ -25,9 +25,9 @@
 
 ## 3. Backend: retiro y listado del personal
 
-- [ ] 3.1 `PATCH /staff/members/{id}/clinical-capacity` con `{ revoked }` (design D2): solo `ADMIN`; sobre un `MEMBER` de su clínica; propio u otro `ADMIN` → 403; no miembro → 404; responde `204`. Restituir solo levanta el retiro
-- [ ] 3.2 `MemberResponse.clinicalCapacity` (`state`, `copNumber`, `licensedUntil`) con el mismo cálculo de 2.1, sin exponer credenciales de no miembros
-- [ ] 3.3 IT *(spec `staff` → Retirar y restituir · Capacidad clínica en el listado del personal)*: retirar, restituir, restituir a quien venció o no declaró (sigue sin capacidad), otro `ADMIN` o sí mismo 403, `MEMBER` 403, no miembro 404; el listado con cada estado y la fecha de vencimiento
+- [x] 3.1 `PATCH /staff/members/{id}/clinical-capacity` con `{ revoked }` (design D2): solo `ADMIN`; sobre un `MEMBER` de su clínica; propio u otro `ADMIN` → 403; no miembro → 404; responde `204`. Restituir solo levanta el retiro
+- [x] 3.2 `MemberResponse.clinicalCapacity` (`state`, `copNumber`, `licensedUntil`) con el mismo cálculo de 2.1, sin exponer credenciales de no miembros
+- [x] 3.3 IT *(spec `staff` → Retirar y restituir · Capacidad clínica en el listado del personal)*: retirar, restituir, restituir a quien venció o no declaró (sigue sin capacidad), otro `ADMIN` o sí mismo 403, `MEMBER` 403, no miembro 404; el listado con cada estado y la fecha de vencimiento
 
 ## 4. Backend: firmar con credencial
 
