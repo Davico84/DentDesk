@@ -104,6 +104,8 @@ No es un log técnico. Es un **registro clínico de quién vio qué**, exigido p
 
 ### D7 — La capacidad clínica **no es un rol: es una credencial**
 
+> ✅ **Implementado** (2026-10-27) por [`update-staff-professional-credential`](../../openspec/changes/archive/2026-10-27-update-staff-professional-credential/design.md): el profesional **declara** su COP y la fecha hasta la que está habilitado (no se verifica contra el padrón del COP); la habilitación vence sola; el `ADMIN` puede **retirar** la capacidad en su clínica, nunca otorgarla; firmar exige la capacidad y copia la credencial. Lo que D7 abre además —que lo clínico **no se vea** sin credencial (D2–D3)— va en el change siguiente.
+
 > 🔴 **Refinado por [`ADR-0018`](0018-cumplimiento-nts-139-y-cop.md) D6: la credencial es la _habilitación_, no la colegiatura.** La colegiatura es un número permanente; la habilitación es la colegiatura **vigente**, y se pierde por impago de la cuota (COP art. **65**) o por sanción. El perfil profesional guarda **los dos datos**: número (estable, para trazar autoría) y estado de habilitación (mutable, con vigencia); la puerta de los actos clínicos la abre el **estado**. Esto **no debilita la decisión: la completa** — el argumento *"la suspensión revoca sola"* de más abajo era falso con un número que nunca cambia, y con la habilitación como estado por fin funciona.
 
 `ADMIN` mezcla hoy dos cosas que no son lo mismo, y por eso no se puede expresar el gerente administrativo. Se separan en **dos ejes independientes**:
