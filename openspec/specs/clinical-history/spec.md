@@ -95,7 +95,7 @@ La búsqueda de códigos CIE10 SHALL respetar la jerarquía de 4 niveles (capít
 La transición de `DRAFT` a `COMPLETED` SHALL ser manual, explícita y **unidireccional** (sin volver a `DRAFT` ni resellar), y SHALL validar un **checklist mínimo**. En alergias, medicación y antecedentes familiares un campo vacío NO SHALL contar como revisado: la ausencia SHALL registrarse de forma **afirmativa**. El checklist SHALL exigir el **odontograma inicial** del paciente y ambos documentos SHALL sellarse de forma **atómica**: si falla el odontograma, la Historia SHALL seguir en `DRAFT`.
 
 #### Scenario: Completar cuando el checklist está satisfecho
-- **WHEN** un usuario solicita marcar como `COMPLETED` una Historia Clínica cuyo checklist mínimo está cubierto y cuyo paciente tiene el odontograma inicial registrado
+- **WHEN** un usuario con capacidad clínica solicita marcar como `COMPLETED` una Historia Clínica cuyo checklist mínimo está cubierto y cuyo paciente tiene el odontograma inicial registrado
 - **THEN** el sistema sella la Historia en estado `COMPLETED` **y** el odontograma inicial, en una sola operación
 
 #### Scenario: Rechazar el sellado con un ítem crítico faltante
@@ -254,11 +254,11 @@ Mientras la nota esté `ABIERTA`, el sistema SHALL permitir editar sus campos, d
 
 ### Requirement: Sellado irreversible de la nota
 
-El sellado SHALL ser explícito y **unidireccional** (`ABIERTA → SELLADA`), y SHALL exigir el contenido obligatorio. Una nota sellada SHALL ser inmutable: el servidor SHALL rechazar toda modificación o descarte, aun por API directa, y una escritura concurrente con el sellado NO SHALL alterarla.
+El sellado SHALL ser explícito y **unidireccional** (`ABIERTA → SELLADA`), y SHALL exigir el contenido obligatorio y que quien sella tenga capacidad clínica en la clínica activa. Una nota sellada SHALL ser inmutable: el servidor SHALL rechazar toda modificación o descarte, aun por API directa, y una escritura concurrente con el sellado NO SHALL alterarla.
 
 #### Scenario: Sellar una nota completa
-- **WHEN** un usuario sella una nota `ABIERTA` con motivo, examen, tratamiento y al menos un diagnóstico
-- **THEN** el sistema la pasa a `SELLADA` y registra cuándo y quién la selló
+- **WHEN** un usuario con capacidad clínica sella una nota `ABIERTA` con motivo, examen, tratamiento y al menos un diagnóstico
+- **THEN** el sistema la pasa a `SELLADA` y registra cuándo y quién la selló, con la credencial del firmante
 
 #### Scenario: Rechazar el sellado con contenido obligatorio faltante
 - **WHEN** un usuario intenta sellar una nota sin examen o sin ningún diagnóstico
@@ -440,3 +440,87 @@ Desde un hallazgo atendido, el sistema SHALL proponer un diagnóstico con la ubi
 #### Scenario: Las sugerencias existen en el catálogo
 - **WHEN** el sistema sugiere códigos para cualquier tipo de hallazgo
 - **THEN** cada código sugerido pertenece al catálogo CIE10 vigente
+
+### Requirement: Firmar exige capacidad clínica
+
+Cerrar la admisión (sellar la Historia Clínica a `COMPLETED` junto con el odontograma inicial) y sellar una nota de consulta SHALL exigir que quien firma tenga capacidad clínica en la clínica activa. Sin ella, el servidor SHALL rechazar con acceso denegado e indicar el motivo, aun por API directa, y SHALL NOT sellar nada. Abrir, editar y descartar borradores no cambia.
+
+#### Scenario: Cerrar la admisión con capacidad clínica
+- **WHEN** un usuario con capacidad clínica cierra una admisión cuyo checklist está cubierto
+- **THEN** el sistema sella la Historia Clínica y el odontograma inicial
+
+#### Scenario: Cerrar la admisión sin credencial declarada
+- **WHEN** un usuario que no declaró su credencial intenta cerrar una admisión
+- **THEN** el sistema responde con acceso denegado e indica que debe declarar su credencial profesional
+- **AND** la Historia sigue en `DRAFT` y el odontograma sin sellar
+
+#### Scenario: Sellar una nota con la habilitación vencida
+- **WHEN** un usuario cuya fecha "habilitado hasta" ya pasó intenta sellar una nota `ABIERTA`
+- **THEN** el sistema responde con acceso denegado e indica la fecha en que venció su habilitación
+- **AND** la nota sigue `ABIERTA` con su contenido
+
+#### Scenario: Sellar una nota con la capacidad retirada por la clínica
+- **WHEN** un usuario al que la clínica activa le retiró la capacidad clínica intenta sellar una nota
+- **THEN** el sistema responde con acceso denegado e indica que la clínica retiró su capacidad clínica
+
+#### Scenario: Retiro confirmado mientras se sella
+- **WHEN** el `ADMIN` retira la capacidad clínica de un miembro, o lo desactiva, mientras ese miembro sella una nota o cierra una admisión
+- **THEN** o el sellado termina primero y queda con la credencial vigente en ese momento, o el retiro termina primero y el sellado se rechaza
+- **AND** nunca queda sellado un registro después de que el retiro se confirmó
+
+#### Scenario: Sin capacidad clínica se siguen cargando borradores
+- **WHEN** un usuario sin capacidad clínica guarda la información de una Historia en `DRAFT` o un campo de una nota `ABIERTA`
+- **THEN** el sistema guarda el cambio como hasta ahora
+
+#### Scenario: La interfaz explica por qué no se puede firmar
+- **WHEN** un usuario sin capacidad clínica abre una Historia lista para cerrar o una nota `ABIERTA`
+- **THEN** la acción de firmar aparece deshabilitada con el motivo y un acceso para declarar su credencial
+
+### Requirement: Credencial del firmante fotografiada al sellar
+
+Al cerrar la admisión y al sellar una nota, el sistema SHALL guardar en la Historia Clínica o en la nota quién firmó, su nombre, su número COP y su fecha "habilitado hasta", **copiados en ese momento**. Un cambio posterior del nombre, la credencial, el retiro o la membresía del firmante SHALL NOT alterar lo guardado. Lo sellado SHALL mostrar al firmante y su número COP.
+
+#### Scenario: La Historia sellada guarda al firmante
+- **WHEN** un usuario con capacidad clínica cierra una admisión
+- **THEN** la Historia Clínica sellada guarda su identificador, su nombre, su número COP y su fecha "habilitado hasta" de ese momento
+
+#### Scenario: La nota sellada guarda al firmante
+- **WHEN** un usuario con capacidad clínica sella una nota de consulta
+- **THEN** la nota sellada guarda su identificador, su nombre, su número COP y su fecha "habilitado hasta" de ese momento
+
+#### Scenario: Renovar la credencial no reescribe lo firmado
+- **WHEN** un profesional que ya firmó una nota declara una fecha de habilitación nueva o corrige su nombre
+- **THEN** la nota sellada sigue mostrando el nombre y la fecha que tenía al firmarla
+
+#### Scenario: Perder la habilitación no invalida lo firmado
+- **WHEN** la habilitación de un profesional vence o la clínica le retira la capacidad clínica después de que selló una nota
+- **THEN** la nota sigue sellada y válida, con la credencial con que la firmó
+
+#### Scenario: Ver quién firmó
+- **WHEN** un usuario abre una nota sellada o una Historia Clínica `COMPLETED`
+- **THEN** la interfaz muestra el nombre del firmante y su número COP
+
+### Requirement: Firmas anteriores al registro de credenciales
+
+Una Historia Clínica o una nota selladas antes de que existiera la credencial profesional SHALL conservarse sin cambios y SHALL mostrarse como *firmadas antes del registro de credenciales*. El sistema SHALL NOT completarles una credencial retroactivamente, y SHALL NOT aceptar un sellado nuevo sin la foto de la credencial.
+
+#### Scenario: Ver una nota sellada antes del cambio
+- **WHEN** un usuario abre una nota sellada antes de que existiera la credencial profesional
+- **THEN** la interfaz la muestra sellada e indica que se firmó antes del registro de credenciales
+
+#### Scenario: Ver una Historia sellada antes del cambio
+- **WHEN** un usuario abre una Historia Clínica `COMPLETED` antes de que existiera la credencial profesional
+- **THEN** la interfaz la muestra sellada e indica que se firmó antes del registro de credenciales
+
+#### Scenario: Una Historia sellada antes del cambio no se modifica ni en la base
+- **WHEN** se intenta modificar una Historia Clínica sellada antes del cambio, aun escribiendo directo en la base
+- **THEN** la base lo rechaza y la Historia no cambia
+
+#### Scenario: Lo sellado antes del cambio no se reescribe
+- **WHEN** un profesional declara su credencial después de haber sellado notas antes del cambio
+- **THEN** esas notas siguen sin credencial del firmante
+- **AND** siguen indicando que se firmaron antes del registro de credenciales
+
+#### Scenario: Un sellado nuevo sin la foto es imposible
+- **WHEN** se intenta guardar una Historia o una nota selladas después del cambio sin la credencial del firmante, aun escribiendo directo en la base
+- **THEN** la base lo rechaza
