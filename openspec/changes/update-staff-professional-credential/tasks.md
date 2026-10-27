@@ -44,12 +44,12 @@
 
 ## 6. Frontend: credencial propia
 
-- [ ] 6.1 Módulo y hook de React Query para `GET`/`PUT /me/professional-credential` (`clinicalCapacity` nulo sin clínica activa); schema Zod con paridad (COP solo dígitos 1–10, fecha no anterior a hoy, declaración jurada obligatoria) (`docs/coding-style.md` §7)
-- [ ] 6.2 Pantalla "Mi credencial profesional" accesible a toda membresía (design D7): estado en la clínica activa con su motivo, formulario con la declaración jurada, aviso de que la habilitación es autodeclarada; 409 y 400 del servidor mostrados en el campo. Verificar con Vitest/MSW: declarar, renovar, errores de COP y de fecha, sin declaración jurada, conflicto por COP
+- [x] 6.1 Módulo y hook de React Query para `GET`/`PUT /me/professional-credential` (`clinicalCapacity` nulo sin clínica activa); schema Zod con paridad (COP solo dígitos 1–10, fecha no anterior a hoy, declaración jurada obligatoria) (`docs/coding-style.md` §7)
+- [x] 6.2 Pantalla "Mi credencial profesional" accesible a toda membresía (design D7): estado en la clínica activa con su motivo, formulario con la declaración jurada, aviso de que la habilitación es autodeclarada; 409 y 400 del servidor mostrados en el campo. Verificar con Vitest/MSW: declarar, renovar, errores de COP y de fecha, sin declaración jurada, conflicto por COP
 
 ## 7. Frontend: personal
 
-- [ ] 7.1 Columna de capacidad clínica en Personal (sin credencial, habilitado hasta, vencida, retirada, con COP) y acción retirar/restituir con confirmación, no ofrecida sobre la propia fila ni sobre otro `ADMIN`. Verificar con Vitest/MSW: cada estado, retirar, cancelar, restituir
+- [x] 7.1 Columna de capacidad clínica en Personal (sin credencial, habilitado hasta, vencida, retirada, con COP) y acción retirar/restituir con confirmación, no ofrecida sobre la propia fila ni sobre otro `ADMIN`. Verificar con Vitest/MSW: cada estado, retirar, cancelar, restituir
 
 ## 8. Frontend: firmar
 

@@ -12,6 +12,8 @@ export const PATHS = {
   CLINICAL_HISTORY: "/patients/:id/clinical-history",
   DENTAL_CHART: "/patients/:id/dental-chart",
   CONSULTATION_NOTES: "/patients/:id/consultations",
+  /** De la persona, no de una sección: se llega desde el menú de la cuenta. */
+  PROFESSIONAL_CREDENTIAL: "/profile/credential",
 } as const;
 
 /** Construye la ruta de detalle de un paciente. */
