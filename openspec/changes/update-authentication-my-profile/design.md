@@ -46,9 +46,16 @@ gestión de sesión justo la operación que más la toca.
 ### D2 — "Cerrar las otras sesiones" = borrar todos los refresh y emitir uno nuevo para esta
 
 En la misma transacción: se cambia el hash, se borran **todos** los refresh del usuario (`deleteByUser`) y se emiten
-tokens nuevos para la sesión actual, con la organización activa y el rol del access token que hizo la petición.
-La sesión actual sigue abierta con un refresh recién emitido; las demás quedan sin refresh y caen en su próxima
-renovación.
+tokens nuevos para la sesión actual. La sesión actual sigue abierta con un refresh recién emitido; las demás quedan
+sin refresh y caen en su próxima renovación.
+
+**La clínica de los tokens nuevos es la del access token**, no una cualquiera: `refresh` hoy toma la primera
+membresía activa (`activeMembership(...).findFirst()`), y el esquema permite varias por usuario
+(`ux_memberships_user_org`). El cambio carga la membresía de **esa** organización (del contexto de la petición) y
+exige que siga activa; si no lo está, responde `401` sin cambiar nada. El rol sale de esa membresía, no del token
+(un rol cambiado mientras tanto queda al día).
+
+`deleteByUser` borra en todas las clínicas porque `refresh_tokens.user_id` es global (`V3`).
 
 - *Alternativa descartada*: conservar solo el refresh de la cookie actual. Exige que la cookie llegue y deja vivo un
   token que pudo haberse filtrado junto con la contraseña. Emitir uno nuevo es más simple y más seguro.
@@ -56,26 +63,52 @@ renovación.
   el access JWT de inmediato. Costaría una lectura de la base por petición en toda la API, por una ventana de
   15 min como máximo. El spec fija ese límite: el acceso vigente termina "a más tardar cuando venza su token".
 
-### D3 — Una renovación simultánea no puede resucitar una sesión cerrada: bloqueo de la fila del usuario
+### D3 — Ninguna sesión puede nacer ni renovarse durante el cambio: bloqueo de la fila del usuario
 
-**Carrera:** `refresh` borra su token y **después** inserta el nuevo. Si el cambio de contraseña hace su
-`deleteByUser` entre esos dos pasos, el token nuevo se inserta después y **la otra sesión sobrevive**.
+**Carreras** (las dos terminan con una sesión viva tras el cierre):
 
-**Decisión:** el cambio de contraseña toma `FOR UPDATE` sobre la fila de `users`, y `refresh` toma `FOR SHARE` sobre
-la misma fila **antes** de consumir su token. Quedan serializados:
+- **Renovación:** `refresh` borra su token y **después** inserta el nuevo. Si el `deleteByUser` del cambio cae
+  entre esos dos pasos, el token nuevo se inserta después.
+- **Login:** `login` verifica la contraseña con BCrypt (~100 ms) sin bloqueo y después emite el refresh. Si el
+  cambio commitea en el medio, el login emite una sesión con la contraseña **anterior** y sobrevive al cierre.
 
-- si la renovación va primero, su token nuevo existe cuando el cambio borra todo, y cae;
-- si el cambio va primero, la renovación espera, encuentra su token borrado y responde `401`.
+**Restricción:** no se puede tener la fila bloqueada al llamar a `LoginAttemptService.recordFailure`. Corre en
+`REQUIRES_NEW` y actualiza la **misma** fila: esperaría a la transacción externa, que espera a la interna.
+Postgres no lo detecta como deadlock (el ciclo pasa por el hilo de Java): se cuelga hasta un timeout con la
+conexión tomada. Por eso **se verifica sin bloqueo y se bloquea después**, re-chequeando el hash bajo el bloqueo.
 
-Dos cambios de contraseña simultáneos también quedan serializados por el `FOR UPDATE`; el segundo verifica la
-contraseña actual contra el hash ya cambiado. Se prueba con hilos reales y un `ExecutorService` propio, y se
-comprueba que el test **falla sin el bloqueo**.
+**Protocolo** (todos toman la fila de `users` **antes** de tocar `refresh_tokens`: mismo orden, sin ciclos):
+
+1. **Cambio de contraseña:**
+   1. leer el usuario **sin bloqueo**; si está bloqueado → `429` (D4);
+   2. BCrypt contra la actual; si falla → `recordFailure` (no hay bloqueo tomado) y `400`;
+   3. `SELECT ... FOR UPDATE` de la fila; si `password_hash` ya **no es** el verificado (otro cambio ganó) →
+      `400 current-password-incorrect` **sin** contar el fallo (la contraseña era correcta al verificarla); si
+      `locked_until` es futuro (otra petición bloqueó en el medio) → `429`;
+   4. hash nuevo, contador a cero, `deleteByUser`, tokens nuevos (D2).
+2. **Login:** el `UPDATE` condicional que ya resetea el contador (`resetLoginAttemptsIfNotLocked`, D13 de
+   `update-authentication`) pasa a exigir también **`password_hash = <el verificado>`**. Ese `UPDATE` toma el
+   bloqueo de la fila hasta el commit, y en `READ COMMITTED` Postgres re-evalúa el `WHERE` sobre la versión nueva si
+   tuvo que esperar. Si el cambio ganó → 0 filas → `401` genérico, sin emitir tokens. Si el login ganó, el cambio
+   espera a que commitee y su `deleteByUser` borra el refresh recién emitido. `recordFailure` del login no cambia:
+   corre antes de tomar ningún bloqueo.
+3. **Renovación:** `SELECT ... FOR SHARE` de la fila **antes** de consumir su token. Si el cambio va primero, la
+   renovación espera, encuentra su token borrado y responde `401`; si va primero la renovación, su token nuevo
+   existe cuando el cambio borra todo.
+4. **Logout:** sin cambios. Solo borra su propio refresh y no toca `users`, así que no puede cerrar un ciclo.
+
+Dos cambios simultáneos con la misma contraseña actual: los dos verifican sin bloqueo, el primero en bloquear gana y
+el segundo encuentra el hash cambiado en el paso 1.3 → `400`.
+
+Se prueba con hilos reales y un `ExecutorService` propio (renovación contra cambio, login contra cambio, contraseña
+incorrecta contra cambio, dos cambios), y se comprueba que los dos primeros **fallan sin el bloqueo**.
 
 ### D4 — Contraseña actual incorrecta: cuenta para el bloqueo del login
 
 Una contraseña actual incorrecta llama a `LoginAttemptService.recordFailure`, que sobrevive al rollback de la
 petición. Con la cuenta bloqueada (`locked_until` futuro), el cambio se rechaza **antes** de comparar la contraseña.
-Un cambio exitoso deja el contador en cero, como un login exitoso.
+Un cambio exitoso deja `failed_login_attempts = 0` **y** `locked_until = NULL`, como un login exitoso, también
+cuando quedaba un bloqueo ya vencido.
 
 - Contraseña actual incorrecta → `400` con tipo propio (`/errors/current-password-incorrect`) y `detail` en español.
   Es un usuario ya autenticado: no hay enumeración que proteger, y el mensaje genérico del login confundiría.
@@ -119,6 +152,10 @@ contraseña sin límite.
 - [Bloqueo del login provocado desde una sesión robada] → Trade-off aceptado en D4; el bloqueo es temporal.
 - [`FOR SHARE` en cada `refresh` agrega una espera] → Solo contra un cambio de contraseña simultáneo del mismo
   usuario, que es raro; el resto de las renovaciones no compiten.
+- [Tocar `login` y `refresh`, que ya funcionan en producción] → Cambio mínimo: una condición más en un `UPDATE`
+  existente y un `FOR SHARE`. Los ITs de login, bloqueo y renovación existentes deben seguir en verde sin tocarlos.
+- [Un bloqueo tomado mientras se llama a `REQUIRES_NEW` cuelga la petición] → D3 lo prohíbe por protocolo; el IT de
+  contraseña incorrecta concurrente lo detecta si alguien lo reintroduce.
 - [Mover la credencial de ruta rompe enlaces] → Redirección desde `/profile/credential` (D6).
 
 ## Migration Plan

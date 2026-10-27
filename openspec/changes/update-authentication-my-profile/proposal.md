@@ -57,7 +57,9 @@ cambian.
 
 - **Backend**: endpoints del perfil propio y del cambio de contraseña (este último bajo `/auth`, donde viaja la cookie
   de refresco de la sesión actual); revocación de los tokens de refresco del usuario; reutiliza el conteo de intentos
-  fallidos de `update-authentication`. Sin migraciones: `users` ya tiene `full_name` y `password_hash`.
+  fallidos de `update-authentication`. `login` y `refresh` se ajustan mínimamente (una condición y un bloqueo de
+  fila) para que ninguna sesión nazca ni se renueve durante el cambio. Sin migraciones: `users` ya tiene
+  `full_name` y `password_hash`.
 - **Contrato**: `contracts/openapi.json` y el cliente orval regenerados.
 - **Frontend**: pantalla y ruta de Mi perfil, menú de la cuenta, la credencial como sección, enlaces de
   `SigningCapacityNotice` a la nueva ubicación, y la sesión en memoria actualizada al cambiar el nombre.

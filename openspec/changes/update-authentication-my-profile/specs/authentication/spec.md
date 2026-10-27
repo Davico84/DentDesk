@@ -63,6 +63,10 @@ El sistema SHALL permitir a cada usuario cambiar su contraseña indicando la act
 - **THEN** la cuenta queda bloqueada temporalmente
 - **AND** mientras dure el bloqueo, el cambio se rechaza aun con la contraseña actual correcta
 
+#### Scenario: Un cambio exitoso reinicia los intentos fallidos
+- **WHEN** un usuario con intentos fallidos acumulados, o con un bloqueo ya vencido, cambia su contraseña
+- **THEN** el contador de intentos fallidos vuelve a cero y no queda ningún bloqueo
+
 #### Scenario: Nueva contraseña demasiado corta
 - **WHEN** un usuario indica una contraseña nueva de menos de 8 caracteres
 - **THEN** el formulario muestra el error y no envía la petición
@@ -92,6 +96,15 @@ Al cambiar la contraseña, el sistema SHALL cerrar todas las demás sesiones del
 - **WHEN** un usuario cambia su contraseña
 - **THEN** sigue trabajando en la misma sesión sin volver a iniciar sesión
 - **AND** al recargar la aplicación la sesión se restaura
+
+#### Scenario: Una sesión que se inicia o renueva durante el cambio también se cierra
+- **WHEN** otra sesión del usuario se renueva, o alguien inicia sesión con la contraseña anterior, al mismo tiempo que el cambio de contraseña
+- **THEN** esa sesión tampoco puede renovarse después del cambio, o el inicio de sesión se rechaza
+
+#### Scenario: La sesión actual sigue en su clínica
+- **WHEN** un usuario con acceso a más de una clínica cambia su contraseña desde una de ellas
+- **THEN** la sesión actual sigue en la misma clínica
+- **AND** las sesiones abiertas en las otras clínicas quedan cerradas
 
 #### Scenario: Un cambio fallido no cierra nada
 - **WHEN** el cambio de contraseña se rechaza por cualquier motivo
