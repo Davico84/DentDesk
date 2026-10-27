@@ -97,7 +97,7 @@ ALTER DEFAULT PRIVILEGES FOR ROLE odontorisas_admin IN SCHEMA public
 - cada tabla clínica sigue con `relrowsecurity` y `relforcerowsecurity` en `true` y con su policy `organization_isolation` (`pg_class` + `pg_policies`), comparado contra producción;
 - la verificación de roles de §4.2 y la de aislamiento entre clínicas de §9.
 
-**Orden de restauración.** `pg_dump` deja `ENABLE/FORCE ROW LEVEL SECURITY` y las policies en *post-data*, después de las filas, así que restaurar como `odontorisas_admin` no queda filtrado por su propia RLS. No se asume: se comprueba en el índice del volcado (`pg_restore --list`) que, para una tabla clínica, el orden es tabla → datos → RLS → policy, y restaurando como un rol no superusuario (tareas 3.5 y 3.8).
+**Orden de restauración.** `pg_dump` emite el `FORCE ROW LEVEL SECURITY` junto con la tabla (*pre-data*), pero el `ENABLE ROW LEVEL SECURITY` y las policies en *post-data*, después de las filas: mientras cargan los datos la RLS no está activa (`FORCE` sin `ENABLE` no filtra), así que restaurar como `odontorisas_admin` no queda filtrado por su propia RLS. No se asume: se comprueba en el script que genera `pg_restore` (el índice `--list` **no** está en orden de restauración: lista la policy antes del `ENABLE`) que, para una tabla clínica, la tabla va antes que sus datos y los datos antes de la policy y del `ENABLE` (esos dos, en cualquier orden entre sí), y restaurando como un rol no superusuario (tareas 3.5 y 3.6). *Corregido en el apply (2026-10-26): decía "`ENABLE/FORCE` en post-data" y "comprobar en el índice".*
 
 ### D5 — Repo privado: cupo y programados
 
