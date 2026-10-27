@@ -60,7 +60,7 @@
 ## 9. Integración
 
 - [ ] 9.1 Prueba manual con backend y frontend locales: sin credencial no se firma y el botón explica por qué; declarar, cerrar una admisión y sellar una nota, y ver el firmante; como `ADMIN`, retirar la capacidad de un `MEMBER` y comprobar que no puede sellar; una nota sellada antes del cambio se ve como "firmada antes del registro de credenciales"
-- [ ] 9.2 `openspec validate update-staff-professional-credential --strict` y medir a mano los requirements (≤ 500 caracteres)
+- [x] 9.2 `openspec validate update-staff-professional-credential --strict` y medir a mano los requirements (≤ 500 caracteres) — *apply 2026-10-26: válido; los 10 miden de 315 a 499 (el MODIFIED de COMPLETED conserva su texto de 499)*
 
 ## Workflow follow-up
 
