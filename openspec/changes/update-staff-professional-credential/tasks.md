@@ -31,16 +31,16 @@
 
 ## 4. Backend: firmar con credencial
 
-- [ ] 4.1 `CloseAdmissionService`: `require()` como primera operación de la transacción, antes de `complete`/`sealInitial` (orden membresía → credencial → Historia → odontograma, design D4); la misma foto se guarda en `historia_clinica` (`completed_by` + `signer_*`) y en `dental_chart_block` (`sealed_by` + `signer_*`) (design D4)
-- [ ] 4.2 `ConsultationNoteService.seal`: `require()` como primera operación de la transacción, antes de bloquear la nota (orden membresía → credencial → nota, design D4); foto en `consultation_note` junto a `sealed_by`
-- [ ] 4.3 Respuestas de la Historia, el odontograma y la nota con `signer` y `signedBeforeCredentials` derivado (sellado y sin foto) (design D6)
-- [ ] 4.4 IT *(spec `clinical-history` → Firmar exige capacidad clínica · Credencial del firmante fotografiada al sellar · Firmas anteriores al registro de credenciales; spec `dental-chart` → Credencial del firmante en el odontograma sellado)*: cerrar la admisión con capacidad (Historia y odontograma con la misma foto); sin credencial, vencida y retirada → 403 con su `reason` y nada sellado; borradores sin capacidad se siguen guardando; renovar o corregir el nombre no cambia lo firmado; vencer o retirar después no invalida lo firmado; Historia, odontograma y nota sellados antes del cambio, cada uno por separado → `signedBeforeCredentials` verdadero
-- [ ] 4.5 IT de concurrencia con hilos reales, pool propio y orden forzado (`awaitLockWaitOrFinished`), primero contra el código sin `FOR SHARE` para ver que fallan: retiro contra sellado de nota y contra cierre de admisión, y desactivación contra sellado (nunca sellado después de un retiro o una desactivación confirmados); renovación contra sellado (la foto lleva la fecha que estaba confirmada); dos sellados del mismo profesional para dos pacientes no se bloquean *(Retiro confirmado mientras se sella)*
-- [ ] 4.6 Los IT existentes de cierre de admisión y de sellado de nota declaran la credencial en su preparación; `mvn verify` en verde
+- [x] 4.1 `CloseAdmissionService`: `require()` como primera operación de la transacción, antes de `complete`/`sealInitial` (orden membresía → credencial → Historia → odontograma, design D4); la misma foto se guarda en `historia_clinica` (`completed_by` + `signer_*`) y en `dental_chart_block` (`sealed_by` + `signer_*`) (design D4)
+- [x] 4.2 `ConsultationNoteService.seal`: `require()` como primera operación de la transacción, antes de bloquear la nota (orden membresía → credencial → nota, design D4); foto en `consultation_note` junto a `sealed_by`
+- [x] 4.3 Respuestas de la Historia, el odontograma y la nota con `signer` y `signedBeforeCredentials` derivado (sellado y sin foto) (design D6)
+- [x] 4.4 IT *(spec `clinical-history` → Firmar exige capacidad clínica · Credencial del firmante fotografiada al sellar · Firmas anteriores al registro de credenciales; spec `dental-chart` → Credencial del firmante en el odontograma sellado)*: cerrar la admisión con capacidad (Historia y odontograma con la misma foto); sin credencial, vencida y retirada → 403 con su `reason` y nada sellado; borradores sin capacidad se siguen guardando; renovar o corregir el nombre no cambia lo firmado; vencer o retirar después no invalida lo firmado; Historia, odontograma y nota sellados antes del cambio, cada uno por separado → `signedBeforeCredentials` verdadero
+- [x] 4.5 IT de concurrencia con hilos reales, pool propio y orden forzado (`awaitLockWaitOrFinished`), primero contra el código sin `FOR SHARE` para ver que fallan: retiro contra sellado de nota y contra cierre de admisión, y desactivación contra sellado (nunca sellado después de un retiro o una desactivación confirmados); renovación contra sellado (la foto lleva la fecha que estaba confirmada); dos sellados del mismo profesional para dos pacientes no se bloquean *(Retiro confirmado mientras se sella)*
+- [x] 4.6 Los IT existentes de cierre de admisión y de sellado de nota declaran la credencial en su preparación; `mvn verify` en verde
 
 ## 5. Contrato
 
-- [ ] 5.1 OpenAPI de los endpoints nuevos y de los campos nuevos (200, 204, 400, 401, 403 con `reason`, 404, 409), `operationId` únicos; regenerar `contracts/openapi.json` **antes** de `mvn verify` (`ContractDriftIT`) y el cliente generado del front
+- [x] 5.1 OpenAPI de los endpoints nuevos y de los campos nuevos (200, 204, 400, 401, 403 con `reason`, 404, 409), `operationId` únicos; regenerar `contracts/openapi.json` **antes** de `mvn verify` (`ContractDriftIT`) y el cliente generado del front
 
 ## 6. Frontend: credencial propia
 

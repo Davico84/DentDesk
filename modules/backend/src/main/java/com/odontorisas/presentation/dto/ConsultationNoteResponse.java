@@ -27,6 +27,11 @@ public record ConsultationNoteResponse(
     Instant sealedAt,
     @Schema(description = "Quien selló (firmante); el único que puede corregir la nota.")
     Long sealedBy,
+    @Schema(description = "Credencial del firmante, copiada al sellar; null si está ABIERTA o se firmó antes del "
+        + "registro de credenciales.", nullable = true)
+    SignerResponse signer,
+    @Schema(description = "true si está SELLADA pero se firmó antes del registro de credenciales (sin firmante).")
+    boolean signedBeforeCredentials,
     @Schema(description = "Cuándo se escribió la nota (distinto de attendedAt).")
     Instant createdAt,
     Long createdBy,
@@ -41,7 +46,8 @@ public record ConsultationNoteResponse(
         return new ConsultationNoteResponse(v.id(), v.patientId(), v.status(), v.attendedAt(), v.reason(),
             v.illnessDuration(), v.symptomsAndSigns(), v.previousTreatment(), v.biologicalFunctions(),
             v.examination(), v.treatment(), v.auxiliaryExams(), v.referral(), v.nextAppointmentOn(), v.sealedAt(),
-            v.sealedBy(), v.createdAt(), v.createdBy(), v.updatedAt(),
+            v.sealedBy(), SignerResponse.from(v.signer()), v.signedBeforeCredentials(), v.createdAt(),
+            v.createdBy(), v.updatedAt(),
             v.diagnoses().stream().map(NoteDiagnosisResponse::from).toList(),
             v.backgroundEntries().stream().map(BackgroundEntryResponse::from).toList(),
             v.corrections().stream().map(CorrectionResponse::from).toList(),

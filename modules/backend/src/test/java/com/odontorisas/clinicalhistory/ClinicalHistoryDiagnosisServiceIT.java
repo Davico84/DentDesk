@@ -1,6 +1,7 @@
 package com.odontorisas.clinicalhistory;
 
 import com.odontorisas.AbstractTenantAwareIntegrationTest;
+import com.odontorisas.ClinicalSignerFixtures;
 import com.odontorisas.common.DiagnosisLocation;
 import com.odontorisas.common.HistoriaClinicaStatus;
 import com.odontorisas.common.IdentityContext;
@@ -9,6 +10,7 @@ import com.odontorisas.common.PatientStatus;
 import com.odontorisas.common.TipoDiagnostico;
 import com.odontorisas.persistence.entity.HistoriaClinica;
 import com.odontorisas.persistence.entity.Patient;
+import com.odontorisas.persistence.entity.Signature;
 import com.odontorisas.persistence.repository.HistoriaClinicaRepository;
 import com.odontorisas.persistence.repository.PatientRepository;
 import com.odontorisas.service.clinicalhistory.Cie10CodeNotFoundException;
@@ -103,6 +105,9 @@ class ClinicalHistoryDiagnosisServiceIT extends AbstractTenantAwareIntegrationTe
         transactionTemplate.executeWithoutResult(status ->
             historiaClinicaRepository.findByPatientId(patientId).ifPresent(h -> {
                 h.setStatus(HistoriaClinicaStatus.COMPLETED);
+                // Con la foto del firmante: desde V30 la base la exige en todo sellado nuevo.
+                h.setCompletedBy(SOME_USER);
+                h.setSignature(Signature.of(ClinicalSignerFixtures.signer(SOME_USER)));
                 historiaClinicaRepository.save(h);
             }));
     }

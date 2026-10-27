@@ -4,6 +4,7 @@ import com.odontorisas.common.ClinicalCapacityState;
 import com.odontorisas.common.IdentityContext;
 import com.odontorisas.common.MembershipStatus;
 import com.odontorisas.common.OrganizationContext;
+import com.odontorisas.common.SignerSnapshot;
 import com.odontorisas.persistence.entity.Membership;
 import com.odontorisas.persistence.entity.ProfessionalCredential;
 import com.odontorisas.persistence.repository.MembershipRepository;
@@ -33,6 +34,7 @@ import java.util.stream.Collectors;
  * zona horaria.
  */
 @Service
+@Transactional(readOnly = true)
 public class ClinicalCapacityService {
 
     /** Zona de la fecha "habilitado hasta" (design.md D3). No es la de la clínica, a propósito. */
@@ -62,9 +64,6 @@ public class ClinicalCapacityService {
             return state == ClinicalCapacityState.ENABLED;
         }
     }
-
-    /** Foto de la credencial que se copia al firmar (ADR-0016 D1, ADR-0018 D6). */
-    public record SignerSnapshot(Long userId, String fullName, String copNumber, LocalDate licensedUntil) {}
 
     /** Regla pura, en el orden de {@link ClinicalCapacityState}: la primera condición que falla es el motivo. */
     static CapacityView evaluate(Membership membership, ProfessionalCredential credential, LocalDate today) {

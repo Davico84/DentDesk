@@ -1,6 +1,7 @@
 package com.odontorisas.admission;
 
 import com.odontorisas.AbstractTenantAwareIntegrationTest;
+import com.odontorisas.ClinicalSignerFixtures;
 import com.odontorisas.common.DiagnosisLocation;
 import com.odontorisas.common.HistoriaClinicaStatus;
 import com.odontorisas.common.IdentityContext;
@@ -95,6 +96,8 @@ class CloseAdmissionServiceIT extends AbstractTenantAwareIntegrationTest {
                 rs.next();
                 someUser = rs.getLong(1);
             }
+            // Firmar exige capacidad clínica (update-staff-professional-credential): membresía y credencial vigentes.
+            ClinicalSignerFixtures.enableSigner(owner, someUser, org);
         }
         IdentityContext.set(someUser);
         OrganizationContext.set(org);

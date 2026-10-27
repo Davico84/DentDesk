@@ -47,7 +47,14 @@ public record ClinicalHistoryResponse(
     List<DiagnosisResponse> diagnosticos,
 
     @Schema(description = "Momento del sellado a COMPLETED; null mientras esté en DRAFT.")
-    Instant completedAt) {
+    Instant completedAt,
+
+    @Schema(description = "Credencial de quien cerró la admisión, copiada al firmar; null en DRAFT o si se "
+        + "firmó antes del registro de credenciales.", nullable = true)
+    SignerResponse signer,
+
+    @Schema(description = "true si está COMPLETED pero se firmó antes del registro de credenciales (sin firmante).")
+    boolean signedBeforeCredentials) {
 
     public static ClinicalHistoryResponse from(ClinicalHistoryView h, PatientView patient,
                                                 List<DiagnosisResponse> diagnosticos) {
@@ -59,6 +66,6 @@ public record ClinicalHistoryResponse(
             h.alergiasRevisado(), h.alergiasDetalle(),
             h.medicacionRevisado(), h.medicacionDetalle(),
             h.antecedentesFamiliaresRevisado(), h.antecedentesFamiliaresDetalle(),
-            diagnosticos, h.completedAt());
+            diagnosticos, h.completedAt(), SignerResponse.from(h.signer()), h.signedBeforeCredentials());
     }
 }

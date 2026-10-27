@@ -150,6 +150,9 @@ public class ConsultationNoteController {
             content = @Content(schema = @Schema(implementation = ConsultationNoteResponse.class))),
         @ApiResponse(responseCode = "400", description = "Falta contenido obligatorio (missingFields) o la fecha quedó inválida.",
             content = @Content(mediaType = PROBLEM, schema = @Schema(implementation = ApiProblem.class))),
+        @ApiResponse(responseCode = "403", description = "Quien sella no tiene capacidad clínica en la clínica "
+            + "(`/errors/clinical-capacity-required`, con `reason` y, si venció, `expiredOn`). La nota sigue ABIERTA.",
+            content = @Content(mediaType = PROBLEM, schema = @Schema(implementation = ApiProblem.class))),
         @ApiResponse(responseCode = "404", description = "No existe la nota.",
             content = @Content(mediaType = PROBLEM, schema = @Schema(implementation = ApiProblem.class))),
         @ApiResponse(responseCode = "409", description = "La nota ya está sellada.",

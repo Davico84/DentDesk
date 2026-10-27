@@ -1,6 +1,7 @@
 package com.odontorisas.dentalchart;
 
 import com.odontorisas.AbstractTenantAwareIntegrationTest;
+import com.odontorisas.ClinicalSignerFixtures;
 import com.odontorisas.common.FindingCondition;
 import com.odontorisas.common.FindingType;
 import com.odontorisas.common.IdentityContext;
@@ -91,7 +92,7 @@ class DentalChartSealGuardIT extends AbstractTenantAwareIntegrationTest {
         dentalChartService.setObservations(patientId, null);
         // Directo, sin el coordinador: acá el objeto de prueba es el odontograma, no la admisión
         // (AdmissionSealingArchitectureTest solo mira código de producción).
-        dentalChartService.sealInitial(patientId);
+        dentalChartService.sealInitial(patientId, ClinicalSignerFixtures.signer(someUser));
     }
 
     @AfterEach
@@ -131,7 +132,7 @@ class DentalChartSealGuardIT extends AbstractTenantAwareIntegrationTest {
     void a_second_sealing_is_rejected_and_the_original_date_does_not_change() throws SQLException {
         String original = sealedAt();
 
-        assertThatThrownBy(() -> dentalChartService.sealInitial(patientId))
+        assertThatThrownBy(() -> dentalChartService.sealInitial(patientId, ClinicalSignerFixtures.signer(someUser)))
             .isInstanceOf(DentalChartBlockSealedException.class);
         assertRejectedAsSealed("UPDATE dental_chart_block SET sealed_at = now() WHERE id = " + blockId);
 

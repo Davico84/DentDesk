@@ -38,12 +38,20 @@ public record DentalChartResponse(
 
     boolean observationsReviewed,
 
-    List<DentalChartFindingResponse> findings) {
+    List<DentalChartFindingResponse> findings,
+
+    @Schema(description = "Credencial de quien lo selló al cerrar la admisión; null si está OPEN o se firmó "
+        + "antes del registro de credenciales.", nullable = true)
+    SignerResponse signer,
+
+    @Schema(description = "true si está SEALED pero se firmó antes del registro de credenciales (sin firmante).")
+    boolean signedBeforeCredentials) {
 
     public static DentalChartResponse from(DentalChartBlockView b, List<DentalChartFindingView> findings) {
         return new DentalChartResponse(
             b.id(), b.patientId(), b.type(), b.status(), b.examinedOn(), b.sealedAt(),
             b.specifications(), b.specificationsReviewed(), b.observations(), b.observationsReviewed(),
-            findings.stream().map(DentalChartFindingResponse::from).toList());
+            findings.stream().map(DentalChartFindingResponse::from).toList(),
+            SignerResponse.from(b.signer()), b.signedBeforeCredentials());
     }
 }

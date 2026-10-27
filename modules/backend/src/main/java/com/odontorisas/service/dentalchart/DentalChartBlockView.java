@@ -2,8 +2,10 @@ package com.odontorisas.service.dentalchart;
 
 import com.odontorisas.common.DentalChartBlockStatus;
 import com.odontorisas.common.DentalChartBlockType;
+import com.odontorisas.common.SignerCredential;
 import com.odontorisas.persistence.entity.DentalChartBlock;
 
+import com.odontorisas.persistence.entity.Signature;
 import java.time.Instant;
 import java.time.LocalDate;
 
@@ -17,12 +19,16 @@ public record DentalChartBlockView(
     String specifications,
     boolean specificationsReviewed,
     String observations,
-    boolean observationsReviewed) {
+    boolean observationsReviewed,
+    SignerCredential signer,
+    boolean signedBeforeCredentials) {
 
     public static DentalChartBlockView from(DentalChartBlock b) {
         return new DentalChartBlockView(
             b.getId(), b.getPatientId(), b.getType(), b.getStatus(), b.getExaminedOn(), b.getSealedAt(),
             b.getSpecifications(), b.isSpecificationsReviewed(),
-            b.getObservations(), b.isObservationsReviewed());
+            b.getObservations(), b.isObservationsReviewed(), Signature.read(b.getSignature()),
+            // Sellado sin foto: anterior al registro de credenciales (update-staff-professional-credential D5).
+            b.getStatus() == DentalChartBlockStatus.SEALED && b.getSignature() == null);
     }
 }

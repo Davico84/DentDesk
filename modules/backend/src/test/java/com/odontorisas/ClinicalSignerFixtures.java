@@ -1,8 +1,11 @@
 package com.odontorisas;
 
+import com.odontorisas.common.SignerSnapshot;
+
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.time.LocalDate;
 import java.util.UUID;
 
 /**
@@ -14,6 +17,42 @@ import java.util.UUID;
 public final class ClinicalSignerFixtures {
 
     private ClinicalSignerFixtures() {
+    }
+
+    /**
+     * Foto de firmante para los tests que llaman directo a los servicios de dominio (sin el coordinador ni
+     * {@code require()}): el {@code userId} tiene que ser un usuario real, porque la columna es FK.
+     */
+    public static SignerSnapshot signer(long userId) {
+        return new SignerSnapshot(userId, "Dra. Prueba", "12345", LocalDate.now().plusYears(1));
+    }
+
+    /**
+     * Ejecuta {@code sql} como si la restricción {@code constraint} de {@code table} todavía no existiera,
+     * para fabricar una fila "sellada antes de V30": suspende la restricción, ejecuta y la vuelve a crear
+     * con su misma definición ({@code pg_get_constraintdef} ya trae {@code NOT VALID}), en una transacción.
+     */
+    public static void asBeforeTheConstraint(Connection owner, String table, String constraint, String sql)
+            throws SQLException {
+        boolean autoCommit = owner.getAutoCommit();
+        owner.setAutoCommit(false);
+        try (Statement s = owner.createStatement()) {
+            String definition;
+            try (var rs = s.executeQuery("SELECT pg_get_constraintdef(oid) FROM pg_constraint WHERE conname = '"
+                + constraint + "'")) {
+                rs.next();
+                definition = rs.getString(1);
+            }
+            s.execute("ALTER TABLE " + table + " DROP CONSTRAINT " + constraint);
+            s.execute(sql);
+            s.execute("ALTER TABLE " + table + " ADD CONSTRAINT " + constraint + " " + definition);
+            owner.commit();
+        } catch (SQLException e) {
+            owner.rollback();
+            throw e;
+        } finally {
+            owner.setAutoCommit(autoCommit);
+        }
     }
 
     /** Número COP único por llamada: el índice único es global y los tests comparten la base. */

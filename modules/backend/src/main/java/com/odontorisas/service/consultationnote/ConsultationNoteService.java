@@ -2,12 +2,13 @@ package com.odontorisas.service.consultationnote;
 
 import com.odontorisas.common.ConsultationNoteStatus;
 import com.odontorisas.common.HistoriaClinicaStatus;
-import com.odontorisas.common.IdentityContext;
 import com.odontorisas.common.OrganizationContext;
 import com.odontorisas.common.PatientStatus;
+import com.odontorisas.common.SignerSnapshot;
 import com.odontorisas.persistence.entity.ConsultationNote;
 import com.odontorisas.persistence.entity.OrganizationSettings;
 import com.odontorisas.persistence.entity.Patient;
+import com.odontorisas.persistence.entity.Signature;
 import com.odontorisas.persistence.repository.ClinicalBackgroundEntryRepository;
 import com.odontorisas.persistence.repository.ConsultationNoteCorrectionRepository;
 import com.odontorisas.persistence.repository.ConsultationNoteDiagnosisRepository;
@@ -17,6 +18,7 @@ import com.odontorisas.persistence.repository.HistoriaClinicaRepository;
 import com.odontorisas.persistence.repository.OrganizationSettingsRepository;
 import com.odontorisas.persistence.repository.PatientRepository;
 import com.odontorisas.service.patient.PatientNotFoundException;
+import com.odontorisas.service.staff.ClinicalCapacityService;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -58,6 +60,7 @@ public class ConsultationNoteService {
     private final PatientRepository patientRepository;
     private final OrganizationSettingsRepository organizationSettingsRepository;
     private final Clock clock;
+    private final ClinicalCapacityService clinicalCapacityService;
 
     public ConsultationNoteService(ConsultationNoteRepository noteRepository,
                                    ConsultationNoteDiagnosisRepository diagnosisRepository,
@@ -67,7 +70,8 @@ public class ConsultationNoteService {
                                    HistoriaClinicaRepository historiaClinicaRepository,
                                    PatientRepository patientRepository,
                                    OrganizationSettingsRepository organizationSettingsRepository,
-                                   Clock clock) {
+                                   Clock clock,
+                                   ClinicalCapacityService clinicalCapacityService) {
         this.noteRepository = noteRepository;
         this.diagnosisRepository = diagnosisRepository;
         this.entryRepository = entryRepository;
@@ -77,6 +81,7 @@ public class ConsultationNoteService {
         this.patientRepository = patientRepository;
         this.organizationSettingsRepository = organizationSettingsRepository;
         this.clock = clock;
+        this.clinicalCapacityService = clinicalCapacityService;
     }
 
     /**
@@ -185,6 +190,9 @@ public class ConsultationNoteService {
      * posterior. Quien sella queda como firmante: es el Ãºnico que podrÃ¡ corregirla (D6).
      */
     public ConsultationNoteView seal(Long patientId, Long noteId) {
+        // Primero la capacidad clínica (update-staff-professional-credential D4): membresía → credencial con
+        // FOR SHARE, y recién después la nota. Sin capacidad, la nota queda ABIERTA con su contenido.
+        SignerSnapshot signer = clinicalCapacityService.require();
         ConsultationNote note = lockOpenNote(noteRepository, patientId, noteId);
         List<String> missing = ConsultationNoteChecklist.missingFields(note, diagnosisRepository.countByNoteId(noteId));
         if (!missing.isEmpty()) {
@@ -194,7 +202,8 @@ public class ConsultationNoteService {
 
         note.setStatus(ConsultationNoteStatus.SELLADA);
         note.setSealedAt(Instant.now(clock));
-        note.setSealedBy(IdentityContext.get());
+        note.setSealedBy(signer.userId());
+        note.setSignature(Signature.of(signer));
         return toView(noteRepository.save(note));
     }
 

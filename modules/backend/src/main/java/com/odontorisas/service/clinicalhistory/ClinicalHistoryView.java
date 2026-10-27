@@ -1,8 +1,10 @@
 package com.odontorisas.service.clinicalhistory;
 
 import com.odontorisas.common.HistoriaClinicaStatus;
+import com.odontorisas.common.SignerCredential;
 import com.odontorisas.persistence.entity.HistoriaClinica;
 
+import com.odontorisas.persistence.entity.Signature;
 import java.time.Instant;
 import java.util.Map;
 
@@ -27,7 +29,9 @@ public record ClinicalHistoryView(
     String medicacionDetalle,
     boolean antecedentesFamiliaresRevisado,
     String antecedentesFamiliaresDetalle,
-    Instant completedAt) {
+    Instant completedAt,
+    SignerCredential signer,
+    boolean signedBeforeCredentials) {
 
     public static ClinicalHistoryView from(HistoriaClinica h) {
         return new ClinicalHistoryView(
@@ -37,6 +41,8 @@ public record ClinicalHistoryView(
             h.isAlergiasRevisado(), h.getAlergiasDetalle(),
             h.isMedicacionRevisado(), h.getMedicacionDetalle(),
             h.isAntecedentesFamiliaresRevisado(), h.getAntecedentesFamiliaresDetalle(),
-            h.getCompletedAt());
+            h.getCompletedAt(), Signature.read(h.getSignature()),
+            // Sellada sin foto: anterior al registro de credenciales (update-staff-professional-credential D5).
+            h.getStatus() == HistoriaClinicaStatus.COMPLETED && h.getSignature() == null);
     }
 }

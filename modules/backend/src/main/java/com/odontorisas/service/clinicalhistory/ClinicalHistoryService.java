@@ -1,7 +1,9 @@
 package com.odontorisas.service.clinicalhistory;
 
 import com.odontorisas.common.HistoriaClinicaStatus;
+import com.odontorisas.common.SignerSnapshot;
 import com.odontorisas.persistence.entity.HistoriaClinica;
+import com.odontorisas.persistence.entity.Signature;
 import com.odontorisas.persistence.repository.ClinicalHistoryDiagnosisRepository;
 import com.odontorisas.persistence.repository.HistoriaClinicaRepository;
 import com.odontorisas.persistence.repository.PatientRepository;
@@ -102,7 +104,7 @@ public class ClinicalHistoryService {
      *                              observaciones revisadas) la exige el sellado del odontograma
      *                              mismo, no este checklist
      */
-    public ClinicalHistoryView complete(Long patientId, boolean hasInitialDentalChart) {
+    public ClinicalHistoryView complete(Long patientId, boolean hasInitialDentalChart, SignerSnapshot signer) {
         // Dos sellados concurrentes se serializan y el segundo ve COMPLETED en vez de volver a
         // sellar (design.md D4 de add-dental-chart, tarea 2.8a).
         HistoriaClinica historia = lockDraft(historiaClinicaRepository, patientId);
@@ -115,6 +117,8 @@ public class ClinicalHistoryService {
 
         historia.setStatus(HistoriaClinicaStatus.COMPLETED);
         historia.setCompletedAt(Instant.now(clock));
+        historia.setCompletedBy(signer.userId());
+        historia.setSignature(Signature.of(signer));
         return ClinicalHistoryView.from(historiaClinicaRepository.save(historia));
     }
 

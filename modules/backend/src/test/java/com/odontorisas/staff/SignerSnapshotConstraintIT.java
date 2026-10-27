@@ -1,6 +1,7 @@
 package com.odontorisas.staff;
 
 import com.odontorisas.AbstractTenantAwareIntegrationTest;
+import com.odontorisas.ClinicalSignerFixtures;
 import com.odontorisas.common.IdentityContext;
 import com.odontorisas.common.OrganizationContext;
 import com.odontorisas.common.PatientStatus;
@@ -104,30 +105,9 @@ class SignerSnapshotConstraintIT extends AbstractTenantAwareIntegrationTest {
                 .as("check_violation, de los CHECK de la foto de V30").isEqualTo("23514"));
     }
 
-    /**
-     * Pone una fila en el estado "sellada antes de V30": suspende la restricción, ejecuta el SQL y la
-     * vuelve a crear con su misma definición ({@code pg_get_constraintdef} ya trae {@code NOT VALID}),
-     * todo en una transacción. Es la forma de fabricar en el test una fila que existía antes de la
-     * restricción.
-     */
     private void asBeforeTheConstraint(String table, String constraint, String sql) throws SQLException {
         try (Connection owner = ownerConnection()) {
-            owner.setAutoCommit(false);
-            try (Statement s = owner.createStatement()) {
-                String definition;
-                try (ResultSet rs = s.executeQuery("SELECT pg_get_constraintdef(oid) FROM pg_constraint WHERE conname = '"
-                    + constraint + "'")) {
-                    rs.next();
-                    definition = rs.getString(1);
-                }
-                s.execute("ALTER TABLE " + table + " DROP CONSTRAINT " + constraint);
-                s.execute(sql);
-                s.execute("ALTER TABLE " + table + " ADD CONSTRAINT " + constraint + " " + definition);
-                owner.commit();
-            } catch (SQLException e) {
-                owner.rollback();
-                throw e;
-            }
+            ClinicalSignerFixtures.asBeforeTheConstraint(owner, table, constraint, sql);
         }
     }
 
