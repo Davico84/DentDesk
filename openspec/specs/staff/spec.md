@@ -335,7 +335,7 @@ El sistema SHALL permitir al `ADMIN` retirar, con confirmación, la capacidad cl
 - **WHEN** un miembro al que le retiraron la capacidad clínica intenta levantar el retiro, aun escribiendo directo en la base con su sesión
 - **THEN** el sistema lo rechaza y el retiro sigue vigente
 
-#### Scenario: El miembro no pertenece a la clínica
+#### Scenario: Retirar la capacidad de quien no es miembro de la clínica
 - **WHEN** el `ADMIN` intenta retirar la capacidad de alguien que no es miembro de su clínica
 - **THEN** el sistema responde como recurso inexistente
 
