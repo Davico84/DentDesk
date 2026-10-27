@@ -77,12 +77,16 @@ exige que siga activa; si no lo está, responde `401` sin cambiar nada. El rol s
 Postgres no lo detecta como deadlock (el ciclo pasa por el hilo de Java): se cuelga hasta un timeout con la
 conexión tomada. Por eso **se verifica sin bloqueo y se bloquea después**, re-chequeando el hash bajo el bloqueo.
 
-**Protocolo** (todos toman la fila de `users` **antes** de tocar `refresh_tokens`: mismo orden, sin ciclos):
+**Protocolo** (todos los bloqueos de fila se adquieren en orden `users` → `refresh_tokens`, sin ciclos; `refresh`
+hace antes una lectura **no bloqueante** de su token, que no cuenta):
 
 1. **Cambio de contraseña:**
    1. leer el usuario **sin bloqueo**; si está bloqueado → `429` (D4);
    2. BCrypt contra la actual; si falla → `recordFailure` (no hay bloqueo tomado) y `400`;
-   3. `SELECT ... FOR UPDATE` de la fila; si `password_hash` ya **no es** el verificado (otro cambio ganó) →
+   3. `SELECT ... FOR UPDATE` de la fila como **lectura fresca**: consulta explícita del repositorio con
+      `PESSIMISTIC_WRITE` que relee la base, nunca la entidad `User` ya cargada en el paso 1.1 (el contexto de
+      persistencia la devolvería sin releer y el re-chequeo usaría un hash viejo). Si `password_hash` ya **no es**
+      el verificado (otro cambio ganó) →
       `400 current-password-incorrect` **sin** contar el fallo (la contraseña era correcta al verificarla); si
       `locked_until` es futuro (otra petición bloqueó en el medio) → `429`;
    4. hash nuevo, contador a cero, `deleteByUser`, tokens nuevos (D2).
@@ -101,7 +105,10 @@ Dos cambios simultáneos con la misma contraseña actual: los dos verifican sin 
 el segundo encuentra el hash cambiado en el paso 1.3 → `400`.
 
 Se prueba con hilos reales y un `ExecutorService` propio (renovación contra cambio, login contra cambio, contraseña
-incorrecta contra cambio, dos cambios), y se comprueba que los dos primeros **fallan sin el bloqueo**.
+incorrecta contra cambio, dos cambios), y se comprueba que los dos primeros **fallan sin el bloqueo**. El
+intercalado se **fuerza con latches** (un punto de espera inyectable solo en tests, p. ej. entre la verificación y
+`issueTokens` del login, o entre el consumo y la inserción del refresh), no con el azar del timing: sin eso, la
+carrera antigua podría no reproducirse y el test "fallaría sin el bloqueo" solo a veces.
 
 ### D4 — Contraseña actual incorrecta: cuenta para el bloqueo del login
 
