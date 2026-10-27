@@ -113,7 +113,8 @@ class ConsultationNoteRlsIT extends AbstractTenantAwareIntegrationTest {
         s.execute(diagnosisInsert(org, note));
         s.execute(entryInsert(org, patient, note));
         s.execute("UPDATE consultation_note SET reason = 'Dolr', status = 'SELLADA', sealed_at = now(), sealed_by = "
-            + someUser + " WHERE id = " + note);
+            + someUser + ", signer_full_name = 'Dra. Prueba', signer_cop_number = '12345', "
+            + "signer_licensed_until = current_date WHERE id = " + note);
         s.execute(correctionInsert(org, note));
         return note;
     }

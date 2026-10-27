@@ -3,6 +3,7 @@ package com.odontorisas.presentation.dto;
 import io.swagger.v3.oas.annotations.media.Schema;
 
 import java.time.Instant;
+import java.time.LocalDate;
 import java.util.List;
 
 /**
@@ -57,5 +58,15 @@ public record ApiProblem(
     @Schema(description = "Campos que faltan para completar el checklist. "
         + "Opcional: solo se emite en el error 'clinical-history-incomplete'.",
         nullable = true)
-    List<String> missingFields) {
+    List<String> missingFields,
+
+    @Schema(description = "Por qué no se puede firmar: INACTIVE_MEMBERSHIP | REVOKED | NO_CREDENTIAL | EXPIRED. "
+        + "Opcional: solo se emite en el error 'clinical-capacity-required'.",
+        example = "EXPIRED", nullable = true)
+    String reason,
+
+    @Schema(description = "Fecha en que venció la habilitación. "
+        + "Opcional: solo se emite en 'clinical-capacity-required' con reason=EXPIRED.",
+        example = "2026-10-26", nullable = true)
+    LocalDate expiredOn) {
 }

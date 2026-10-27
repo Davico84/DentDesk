@@ -4,9 +4,11 @@ import com.auth0.jwt.JWT;
 import com.auth0.jwt.interfaces.DecodedJWT;
 import com.jayway.jsonpath.JsonPath;
 import com.odontorisas.AbstractIntegrationTest;
+import com.odontorisas.ClinicalSignerFixtures;
 import com.odontorisas.common.IdentityContext;
 import com.odontorisas.common.OrganizationContext;
 import com.odontorisas.service.dentalchart.DentalChartService;
+import java.sql.Connection;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -66,7 +68,17 @@ class ClinicalHistoryControllerIT extends AbstractIntegrationTest {
                 .contentType(MediaType.APPLICATION_JSON).content(body))
             .andExpect(status().isCreated())
             .andReturn();
-        return JsonPath.read(result.getResponse().getContentAsString(StandardCharsets.UTF_8), "$.accessToken");
+        String token = JsonPath.read(result.getResponse().getContentAsString(StandardCharsets.UTF_8), "$.accessToken");
+        enableSigner(token);
+        return token;
+    }
+
+    /** Firmar exige capacidad clínica (update-staff-professional-credential): el admin registrado declara su credencial. */
+    private void enableSigner(String token) throws Exception {
+        DecodedJWT jwt = JWT.decode(token);
+        try (Connection owner = ownerConnection()) {
+            ClinicalSignerFixtures.enableSigner(owner, Long.parseLong(jwt.getSubject()), jwt.getClaim("oid").asLong());
+        }
     }
 
     private long createPatient(String token, String fullName) throws Exception {

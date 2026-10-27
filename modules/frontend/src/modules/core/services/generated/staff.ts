@@ -8,8 +8,11 @@
 import type {
   InvitationRequest,
   InvitationResponse,
+  MemberClinicalCapacityRequest,
   MemberResponse,
   MemberStatusRequest,
+  ProfessionalCredentialRequest,
+  ProfessionalCredentialResponse,
   StaffInvitationResponse
 } from './model';
 
@@ -18,6 +21,24 @@ import { customInstance } from '../../config/httpClient';
 
 
 
+  export const mine = (
+    
+ ) => {
+      return customInstance<ProfessionalCredentialResponse>(
+      {url: `/me/professional-credential`, method: 'GET'
+    },
+      );
+    }
+  export const declare = (
+    professionalCredentialRequest: ProfessionalCredentialRequest,
+ ) => {
+      return customInstance<ProfessionalCredentialResponse>(
+      {url: `/me/professional-credential`, method: 'PUT',
+      headers: {'Content-Type': 'application/json', },
+      data: professionalCredentialRequest
+    },
+      );
+    }
   export const invitations = (
     
  ) => {
@@ -55,6 +76,17 @@ import { customInstance } from '../../config/httpClient';
     },
       );
     }
+  export const changeClinicalCapacity = (
+    id: number,
+    memberClinicalCapacityRequest: MemberClinicalCapacityRequest,
+ ) => {
+      return customInstance<void>(
+      {url: `/staff/members/${id}/clinical-capacity`, method: 'PATCH',
+      headers: {'Content-Type': 'application/json', },
+      data: memberClinicalCapacityRequest
+    },
+      );
+    }
   export const members = (
     
  ) => {
@@ -71,9 +103,12 @@ import { customInstance } from '../../config/httpClient';
     },
       );
     }
-  export type InvitationsResult = NonNullable<Awaited<ReturnType<typeof invitations>>>
+  export type MineResult = NonNullable<Awaited<ReturnType<typeof mine>>>
+export type DeclareResult = NonNullable<Awaited<ReturnType<typeof declare>>>
+export type InvitationsResult = NonNullable<Awaited<ReturnType<typeof invitations>>>
 export type InviteResult = NonNullable<Awaited<ReturnType<typeof invite>>>
 export type ResendInvitationResult = NonNullable<Awaited<ReturnType<typeof resendInvitation>>>
 export type ChangeStatusResult = NonNullable<Awaited<ReturnType<typeof changeStatus>>>
+export type ChangeClinicalCapacityResult = NonNullable<Awaited<ReturnType<typeof changeClinicalCapacity>>>
 export type MembersResult = NonNullable<Awaited<ReturnType<typeof members>>>
 export type RevokeResult = NonNullable<Awaited<ReturnType<typeof revoke>>>

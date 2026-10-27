@@ -1,6 +1,7 @@
 package com.odontorisas.clinicalhistory;
 
 import com.odontorisas.AbstractTenantAwareIntegrationTest;
+import com.odontorisas.ClinicalSignerFixtures;
 import com.odontorisas.common.DiagnosisLocation;
 import com.odontorisas.common.IdentityContext;
 import com.odontorisas.common.OrganizationContext;
@@ -97,6 +98,8 @@ class ClinicalHistoryConcurrencyIT extends AbstractTenantAwareIntegrationTest {
                 rs.next();
                 someUser = rs.getLong(1);
             }
+            // Firmar exige capacidad clínica (update-staff-professional-credential): membresía y credencial vigentes.
+            ClinicalSignerFixtures.enableSigner(owner, someUser, org);
         }
         asClinic();
     }

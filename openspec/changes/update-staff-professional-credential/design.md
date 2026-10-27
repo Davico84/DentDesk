@@ -39,8 +39,10 @@ Motivación y alcance: ver `proposal.md`. Lo que condiciona el cómo:
 `licensed_until` (`DATE`), `sworn_at` (cuándo aceptó la declaración jurada), `created_at`, `updated_at`.
 
 - `SELECT`: la propia (`user_id = app.user_id`) **o** la de un miembro de la organización activa si quien lee es
-  su `ADMIN` activo: el mismo patrón que `membership_identity_isolation`, con una función `SECURITY DEFINER`
-  nueva (`current_user_is_org_admin_of_user`), para no recursar sobre la RLS de `memberships`.
+  su `ADMIN` activo, con una función nueva (`current_user_is_admin_of_member`). *Apply:* quedó **`SECURITY
+  INVOKER`**, no `DEFINER`: la rama de administrador de `membership_identity_isolation` (V28) ya le deja ver las
+  membresías de su organización activa, y `memberships` no consulta esta tabla, así que no hay recursión que
+  evitar ni RLS que saltar.
 - `INSERT`: `WITH CHECK (user_id = app.user_id)`.
 - `UPDATE`: `USING (user_id = app.user_id) WITH CHECK (user_id = app.user_id)`. El `USING` es imprescindible: con
   solo `WITH CHECK`, un `UPDATE` sobre una fila ajena podría reescribir su `user_id` al propio y pasar el
@@ -56,7 +58,9 @@ Motivación y alcance: ver `proposal.md`. Lo que condiciona el cómo:
   choca aunque la otra fila sea invisible. El servicio captura **esa** restricción por su nombre y lanza una
   excepción tipada (`credential-number-taken`, 409) con un texto fijo y **sin la causa SQL**. El manejador
   genérico de `DataIntegrityViolationException` lee el mensaje de PostgreSQL, que trae el valor (`Key
-  (cop_number)=(…)`), y no debe ver este caso. Queda un oráculo de existencia (se puede saber si un número ya está
+  (cop_number)=(…)`), y no debe ver este caso. *Apply:* en los logs de Hibernate el valor tampoco aparece,
+  porque PostgreSQL omite el `Detail` de una violación de unicidad cuando la tabla tiene RLS (para no revelar
+  filas invisibles). Lo verifica `ProfessionalCredentialIT` con captura de la salida. Queda un oráculo de existencia (se puede saber si un número ya está
   en Dentdesk); se acepta en Risks.
 
 **Alternativa descartada: columnas en `users`.** `users` no tiene RLS y la leen los flujos de autenticación y de
@@ -225,7 +229,7 @@ afecta a la verificación de copias de `add-database-backups`.
 
 ## Migration Plan
 
-1. `V30`: tabla `professional_credential` con su RLS por comando, función `SECURITY DEFINER`, columnas de retiro en
+1. `V30`: tabla `professional_credential` con su RLS por comando, función de lectura del `ADMIN`, columnas de retiro en
    `memberships` con su trigger de guarda, columnas de la foto y los `CHECK ... NOT VALID`. Permisos para `odontorisas_app` como en V6.
    ⚠️ En Neon la migración corre como `odontorisas_admin`, con RLS forzada: no lee filas de otras clínicas, y no
    lo necesita (no hay `UPDATE` de datos).

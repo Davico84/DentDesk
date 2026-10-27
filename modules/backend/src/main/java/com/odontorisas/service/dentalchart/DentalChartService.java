@@ -3,7 +3,9 @@ package com.odontorisas.service.dentalchart;
 import com.odontorisas.common.DentalChartBlockStatus;
 import com.odontorisas.common.DentalChartBlockType;
 import com.odontorisas.common.FindingType;
+import com.odontorisas.common.SignerSnapshot;
 import com.odontorisas.persistence.entity.DentalChartBlock;
+import com.odontorisas.persistence.entity.Signature;
 import com.odontorisas.persistence.repository.DentalChartBlockRepository;
 import com.odontorisas.persistence.repository.DentalChartFindingRepository;
 import com.odontorisas.persistence.repository.PatientRepository;
@@ -126,7 +128,7 @@ public class DentalChartService {
      * <p>Bloquea el bloque antes de validar ({@link #lockOpenBlock}): dentro del cierre de
      * admisión es el tercer eslabón del orden paciente → historia → odontograma (design.md D4).
      */
-    public DentalChartBlockView sealInitial(Long patientId) {
+    public DentalChartBlockView sealInitial(Long patientId, SignerSnapshot signer) {
         DentalChartBlock block = lockOpenBlock(blockRepository, patientId);
 
         // Con el bloque ya bloqueado: ningún hallazgo nuevo puede entrar entre esta lectura y el sellado.
@@ -140,6 +142,8 @@ public class DentalChartService {
 
         block.setStatus(DentalChartBlockStatus.SEALED);
         block.setSealedAt(Instant.now(clock));
+        block.setSealedBy(signer.userId());
+        block.setSignature(Signature.of(signer));
         return DentalChartBlockView.from(blockRepository.save(block));
     }
 

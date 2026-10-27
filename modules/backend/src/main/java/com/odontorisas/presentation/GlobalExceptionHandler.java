@@ -6,6 +6,7 @@ import com.odontorisas.service.clinicalhistory.ChecklistIncompleteException;
 import com.odontorisas.service.consultationnote.ConsultationNoteChecklistIncompleteException;
 import com.odontorisas.service.dentalchart.DentalChartChecklistIncompleteException;
 import com.odontorisas.service.patient.DocumentAlreadyExistsException;
+import com.odontorisas.service.staff.ClinicalCapacityRequiredException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.slf4j.MDC;
@@ -46,6 +47,21 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
     @ExceptionHandler(BusinessException.class)
     public ProblemDetail handleBusiness(BusinessException ex) {
         return ProblemDetails.of(ex.getStatus(), ex.getErrorType(), ex.getMessage());
+    }
+
+    /**
+     * Firma sin capacidad clínica (403) con el motivo ({@code reason}) y, si venció, la fecha
+     * ({@code expiredOn}): el cliente explica por qué no se puede firmar
+     * ({@code update-staff-professional-credential} design.md D3).
+     */
+    @ExceptionHandler(ClinicalCapacityRequiredException.class)
+    public ProblemDetail handleClinicalCapacityRequired(ClinicalCapacityRequiredException ex) {
+        ProblemDetail problem = ProblemDetails.of(ex.getStatus(), ex.getErrorType(), ex.getMessage());
+        problem.setProperty("reason", ex.getReason().name());
+        if (ex.getExpiredOn() != null) {
+            problem.setProperty("expiredOn", ex.getExpiredOn().toString());
+        }
+        return problem;
     }
 
     /**

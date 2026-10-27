@@ -4,9 +4,11 @@ import com.auth0.jwt.JWT;
 import com.auth0.jwt.interfaces.DecodedJWT;
 import com.jayway.jsonpath.JsonPath;
 import com.odontorisas.AbstractIntegrationTest;
+import com.odontorisas.ClinicalSignerFixtures;
 import com.odontorisas.common.IdentityContext;
 import com.odontorisas.common.OrganizationContext;
 import com.odontorisas.service.dentalchart.DentalChartService;
+import java.sql.Connection;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -61,7 +63,17 @@ class ConsultationNoteControllerIT extends AbstractIntegrationTest {
             "Clinica Notas " + suffix, "cn-" + suffix + "@clinica.test", "password123", "Admin");
         MvcResult r = mockMvc.perform(post("/auth/register").contentType(MediaType.APPLICATION_JSON).content(body))
             .andExpect(status().isCreated()).andReturn();
-        return JsonPath.read(r.getResponse().getContentAsString(StandardCharsets.UTF_8), "$.accessToken");
+        String token = JsonPath.read(r.getResponse().getContentAsString(StandardCharsets.UTF_8), "$.accessToken");
+        enableSigner(token);
+        return token;
+    }
+
+    /** Firmar exige capacidad clínica (update-staff-professional-credential): el admin registrado declara su credencial. */
+    private void enableSigner(String token) throws Exception {
+        DecodedJWT jwt = JWT.decode(token);
+        try (Connection owner = ownerConnection()) {
+            ClinicalSignerFixtures.enableSigner(owner, Long.parseLong(jwt.getSubject()), jwt.getClaim("oid").asLong());
+        }
     }
 
     private ResultActions call(org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder req,

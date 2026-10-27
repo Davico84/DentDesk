@@ -29,6 +29,9 @@ import { DiagnosisForm } from "./DiagnosisForm";
 import { DiagnosisList } from "./DiagnosisList";
 import { CompleteHistoryDialog } from "./CompleteHistoryDialog";
 import { RevisadoField } from "./RevisadoField";
+import { useMyClinicalCapacity } from "@/modules/staff/hooks/useProfessionalCredential";
+import { SignedByLine } from "@/modules/staff/components/SignedByLine";
+import { SigningCapacityNotice } from "@/modules/staff/components/SigningCapacityNotice";
 
 /** Edición de la Historia Clínica ya creada (DRAFT editable, COMPLETED de solo lectura). */
 export function ClinicalHistoryEditor({ patientId }: { patientId: number }) {
@@ -54,6 +57,9 @@ export function ClinicalHistoryEditor({ patientId }: { patientId: number }) {
 
   const values = useWatch({ control });
   const completed = history?.status === "COMPLETED";
+  // Cerrar la admisión es firmar: exige capacidad clínica (update-staff-professional-credential D7).
+  const { capacity } = useMyClinicalCapacity();
+  const canSign = capacity?.state === "ENABLED";
   const diagnosisCount = history?.diagnosticos?.length ?? 0;
   const hasInitialDentalChart = dentalChart != null;
   const missing = missingChecklistFields(values as ClinicalHistoryValues, diagnosisCount, hasInitialDentalChart);
@@ -71,6 +77,9 @@ export function ClinicalHistoryEditor({ patientId }: { patientId: number }) {
         <div>
           <h2 className="text-lg font-semibold">Historia Clínica</h2>
           <p className="text-sm text-muted-foreground">{history?.fullName}</p>
+          {completed ? (
+            <SignedByLine signer={history?.signer} signedBeforeCredentials={history?.signedBeforeCredentials} />
+          ) : null}
         </div>
         <div className="flex items-center gap-3">
           {!completed ? <ChecklistProgress missingFields={missing} /> : null}
@@ -175,6 +184,8 @@ export function ClinicalHistoryEditor({ patientId }: { patientId: number }) {
         </div>
       ) : null}
 
+      {!completed ? <SigningCapacityNotice capacity={capacity} /> : null}
+
       {!completed ? (
         <div className="flex flex-col items-end gap-1.5">
           {isDirty ? (
@@ -183,7 +194,12 @@ export function ClinicalHistoryEditor({ patientId }: { patientId: number }) {
               Guarda el avance antes de completar — el sello valida lo ya guardado, no lo tipeado
             </p>
           ) : null}
-          <Button onClick={() => setConfirmingComplete(true)} size="lg" className="rounded-xl" disabled={isDirty}>
+          <Button
+            onClick={() => setConfirmingComplete(true)}
+            size="lg"
+            className="rounded-xl"
+            disabled={isDirty || !canSign}
+          >
             Completar Historia Clínica
           </Button>
         </div>

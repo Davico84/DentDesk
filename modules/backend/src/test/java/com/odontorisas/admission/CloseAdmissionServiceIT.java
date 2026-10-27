@@ -1,6 +1,7 @@
 package com.odontorisas.admission;
 
 import com.odontorisas.AbstractTenantAwareIntegrationTest;
+import com.odontorisas.ClinicalSignerFixtures;
 import com.odontorisas.common.DiagnosisLocation;
 import com.odontorisas.common.HistoriaClinicaStatus;
 import com.odontorisas.common.IdentityContext;
@@ -95,6 +96,8 @@ class CloseAdmissionServiceIT extends AbstractTenantAwareIntegrationTest {
                 rs.next();
                 someUser = rs.getLong(1);
             }
+            // Firmar exige capacidad clínica (update-staff-professional-credential): membresía y credencial vigentes.
+            ClinicalSignerFixtures.enableSigner(owner, someUser, org);
         }
         IdentityContext.set(someUser);
         OrganizationContext.set(org);
@@ -200,7 +203,9 @@ class CloseAdmissionServiceIT extends AbstractTenantAwareIntegrationTest {
         // sin pasar por el coordinador ni tener nunca un odontograma.
         Long patientId = aPatientWithReadyClinicalHistory("Historica");
         try (Connection owner = ownerConnection(); Statement s = owner.createStatement()) {
-            s.execute("UPDATE historia_clinica SET status = 'COMPLETED', completed_at = now() "
+            // Con la foto del firmante: desde V30 la base exige la foto en todo sellado nuevo (design.md D5).
+            s.execute("UPDATE historia_clinica SET status = 'COMPLETED', completed_at = now(), completed_by = created_by"
+                + ", signer_full_name = 'Dra. Prueba', signer_cop_number = '12345', signer_licensed_until = current_date "
                 + "WHERE patient_id = " + patientId);
         }
 

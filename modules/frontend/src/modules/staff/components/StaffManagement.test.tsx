@@ -94,6 +94,68 @@ describe("StaffManagement — pestaña Personal", () => {
   });
 });
 
+// Scenarios de staff: Capacidad clínica en el listado del personal · Retirar y restituir la capacidad clínica.
+describe("StaffManagement — capacidad clínica", () => {
+  it("muestra la capacidad de cada miembro, con su COP cuando lo declaró", async () => {
+    server.use(...staffHandlers().handlers);
+    renderAt();
+    const list = await personal();
+    expect(within(list).getByText(/^Habilitado hasta 30 jun\.? 2099$/)).toBeInTheDocument();
+    expect(within(list).getByText("COP 22222")).toBeInTheDocument();
+    expect(within(list).getByText(/^Habilitación vencida el 20 oct\.? 2026$/)).toBeInTheDocument();
+    expect(within(list).getByText("Sin credencial")).toBeInTheDocument();
+    expect(within(list).getByText("Retirada por la clínica")).toBeInTheDocument();
+    expect(within(list).getByText("Cuenta inactiva")).toBeInTheDocument();
+  });
+
+  it("no ofrece retirar la capacidad propia, la de otro administrador ni la de un miembro inactivo", async () => {
+    server.use(...staffHandlers().handlers);
+    renderAt();
+    await personal();
+    expect(screen.queryByRole("button", { name: /capacidad clínica de Ana Admin/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /capacidad clínica de Otra Admin/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /capacidad clínica de Luis Pérez/ })).not.toBeInTheDocument();
+  });
+
+  it("retirar pide confirmación y, al aceptar, envía el retiro", async () => {
+    const { handlers, calls } = staffHandlers();
+    server.use(...handlers);
+    const user = userEvent.setup();
+    renderAt();
+    await personal();
+    await user.click(screen.getByRole("button", { name: "Retirar la capacidad clínica de María Ruiz" }));
+    const dialog = await screen.findByRole("dialog");
+    expect(within(dialog).getByText(/Lo que ya firmó sigue válido/)).toBeInTheDocument();
+    await user.click(within(dialog).getByRole("button", { name: "Retirar" }));
+    await waitFor(() => expect(calls.capacityChanges).toEqual([{ id: "2", body: { revoked: true } }]));
+  });
+
+  it("cancelar el retiro no cambia nada", async () => {
+    const { handlers, calls } = staffHandlers();
+    server.use(...handlers);
+    const user = userEvent.setup();
+    renderAt();
+    await personal();
+    await user.click(screen.getByRole("button", { name: "Retirar la capacidad clínica de María Ruiz" }));
+    await user.click(within(await screen.findByRole("dialog")).getByRole("button", { name: "Cancelar" }));
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+    expect(calls.capacityChanges).toEqual([]);
+  });
+
+  it("a quien se la retiraron se le ofrece restituirla", async () => {
+    const { handlers, calls } = staffHandlers();
+    server.use(...handlers);
+    const user = userEvent.setup();
+    renderAt();
+    await personal();
+    await user.click(screen.getByRole("button", { name: "Restituir la capacidad clínica de Rosa Vega" }));
+    const dialog = await screen.findByRole("dialog");
+    expect(within(dialog).getByText(/si su credencial está vigente/)).toBeInTheDocument();
+    await user.click(within(dialog).getByRole("button", { name: "Restituir" }));
+    await waitFor(() => expect(calls.capacityChanges).toEqual([{ id: "5", body: { revoked: false } }]));
+  });
+});
+
 describe("StaffManagement — pestaña Invitaciones", () => {
   it("se abre desde la URL y muestra cada invitación con su estado", async () => {
     server.use(...staffHandlers().handlers);

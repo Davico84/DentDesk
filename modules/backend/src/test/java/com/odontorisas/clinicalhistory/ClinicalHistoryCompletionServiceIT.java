@@ -1,6 +1,7 @@
 package com.odontorisas.clinicalhistory;
 
 import com.odontorisas.AbstractTenantAwareIntegrationTest;
+import com.odontorisas.ClinicalSignerFixtures;
 import com.odontorisas.common.DiagnosisLocation;
 import com.odontorisas.common.HistoriaClinicaStatus;
 import com.odontorisas.common.IdentityContext;
@@ -107,7 +108,7 @@ class ClinicalHistoryCompletionServiceIT extends AbstractTenantAwareIntegrationT
     void completes_when_the_checklist_is_satisfied() {
         Long patientId = aPatientReadyToComplete("Completa");
 
-        ClinicalHistoryView view = clinicalHistoryService.complete(patientId, true);
+        ClinicalHistoryView view = clinicalHistoryService.complete(patientId, true, ClinicalSignerFixtures.signer(SOME_USER));
 
         assertThat(view.status()).isEqualTo(HistoriaClinicaStatus.COMPLETED);
     }
@@ -119,7 +120,7 @@ class ClinicalHistoryCompletionServiceIT extends AbstractTenantAwareIntegrationT
         clinicalHistoryService.update(patientId, fullData());
         // Sin diagnóstico: falta un ítem del checklist.
 
-        assertThatThrownBy(() -> clinicalHistoryService.complete(patientId, true))
+        assertThatThrownBy(() -> clinicalHistoryService.complete(patientId, true, ClinicalSignerFixtures.signer(SOME_USER)))
             .isInstanceOf(ChecklistIncompleteException.class)
             .satisfies(e -> assertThat(((ChecklistIncompleteException) e).getMissingFields())
                 .contains("diagnosticos"));
@@ -132,7 +133,7 @@ class ClinicalHistoryCompletionServiceIT extends AbstractTenantAwareIntegrationT
         // (design.md D4, ADR-0012 D5, add-dental-chart: la Historia ya no se sella sola).
         Long patientId = aPatientReadyToComplete("Sin odontograma");
 
-        assertThatThrownBy(() -> clinicalHistoryService.complete(patientId, false))
+        assertThatThrownBy(() -> clinicalHistoryService.complete(patientId, false, ClinicalSignerFixtures.signer(SOME_USER)))
             .isInstanceOf(ChecklistIncompleteException.class)
             .satisfies(e -> assertThat(((ChecklistIncompleteException) e).getMissingFields())
                 .containsExactly("dentalChart"));
@@ -148,7 +149,7 @@ class ClinicalHistoryCompletionServiceIT extends AbstractTenantAwareIntegrationT
         diagnosisService.add(patientId,
             new DiagnosisData("A00", DiagnosisLocation.GENERAL, null, TipoDiagnostico.PRESUNTIVO));
 
-        assertThatThrownBy(() -> clinicalHistoryService.complete(patientId, true))
+        assertThatThrownBy(() -> clinicalHistoryService.complete(patientId, true, ClinicalSignerFixtures.signer(SOME_USER)))
             .isInstanceOf(ChecklistIncompleteException.class)
             .satisfies(e -> assertThat(((ChecklistIncompleteException) e).getMissingFields())
                 .contains("alergiasRevisado"));
@@ -164,7 +165,7 @@ class ClinicalHistoryCompletionServiceIT extends AbstractTenantAwareIntegrationT
         diagnosisService.add(patientId,
             new DiagnosisData("A00", DiagnosisLocation.GENERAL, null, TipoDiagnostico.PRESUNTIVO));
 
-        assertThatThrownBy(() -> clinicalHistoryService.complete(patientId, true))
+        assertThatThrownBy(() -> clinicalHistoryService.complete(patientId, true, ClinicalSignerFixtures.signer(SOME_USER)))
             .isInstanceOf(ChecklistIncompleteException.class)
             .satisfies(e -> assertThat(((ChecklistIncompleteException) e).getMissingFields())
                 .contains("medicacionRevisado"));
@@ -173,16 +174,16 @@ class ClinicalHistoryCompletionServiceIT extends AbstractTenantAwareIntegrationT
     @Test
     void rejects_completing_an_already_completed_history() {
         Long patientId = aPatientReadyToComplete("Doble Sello");
-        clinicalHistoryService.complete(patientId, true);
+        clinicalHistoryService.complete(patientId, true, ClinicalSignerFixtures.signer(SOME_USER));
 
-        assertThatThrownBy(() -> clinicalHistoryService.complete(patientId, true))
+        assertThatThrownBy(() -> clinicalHistoryService.complete(patientId, true, ClinicalSignerFixtures.signer(SOME_USER)))
             .isInstanceOf(HistoriaClinicaSealedException.class);
     }
 
     @Test
     void a_patient_with_a_completed_history_is_enabled_for_treatment() {
         Long patientId = aPatientReadyToComplete("Habilitado");
-        clinicalHistoryService.complete(patientId, true);
+        clinicalHistoryService.complete(patientId, true, ClinicalSignerFixtures.signer(SOME_USER));
 
         EnablementView enablement = clinicalHistoryService.getEnablementStatus(patientId);
 

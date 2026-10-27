@@ -2,6 +2,7 @@ package com.odontorisas.persistence.entity;
 
 import com.odontorisas.common.ConsultationNoteStatus;
 import jakarta.persistence.Column;
+import jakarta.persistence.Embedded;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EntityListeners;
 import jakarta.persistence.EnumType;
@@ -101,6 +102,10 @@ public class ConsultationNote {
     /** Quien selló = quien firma; el único que puede corregir la nota (design.md D6). */
     @Column(name = "sealed_by")
     private Long sealedBy;
+
+    /** Credencial del firmante en el momento de sellar (update-staff-professional-credential D5). */
+    @Embedded
+    private Signature signature;
 
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)

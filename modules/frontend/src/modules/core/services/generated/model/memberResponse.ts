@@ -7,6 +7,7 @@
  */
 import type { MemberResponseRole } from './memberResponseRole';
 import type { MemberResponseStatus } from './memberResponseStatus';
+import type { ClinicalCapacityResponse } from './clinicalCapacityResponse';
 
 export interface MemberResponse {
   id?: number;
@@ -14,4 +15,6 @@ export interface MemberResponse {
   fullName?: string;
   role?: MemberResponseRole;
   status?: MemberResponseStatus;
+  /** Capacidad clínica del miembro en esta clínica. */
+  clinicalCapacity?: ClinicalCapacityResponse;
 }

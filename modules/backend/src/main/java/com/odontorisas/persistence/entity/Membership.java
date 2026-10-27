@@ -57,6 +57,17 @@ public class Membership {
     @Column(nullable = false, length = 20)
     private MembershipStatus status;
 
+    /**
+     * Retiro de la capacidad clínica en esta clínica por su administrador ({@code
+     * update-staff-professional-credential} design.md D2). Nulo si no hay retiro; los dos van juntos
+     * (CHECK de V30) y solo los escribe un ADMIN activo sobre un MEMBER ajeno (trigger de V30).
+     */
+    @Column(name = "clinical_capacity_revoked_at")
+    private Instant clinicalCapacityRevokedAt;
+
+    @Column(name = "clinical_capacity_revoked_by")
+    private Long clinicalCapacityRevokedBy;
+
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;

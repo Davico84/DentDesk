@@ -1,9 +1,13 @@
 package com.odontorisas.presentation;
 
+import com.odontorisas.common.ClinicalCapacityState;
+import com.odontorisas.service.staff.ClinicalCapacityRequiredException;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
 import org.springframework.security.access.AccessDeniedException;
+
+import java.time.LocalDate;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -26,6 +30,24 @@ class GlobalExceptionHandlerTest {
         // update-api-type-contracts (D4): confirma que el 403 de method-security (@PreAuthorize)
         // ya salía en español — no era parte del hueco, pero el requirement lo cubre explícitamente.
         assertThat(problem.getDetail()).isEqualTo("No tienes permiso para realizar esta acción.");
+    }
+
+    /**
+     * update-staff-professional-credential (design.md D3): el 403 por falta de capacidad clínica lleva el motivo,
+     * y la fecha solo si la habilitación venció, para que el cliente explique por qué no se puede firmar.
+     */
+    @Test
+    void clinical_capacity_required_carries_the_reason_and_the_expiry_date() {
+        ProblemDetail expired = handler.handleClinicalCapacityRequired(
+            new ClinicalCapacityRequiredException(ClinicalCapacityState.EXPIRED, LocalDate.of(2026, 10, 26)));
+        ProblemDetail revoked = handler.handleClinicalCapacityRequired(
+            new ClinicalCapacityRequiredException(ClinicalCapacityState.REVOKED, LocalDate.of(2026, 12, 31)));
+
+        assertThat(expired.getStatus()).isEqualTo(HttpStatus.FORBIDDEN.value());
+        assertThat(expired.getType().toString()).endsWith("/clinical-capacity-required");
+        assertThat(expired.getProperties()).containsEntry("reason", "EXPIRED").containsEntry("expiredOn", "2026-10-26");
+        assertThat(expired.getDetail()).contains("26/10/2026");
+        assertThat(revoked.getProperties()).containsEntry("reason", "REVOKED").doesNotContainKey("expiredOn");
     }
 
     @Test

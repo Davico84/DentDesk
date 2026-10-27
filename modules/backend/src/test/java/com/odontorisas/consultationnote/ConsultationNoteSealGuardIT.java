@@ -75,6 +75,7 @@ class ConsultationNoteSealGuardIT extends AbstractTenantAwareIntegrationTest {
             sealedDiagnosis = insertReturningId(s, diagnosisInsert(sealedNote) + " RETURNING id");
             sealedEntry = insertReturningId(s, entryInsert(sealedNote, "'ALTA'", "'Penicilina'", "NULL") + " RETURNING id");
             s.execute("UPDATE consultation_note SET status = 'SELLADA', sealed_at = now(), sealed_by = " + someUser
+                + ", signer_full_name = 'Dra. Prueba', signer_cop_number = '12345', signer_licensed_until = current_date"
                 + " WHERE id = " + sealedNote);
             correction = insertReturningId(s, correctionInsert(sealedNote) + " RETURNING id");
             openNote = insertReturningId(s, "INSERT INTO consultation_note (organization_id, patient_id, attended_at, "
@@ -169,6 +170,7 @@ class ConsultationNoteSealGuardIT extends AbstractTenantAwareIntegrationTest {
             s.execute(entryInsert(openNote, "'BAJA'", "NULL", String.valueOf(sealedEntry)));
             s.execute("UPDATE consultation_note SET reason = 'Control' WHERE id = " + openNote);
             s.execute("UPDATE consultation_note SET status = 'SELLADA', sealed_at = now(), sealed_by = " + someUser
+                + ", signer_full_name = 'Dra. Prueba', signer_cop_number = '12345', signer_licensed_until = current_date"
                 + " WHERE id = " + openNote);
         }
     }

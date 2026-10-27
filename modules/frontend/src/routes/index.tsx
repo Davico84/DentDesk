@@ -11,6 +11,7 @@ import { ClinicalHistoryScreen } from "@/screens/clinical-history/ClinicalHistor
 import { DentalChartScreen } from "@/screens/dental-chart/DentalChartScreen";
 import { ConsultationNotesScreen } from "@/screens/consultation-notes/ConsultationNotesScreen";
 import { LoginScreen } from "@/screens/auth/LoginScreen";
+import { ProfessionalCredentialScreen } from "@/screens/profile/ProfessionalCredentialScreen";
 import { RegisterScreen } from "@/screens/auth/RegisterScreen";
 import { RequireAuth } from "@/modules/core/auth/RequireAuth";
 import { RequireGuest } from "@/modules/core/auth/RequireGuest";
@@ -57,6 +58,9 @@ export const appRoutes: RouteObject[] = [
           ]),
           section("branding", [{ path: PATHS.BRANDING, element: <BrandingSettingsScreen /> }]),
           section("staff", [{ path: PATHS.STAFF, element: <StaffSettingsScreen /> }]),
+          // De la persona, no una sección de la clínica: cualquier autenticado, sin ítem en la barra
+          // lateral (se llega desde el menú de la cuenta). update-staff-professional-credential D7.
+          { path: PATHS.PROFESSIONAL_CREDENTIAL, element: <ProfessionalCredentialScreen /> },
         ],
       },
     ],

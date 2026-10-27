@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import {
+  changeClinicalCapacity,
   changeStatus,
   invitations,
   invite,
@@ -69,6 +70,22 @@ export function useChangeMemberStatus() {
     onSuccess: (_, { active }) => {
       void queryClient.invalidateQueries({ queryKey: STAFF_KEYS.members });
       toast.success(active ? "Miembro reactivado." : "Miembro desactivado. Ya no podrá entrar a la clínica.");
+    },
+    onError: (error) => toast.error(getUserFriendlyError(error)),
+  });
+}
+
+/**
+ * Retirar o restituir la capacidad clínica de un miembro en esta clínica (update-staff-professional-credential D2).
+ * Restituir solo levanta el retiro: si su credencial venció o no la declaró, sigue sin poder firmar.
+ */
+export function useChangeClinicalCapacity() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, revoked }: { id: number; revoked: boolean }) => changeClinicalCapacity(id, { revoked }),
+    onSuccess: (_, { revoked }) => {
+      void queryClient.invalidateQueries({ queryKey: STAFF_KEYS.members });
+      toast.success(revoked ? "Capacidad clínica retirada. Ya no podrá firmar en esta clínica." : "Capacidad clínica restituida.");
     },
     onError: (error) => toast.error(getUserFriendlyError(error)),
   });
