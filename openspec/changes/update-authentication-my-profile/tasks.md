@@ -25,10 +25,10 @@
 
 ## 4. Verificación y docs
 
-- [ ] 4.1 `mvn verify` y `pnpm --filter dentdesk-frontend validate` en verde — *verifica: los dos comandos*
+- [x] 4.1 `mvn verify` y `pnpm --filter dentdesk-frontend validate` en verde — *verifica: los dos comandos*
 - [ ] 4.2 Prueba manual del responsable: corregir el nombre y verlo en el menú; cambiar la contraseña con otra sesión abierta en otro navegador, y comprobar que esa sesión cae a más tardar a los 15 min mientras la actual sigue; contraseña actual incorrecta; la credencial dentro de Mi perfil y el enlace desde el aviso de firma — *verifica: lo confirma el responsable*
 - [x] 4.3 `docs/vision.md`: enlazar el change en progreso en el estado de `authentication` — *hecho al proponer*
-- [ ] 4.4 `openspec validate update-authentication-my-profile --strict` y medir a mano los requirements (≤ 500 caracteres) — *verifica: válido*
+- [x] 4.4 `openspec validate update-authentication-my-profile --strict` y medir a mano los requirements (≤ 500 caracteres) — *verifica: válido*
 
 ## Workflow follow-up
 
