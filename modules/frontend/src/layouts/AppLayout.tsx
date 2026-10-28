@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Outlet } from "react-router-dom";
-import { BadgeCheck } from "lucide-react";
+import { UserRound } from "lucide-react";
 import { useSessionStore } from "@/store/useSessionStore";
 import { useSidebarStore } from "@/store/useSidebarStore";
 import { useLogout } from "@/modules/auth/hooks/useAuth";
@@ -13,10 +13,8 @@ import { MobileNav } from "@/modules/core/components/shell/MobileNav";
 import type { AccountLink } from "@/modules/core/components/shell/Header";
 import { PATHS } from "@/routes/paths";
 
-/** Lo que es de la persona, en el menú de la cuenta: la credencial vale en todas sus clínicas. */
-const ACCOUNT_LINKS: AccountLink[] = [
-  { label: "Mi credencial profesional", to: PATHS.PROFESSIONAL_CREDENTIAL, icon: BadgeCheck },
-];
+/** Lo que es de la persona, en el menú de la cuenta: sus datos, su contraseña y su credencial. */
+const ACCOUNT_LINKS: AccountLink[] = [{ label: "Mi perfil", to: PATHS.PROFILE, icon: UserRound }];
 
 /**
  * Shell de la zona privada (`add-app-shell` design D2): barra lateral, cabecera y el **único**

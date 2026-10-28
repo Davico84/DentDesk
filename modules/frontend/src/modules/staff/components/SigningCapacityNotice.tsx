@@ -2,7 +2,7 @@ import { Link } from "react-router-dom";
 import { ShieldAlert } from "lucide-react";
 import { buttonVariants } from "@/modules/core/ui/button-variants";
 import type { ClinicalCapacityResponse } from "@/modules/core/services/generated/model";
-import { PATHS } from "@/routes/paths";
+import { PROFILE_CREDENTIAL } from "@/routes/paths";
 import { signingBlockedReason } from "../utils/clinicalCapacityDisplay";
 
 /**
@@ -24,7 +24,7 @@ export function SigningCapacityNotice({ capacity }: { capacity?: ClinicalCapacit
         {reason}
       </span>
       {canFixItself ? (
-        <Link to={PATHS.PROFESSIONAL_CREDENTIAL} className={buttonVariants({ variant: "outline", size: "sm" })}>
+        <Link to={PROFILE_CREDENTIAL} className={buttonVariants({ variant: "outline", size: "sm" })}>
           {capacity?.state === "EXPIRED" ? "Renovar credencial" : "Declarar credencial"}
         </Link>
       ) : null}

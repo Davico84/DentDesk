@@ -59,7 +59,7 @@ export function ProfessionalCredentialForm({ credential }: { credential?: Creden
           label="Habilitado hasta"
           name="licensedUntil"
           type="date"
-          hint="El último día de tu habilitación, en la hora de Perú."
+          hint="La fecha de vigencia que figura en tu constancia de habilitación del COP."
           register={register}
           error={errors.licensedUntil}
           required

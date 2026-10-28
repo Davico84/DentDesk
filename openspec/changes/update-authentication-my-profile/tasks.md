@@ -16,12 +16,12 @@
 
 ## 3. Frontend — Mi perfil
 
-- [ ] 3.1 Schemas Zod en `modules/auth/schemas/profile.ts`: nombre (2–120 sin contar los espacios de los extremos) y cambio de contraseña (actual obligatoria, nueva de 8 o más, compartida con `registerSchema`, confirmación que coincide); tests del schema — *verifica: Vitest*
-- [ ] 3.2 Hooks de React Query en `modules/auth/hooks/`: perfil (query y mutación que actualiza el `user` de `useSessionStore`) y cambio de contraseña (guarda el access nuevo con `setSession`) — *verifica: typecheck*
-- [ ] 3.3 Componentes en `modules/auth/components/`: `ProfileDetailsForm` (correo de solo lectura), `ChangePasswordForm` (limpia los campos y avisa con un toast que las otras sesiones se cerraron; muestra junto al campo los errores 400 y 429 del servidor) y `ProfilePage` con las tres secciones; la credencial de `staff` como tercera sección con el ancla `#credencial`; skeleton de carga — *verifica: render en el navegador*
-- [ ] 3.4 Ruta `PATHS.PROFILE` = `/profile` con su screen de una línea; `/profile/credential` redirige a `/profile#credencial`; el menú de la cuenta pasa a "Mi perfil"; `SigningCapacityNotice` enlaza al ancla — *verifica: los tests existentes de enlaces se actualizan y pasan*
-- [ ] 3.5 Ayuda del campo "Habilitado hasta": fecha de vigencia de la constancia de habilitación del COP — *verifica: test de `ProfessionalCredentialForm`*
-- [ ] 3.6 Tests Vitest + MSW derivados de los Scenarios: ver el perfil; corregir el nombre y verlo en el menú de la cuenta sin recargar; errores del nombre sin petición; cambio de contraseña exitoso (toast, campos limpios, sesión actualizada); actual incorrecta (error junto al campo); bloqueada (mensaje); nueva corta y confirmación distinta sin petición; la redirección desde `/profile/credential` — *verifica: Vitest*
+- [x] 3.1 Schemas Zod en `modules/auth/schemas/profile.ts`: nombre (2–120 sin contar los espacios de los extremos) y cambio de contraseña (actual obligatoria, nueva de 8 o más, compartida con `registerSchema`, confirmación que coincide); tests del schema — *verifica: Vitest*
+- [x] 3.2 Hooks de React Query en `modules/auth/hooks/`: perfil (query y mutación que actualiza el `user` de `useSessionStore`) y cambio de contraseña (guarda el access nuevo con `setSession`) — *verifica: typecheck*
+- [x] 3.3 Componentes en `modules/auth/components/`: `ProfileDetailsForm` (correo de solo lectura), `ChangePasswordForm` (limpia los campos y avisa con un toast que las otras sesiones se cerraron; muestra junto al campo los errores 400 y 429 del servidor) y `ProfilePage` con las tres secciones; la credencial de `staff` como tercera sección con el ancla `#credencial`; skeleton de carga — *verifica: render en el navegador*
+- [x] 3.4 Ruta `PATHS.PROFILE` = `/profile` con su screen de una línea; `/profile/credential` redirige a `/profile#credencial`; el menú de la cuenta pasa a "Mi perfil"; `SigningCapacityNotice` enlaza al ancla — *verifica: los tests existentes de enlaces se actualizan y pasan*
+- [x] 3.5 Ayuda del campo "Habilitado hasta": fecha de vigencia de la constancia de habilitación del COP — *verifica: test de `ProfessionalCredentialForm`*
+- [x] 3.6 Tests Vitest + MSW derivados de los Scenarios: ver el perfil; corregir el nombre y verlo en el menú de la cuenta sin recargar; errores del nombre sin petición; cambio de contraseña exitoso (toast, campos limpios, sesión actualizada); actual incorrecta (error junto al campo); bloqueada (mensaje); nueva corta y confirmación distinta sin petición; la redirección desde `/profile/credential` — *verifica: Vitest*
 
 ## 4. Verificación y docs
 
