@@ -18,9 +18,13 @@ class PublicPathsTest {
     }
 
     @Test
-    void changing_the_password_is_the_only_authenticated_route_under_auth() {
-        assertThat(PublicPaths.isPublic("/auth/login")).isTrue();
-        assertThat(PublicPaths.isPublic("/auth/refresh")).isTrue();
+    void under_auth_only_the_listed_routes_are_public() {
+        for (String path : new String[] {"/auth/login", "/auth/register", "/auth/refresh", "/auth/logout",
+            "/auth/invitations/validate", "/auth/invitations/verify"}) {
+            assertThat(PublicPaths.isPublic(path)).as(path).isTrue();
+        }
         assertThat(PublicPaths.isPublic("/auth/password")).isFalse();
+        // Un endpoint nuevo bajo /auth no nace público por omisión.
+        assertThat(PublicPaths.isPublic("/auth/algo-nuevo")).isFalse();
     }
 }

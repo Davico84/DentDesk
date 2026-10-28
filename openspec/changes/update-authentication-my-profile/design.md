@@ -38,6 +38,10 @@ contraseña más allá del mínimo actual.
 - `POST /auth/password` con `{ currentPassword, newPassword }` → `AuthResponse` (access nuevo y usuario) más la
   cookie de refresco nueva, igual que `login` y `refresh`.
 
+**Bajo `/auth` pero con sesión:** hasta este change `PublicPaths` abría `/auth/**` entero. Pasa a una lista
+explícita (login, registro, refresh, logout, invitaciones), así `/auth/password` exige sesión y un endpoint nuevo
+bajo `/auth` no nace público por omisión.
+
 **Por qué la contraseña bajo `/auth`:** es una operación de **sesión** (cierra sesiones y emite tokens), como
 `refresh` y `logout`, y bajo `/auth` llega la cookie actual, que también se borra. *Alternativa descartada*:
 `PATCH /me/password`. Funcionaría (el `Set-Cookie` puede fijar cualquier `Path`), pero separa del resto de la

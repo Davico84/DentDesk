@@ -16,22 +16,18 @@ import org.springframework.util.AntPathMatcher;
  */
 public final class PublicPaths {
 
-    /** Patrones de ruta accesibles sin autenticar. */
+    /**
+     * Patrones de ruta accesibles sin autenticar. Bajo {@code /auth} es una <b>lista explícita</b>, no
+     * {@code /auth/**}: ahí vive también el cambio de contraseña, que exige sesión
+     * ({@code update-authentication-my-profile} design.md D1), y un endpoint nuevo bajo {@code /auth} no debe
+     * nacer público por omisión.
+     */
     public static final String[] PATTERNS = {
-        "/auth/**",
+        "/auth/login", "/auth/register", "/auth/refresh", "/auth/logout", "/auth/invitations/**",
         "/platform/auth/login",
         // Solo health: /actuator/info queda autenticado (add-cold-start-warmup D2), nada lo usa.
         "/actuator/health/**",
         "/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html"
-    };
-
-    /**
-     * Rutas que caen bajo un patrón público pero <b>exigen sesión</b>. Hoy solo el cambio de contraseña, que
-     * vive bajo {@code /auth} porque ahí viaja la cookie de refresco ({@code update-authentication-my-profile}
-     * design.md D1). {@link SecurityConfig} las declara autenticadas <b>antes</b> de los patrones públicos.
-     */
-    public static final String[] AUTHENTICATED = {
-        "/auth/password"
     };
 
     private static final AntPathMatcher MATCHER = new AntPathMatcher();
@@ -43,11 +39,6 @@ public final class PublicPaths {
     public static boolean isPublic(String path) {
         if (path == null) {
             return false;
-        }
-        for (String pattern : AUTHENTICATED) {
-            if (MATCHER.match(pattern, path)) {
-                return false;
-            }
         }
         for (String pattern : PATTERNS) {
             if (MATCHER.match(pattern, path)) {

@@ -128,9 +128,9 @@ public class AuthController {
     /**
      * Cambia la contraseña propia y cierra las otras sesiones; la actual sigue con un access y una cookie
      * nuevos ({@code update-authentication-my-profile} design.md D1/D2). Bajo {@code /auth} porque es una
-     * operación de sesión, como {@code refresh} y {@code logout}. Es la única ruta de {@code /auth/**} que
-     * exige sesión ({@code PublicPaths.AUTHENTICATED}), así que el customizer le agrega el 401 de sesión
-     * ausente; una sesión de plataforma llega sin autenticar.
+     * operación de sesión, como {@code refresh} y {@code logout}. Es la única ruta de {@code /auth} que exige
+     * sesión: no está en {@code PublicPaths}, así que el customizer le agrega el 401 de sesión ausente; una
+     * sesión de plataforma llega sin autenticar.
      */
     @ApiResponses({
         @ApiResponse(responseCode = "200",

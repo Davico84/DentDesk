@@ -216,6 +216,7 @@ public class AuthService {
         Membership membership = activeMembershipIn(user, organizationId);
         users.changePassword(userId, newHash, now);
         refreshTokens.deleteAllOfUser(userId);
+        // `user` quedó con el hash viejo (bulk update): issueTokens solo lee id, correo y nombre, que no cambian.
         return issueTokens(user, membership);
     }
 
