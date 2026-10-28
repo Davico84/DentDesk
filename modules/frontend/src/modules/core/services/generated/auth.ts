@@ -7,10 +7,13 @@
  */
 import type {
   AuthResponse,
+  ChangePasswordRequest,
   InvitationValidationRequest,
   InvitationValidationResponse,
   InvitationVerificationRequest,
   LoginRequest,
+  ProfileRequest,
+  ProfileResponse,
   RegisterRequest
 } from './model';
 
@@ -34,6 +37,16 @@ import { customInstance } from '../../config/httpClient';
  ) => {
       return customInstance<AuthResponse>(
       {url: `/auth/refresh`, method: 'POST'
+    },
+      );
+    }
+  export const changePassword = (
+    changePasswordRequest: ChangePasswordRequest,
+ ) => {
+      return customInstance<AuthResponse>(
+      {url: `/auth/password`, method: 'POST',
+      headers: {'Content-Type': 'application/json', },
+      data: changePasswordRequest
     },
       );
     }
@@ -75,9 +88,30 @@ import { customInstance } from '../../config/httpClient';
     },
       );
     }
+  export const myProfile = (
+    
+ ) => {
+      return customInstance<ProfileResponse>(
+      {url: `/me/profile`, method: 'GET'
+    },
+      );
+    }
+  export const updateMyProfile = (
+    profileRequest: ProfileRequest,
+ ) => {
+      return customInstance<ProfileResponse>(
+      {url: `/me/profile`, method: 'PATCH',
+      headers: {'Content-Type': 'application/json', },
+      data: profileRequest
+    },
+      );
+    }
   export type RegisterResult = NonNullable<Awaited<ReturnType<typeof register>>>
 export type RefreshResult = NonNullable<Awaited<ReturnType<typeof refresh>>>
+export type ChangePasswordResult = NonNullable<Awaited<ReturnType<typeof changePassword>>>
 export type LogoutResult = NonNullable<Awaited<ReturnType<typeof logout>>>
 export type LoginResult = NonNullable<Awaited<ReturnType<typeof login>>>
 export type VerifyInvitationResult = NonNullable<Awaited<ReturnType<typeof verifyInvitation>>>
 export type ValidateInvitationResult = NonNullable<Awaited<ReturnType<typeof validateInvitation>>>
+export type MyProfileResult = NonNullable<Awaited<ReturnType<typeof myProfile>>>
+export type UpdateMyProfileResult = NonNullable<Awaited<ReturnType<typeof updateMyProfile>>>
