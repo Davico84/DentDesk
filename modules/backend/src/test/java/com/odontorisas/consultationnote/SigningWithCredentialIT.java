@@ -10,6 +10,7 @@ import com.odontorisas.common.MembershipStatus;
 import com.odontorisas.common.OrganizationContext;
 import com.odontorisas.common.SignerCredential;
 import com.odontorisas.common.TipoDiagnostico;
+import com.odontorisas.service.auth.ProfileService;
 import com.odontorisas.service.clinicalhistory.ClinicalHistoryView;
 import com.odontorisas.service.consultationnote.ConsultationNoteView;
 import com.odontorisas.service.dentalchart.DentalChartBlockView;
@@ -60,6 +61,7 @@ class SigningWithCredentialIT extends AbstractConsultationNoteIT {
     @Autowired ProfessionalCredentialService credentialService;
     @Autowired StaffService staffService;
     @Autowired PlatformTransactionManager transactionManager;
+    @Autowired ProfileService profileService;
 
     private long admin;
     private ExecutorService pool;
@@ -234,6 +236,25 @@ class SigningWithCredentialIT extends AbstractConsultationNoteIT {
         assertThat(note.signer().fullName()).isEqualTo("Dra. Firmante");
         assertThat(note.signer().licensedUntil()).isEqualTo(until);
         assertThat(note.signedBeforeCredentials()).isFalse();
+    }
+
+    /**
+     * {@code authentication}, <i>Lo ya firmado conserva el nombre de entonces</i>
+     * ({@code update-authentication-my-profile}): el nombre se corrige por el perfil propio, no por SQL.
+     */
+    @Test
+    void correcting_the_own_name_keeps_signed_notes_and_new_signatures_carry_the_new_one() {
+        Long patientId = aPatientWithSealedHistory();
+        Long before = anOpenNoteReadyToSeal(patientId);
+        noteService.seal(patientId, before);
+
+        profileService.updateFullName("Dra. Firmante Corregida");
+
+        Long after = anOpenNoteReadyToSeal(patientId);
+        noteService.seal(patientId, after);
+
+        assertThat(noteService.get(patientId, before).signer().fullName()).isEqualTo("Dra. Firmante");
+        assertThat(noteService.get(patientId, after).signer().fullName()).isEqualTo("Dra. Firmante Corregida");
     }
 
     // ================================================================ Firmas anteriores al registro

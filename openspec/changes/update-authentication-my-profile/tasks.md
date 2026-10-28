@@ -2,8 +2,8 @@
 
 ## 1. Backend — perfil propio
 
-- [ ] 1.1 `GET /me/profile` y `PATCH /me/profile` (design D1, D5): DTOs `ProfileResponse` (`fullName`, `email`) y `ProfileRequest` (solo `fullName`, sin espacios en los extremos, 2–120 caracteres), servicio que siempre usa el usuario de la sesión, `@ApiResponses` con el 400 y el 401 — *verifica: compila y aparece en `/v3/api-docs`*
-- [ ] 1.2 IT del perfil derivado de los Scenarios de *Ver el perfil propio* y *Corregir el nombre propio*: ver; siempre el propio (con `ADMIN` e intento de indicar otro usuario); sin sesión → 401; sesión de plataforma → 401; corregir; nombre corto, largo o solo espacios → 400; un correo en el cuerpo no cambia el correo; una nota firmada antes conserva el nombre de entonces y una firma nueva lleva el corregido (`ClinicalSignerFixtures`) — *verifica: el IT pasa*
+- [x] 1.1 `GET /me/profile` y `PATCH /me/profile` (design D1, D5): DTOs `ProfileResponse` (`fullName`, `email`) y `ProfileRequest` (solo `fullName`, sin espacios en los extremos, 2–120 caracteres), servicio que siempre usa el usuario de la sesión, `@ApiResponses` con el 400 y el 401 — *verifica: compila y aparece en `/v3/api-docs`*
+- [x] 1.2 IT del perfil derivado de los Scenarios de *Ver el perfil propio* y *Corregir el nombre propio*: ver; siempre el propio (con `ADMIN` e intento de indicar otro usuario); sin sesión → 401; sesión de plataforma → 401; corregir; nombre corto, largo o solo espacios → 400; un correo en el cuerpo no cambia el correo; una nota firmada antes conserva el nombre de entonces y una firma nueva lleva el corregido (`ClinicalSignerFixtures`) — *verifica: el IT pasa*
 
 ## 2. Backend — cambio de contraseña y sesiones
 
