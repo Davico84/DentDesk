@@ -53,9 +53,46 @@ public interface UserRepository extends JpaRepository<User, Long> {
      * rechazar en vez de emitir tokens — sin este chequeo, una sesión se emitiría para una
      * cuenta que ya está bloqueada. No abre la puerta a un atacante sin la contraseña correcta
      * (BCrypt ya se verificó antes, por request); solo cierra la ventana para quien SÍ la tiene.
+     *
+     * <p><b>Exige el hash verificado</b> ({@code update-authentication-my-profile} design.md D3.2): si un
+     * cambio de contraseña commitea entre el BCrypt del login y este punto, el hash ya no es el verificado y
+     * el UPDATE afecta 0 filas: el login se rechaza en vez de emitir una sesión con la contraseña anterior
+     * que sobreviviría al cierre de sesiones. El UPDATE toma el bloqueo de la fila hasta el commit, y en
+     * {@code READ COMMITTED} Postgres re-evalúa el {@code WHERE} sobre la versión nueva si tuvo que esperar.
      */
     @Modifying
     @Query("UPDATE User u SET u.failedLoginAttempts = 0, u.lockedUntil = null " +
-        "WHERE u.id = :id AND (u.lockedUntil IS NULL OR u.lockedUntil <= :now)")
-    int resetLoginAttemptsIfNotLocked(@Param("id") Long id, @Param("now") Instant now);
+        "WHERE u.id = :id AND u.passwordHash = :verifiedHash " +
+        "AND (u.lockedUntil IS NULL OR u.lockedUntil <= :now)")
+    int resetLoginAttemptsIfNotLocked(@Param("id") Long id, @Param("verifiedHash") String verifiedHash,
+                                      @Param("now") Instant now);
+
+    /**
+     * Bloquea la fila con {@code FOR UPDATE} y devuelve el hash <b>releído de la base</b>, solo si la cuenta
+     * no está bloqueada ({@code update-authentication-my-profile} design.md D3.1). Consulta nativa a
+     * propósito: una consulta de entidad devolvería la instancia ya cargada en el contexto de persistencia
+     * sin refrescar su estado, y el re-chequeo compararía contra un hash viejo. Vacío = bloqueada (o
+     * inexistente); en ese caso no queda bloqueo tomado.
+     */
+    @Query(value = "SELECT password_hash FROM users WHERE id = :id "
+        + "AND (locked_until IS NULL OR locked_until <= :now) FOR UPDATE", nativeQuery = true)
+    Optional<String> lockPasswordHashIfNotLocked(@Param("id") Long id, @Param("now") Instant now);
+
+    /**
+     * Bloquea la fila con {@code FOR SHARE} antes de que {@code refresh} consuma su token
+     * ({@code update-authentication-my-profile} design.md D3.3): serializa la renovación con un cambio de
+     * contraseña, que toma {@code FOR UPDATE}. Renovaciones entre sí no compiten.
+     */
+    @Query(value = "SELECT id FROM users WHERE id = :id FOR SHARE", nativeQuery = true)
+    Optional<Long> lockForShare(@Param("id") Long id);
+
+    /**
+     * Contraseña nueva y contador a cero, con {@code locked_until} en NULL (design.md D4). Bulk update: no
+     * pasa por la entidad cargada, que puede estar vieja; la fila ya está bloqueada por
+     * {@link #lockPasswordHashIfNotLocked}.
+     */
+    @Modifying
+    @Query("UPDATE User u SET u.passwordHash = :hash, u.failedLoginAttempts = 0, u.lockedUntil = null, "
+        + "u.updatedAt = :now WHERE u.id = :id")
+    int changePassword(@Param("id") Long id, @Param("hash") String hash, @Param("now") Instant now);
 }

@@ -50,6 +50,8 @@ public class SecurityConfig {
             .cors(cors -> cors.configurationSource(corsConfigurationSource(props)))
             .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
+                // Primero las excepciones autenticadas: la primera regla que coincide decide.
+                .requestMatchers(PublicPaths.AUTHENTICATED).authenticated()
                 .requestMatchers(PublicPaths.PATTERNS).permitAll()
                 // Segunda barrera además del @PreAuthorize de cada controller: un endpoint global
                 // nuevo que olvide la anotación sigue cerrado a usuarios de clínica (add-platform-admin).

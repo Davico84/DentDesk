@@ -52,7 +52,7 @@ public class PlatformAuthService {
             loginAttemptService.recordFailure(user.getId());
             throw new InvalidCredentialsException();
         }
-        if (users.resetLoginAttemptsIfNotLocked(user.getId(), now) == 0) {
+        if (users.resetLoginAttemptsIfNotLocked(user.getId(), user.getPasswordHash(), now) == 0) {
             throw new InvalidCredentialsException();
         }
         return tokenService.issuePlatformAccessToken(user.getId(), user.getEmail());

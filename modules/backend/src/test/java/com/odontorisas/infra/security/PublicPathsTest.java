@@ -16,4 +16,11 @@ class PublicPathsTest {
         assertThat(PublicPaths.isPublic("/actuator/info")).isFalse();
         assertThat(PublicPaths.isPublic("/actuator/env")).isFalse();
     }
+
+    @Test
+    void changing_the_password_is_the_only_authenticated_route_under_auth() {
+        assertThat(PublicPaths.isPublic("/auth/login")).isTrue();
+        assertThat(PublicPaths.isPublic("/auth/refresh")).isTrue();
+        assertThat(PublicPaths.isPublic("/auth/password")).isFalse();
+    }
 }

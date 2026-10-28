@@ -3,6 +3,7 @@ package com.odontorisas.presentation.controller;
 import com.odontorisas.infra.security.RefreshCookieFactory;
 import com.odontorisas.presentation.dto.ApiProblem;
 import com.odontorisas.presentation.dto.AuthResponse;
+import com.odontorisas.presentation.dto.ChangePasswordRequest;
 import com.odontorisas.presentation.dto.LoginRequest;
 import com.odontorisas.presentation.dto.InvitationValidationResponse;
 import com.odontorisas.presentation.dto.InvitationValidationRequest;
@@ -22,6 +23,7 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseCookie;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.CookieValue;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -121,6 +123,34 @@ public class AuthController {
     public ResponseEntity<AuthResponse> refresh(
             @CookieValue(name = "${app.security.cookie.refresh-name}", required = false) String refreshToken) {
         return authResponse(authService.refresh(refreshToken), HttpStatus.OK);
+    }
+
+    /**
+     * Cambia la contraseña propia y cierra las otras sesiones; la actual sigue con un access y una cookie
+     * nuevos ({@code update-authentication-my-profile} design.md D1/D2). Bajo {@code /auth} porque es una
+     * operación de sesión, como {@code refresh} y {@code logout}. Es la única ruta de {@code /auth/**} que
+     * exige sesión ({@code PublicPaths.AUTHENTICATED}), así que el customizer le agrega el 401 de sesión
+     * ausente; una sesión de plataforma llega sin autenticar.
+     */
+    @ApiResponses({
+        @ApiResponse(responseCode = "200",
+            description = "Contraseña cambiada; las otras sesiones se cerraron y se rota la cookie de refresco.",
+            content = @Content(mediaType = "application/json",
+                schema = @Schema(implementation = AuthResponse.class))),
+        @ApiResponse(responseCode = "400",
+            description = "Campos inválidos, contraseña actual incorrecta (`/errors/current-password-incorrect`; "
+                + "cuenta como intento fallido) o nueva igual a la actual (`/errors/new-password-same-as-current`).",
+            content = @Content(mediaType = PROBLEM_JSON,
+                schema = @Schema(implementation = ValidationProblem.class))),
+        @ApiResponse(responseCode = "429",
+            description = "Cuenta bloqueada temporalmente por intentos fallidos (`/errors/account-temporarily-locked`).",
+            content = @Content(mediaType = PROBLEM_JSON, schema = @Schema(implementation = ApiProblem.class)))
+    })
+    @PreAuthorize("hasAnyRole('ADMIN', 'MEMBER')")
+    @PostMapping("/password")
+    public ResponseEntity<AuthResponse> changePassword(@Valid @RequestBody ChangePasswordRequest request) {
+        return authResponse(authService.changePassword(request.currentPassword(), request.newPassword()),
+            HttpStatus.OK);
     }
 
     /** Devuelve <b>204</b> (sin cuerpo), no 200. Hay que declararlo por la misma razón que el 201. */

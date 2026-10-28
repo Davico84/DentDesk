@@ -39,7 +39,7 @@ public class ProfileController {
     @ApiResponse(responseCode = "200", description = "El perfil propio.",
         content = @Content(mediaType = "application/json", schema = @Schema(implementation = ProfileResponse.class)))
     @GetMapping
-    public ProfileResponse mine() {
+    public ProfileResponse myProfile() {
         return ProfileResponse.from(profileService.mine());
     }
 
@@ -52,7 +52,7 @@ public class ProfileController {
             content = @Content(mediaType = PROBLEM_JSON, schema = @Schema(implementation = ValidationProblem.class)))
     })
     @PatchMapping
-    public ProfileResponse update(@Valid @RequestBody ProfileRequest request) {
+    public ProfileResponse updateMyProfile(@Valid @RequestBody ProfileRequest request) {
         return ProfileResponse.from(profileService.updateFullName(request.fullName()));
     }
 }
