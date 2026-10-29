@@ -191,7 +191,7 @@ describe("ClinicalHistoryScreen — firma con credencial", () => {
 
     expect(await screen.findByText(/Tu habilitación venció el 20 oct\.? 2026/)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /completar historia clínica/i })).toBeDisabled();
-    expect(screen.getByRole("link", { name: "Renovar credencial" })).toHaveAttribute("href", "/profile/credential");
+    expect(screen.getByRole("link", { name: "Renovar credencial" })).toHaveAttribute("href", "/profile#credencial");
   });
 
   it("una historia completada muestra a quién la firmó y su COP", async () => {

@@ -71,7 +71,7 @@ class AuthServiceTest {
     /** Default: el reset condicional (D13) "gana la carrera" salvo que un test diga lo contrario. */
     @BeforeEach
     void defaultResetSucceeds() {
-        lenient().when(users.resetLoginAttemptsIfNotLocked(anyLong(), any())).thenReturn(1);
+        lenient().when(users.resetLoginAttemptsIfNotLocked(anyLong(), any(), any())).thenReturn(1);
     }
 
     // --- Factorías ---
@@ -222,7 +222,7 @@ class AuthServiceTest {
         AuthResult result = authService.login("ana@clinica.test", "password123");
 
         assertThat(result.accessToken()).isEqualTo("access-token");
-        verify(users).resetLoginAttemptsIfNotLocked(1L, NOW);
+        verify(users).resetLoginAttemptsIfNotLocked(1L, "hashed", NOW);
     }
 
     @Test
@@ -239,7 +239,7 @@ class AuthServiceTest {
 
         // D7: el reset vive en la transacción de login (no en el colaborador REQUIRES_NEW),
         // para que un rechazo posterior por estado lo revierta junto con el resto.
-        verify(users).resetLoginAttemptsIfNotLocked(1L, NOW);
+        verify(users).resetLoginAttemptsIfNotLocked(1L, "hashed", NOW);
         verify(loginAttemptService, never()).recordFailure(any());
     }
 
@@ -254,7 +254,7 @@ class AuthServiceTest {
         // D13: otra request concurrente bloqueó la cuenta entre la lectura inicial de lockedUntil
         // y este punto (p. ej. un flood de intentos fallidos de alguien más) — el UPDATE
         // condicional afecta 0 filas.
-        when(users.resetLoginAttemptsIfNotLocked(1L, NOW)).thenReturn(0);
+        when(users.resetLoginAttemptsIfNotLocked(1L, "hashed", NOW)).thenReturn(0);
 
         assertThatThrownBy(() -> authService.login("ana@clinica.test", "password123"))
             .isInstanceOf(InvalidCredentialsException.class);
@@ -274,7 +274,7 @@ class AuthServiceTest {
 
         // D8: un rechazo por estado no incrementa NI reinicia — deja el contador como estaba.
         verify(loginAttemptService, never()).recordFailure(any());
-        verify(users, never()).resetLoginAttemptsIfNotLocked(any(), any());
+        verify(users, never()).resetLoginAttemptsIfNotLocked(any(), any(), any());
     }
 
     // --- Gate por estado (design.md D14) ---

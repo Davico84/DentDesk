@@ -4,19 +4,26 @@ import userEvent from "@testing-library/user-event";
 import { renderWithProviders } from "@/test/utils";
 import { server } from "@/test/mocks/server";
 import { credentialHandlers, ENABLED, EXPIRED } from "../test/credentialApiMocks";
-import { ProfessionalCredentialPage } from "./ProfessionalCredentialPage";
+import { ProfessionalCredentialSection } from "./ProfessionalCredentialSection";
 
 // Scenarios de staff: Declarar la credencial profesional propia · Capacidad clínica efectiva en la clínica activa.
 
 function renderPage() {
-  return renderWithProviders(<ProfessionalCredentialPage />, { initialEntries: ["/profile/credential"] });
+  return renderWithProviders(<ProfessionalCredentialSection />, { initialEntries: ["/profile#credencial"] });
 }
 
 const cop = () => screen.findByLabelText(/Número de colegiatura/);
 const until = () => screen.getByLabelText(/Habilitado hasta/);
 const sworn = () => screen.getByRole("checkbox", { name: /Declaro bajo juramento/ });
 
-describe("ProfessionalCredentialPage", () => {
+describe("ProfessionalCredentialSection", () => {
+  it("la ayuda de \"Habilitado hasta\" remite a la constancia de habilitación del COP", async () => {
+    server.use(...credentialHandlers().handlers);
+    renderPage();
+    await cop();
+    expect(until()).toHaveAccessibleDescription("La fecha de vigencia que figura en tu constancia de habilitación del COP.");
+  });
+
   it("sin credencial, explica por qué no se puede firmar", async () => {
     server.use(...credentialHandlers().handlers);
     renderPage();

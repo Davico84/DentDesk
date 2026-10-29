@@ -499,7 +499,7 @@ describe("ConsultationNotesScreen — firma con credencial", () => {
 
     expect(await screen.findByText("Para firmar actos clínicos, declara tu credencial profesional.")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /sellar nota/i })).toBeDisabled();
-    expect(screen.getByRole("link", { name: "Declarar credencial" })).toHaveAttribute("href", "/profile/credential");
+    expect(screen.getByRole("link", { name: "Declarar credencial" })).toHaveAttribute("href", "/profile#credencial");
   });
 
   it("si el servidor rechaza la firma porque venció, el aviso se actualiza y sellar queda deshabilitado", async () => {

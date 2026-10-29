@@ -41,3 +41,42 @@ describe("httpClient — interceptor de refresh", () => {
     expect(useSessionStore.getState().status).toBe("unauthenticated");
   });
 });
+
+// El cambio de contraseña (update-authentication-my-profile) es la única ruta de /auth que exige sesión: un 401 ahí
+// es un access vencido, no credenciales malas (esas son 400). Se renueva y se reintenta una vez con el mismo cuerpo.
+describe("httpClient — 401 al cambiar la contraseña", () => {
+  const body = { currentPassword: "actual-123", newPassword: "nueva-4567" };
+
+  it("con el access vencido renueva y reintenta una vez con el mismo cuerpo", async () => {
+    const received: unknown[] = [];
+    server.use(
+      http.post("*/auth/password", async ({ request }) => {
+        received.push(await request.json());
+        return received.length === 1
+          ? new HttpResponse(null, { status: 401 })
+          : HttpResponse.json({ accessToken: "tras-cambio", user: null });
+      }),
+      http.post("*/auth/refresh", () => HttpResponse.json({ accessToken: "renovado", user: null })),
+    );
+
+    const { data } = await axiosInstance.post("/auth/password", body);
+
+    expect(received).toEqual([body, body]);
+    expect(data.accessToken).toBe("tras-cambio");
+  });
+
+  it("si la sesión ya no se puede renovar, cierra la sesión sin reintentar el cambio", async () => {
+    let calls = 0;
+    server.use(
+      http.post("*/auth/password", () => {
+        calls += 1;
+        return new HttpResponse(null, { status: 401 });
+      }),
+      http.post("*/auth/refresh", () => new HttpResponse(null, { status: 401 })),
+    );
+
+    await expect(axiosInstance.post("/auth/password", body)).rejects.toBeTruthy();
+    expect(calls).toBe(1);
+    expect(useSessionStore.getState().status).toBe("unauthenticated");
+  });
+});

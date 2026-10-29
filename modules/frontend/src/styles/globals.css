@@ -150,4 +150,13 @@
     @apply bg-background text-foreground;
     margin: 0;
   }
+
+  /* Los controles nativos (icono y calendario del input de fecha, scrollbars) los pinta el navegador según
+     color-scheme, no según nuestros tokens: sin esto el icono del calendario queda negro sobre fondo oscuro. */
+  html {
+    color-scheme: light;
+  }
+  html.dark {
+    color-scheme: dark;
+  }
 }

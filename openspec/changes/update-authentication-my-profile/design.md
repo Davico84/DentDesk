@@ -38,6 +38,10 @@ contraseña más allá del mínimo actual.
 - `POST /auth/password` con `{ currentPassword, newPassword }` → `AuthResponse` (access nuevo y usuario) más la
   cookie de refresco nueva, igual que `login` y `refresh`.
 
+**Bajo `/auth` pero con sesión:** hasta este change `PublicPaths` abría `/auth/**` entero. Pasa a una lista
+explícita (login, registro, refresh, logout, invitaciones), así `/auth/password` exige sesión y un endpoint nuevo
+bajo `/auth` no nace público por omisión.
+
 **Por qué la contraseña bajo `/auth`:** es una operación de **sesión** (cierra sesiones y emite tokens), como
 `refresh` y `logout`, y bajo `/auth` llega la cookie actual, que también se borra. *Alternativa descartada*:
 `PATCH /me/password`. Funcionaría (el `Set-Cookie` puede fijar cualquier `Path`), pero separa del resto de la
@@ -99,6 +103,10 @@ hace antes una lectura **no bloqueante** de su token, que no cuenta):
 3. **Renovación:** `SELECT ... FOR SHARE` de la fila **antes** de consumir su token. Si el cambio va primero, la
    renovación espera, encuentra su token borrado y responde `401`; si va primero la renovación, su token nuevo
    existe cuando el cambio borra todo.
+   *Comprobado al aplicar:* sin este bloqueo el resultado no es solo un token que sobrevive, sino un
+   **deadlock**. El cambio, con el `FOR UPDATE` de `users`, espera la fila de `refresh_tokens` que la
+   renovación borró; la renovación, al insertar su token nuevo, toma `FOR KEY SHARE` de `users` por la FK y
+   espera al cambio. Tomar la fila de `users` primero en los dos lados es lo que evita el ciclo.
 4. **Logout:** sin cambios. Solo borra su propio refresh y no toca `users`, así que no puede cerrar un ciclo.
 
 Dos cambios simultáneos con la misma contraseña actual: los dos verifican sin bloqueo, el primero en bloquear gana y
