@@ -15,7 +15,7 @@ cuenta no se entera si otra persona lo hizo. Un aviso por correo es la alarma qu
   la cuenta, para no revelar quién está registrado.
 - **Enlace por correo**: vale **30 minutos**, se usa **una sola vez**, y pedir otro anula el anterior. Se envían como
   máximo **3 por cuenta en 24 horas**; pasado el límite, la respuesta sigue siendo la misma, sin correo.
-- **Freno al abuso del pedido**: límite de pedidos por origen de la conexión (IP) y un solo pedido pendiente por
+- **Freno al abuso del pedido**: límite de pedidos por IP del cliente y un solo pedido pendiente por
   correo, ambos con la misma respuesta. Los avisos de cambio de contraseña van por una vía aparte, para que una
   inundación de pedidos no los retrase.
 - **Elegir la contraseña nueva** desde el enlace, con la regla del registro (mínimo 8 caracteres). Al guardarla:

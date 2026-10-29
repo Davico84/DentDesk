@@ -213,9 +213,12 @@ cuenta que ya superó el límite. Comprueba:
 
 - **Respuestas idénticas:** status y cuerpo iguales, y los headers iguales **uno por uno**, salvo `Date`, que es el
   único que se excluye (por nombre, no por "comparables").
-- **La petición no toca la base:** con el worker detenido, el contador de sentencias de las estadísticas de
-  Hibernate no avanza durante las seis peticiones. Que la respuesta llegue antes que el worker no alcanza: una
-  implementación que consultara la cuenta antes de encolar también lo cumpliría.
+- **La petición no toca la base:** que la respuesta llegue antes que el worker no alcanza, porque una implementación
+  que consultara la cuenta antes de encolar también lo cumpliría. Un contador global (las estadísticas de Hibernate)
+  tampoco: Hikari, Actuator y otros hilos lo mueven. Se prueba **por hilo**: en el IT, un `BeanPostProcessor` de test
+  envuelve el `DataSource` y registra qué hilo pide cada conexión; con MockMvc la petición corre en el hilo del test,
+  y ese hilo no pide ninguna conexión durante los pedidos. Además, un test unitario del servicio de pedido con
+  `verifyNoInteractions` sobre los repositorios.
 - **Las variantes de no atender:** un pedido rechazado por el límite de IP, uno repetido con otro pendiente y uno
   con la cola llena (executor detenido y cola completa) responden exactamente igual que los seis anteriores.
 
@@ -226,23 +229,51 @@ activa dentro del límite recibió el correo, una sola vez.
 
 Corre en la petición, después de validar el formato, y **no consulta la base**:
 
-- **Límite por IP:** 10 pedidos por IP por hora, contados en un `Cache` de Caffeine (ya está en el proyecto) con
-  vencimiento a la hora del primer pedido y un tamaño máximo (10 000 IPs). Superado, el pedido no se encola.
-  Si un ataque desde muchísimas IPs desborda el tamaño, Caffeine descarta contadores y alguna IP recupera cupo: se
-  acepta, porque la memoria queda acotada y el peor caso es la cola llena de D4.
-- **IP real detrás del proxy:** hoy `forward-headers-strategy: framework` hace que `getRemoteAddr()` devuelva el
-  **primer** valor de `X-Forwarded-For`, que el cliente puede inventar. El límite **no** usa ese valor: toma la IP
-  contando desde la **derecha** de la cadena, saltando un número configurable de proxies de confianza
-  (`app.password-recovery.trusted-proxy-hops`). Como `ForwardedHeaderFilter` saca las cabeceras `X-Forwarded-*` de la
-  petición, la resolución corre en un filtro **anterior** a él, o se cambia a la estrategia `native` con el
-  `RemoteIpValve` de Tomcat y sus proxies internos: se decide al aplicar, según lo que se observe en Render. Sin
-  cabecera (local, tests), se usa la dirección de la conexión.
+- **Límite por IP, ventana fija:** 10 pedidos por IP del cliente en una ventana de 1 hora que empieza con el primer
+  pedido y **no se corre** con los siguientes. El valor del `Cache` de Caffeine (ya está en el proyecto) es
+  `(inicioDeVentana, cuenta)`:
+  - el incremento es **atómico**, con `cache.asMap().compute(ip, ...)`, nunca con `get` + incremento + `put`, que
+    deja pasar más de 10 pedidos simultáneos. Dentro del `compute`, si la ventana venció se reinicia en `(ahora, 1)`;
+    si no, se suma uno. Se admite si la cuenta resultante es 10 o menos;
+  - el vencimiento usa un `Expiry` propio: `expireAfterCreate` de 1 hora y `expireAfterUpdate` que **devuelve la
+    duración restante**, para que una actualización no lo extienda (con `expireAfterWrite` la ventana se correría
+    hasta el último pedido). Caffeine usa un `Ticker` y la ventana un `Clock`, inyectables para los tests;
+  - tamaño máximo de 10 000 IPs. Si un ataque desde muchísimas IPs lo desborda, Caffeine descarta contadores y
+    alguna IP recupera cupo. Se acepta, porque la memoria queda acotada y el peor caso es la cola llena de D4,
+    pero queda **medido** (ver Métricas).
+- **IP del cliente: una sola fuente, `CF-Connecting-IP`.** Render atiende detrás de Cloudflare, que escribe esa
+  cabecera con la IP que se conectó y **pisa** la que mande el cliente. `X-Forwarded-For` se descarta como fuente:
+  - el cliente controla sus valores a la izquierda;
+  - con `forward-headers-strategy: framework`, `getRemoteAddr()` devuelve justamente el primero;
+  - contar saltos desde la derecha exige conocer la cadena exacta de proxies de Render, que no está garantizada;
+  - además, `ForwardedHeaderFilter` saca esas cabeceras y Boot lo registra con `HIGHEST_PRECEDENCE`, así que un
+    filtro propio no puede asegurar correr antes.
+
+  `CF-Connecting-IP` no es una cabecera `X-Forwarded-*`, así que ese filtro no la toca, y la estrategia
+  `framework` (que sirve para `X-Forwarded-Proto` y las cookies `Secure`) queda como está. El nombre de la cabecera
+  se configura (`app.password-recovery.client-ip-header`): en producción, `CF-Connecting-IP`; vacío en local y en
+  tests, donde se usa la dirección de la conexión. Si en producción la cabecera falta, **no** se cae a
+  `getRemoteAddr()`, que sería falsificable: todos esos pedidos comparten un único cupo. Que Render la entregue, y que
+  la que mande el cliente se pise, es **precondición del despliegue** (Migration Plan 4). Si no se cumple, se revisa
+  esta decisión antes de desplegar.
 - **Un solo pendiente por correo:** un conjunto concurrente de correos normalizados en cola o en proceso. Si el correo
-  ya está, no se encola; el worker lo quita al terminar (en un `finally`), y también se quita si la cola rechaza la
-  tarea. Su tamaño está acotado por la cola. Evita que un mismo correo ocupe la cola y que dos pedidos simultáneos
-  generen dos enlaces.
-- La decisión depende solo de la IP y de los pedidos anteriores de ese correo, nunca de que la cuenta exista, y la
-  respuesta es la misma en todos los casos: no abre un canal de enumeración.
+  ya está, no se encola. Evita que un mismo correo ocupe la cola y que dos pedidos simultáneos generen dos enlaces.
+  Su tamaño está acotado por la cola. Para que un correo **nunca quede retenido**:
+  - el `recoveryExecutor` usa explícitamente `AbortPolicy`: el rechazo lanza `RejectedExecutionException`, nunca un
+    descarte silencioso. Esto cubre la cola llena y el pedido que llega durante el apagado;
+  - la entrega se hace en un `try`: si `execute` lanza cualquier cosa, el correo se quita del conjunto antes de
+    responder;
+  - el worker lo quita en un `finally` que rodea **toda** la tarea, así que corre también si la tarea lanza un
+    `Error`.
+- **Métricas:** contadores de Micrometer (Actuator ya está) por motivo de no atender el pedido: `ip`, `duplicate` y
+  `queue_full`, más un contador de desalojos del `Cache` (`recordStats`). Un rechazo por cola llena se registra como
+  `WARN`. No hay sistema de alertas en el proyecto; los contadores dejan el dato listo para cuando lo haya.
+- La decisión depende solo de la IP y de los pedidos anteriores de ese correo, nunca de que la cuenta exista, y el
+  status, los headers y el cuerpo son los mismos en todos los casos.
+- **Tiempo de un correo repetido:** encolar y no encolar no tardan lo mismo, aunque la diferencia es de
+  microsegundos en memoria, muy por debajo del ruido de red. Ese canal diría, a lo sumo, que **alguien** pidió hace
+  instantes una recuperación para ese correo, y no que la cuenta exista: el conjunto se llena antes de buscarla, igual
+  para correos registrados que inventados. **Se acepta** este canal, y no se iguala con trabajo ficticio.
 - **Varias instancias:** con más de una, cada una tendría su propio contador y su propio conjunto, y el límite real se
   multiplica por la cantidad de instancias. Ese día se mueve a Redis (Render Key Value); hasta entonces es una sola.
 
@@ -262,9 +293,13 @@ Corre en la petición, después de validar el formato, y **no consulta la base**
   CAPTCHA en el formulario.
 - **IPs compartidas**: una clínica detrás de una sola IP comparte el cupo de 10 pedidos por hora. Alcanza para el
   uso normal (olvidos esporádicos); si no, se sube el número por configuración.
-- **IP mal resuelta**: si el número de proxies de confianza no coincide con lo que agrega Render, el límite cae sobre
-  la IP del proxy (todos comparten cupo) o sobre un valor que el cliente inventa (se esquiva). Por eso se verifica en
-  el despliegue (Migration Plan).
+- **IP mal resuelta**: si Render dejara de entregar `CF-Connecting-IP`, todos los pedidos compartirían un único cupo:
+  la recuperación se degrada, pero no se puede esquivar. Si alguien llegara al servicio sin pasar por Cloudflare,
+  podría inventar la cabecera. Las dos cosas se verifican en el despliegue (Migration Plan 4).
+- **Desalojo de contadores**: un ataque desde muchas IPs puede hacer que Caffeine descarte contadores y que alguna IP
+  recupere cupo (D10). Queda medido por los contadores de desalojo y de `queue_full`.
+- **Tiempo de un correo repetido**: canal aceptado. Dice, como mucho, que alguien pidió hace instantes la recuperación
+  para ese correo, nunca que la cuenta exista (D10).
 - **Varias instancias**: el límite en memoria deja de ser global (D10). Hoy hay una sola instancia.
 - **Envíos perdidos**: si el proceso se reinicia con pedidos en cola, se pierden. El usuario vuelve a pedir. Un pedido
   perdido en la cola no cuenta para el límite; uno cuyo correo falla después de emitir el enlace, sí. Se acepta
@@ -286,10 +321,13 @@ Corre en la petición, después de validar el formato, y **no consulta la base**
 3. **Bloqueante antes de producción**: confirmar `MAIL_ENABLED` y el SMTP en Render, y comprobar con un correo de
    recuperación real que el enlace llega **sin reescribir** por el seguimiento de clics de Brevo. Sin esa
    comprobación no se despliega.
-4. **Antes de producción:** con un pedido real a través de Render, comprobar qué valores trae `X-Forwarded-For` y
-   fijar `app.password-recovery.trusted-proxy-hops` para que el límite caiga sobre la IP del cliente, y comprobar
-   que un `X-Forwarded-For` inventado por el cliente no cambia la IP contada. Sin registrar IPs en los logs
-   permanentes.
+4. **Bloqueante antes de producción:** con pedidos reales a través de Render, comprobar tres cosas, sin dejar IPs en
+   los logs permanentes:
+   - que llega `CF-Connecting-IP` con la IP del cliente;
+   - que un `CF-Connecting-IP` o un `X-Forwarded-For` mandados por el cliente no cambian la IP contada;
+   - que el servicio no responde sin pasar por Cloudflare.
+
+   Si falla alguna, se revisa D10 antes de desplegar.
 5. **Rollback:** la tabla es aditiva; revertir la app la deja sin uso. Flyway no se revierte.
 
 ## Open Questions

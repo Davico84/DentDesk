@@ -56,16 +56,20 @@ El sistema SHALL enviar como máximo 3 enlaces de recuperación por cuenta en cu
 
 ### Requirement: Admisión de los pedidos de recuperación
 
-El sistema SHALL limitar los pedidos de recuperación por origen de la conexión y SHALL atender un solo pedido pendiente por correo, sin consultar la cuenta y respondiendo lo mismo que a cualquier otro pedido. Un pedido que no se atiende por el límite, por estar repetido o por saturación SHALL NOT enviar correo. Los avisos de cambio de contraseña SHALL NOT depender de la carga de pedidos de recuperación.
+El sistema SHALL limitar los pedidos de recuperación por IP del cliente y SHALL atender un solo pedido pendiente por correo, sin consultar la cuenta y respondiendo lo mismo que a cualquier otro pedido. Un pedido que no se atiende por el límite, por estar repetido o por saturación SHALL NOT enviar correo. Los avisos de cambio de contraseña SHALL NOT depender de la carga de pedidos de recuperación.
 
-#### Scenario: Muchos pedidos desde el mismo origen
-- **WHEN** un mismo origen supera el límite de pedidos de recuperación
+#### Scenario: Muchos pedidos desde la misma IP
+- **WHEN** una misma IP del cliente supera el límite de pedidos de recuperación
 - **THEN** el sistema responde lo mismo que a cualquier otro pedido
 - **AND** los pedidos que exceden el límite no envían correo
 
-#### Scenario: El origen declarado no cuenta
-- **WHEN** un pedido declara en sus cabeceras un origen distinto del real
-- **THEN** el límite se aplica al origen real de la conexión
+#### Scenario: Pedidos simultáneos desde la misma IP
+- **WHEN** desde una misma IP llegan a la vez más pedidos que el límite
+- **THEN** se atienden como máximo tantos como el límite
+
+#### Scenario: Una IP declarada por el cliente no cuenta
+- **WHEN** un pedido declara otra IP en cabeceras que el cliente controla
+- **THEN** el límite se aplica a la IP del cliente que informa el proxy de confianza
 
 #### Scenario: Pedido repetido mientras otro está pendiente
 - **WHEN** se pide la recuperación para un correo que tiene otro pedido aún sin procesar
