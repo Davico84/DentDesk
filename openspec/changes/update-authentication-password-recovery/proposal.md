@@ -50,7 +50,7 @@ _Ninguna._
 
 ## Impact
 
-- **Backend**: tabla nueva para los enlaces de recuperación (hash del token, vencimiento, uso); dos endpoints públicos
+- **Backend**: tabla nueva para los enlaces de recuperación (hash del token, vencimiento, uso); tres endpoints públicos
   bajo `/auth` que se suman a la lista explícita de `PublicPaths`; el pedido se resuelve **fuera de la petición** con un
   executor propio, para que ni la respuesta ni su tiempo dependan de la cuenta (el proyecto prohíbe `@Async` por el
   contexto de tenant; estas tareas no lo usan ni tocan tablas con RLS); revocación
