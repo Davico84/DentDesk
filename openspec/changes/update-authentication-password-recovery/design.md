@@ -69,40 +69,58 @@ password_reset_tokens
 - **Limpieza** sin tarea programada (prohibida): al emitir un enlace se borran las filas de esa cuenta con más de
   24 h. Las de cuentas que nunca vuelven a pedir quedan; son pocas y sin datos sensibles (solo el hash).
 
-### D3 — Pedido: misma respuesta y mismo tiempo, el correo fuera de la petición
+### D3 — Pedido: la petición no mira la cuenta; todo se resuelve fuera de ella
 
-En una transacción:
+Para que ni la respuesta ni su tiempo dependan de la cuenta, **la petición no la busca**:
 
-1. normalizar el correo (`trim` + minúsculas) y buscar el usuario;
-2. si no existe, no está `ACTIVE` o es administrador de plataforma → nada; responder `202`;
-3. `SELECT ... FOR UPDATE` de la fila de `users`: serializa los pedidos simultáneos de la misma cuenta, para que
+1. validar el formato del correo (`400` si es inválido: depende solo de lo enviado, no de la cuenta);
+2. normalizarlo (`trim` + minúsculas) y entregarlo al executor de D4;
+3. responder `202`.
+
+Es el mismo trabajo para cualquier correo, exista o no. Si la cola está llena, la tarea se descarta con un log y
+la respuesta es la misma.
+
+En el hilo del executor, en una transacción propia:
+
+1. buscar el usuario; si no existe → fin;
+2. `SELECT ... FOR UPDATE` de su fila de `users` y, **bajo el bloqueo**, comprobar que esté `ACTIVE` y que no sea
+   administrador de plataforma. Bajo el bloqueo, una desactivación (que actualiza la fila) o una promoción a
+   plataforma (cuyo `INSERT` en `platform_admins` toma `FOR KEY SHARE` sobre `users`) no pueden colarse entre la
+   comprobación y la emisión. El bloqueo también serializa los pedidos simultáneos de la misma cuenta, para que
    cuatro a la vez no pasen los cuatro el conteo;
-4. contar los enlaces de las últimas 24 h; si hay 3 → nada; `202`;
-5. anular los vigentes (`revoked_at`), borrar los de más de 24 h, insertar el nuevo;
-6. registrar un `afterCommit` que entrega el correo al executor de D4; `202`.
+3. contar los enlaces de las últimas 24 h; si hay 3 → fin;
+4. anular los vigentes (`revoked_at`), borrar los de más de 24 h, insertar el nuevo; commit;
+5. **después del commit**, en el mismo hilo, enviar el correo: si la transacción falla, no llega un enlace que no
+   existe en la base.
 
-El tiempo de BCrypt no interviene (no se verifica contraseña). La diferencia entre "existe" y "no existe" queda en
-unas pocas consultas a la base, del orden de milisegundos, frente a los segundos del SMTP, que es lo que delataría
-la cuenta. Ver Riesgos.
+**Alternativa descartada:** resolver la cuenta en la petición y solo enviar el correo afuera. Deja una diferencia de
+tiempo de varias consultas entre una cuenta activa dentro del límite y el resto. Igualarla con trabajo ficticio es
+frágil, y el spec no admite diferencias apreciables.
 
-El correo sale **después del commit**: si la transacción falla, no llega un enlace que no existe en la base.
+### D4 — Un executor propio sin contexto de tenant, no `@Async`
 
-### D4 — Envío de correo con un executor propio, no `@Async`
-
-- Un bean `ExecutorService` dedicado (`mailExecutor`): 2 hilos y una cola acotada. Si la cola se llena, la tarea se
-  descarta con un log; el usuario puede volver a pedir.
-- La tarea recibe **solo datos ya calculados** (destinatario, enlace o fecha del cambio, vencimiento): no toca la
-  base ni lee `IdentityContext`/`OrganizationContext`. Por eso no choca con la razón del tripwire de `@Async`.
-- Nueva regla de ArchUnit: el paquete `infra.mail` **no depende** de `persistence` ni de los contextos de tenant.
-  Hace explícito y vigilado lo que el tripwire de `@Async` protege.
+- Un bean `ExecutorService` dedicado (`accountExecutor`): 2 hilos y una cola acotada. Corre dos tareas: el pedido de
+  recuperación (D3) y el aviso de cambio de contraseña (D6).
+- **Por qué no choca con el tripwire de `@Async`:** el tripwire existe porque un hilo nuevo no hereda el contexto de
+  tenant de la petición. Estas tareas **no lo necesitan**. Solo tocan `users`, `platform_admins` y
+  `password_reset_tokens`, que no tienen RLS, y nunca fijan ni leen `IdentityContext`, `OrganizationContext` ni
+  `tenantSession`. Sin contexto, `TenantAwareTransactionManager` no fija nada (su Javadoc lo prevé para los flujos de
+  auth previos a la sesión), y si alguna tarea tocara una tabla con RLS, fallaría cerrado.
+- Cada tarea **limpia los `ThreadLocal` de tenant al empezar**, como defensa por si un hilo del pool los heredara.
+- Nuevas reglas de ArchUnit, que vigilan lo que el tripwire protege:
+  - el worker de recuperación y el paquete `infra.mail` no dependen de `IdentityContext`, `OrganizationContext` ni
+    de la sesión de tenant;
+  - `infra.mail` no depende de `persistence`.
 - Un fallo de entrega se registra **sin** el token, el enlace ni datos de la contraseña.
-- En el apagado, el executor termina con un plazo corto (`shutdown` + `awaitTermination`).
+- En el apagado, el executor termina con un plazo corto (`shutdown` + `awaitTermination`). Las tareas en cola se
+  pierden (ver Riesgos).
 - Nueva interfaz `AccountMailer` (enlace de recuperación y aviso de cambio), separada de `InvitationMailer`: la
   invitación **debe** fallar la petición si no se envía (add-platform-admin D6); estos correos no. Sin correo
   configurado, la variante deshabilitada registra y descarta: en ese entorno la recuperación no funciona, pero la
   respuesta sigue siendo la misma.
-- En los tests, un `AccountMailer` que registra lo enviado y un executor que corre en el mismo hilo, para afirmar
-  sin esperas. Un test aparte comprueba con el executor real que la respuesta no espera a un SMTP lento.
+- En los tests, un `AccountMailer` que registra lo enviado. Los ITs de comportamiento esperan a que el executor
+  termine su cola antes de afirmar. El test de anti-enumeración **bloquea el executor con un latch** y comprueba que
+  la petición responde igual para todos los casos sin que el worker haya empezado (D9).
 
 ### D5 — Restablecer: orden de bloqueo `users` → `password_reset_tokens` → `refresh_tokens`
 
@@ -112,14 +130,16 @@ El correo sale **después del commit**: si la transacción falla, no llega un en
 3. `SELECT ... FOR UPDATE` de la fila del token y re-chequear **vigencia** y que el usuario **no** sea administrador
    de plataforma. Si falla → `400 invalid-reset-link`, sin cambiar nada.
 4. Validar la contraseña nueva (`@Size(min = 8)`, como el registro). Un `400` aquí no consume el enlace.
-5. Guardar el hash nuevo. Si `locked_until` es futuro, **se conserva** el bloqueo y su contador; si no, contador a
-   cero y `locked_until` nulo.
+5. Guardar el hash nuevo con un `UPDATE` propio (**no** el `changePassword` de Mi perfil, que siempre pone el
+   bloqueo a cero). Si `locked_until` es futuro, **se conserva** el bloqueo y su contador; si no, contador a cero y
+   `locked_until` nulo.
 6. Marcar el token como usado y anular los demás vigentes de la cuenta.
 7. Borrar **todos** los refresh tokens del usuario. No se emite sesión nueva.
-8. Calcular `outcome`: `LOCKED` si el bloqueo sigue; si no, `ACCESS_DISABLED` si `UserStatus` no es `ACTIVE` o no hay
-   ninguna membresía activa en una organización activa (fijando la identidad antes de leer `memberships`); si no,
-   `OK`.
-9. `afterCommit` → aviso de cambio (D6).
+8. Calcular `outcome`: `LOCKED` si el bloqueo sigue; si no, `ACCESS_DISABLED` si `UserStatus` no es `ACTIVE` o si
+   no hay ninguna membresía `ACTIVE` **en una organización `ACTIVE`** (una membresía activa en una clínica
+   suspendida no da acceso, igual que en el login); si no, `OK`. Para leer `memberships` se fija la identidad con
+   `bindIdentity`, como el login: esto corre en el hilo de la petición, no en el executor.
+9. `afterCommit` → entregar el aviso de cambio al executor (D6).
 
 El orden es el mismo en el pedido (`users` → `password_reset_tokens`), así que pedido y restablecimiento simultáneos
 no forman ciclo. Leer el token sin bloqueo en el paso 1 no cuenta como adquisición.
@@ -177,18 +197,28 @@ documenta en `docs/deployment.md` un procedimiento para el responsable:
 No agrega superficie de ataque a la aplicación. Se revisa si algún día hay más de un administrador de plataforma
 o 2FA.
 
+### D9 — Cómo se prueba la anti-enumeración
+
+Un IT con el executor **detenido por un latch** pide la recuperación con seis correos: activo dentro del límite,
+inexistente, identidad desactivada, administrador de plataforma, plataforma que también es miembro y cuenta que ya
+superó el límite. Para los seis comprueba que el status, los headers (salvo los que varían por petición, como la
+fecha) y el cuerpo son idénticos, y que las seis respuestas llegaron **sin que el worker haya empezado**. Eso prueba
+que la respuesta no depende de la cuenta, sin medir tiempos (que en CI serían inestables). Después se libera el
+latch y se comprueba que solo la cuenta activa dentro del límite recibió el correo.
+
 ## Risks / Trade-offs
 
-- **Diferencia de tiempo residual** entre cuenta existente y no existente: unas consultas a la base, del orden de
-  milisegundos. Medirla por red es posible solo con muchas muestras, y el límite por cuenta no frena a quien prueba
-  correos distintos. Se acepta: es el mismo orden de lo que ya expone el registro por invitación. Se descarta
-  rellenar con trabajo ficticio porque complica sin cerrar el hueco por completo.
-- **Envíos perdidos**: si el proceso se reinicia con correos en cola, se pierden. El usuario vuelve a pedir; un
-  envío perdido cuenta para el límite. Se acepta frente a una tabla de salida con reintentos (outbox), que pediría
+- **Cola llena por abuso**: quien envía muchos pedidos puede llenar la cola y hacer que se descarten pedidos
+  legítimos durante ese rato. La respuesta no cambia, así que no se filtra nada; el afectado vuelve a pedir. El
+  límite por IP, que lo frenaría, necesita Redis (non-goal).
+- **Envíos perdidos**: si el proceso se reinicia con pedidos en cola, se pierden. El usuario vuelve a pedir. Un pedido
+  perdido en la cola no cuenta para el límite; uno cuyo correo falla después de emitir el enlace, sí. Se acepta frente a una tabla de salida con reintentos (outbox), que pediría
   una tarea programada.
 - **Seguimiento de clics de Brevo**: si está activo, Brevo reescribe el enlace del correo y el token pasa por sus
-  servidores. Hay que verificar que el seguimiento de clics esté apagado para estos correos (tarea del
-  responsable).
+  servidores antes de llegar al navegador; `no-referrer` no lo evita. Es una **precondición bloqueante del
+  despliegue**: el seguimiento de clics tiene que estar apagado para el correo de recuperación. Al aplicar se
+  investiga si Brevo lo permite por mensaje (un header SMTP) para fijarlo en el adaptador; si no, se apaga en la
+  cuenta y se verifica con un correo real que el enlace llega sin reescribir.
 - **Filas viejas** de `password_reset_tokens` de cuentas que no vuelven a pedir: crecen poco y solo guardan hashes.
 - **Correo comprometido**: quien controla la casilla controla la cuenta de clínica. Es inherente a la recuperación
   por correo. Lo mitigan el aviso de cambio (el titular se entera), el cierre de todas las sesiones y que la
@@ -198,7 +228,9 @@ o 2FA.
 
 1. Migración Flyway con `password_reset_tokens` (aditiva; los grants condicionales, como V26/V30).
 2. Desplegar backend y frontend juntos: el enlace del login apunta a una ruta nueva que necesita los endpoints.
-3. Antes de producción: confirmar `MAIL_ENABLED` y el SMTP en Render, y el seguimiento de clics de Brevo.
+3. **Bloqueante antes de producción**: confirmar `MAIL_ENABLED` y el SMTP en Render, y comprobar con un correo de
+   recuperación real que el enlace llega **sin reescribir** por el seguimiento de clics de Brevo. Sin esa
+   comprobación no se despliega.
 4. **Rollback:** la tabla es aditiva; revertir la app la deja sin uso. Flyway no se revierte.
 
 ## Open Questions

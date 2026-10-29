@@ -2,7 +2,7 @@
 
 ### Requirement: Pedir la recuperación de la contraseña
 
-El sistema SHALL permitir a cualquier persona sin sesión pedir la recuperación de la contraseña indicando un correo. La respuesta SHALL ser siempre la misma, en contenido y sin diferencias de tiempo apreciables, exista o no una cuenta con ese correo, y cualquiera sea su estado. Si corresponde enviar el enlace, el sistema SHALL enviarlo a ese correo y a ningún otro.
+El sistema SHALL permitir a cualquier persona sin sesión pedir la recuperación de la contraseña indicando un correo. La respuesta SHALL ser siempre la misma en status, headers y cuerpo, y SHALL darse sin esperar a resolver la cuenta, exista o no y cualquiera sea su estado o su límite. Si corresponde enviar el enlace, el sistema SHALL enviarlo a ese correo y a ningún otro.
 
 #### Scenario: Pedir con un correo registrado
 - **WHEN** alguien pide la recuperación con el correo de una cuenta activa
@@ -14,9 +14,10 @@ El sistema SHALL permitir a cualquier persona sin sesión pedir la recuperación
 - **THEN** el sistema responde exactamente lo mismo que con un correo registrado
 - **AND** no envía ningún correo
 
-#### Scenario: El tiempo de respuesta no delata la cuenta
-- **WHEN** se pide la recuperación con un correo registrado y con uno no registrado
-- **THEN** ambas respuestas llegan sin esperar el envío del correo
+#### Scenario: La respuesta no delata la cuenta
+- **WHEN** se pide la recuperación con el correo de una cuenta activa dentro del límite, uno no registrado, uno de una identidad desactivada, uno de un administrador de plataforma y uno de una cuenta que superó el límite
+- **THEN** las cinco respuestas son idénticas en status, headers y cuerpo
+- **AND** llegan sin esperar a que se busque la cuenta ni a que se envíe el correo
 
 #### Scenario: Correo con mayúsculas o espacios
 - **WHEN** alguien pide la recuperación con su correo en mayúsculas o con espacios en los extremos
@@ -132,7 +133,12 @@ Restablecer la contraseña SHALL NOT desbloquear una cuenta bloqueada temporalme
 - **AND** la interfaz le indica a qué hora podrá iniciar sesión
 
 #### Scenario: Acceso desactivado
-- **WHEN** un usuario cuya identidad se desactivó después de recibir el enlace, o sin ninguna membresía activa, restablece su contraseña
+- **WHEN** un usuario cuya identidad se desactivó después de recibir el enlace, o sin ninguna membresía activa en una clínica activa, restablece su contraseña
+- **THEN** el sistema cambia la contraseña y no le da acceso
+- **AND** la interfaz le indica que contacte al administrador de su clínica
+
+#### Scenario: Membresía activa en una clínica suspendida
+- **WHEN** un usuario cuya única membresía activa es de una clínica suspendida restablece su contraseña
 - **THEN** el sistema cambia la contraseña y no le da acceso
 - **AND** la interfaz le indica que contacte al administrador de su clínica
 
@@ -156,6 +162,10 @@ El sistema SHALL NOT enviar enlaces de recuperación a una cuenta de administrad
 #### Scenario: Administrador de plataforma que también es miembro de una clínica
 - **WHEN** alguien pide la recuperación con el correo de una cuenta que es administrador de plataforma y miembro de una clínica
 - **THEN** el sistema no envía ningún correo
+
+#### Scenario: La cuenta cambia de estado mientras se procesa el pedido
+- **WHEN** una cuenta se desactiva o pasa a ser administrador de plataforma al mismo tiempo que se procesa su pedido de recuperación
+- **THEN** el sistema no le envía un enlace que ya no le corresponde
 
 #### Scenario: Enlace previo a pasar a plataforma
 - **WHEN** alguien usa un enlace emitido antes de que la cuenta pasara a ser administrador de plataforma

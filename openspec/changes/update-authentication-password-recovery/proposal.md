@@ -51,8 +51,9 @@ _Ninguna._
 ## Impact
 
 - **Backend**: tabla nueva para los enlaces de recuperación (hash del token, vencimiento, uso); dos endpoints públicos
-  bajo `/auth` que se suman a la lista explícita de `PublicPaths`; envío de correo **fuera de la petición** con un
-  executor propio (el proyecto prohíbe `@Async` por el contexto de tenant), solo con datos ya calculados; revocación
+  bajo `/auth` que se suman a la lista explícita de `PublicPaths`; el pedido se resuelve **fuera de la petición** con un
+  executor propio, para que ni la respuesta ni su tiempo dependan de la cuenta (el proyecto prohíbe `@Async` por el
+  contexto de tenant; estas tareas no lo usan ni tocan tablas con RLS); revocación
   de los refresh tokens y el protocolo de bloqueo de fila de Mi perfil. Migración Flyway nueva.
 - **Correo**: dos correos nuevos (enlace de recuperación y aviso de cambio) sobre el SMTP existente (Brevo).
 - **Contrato**: `contracts/openapi.json` y el cliente orval regenerados.
