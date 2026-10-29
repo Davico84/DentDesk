@@ -59,4 +59,10 @@ describe("tema definido por tokens CSS", () => {
       expect(value, name).toMatch(/^(hsl|rgb)\(|^#/);
     }
   });
+
+  it("los controles nativos siguen el modo: color-scheme oscuro con la clase dark", () => {
+    const css = build([]);
+    expect(css).toMatch(/html\s*\{[^}]*color-scheme:\s*light/);
+    expect(css).toMatch(/html\.dark\s*\{[^}]*color-scheme:\s*dark/);
+  });
 });
