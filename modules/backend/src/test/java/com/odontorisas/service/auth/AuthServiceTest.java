@@ -63,6 +63,7 @@ class AuthServiceTest {
     @Mock LoginAttemptService loginAttemptService;
     @Mock Clock clock;
     @Mock StaffService staffService;
+    @Mock PasswordChangeNotifier passwordChangeNotifier;
 
     @InjectMocks AuthService authService;
 

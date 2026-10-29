@@ -32,7 +32,7 @@ import java.util.List;
  */
 @Configuration
 @EnableConfigurationProperties({SecurityProperties.class, LoginLockoutProperties.class,
-    PlatformBootstrapProperties.class})
+    PlatformBootstrapProperties.class, PasswordRecoveryProperties.class})
 @EnableMethodSecurity
 public class SecurityConfig {
 

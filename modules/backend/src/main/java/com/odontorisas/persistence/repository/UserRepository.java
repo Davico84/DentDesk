@@ -1,7 +1,9 @@
 package com.odontorisas.persistence.repository;
 
 import com.odontorisas.persistence.entity.User;
+import jakarta.persistence.LockModeType;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -14,6 +16,14 @@ public interface UserRepository extends JpaRepository<User, Long> {
     Optional<User> findByEmail(String email);
 
     boolean existsByEmail(String email);
+
+    /**
+     * Para el pedido de recuperación ({@code update-authentication-password-recovery} design.md D3): el correo
+     * se guarda tal como se registró, así que se busca sin distinguir mayúsculas. Lista, no {@code Optional}: si
+     * dos cuentas difieren solo en eso, el pedido no envía nada en vez de elegir una.
+     */
+    @Query("select u.id from User u where lower(u.email) = :normalizedEmail")
+    java.util.List<Long> findIdsByNormalizedEmail(@Param("normalizedEmail") String normalizedEmail);
 
     /**
      * Incremento atómico de fallos de login (design.md D7, update-authentication): una sola
@@ -85,6 +95,31 @@ public interface UserRepository extends JpaRepository<User, Long> {
      */
     @Query(value = "SELECT id FROM users WHERE id = :id FOR SHARE", nativeQuery = true)
     Optional<Long> lockForShare(@Param("id") Long id);
+
+    /**
+     * {@code FOR UPDATE} de la fila <b>sin</b> el filtro de "no bloqueado" de {@link #lockPasswordHashIfNotLocked}
+     * ({@code update-authentication-password-recovery} design.md D3.2, D5.2): pedir la recuperación o
+     * restablecer con la cuenta bloqueada por intentos es válido. Debe ser la <b>primera</b> lectura del usuario
+     * en la transacción: si ya estaba en el contexto de persistencia, Hibernate bloquearía la fila sin refrescar
+     * la copia y el estado comprobado bajo el bloqueo sería el viejo.
+     */
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select u from User u where u.id = :id")
+    Optional<User> findByIdForUpdate(@Param("id") Long id);
+
+    /**
+     * Restablecimiento con el enlace (design.md D5.5): a diferencia de {@link #changePassword}, <b>no</b>
+     * desbloquea. Si {@code locked_until} es futuro conserva el bloqueo y su contador; si no, contador a cero
+     * y {@code locked_until} nulo. La fila ya está bloqueada por {@link #findByIdForUpdate}.
+     */
+    @Modifying
+    @Query("UPDATE User u SET u.passwordHash = :hash, u.updatedAt = :now, "
+        + "u.failedLoginAttempts = CASE WHEN u.lockedUntil IS NOT NULL AND u.lockedUntil > :now "
+        + "THEN u.failedLoginAttempts ELSE 0 END, "
+        + "u.lockedUntil = CASE WHEN u.lockedUntil IS NOT NULL AND u.lockedUntil > :now "
+        + "THEN u.lockedUntil ELSE NULL END "
+        + "WHERE u.id = :id")
+    int resetPassword(@Param("id") Long id, @Param("hash") String hash, @Param("now") Instant now);
 
     /**
      * Contraseña nueva y contador a cero, con {@code locked_until} en NULL (design.md D4). Bulk update: no

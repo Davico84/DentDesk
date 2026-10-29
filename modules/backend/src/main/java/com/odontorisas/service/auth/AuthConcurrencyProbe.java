@@ -28,4 +28,23 @@ public interface AuthConcurrencyProbe {
     /** Cambio de contraseña: el {@code FOR UPDATE} ya está tomado y todavía no se cambió nada. */
     default void afterChangePasswordLocked() {
     }
+
+    /**
+     * Pedido de recuperación: el worker empezó y todavía no tocó la base
+     * ({@code update-authentication-password-recovery} design.md D9: el test de anti-enumeración lo detiene acá).
+     */
+    default void beforeRecoveryProcessed() {
+    }
+
+    /** Pedido de recuperación: el usuario se encontró y todavía no se tomó su {@code FOR UPDATE} (D3.2). */
+    default void afterRecoveryUserFound() {
+    }
+
+    /** Restablecimiento: el token se leyó sin bloqueo y todavía no se tomó el {@code FOR UPDATE} de users (D5). */
+    default void afterResetTokenRead() {
+    }
+
+    /** Restablecimiento: el {@code FOR UPDATE} de users ya está tomado y todavía no el del token (D5). */
+    default void afterResetUserLocked() {
+    }
 }

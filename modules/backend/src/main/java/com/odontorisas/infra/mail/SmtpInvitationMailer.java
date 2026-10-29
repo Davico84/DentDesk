@@ -26,18 +26,7 @@ final class SmtpInvitationMailer implements InvitationMailer {
 
     SmtpInvitationMailer(MailProperties properties) {
         this.properties = properties;
-        this.sender = new JavaMailSenderImpl();
-        sender.setHost(properties.host());
-        sender.setPort(properties.port());
-        sender.setUsername(properties.username());
-        sender.setPassword(properties.password());
-        sender.getJavaMailProperties().put("mail.smtp.auth", "true");
-        sender.getJavaMailProperties().put("mail.smtp.starttls.enable", "true");
-        sender.getJavaMailProperties().put("mail.smtp.starttls.required", "true");
-        String timeoutMillis = String.valueOf(properties.timeout().toMillis());
-        sender.getJavaMailProperties().put("mail.smtp.connectiontimeout", timeoutMillis);
-        sender.getJavaMailProperties().put("mail.smtp.timeout", timeoutMillis);
-        sender.getJavaMailProperties().put("mail.smtp.writetimeout", timeoutMillis);
+        this.sender = SmtpSenders.create(properties);
     }
 
     @Override

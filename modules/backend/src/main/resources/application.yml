@@ -85,6 +85,19 @@ app:
     lockout:
       max-attempts: ${AUTH_LOCKOUT_MAX_ATTEMPTS:5}
       window: ${AUTH_LOCKOUT_WINDOW:PT15M}     # ISO-8601 Duration (15 min)
+  # Recuperación de la contraseña (update-authentication-password-recovery design.md D2–D4, D10).
+  password-recovery:
+    link-ttl: PT30M
+    links-per-window: 3
+    link-window: P1D
+    # IP del cliente para el límite por IP. En producción, CF-Connecting-IP (la escribe Cloudflare y pisa la
+    # que mande el cliente). Vacía: la dirección de la conexión (local, tests). Nunca X-Forwarded-For.
+    client-ip-header: ${PASSWORD_RECOVERY_CLIENT_IP_HEADER:}
+    requests-per-ip: ${PASSWORD_RECOVERY_REQUESTS_PER_IP:10}
+    ip-window: PT1H
+    ip-cache-max-size: 10000
+    recovery-queue-capacity: 100
+    notice-queue-capacity: 50
   platform:
     bootstrap:
       enabled: ${PLATFORM_ADMIN_BOOTSTRAP_ENABLED:false}

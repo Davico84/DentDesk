@@ -24,6 +24,7 @@ public final class PublicPaths {
      */
     public static final String[] PATTERNS = {
         "/auth/login", "/auth/register", "/auth/refresh", "/auth/logout", "/auth/invitations/**",
+        "/auth/password-recovery", "/auth/password-reset", "/auth/password-reset/check",
         "/platform/auth/login",
         // Solo health: /actuator/info queda autenticado (add-cold-start-warmup D2), nada lo usa.
         "/actuator/health/**",

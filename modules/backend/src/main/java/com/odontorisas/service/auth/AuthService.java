@@ -50,6 +50,7 @@ public class AuthService {
     private final LoginAttemptService loginAttemptService;
     private final Clock clock;
     private final StaffService staffService;
+    private final PasswordChangeNotifier passwordChangeNotifier;
     private AuthConcurrencyProbe probe = AuthConcurrencyProbe.NONE;
 
     public AuthService(UserRepository users,
@@ -60,7 +61,8 @@ public class AuthService {
                        TokenService tokenService,
                        LoginAttemptService loginAttemptService,
                        Clock clock,
-                       StaffService staffService) {
+                       StaffService staffService,
+                       PasswordChangeNotifier passwordChangeNotifier) {
         this.users = users;
         this.memberships = memberships;
         this.refreshTokens = refreshTokens;
@@ -70,6 +72,7 @@ public class AuthService {
         this.loginAttemptService = loginAttemptService;
         this.clock = clock;
         this.staffService = staffService;
+        this.passwordChangeNotifier = passwordChangeNotifier;
     }
 
     /** Solo los tests de concurrencia registran un probe (design.md D3); en producción queda {@code NONE}. */
@@ -216,6 +219,8 @@ public class AuthService {
         Membership membership = activeMembershipIn(user, organizationId);
         users.changePassword(userId, newHash, now);
         refreshTokens.deleteAllOfUser(userId);
+        // Aviso después del commit (update-authentication-password-recovery design.md D6): un rechazo no avisa.
+        passwordChangeNotifier.notifyAfterCommit(user.getEmail(), now);
         // `user` quedó con el hash viejo (bulk update): issueTokens solo lee id, correo y nombre, que no cambian.
         return issueTokens(user, membership);
     }
