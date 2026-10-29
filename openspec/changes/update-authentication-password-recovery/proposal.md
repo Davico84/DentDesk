@@ -15,6 +15,9 @@ cuenta no se entera si otra persona lo hizo. Un aviso por correo es la alarma qu
   la cuenta, para no revelar quién está registrado.
 - **Enlace por correo**: vale **30 minutos**, se usa **una sola vez**, y pedir otro anula el anterior. Se envían como
   máximo **3 por cuenta en 24 horas**; pasado el límite, la respuesta sigue siendo la misma, sin correo.
+- **Freno al abuso del pedido**: límite de pedidos por origen de la conexión (IP) y un solo pedido pendiente por
+  correo, ambos con la misma respuesta. Los avisos de cambio de contraseña van por una vía aparte, para que una
+  inundación de pedidos no los retrase.
 - **Elegir la contraseña nueva** desde el enlace, con la regla del registro (mínimo 8 caracteres). Al guardarla:
   - se cierran **todas** las sesiones del usuario, también la del dispositivo desde el que se recuperó;
   - se vuelve al login.
@@ -29,7 +32,10 @@ cuenta no se entera si otra persona lo hizo. Un aviso por correo es la alarma qu
 ## Non-goals
 
 - **Segundo factor (2FA)** ni recuperación por otro canal (SMS, preguntas de seguridad).
-- **Límite por IP**: requiere Redis (`docs/architecture.md`), fuera de alcance; el límite es por cuenta.
+- **Límite por IP compartido entre varias instancias**: requiere Redis (`docs/architecture.md`). Mientras el backend
+  corra en una sola instancia, el límite por IP vive en memoria.
+- **Cola de pedidos persistida en la base** (sobrevive reinicios, con reintentos): un pedido perdido en un reinicio se
+  resuelve volviendo a pedir.
 - **Desbloquear la cuenta** al recuperar la contraseña, o que un administrador desbloquee: el bloqueo vence solo.
 - **Recuperación del administrador de plataforma desde la aplicación**: se documenta el procedimiento operativo.
 - **Cambiar el correo** de la cuenta.
@@ -52,7 +58,8 @@ _Ninguna._
 
 - **Backend**: tabla nueva para los enlaces de recuperación (hash del token, vencimiento, uso); tres endpoints públicos
   bajo `/auth` que se suman a la lista explícita de `PublicPaths`; el pedido se resuelve **fuera de la petición** con un
-  executor propio, para que ni la respuesta ni su tiempo dependan de la cuenta (el proyecto prohíbe `@Async` por el
+  executor propio, para que ni la respuesta ni su tiempo dependan de la cuenta, y los avisos con otro; límite por IP
+  en memoria (Caffeine, ya en el proyecto) (el proyecto prohíbe `@Async` por el
   contexto de tenant; estas tareas no lo usan ni tocan tablas con RLS); revocación
   de los refresh tokens y el protocolo de bloqueo de fila de Mi perfil. Migración Flyway nueva.
 - **Correo**: dos correos nuevos (enlace de recuperación y aviso de cambio) sobre el SMTP existente (Brevo).

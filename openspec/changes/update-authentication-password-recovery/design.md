@@ -23,8 +23,8 @@
 **Goals:** recuperar la contraseña sin revelar qué cuentas existen; enlace corto, de un uso y anulable; cerrar todas
 las sesiones; no desbloquear; dejar fuera a la plataforma; avisar por correo de todo cambio de contraseña.
 
-**Non-Goals:** los del proposal (2FA, límite por IP, desbloqueo, recuperación de plataforma desde la app, cambio de
-correo, reglas de contraseña nuevas, correo con marca de la clínica).
+**Non-Goals:** los del proposal (2FA, límite por IP entre varias instancias, cola persistida, desbloqueo, recuperación
+de plataforma desde la app, cambio de correo, reglas de contraseña nuevas, correo con marca de la clínica).
 
 ## Decisions
 
@@ -74,11 +74,13 @@ password_reset_tokens
 Para que ni la respuesta ni su tiempo dependan de la cuenta, **la petición no la busca**:
 
 1. validar el formato del correo (`400` si es inválido: depende solo de lo enviado, no de la cuenta);
-2. normalizarlo (`trim` + minúsculas) y entregarlo al executor de D4;
-3. responder `202`.
+2. normalizarlo (`trim` + minúsculas);
+3. admitirlo (D10): si la IP superó su límite, o el correo ya tiene un pedido pendiente, no se encola;
+4. si se admitió, entregarlo al executor de recuperación (D4);
+5. responder `202`, se haya encolado o no.
 
-Es el mismo trabajo para cualquier correo, exista o no. Si la cola está llena, la tarea se descarta con un log y
-la respuesta es la misma.
+Es el mismo trabajo para cualquier correo, exista o no: la admisión mira la IP y los pedidos en memoria, nunca la
+cuenta. Si la cola está llena, la tarea se descarta con un log y la respuesta es la misma.
 
 En el hilo del executor, en una transacción propia:
 
@@ -97,10 +99,14 @@ En el hilo del executor, en una transacción propia:
 tiempo de varias consultas entre una cuenta activa dentro del límite y el resto. Igualarla con trabajo ficticio es
 frágil, y el spec no admite diferencias apreciables.
 
-### D4 — Un executor propio sin contexto de tenant, no `@Async`
+### D4 — Dos executors propios sin contexto de tenant, no `@Async`
 
-- Un bean `ExecutorService` dedicado (`accountExecutor`): 2 hilos y una cola acotada. Corre dos tareas: el pedido de
-  recuperación (D3) y el aviso de cambio de contraseña (D6).
+- Dos beans `ExecutorService` dedicados, cada uno con su cola acotada:
+  - `recoveryExecutor` (2 hilos, cola de 100): los pedidos de recuperación (D3);
+  - `accountNoticeExecutor` (1 hilo, cola de 50): los avisos de cambio de contraseña (D6).
+- **Por qué separados:** cualquiera puede generar pedidos de recuperación, pero un aviso solo nace de un cambio que ya
+  exigió la contraseña o un enlace vigente. Con una sola cola, una inundación de pedidos retrasaría o descartaría la
+  alarma de seguridad; separadas, la inundación no llega a los avisos.
 - **Por qué no choca con el tripwire de `@Async`:** el tripwire existe porque un hilo nuevo no hereda el contexto de
   tenant de la petición. Estas tareas **no lo necesitan**. Solo tocan `users`, `platform_admins` y
   `password_reset_tokens`, que no tienen RLS, y nunca fijan ni leen `IdentityContext`, `OrganizationContext` ni
@@ -108,19 +114,19 @@ frágil, y el spec no admite diferencias apreciables.
   auth previos a la sesión), y si alguna tarea tocara una tabla con RLS, fallaría cerrado.
 - Cada tarea **limpia los `ThreadLocal` de tenant al empezar**, como defensa por si un hilo del pool los heredara.
 - Nuevas reglas de ArchUnit, que vigilan lo que el tripwire protege:
-  - el worker de recuperación y el paquete `infra.mail` no dependen de `IdentityContext`, `OrganizationContext` ni
+  - los workers de recuperación y de aviso y el paquete `infra.mail` no dependen de `IdentityContext`, `OrganizationContext` ni
     de la sesión de tenant;
   - `infra.mail` no depende de `persistence`.
 - Un fallo de entrega se registra **sin** el token, el enlace ni datos de la contraseña.
-- En el apagado, el executor termina con un plazo corto (`shutdown` + `awaitTermination`). Las tareas en cola se
+- En el apagado, los executors terminan con un plazo corto (`shutdown` + `awaitTermination`). Las tareas en cola se
   pierden (ver Riesgos).
 - Nueva interfaz `AccountMailer` (enlace de recuperación y aviso de cambio), separada de `InvitationMailer`: la
   invitación **debe** fallar la petición si no se envía (add-platform-admin D6); estos correos no. Sin correo
   configurado, la variante deshabilitada registra y descarta: en ese entorno la recuperación no funciona, pero la
   respuesta sigue siendo la misma.
-- En los tests, un `AccountMailer` que registra lo enviado. Los ITs de comportamiento esperan a que el executor
-  termine su cola antes de afirmar. El test de anti-enumeración **bloquea el executor con un latch** y comprueba que
-  la petición responde igual para todos los casos sin que el worker haya empezado (D9).
+- En los tests, un `AccountMailer` que registra lo enviado. Los ITs de comportamiento esperan a que los executors
+  terminen su cola antes de afirmar. El test de anti-enumeración **bloquea el executor de recuperación con un latch**
+  y comprueba que la petición responde igual para todos los casos sin que el worker haya empezado (D9).
 
 ### D5 — Restablecer: orden de bloqueo `users` → `password_reset_tokens` → `refresh_tokens`
 
@@ -139,7 +145,7 @@ frágil, y el spec no admite diferencias apreciables.
    no hay ninguna membresía `ACTIVE` **en una organización `ACTIVE`** (una membresía activa en una clínica
    suspendida no da acceso, igual que en el login); si no, `OK`. Para leer `memberships` se fija la identidad con
    `bindIdentity`, como el login: esto corre en el hilo de la petición, no en el executor.
-9. `afterCommit` → entregar el aviso de cambio al executor (D6).
+9. `afterCommit` → entregar el aviso de cambio al `accountNoticeExecutor` (D6).
 
 El orden es el mismo en el pedido (`users` → `password_reset_tokens`), así que pedido y restablecimiento simultáneos
 no forman ciclo. Leer el token sin bloqueo en el paso 1 no cuenta como adquisición.
@@ -156,7 +162,8 @@ Se prueba con hilos reales, un `ExecutorService` propio y el punto de espera iny
 
 ### D6 — Aviso de cambio de contraseña
 
-- Se envía tras el commit de `POST /auth/password` (Mi perfil) y de `POST /auth/password-reset`, por el executor de D4.
+- Se envía tras el commit de `POST /auth/password` (Mi perfil) y de `POST /auth/password-reset`, por el
+  `accountNoticeExecutor` de D4, nunca por la cola de los pedidos de recuperación.
 - Contenido: que la contraseña de la cuenta cambió, fecha y hora en hora de Perú, y qué hacer si no fue el titular:
   pedir la recuperación y avisar al administrador de la clínica. Sin enlaces que cambien la contraseña, para no
   entrenar a abrir enlaces de correos de "tu cuenta cambió".
@@ -170,7 +177,8 @@ Se prueba con hilos reales, un `ExecutorService` propio y el punto de espera iny
   que el teclado llegue.
 - **Pedido** (`ForgotPasswordForm`): correo con el `emailSchema` del login. Tras enviar muestra siempre el mismo
   mensaje: "Si existe una cuenta con ese correo, te enviamos un enlace. Revisa tu bandeja y el spam. El enlace vale
-  30 minutos".
+  30 minutos. Si no te llega en unos minutos, vuelve a pedirlo." La última frase cubre los pedidos que no se
+  atienden (límite, repetido, cola llena o reinicio) sin revelar cuál pasó.
 - **Restablecer** (`ResetPasswordForm`):
   - lee `token` de la query **una vez**, lo guarda en estado y reemplaza la URL sin la query
     (`navigate(..., { replace: true })`), así no queda en el historial;
@@ -199,21 +207,68 @@ o 2FA.
 
 ### D9 — Cómo se prueba la anti-enumeración
 
-Un IT con el executor **detenido por un latch** pide la recuperación con seis correos: activo dentro del límite,
-inexistente, identidad desactivada, administrador de plataforma, plataforma que también es miembro y cuenta que ya
-superó el límite. Para los seis comprueba que el status, los headers (salvo los que varían por petición, como la
-fecha) y el cuerpo son idénticos, y que las seis respuestas llegaron **sin que el worker haya empezado**. Eso prueba
-que la respuesta no depende de la cuenta, sin medir tiempos (que en CI serían inestables). Después se libera el
-latch y se comprueba que solo la cuenta activa dentro del límite recibió el correo.
+Un IT con el executor de recuperación **detenido por un latch** pide la recuperación con seis correos: activo dentro
+del límite, inexistente, identidad desactivada, administrador de plataforma, plataforma que también es miembro y
+cuenta que ya superó el límite. Comprueba:
+
+- **Respuestas idénticas:** status y cuerpo iguales, y los headers iguales **uno por uno**, salvo `Date`, que es el
+  único que se excluye (por nombre, no por "comparables").
+- **La petición no toca la base:** con el worker detenido, el contador de sentencias de las estadísticas de
+  Hibernate no avanza durante las seis peticiones. Que la respuesta llegue antes que el worker no alcanza: una
+  implementación que consultara la cuenta antes de encolar también lo cumpliría.
+- **Las variantes de no atender:** un pedido rechazado por el límite de IP, uno repetido con otro pendiente y uno
+  con la cola llena (executor detenido y cola completa) responden exactamente igual que los seis anteriores.
+
+Todo sin medir tiempos (que en CI serían inestables). Después se libera el latch y se comprueba que solo la cuenta
+activa dentro del límite recibió el correo, una sola vez.
+
+### D10 — Admisión del pedido: límite por IP y un solo pendiente por correo, en memoria
+
+Corre en la petición, después de validar el formato, y **no consulta la base**:
+
+- **Límite por IP:** 10 pedidos por IP por hora, contados en un `Cache` de Caffeine (ya está en el proyecto) con
+  vencimiento a la hora del primer pedido y un tamaño máximo (10 000 IPs). Superado, el pedido no se encola.
+  Si un ataque desde muchísimas IPs desborda el tamaño, Caffeine descarta contadores y alguna IP recupera cupo: se
+  acepta, porque la memoria queda acotada y el peor caso es la cola llena de D4.
+- **IP real detrás del proxy:** hoy `forward-headers-strategy: framework` hace que `getRemoteAddr()` devuelva el
+  **primer** valor de `X-Forwarded-For`, que el cliente puede inventar. El límite **no** usa ese valor: toma la IP
+  contando desde la **derecha** de la cadena, saltando un número configurable de proxies de confianza
+  (`app.password-recovery.trusted-proxy-hops`). Como `ForwardedHeaderFilter` saca las cabeceras `X-Forwarded-*` de la
+  petición, la resolución corre en un filtro **anterior** a él, o se cambia a la estrategia `native` con el
+  `RemoteIpValve` de Tomcat y sus proxies internos: se decide al aplicar, según lo que se observe en Render. Sin
+  cabecera (local, tests), se usa la dirección de la conexión.
+- **Un solo pendiente por correo:** un conjunto concurrente de correos normalizados en cola o en proceso. Si el correo
+  ya está, no se encola; el worker lo quita al terminar (en un `finally`), y también se quita si la cola rechaza la
+  tarea. Su tamaño está acotado por la cola. Evita que un mismo correo ocupe la cola y que dos pedidos simultáneos
+  generen dos enlaces.
+- La decisión depende solo de la IP y de los pedidos anteriores de ese correo, nunca de que la cuenta exista, y la
+  respuesta es la misma en todos los casos: no abre un canal de enumeración.
+- **Varias instancias:** con más de una, cada una tendría su propio contador y su propio conjunto, y el límite real se
+  multiplica por la cantidad de instancias. Ese día se mueve a Redis (Render Key Value); hasta entonces es una sola.
+
+**Alternativas descartadas:**
+- **Cola persistida en la base**, con reintentos: sobrevive reinicios, pero no frena una inundación (con muchas IPs y
+  correos inventados, la tabla crece sin tope, y ponerle tope vuelve a descartar), y suma estados, reclamo con
+  `SKIP LOCKED`, reintentos con temporizador propio y limpieza. Un pedido perdido se resuelve volviendo a pedir.
+- **CAPTCHA (Turnstile)**: dependencia externa y fricción, y no evita perder pedidos. Queda como defensa adicional
+  si el límite por IP no alcanza.
 
 ## Risks / Trade-offs
 
-- **Cola llena por abuso**: quien envía muchos pedidos puede llenar la cola y hacer que se descarten pedidos
-  legítimos durante ese rato. La respuesta no cambia, así que no se filtra nada; el afectado vuelve a pedir. El
-  límite por IP, que lo frenaría, necesita Redis (non-goal).
+- **Cola llena por abuso distribuido**: el límite por IP (D10) frena a un origen solo, pero un ataque desde muchas
+  IPs todavía puede llenar la cola de recuperación y hacer que se descarten pedidos legítimos durante ese rato. La
+  respuesta no cambia, así que no se filtra nada; los avisos de cambio no se ven afectados (cola propia, D4); la
+  pantalla le dice al usuario que vuelva a pedir si no le llega. Si pasa en la práctica, el siguiente paso es un
+  CAPTCHA en el formulario.
+- **IPs compartidas**: una clínica detrás de una sola IP comparte el cupo de 10 pedidos por hora. Alcanza para el
+  uso normal (olvidos esporádicos); si no, se sube el número por configuración.
+- **IP mal resuelta**: si el número de proxies de confianza no coincide con lo que agrega Render, el límite cae sobre
+  la IP del proxy (todos comparten cupo) o sobre un valor que el cliente inventa (se esquiva). Por eso se verifica en
+  el despliegue (Migration Plan).
+- **Varias instancias**: el límite en memoria deja de ser global (D10). Hoy hay una sola instancia.
 - **Envíos perdidos**: si el proceso se reinicia con pedidos en cola, se pierden. El usuario vuelve a pedir. Un pedido
-  perdido en la cola no cuenta para el límite; uno cuyo correo falla después de emitir el enlace, sí. Se acepta frente a una tabla de salida con reintentos (outbox), que pediría
-  una tarea programada.
+  perdido en la cola no cuenta para el límite; uno cuyo correo falla después de emitir el enlace, sí. Se acepta
+  frente a una cola persistida con reintentos (D10, alternativas).
 - **Seguimiento de clics de Brevo**: si está activo, Brevo reescribe el enlace del correo y el token pasa por sus
   servidores antes de llegar al navegador; `no-referrer` no lo evita. Es una **precondición bloqueante del
   despliegue**: el seguimiento de clics tiene que estar apagado para el correo de recuperación. Al aplicar se
@@ -231,7 +286,11 @@ latch y se comprueba que solo la cuenta activa dentro del límite recibió el co
 3. **Bloqueante antes de producción**: confirmar `MAIL_ENABLED` y el SMTP en Render, y comprobar con un correo de
    recuperación real que el enlace llega **sin reescribir** por el seguimiento de clics de Brevo. Sin esa
    comprobación no se despliega.
-4. **Rollback:** la tabla es aditiva; revertir la app la deja sin uso. Flyway no se revierte.
+4. **Antes de producción:** con un pedido real a través de Render, comprobar qué valores trae `X-Forwarded-For` y
+   fijar `app.password-recovery.trusted-proxy-hops` para que el límite caiga sobre la IP del cliente, y comprobar
+   que un `X-Forwarded-For` inventado por el cliente no cambia la IP contada. Sin registrar IPs en los logs
+   permanentes.
+5. **Rollback:** la tabla es aditiva; revertir la app la deja sin uso. Flyway no se revierte.
 
 ## Open Questions
 
