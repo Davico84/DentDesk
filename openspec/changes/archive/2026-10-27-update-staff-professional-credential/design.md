@@ -243,5 +243,7 @@ afecta a la verificación de copias de `add-database-backups`.
 - **¿La constancia de habilitación del COP trae una fecha de vigencia impresa?** Si la trae, la ayuda del campo
   dice "la fecha de tu constancia". Si no, dice "el último día del período de cuotas pagado". Cambia el texto de
   ayuda, no el modelo ni los requirements. Se confirma con una constancia real antes de archivar.
+  **Cerrada (2026-10-27):** el responsable confirmó que la constancia trae la fecha impresa; la ayuda dice "La fecha
+  de vigencia que figura en tu constancia de habilitación del COP" (`update-authentication-my-profile`).
 - **Formato del número COP.** Se acepta solo dígitos, de 1 a 10, sin suponer una longitud fija; si el COP usa una
   fija, se ajusta la validación sin cambiar el modelo.
