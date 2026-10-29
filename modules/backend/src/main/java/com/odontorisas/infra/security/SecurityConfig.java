@@ -21,8 +21,11 @@ import java.util.List;
 
 /**
  * Seguridad de la capacidad {@code authentication}: API stateless con access
- * token JWT (Bearer). Rutas públicas: {@code /auth/**}, health y el contrato
- * OpenAPI; el resto requiere autenticación. El refresh token viaja en cookie
+ * token JWT (Bearer). Rutas públicas: la lista explícita de {@link PublicPaths}
+ * (bajo {@code /auth} solo login, registro, refresh, logout e invitaciones;
+ * {@code /auth/password} exige sesión), health y el contrato OpenAPI; el resto
+ * requiere autenticación. Una ruta nueva no nace pública: hay que sumarla a
+ * {@link PublicPaths}. El refresh token viaja en cookie
  * {@code HttpOnly} sobre {@code /auth} (CORS con credenciales). CSRF se
  * deshabilita: no hay sesión de servidor y la cookie de refresh se protege con
  * {@code SameSite=Lax} + método POST.
