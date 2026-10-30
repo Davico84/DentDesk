@@ -13,6 +13,8 @@ import { ConsultationNotesScreen } from "@/screens/consultation-notes/Consultati
 import { LoginScreen } from "@/screens/auth/LoginScreen";
 import { ProfileScreen } from "@/screens/profile/ProfileScreen";
 import { RegisterScreen } from "@/screens/auth/RegisterScreen";
+import { ForgotPasswordScreen } from "@/screens/auth/ForgotPasswordScreen";
+import { ResetPasswordScreen } from "@/screens/auth/ResetPasswordScreen";
 import { RequireAuth } from "@/modules/core/auth/RequireAuth";
 import { RequireGuest } from "@/modules/core/auth/RequireGuest";
 import { RouteError } from "@/modules/core/components/RouteError";
@@ -38,8 +40,12 @@ export const appRoutes: RouteObject[] = [
     children: [
       { path: PATHS.LOGIN, element: <LoginScreen /> },
       { path: PATHS.REGISTER, element: <RegisterScreen /> },
+      { path: PATHS.FORGOT_PASSWORD, element: <ForgotPasswordScreen /> },
     ],
   },
+  // Fuera de RequireGuest a propósito: quien abre el enlace con una sesión abierta también tiene que poder usarlo;
+  // restablecer cierra todas las sesiones, también esa (update-authentication-password-recovery D7).
+  { path: PATHS.RESET_PASSWORD, element: <ResetPasswordScreen /> },
   {
     element: <RequireAuth />,
     children: [

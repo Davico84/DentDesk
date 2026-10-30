@@ -1,6 +1,7 @@
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Mail } from "lucide-react";
+import { Link } from "react-router-dom";
 import { Label } from "@/modules/core/ui/label";
 import { PasswordInput } from "@/modules/core/ui/password-input";
 import { IconInput } from "@/modules/core/ui/icon-input";
@@ -9,6 +10,8 @@ import { useLogin } from "../hooks/useAuth";
 import { AuthSubmitButton } from "./AuthSubmitButton";
 import { cn } from "@/modules/core/utils/cn";
 import { applyServerFieldErrors } from "@/modules/core/utils/apiError";
+import { PATHS } from "@/routes/paths";
+import { PasswordResetNotice } from "./PasswordResetNotice";
 
 /** Formulario de inicio de sesión. La redirección por rol la maneja el RouteGuard. */
 export function LoginForm() {
@@ -33,6 +36,9 @@ export function LoginForm() {
       className="flex flex-col gap-5"
       noValidate
     >
+      {/* Aviso tras restablecer la contraseña, si se llegó desde ahí. */}
+      <PasswordResetNotice />
+
       {/* Campo correo */}
       <div className="flex flex-col gap-1.5">
         <Label htmlFor="email" className="text-sm font-medium">
@@ -61,13 +67,12 @@ export function LoginForm() {
           <Label htmlFor="password" className="text-sm font-medium">
             Contraseña
           </Label>
-          <button
-            type="button"
-            tabIndex={-1}
+          <Link
+            to={PATHS.FORGOT_PASSWORD}
             className="text-xs text-primary hover:underline underline-offset-4 transition-colors focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring rounded"
           >
             ¿Olvidaste tu contraseña?
-          </button>
+          </Link>
         </div>
         <div className="[&_input]:h-11 [&_input]:rounded-lg [&_input]:text-sm">
           <PasswordInput

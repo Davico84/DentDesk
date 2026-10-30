@@ -3,6 +3,10 @@ export const PATHS = {
   ROOT: "/",
   LOGIN: "/auth/login",
   REGISTER: "/auth/register",
+  /** Pedir la recuperación de la contraseña (solo sin sesión). */
+  FORGOT_PASSWORD: "/auth/forgot-password",
+  /** Elegir la contraseña nueva desde el enlace del correo (con o sin sesión). */
+  RESET_PASSWORD: "/auth/reset-password",
   BRANDING: "/settings/branding",
   STAFF: "/settings/staff",
   PATIENTS: "/patients",
