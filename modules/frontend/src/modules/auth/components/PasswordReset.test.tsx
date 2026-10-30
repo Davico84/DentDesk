@@ -60,6 +60,8 @@ describe("PasswordReset", () => {
     expect(await screen.findByLabelText(/^contraseña nueva$/i)).toBeInTheDocument();
     await waitFor(() => expect(router.state.location.search).toBe(""));
     expect(router.state.location.pathname).toBe(PATHS.RESET_PASSWORD);
+    // Reemplaza la entrada del historial: no queda una con el token a la que volver atrás.
+    expect(router.state.historyAction).toBe("REPLACE");
     expect(checked).toEqual({ token: "secreto-1" });
   });
 
