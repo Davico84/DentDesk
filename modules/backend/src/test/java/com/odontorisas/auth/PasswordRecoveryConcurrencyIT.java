@@ -39,6 +39,9 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
  *   <li>(a) sin los {@code FOR UPDATE} del restablecimiento (users y token): los dos ven el enlace vigente y los dos
  *   cambian la contraseña. Con solo el del token también queda serializado.</li>
  *   <li>(b) sin el {@code FOR UPDATE} de users en el worker: 4 envíos en vez de 3.</li>
+ *   <li>(d') login verificado antes del restablecimiento, sin exigir el hash verificado al cerrar el login: entra con
+ *   la contraseña anterior (200). Login que termina mientras el restablecimiento espera, sin borrar las sesiones:
+ *   su sesión se renueva.</li>
  *   <li>(e) comprobando el estado antes del bloqueo (con la copia cargada antes): se emite el enlace a la cuenta ya
  *   desactivada o ya de plataforma.</li>
  * </ul>
@@ -88,6 +91,8 @@ class PasswordRecoveryConcurrencyIT extends AbstractPasswordRecoveryIT {
         final AtomicReference<Gate> recoveryUserFound = new AtomicReference<>();
         final AtomicReference<Gate> resetLinkValidated = new AtomicReference<>();
         final AtomicReference<Gate> refreshConsumed = new AtomicReference<>();
+        final AtomicReference<Gate> loginVerified = new AtomicReference<>();
+        final AtomicReference<Gate> resetTokenRead = new AtomicReference<>();
         volatile boolean single = true;
 
         private void pass(AtomicReference<Gate> point) {
@@ -100,11 +105,15 @@ class PasswordRecoveryConcurrencyIT extends AbstractPasswordRecoveryIT {
         @Override public void afterRecoveryUserFound() { pass(recoveryUserFound); }
         @Override public void afterResetLinkValidated() { pass(resetLinkValidated); }
         @Override public void afterRefreshTokenConsumed() { pass(refreshConsumed); }
+        @Override public void afterLoginPasswordVerified() { pass(loginVerified); }
+        @Override public void afterResetTokenRead() { pass(resetTokenRead); }
 
         void disarm() {
             recoveryUserFound.set(null);
             resetLinkValidated.set(null);
             refreshConsumed.set(null);
+            loginVerified.set(null);
+            resetTokenRead.set(null);
             single = true;
         }
     }
@@ -266,6 +275,52 @@ class PasswordRecoveryConcurrencyIT extends AbstractPasswordRecoveryIT {
             assertThat(mockMvc.perform(post("/auth/refresh").cookie(fresh)).andReturn().getResponse().getStatus())
                 .isEqualTo(401);
         }
+    }
+
+    // ================================================================ (d') login con la contraseña anterior contra restablecimiento
+
+    @Test
+    void a_login_with_the_old_password_verified_before_a_reset_is_rejected_after_it() throws Exception {
+        String email = newEmail("login-antes");
+        long user = activeMember(email);
+        String token = link(user, Duration.ofMinutes(1));
+        Gate gate = new Gate(1);
+        probe.loginVerified.set(gate);
+
+        CountDownLatch loginFinished = new CountDownLatch(1);
+        Future<Integer> logging = async(loginFinished, () -> login(email, PASSWORD));
+        gate.awaitReached();
+        // El BCrypt del login ya aceptó la contraseña anterior; el restablecimiento commitea en el medio.
+        assertThat(reset(token, NEW_PASSWORD).getStatus()).isEqualTo(200);
+        gate.open();
+
+        assertThat(result(logging)).isEqualTo(401);
+        assertThat(count("SELECT count(*) FROM refresh_tokens WHERE user_id = " + user)).isZero();
+        assertThat(login(email, NEW_PASSWORD)).isEqualTo(200);
+    }
+
+    @Test
+    void a_login_that_completes_while_a_reset_waits_cannot_renew_its_session() throws Exception {
+        String email = newEmail("login-durante");
+        long user = activeMember(email);
+        String token = link(user, Duration.ofMinutes(1));
+        Gate gate = new Gate(1);
+        probe.resetTokenRead.set(gate);
+
+        CountDownLatch resetFinished = new CountDownLatch(1);
+        Future<MockHttpServletResponse> resetting = async(resetFinished, () -> reset(token, NEW_PASSWORD));
+        gate.awaitReached();
+        // El restablecimiento todavía no tomó ningún bloqueo: el login con la contraseña anterior entra.
+        Cookie session = mockMvc.perform(post("/auth/login").contentType(MediaType.APPLICATION_JSON)
+                .content("{\"email\":\"" + email + "\",\"password\":\"" + PASSWORD + "\"}"))
+            .andReturn().getResponse().getCookie(REFRESH_COOKIE);
+        assertThat(session).isNotNull();
+        gate.open();
+
+        assertThat(result(resetting).getStatus()).isEqualTo(200);
+        assertThat(count("SELECT count(*) FROM refresh_tokens WHERE user_id = " + user)).isZero();
+        assertThat(mockMvc.perform(post("/auth/refresh").cookie(session)).andReturn().getResponse().getStatus())
+            .isEqualTo(401);
     }
 
     // ================================================================ (e) el estado cambia mientras se procesa
