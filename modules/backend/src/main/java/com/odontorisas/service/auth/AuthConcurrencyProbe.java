@@ -44,7 +44,11 @@ public interface AuthConcurrencyProbe {
     default void afterResetTokenRead() {
     }
 
-    /** Restablecimiento: el {@code FOR UPDATE} de users ya está tomado y todavía no el del token (D5). */
-    default void afterResetUserLocked() {
+    /**
+     * Restablecimiento: el enlace ya se validó bajo los {@code FOR UPDATE} de users y del token, y todavía no se
+     * cambió nada (D5). Es la ventana en la que, sin los bloqueos, otro restablecimiento con el mismo enlace también
+     * lo vería vigente.
+     */
+    default void afterResetLinkValidated() {
     }
 }

@@ -106,7 +106,6 @@ public class PasswordResetService {
 
         // 2. users primero, sin el filtro de "no bloqueado": restablecer con la cuenta bloqueada es válido.
         User user = users.findByIdForUpdate(userId).orElseThrow(InvalidResetLinkException::new);
-        probe.afterResetUserLocked();
 
         // 3. El token, bajo su propio bloqueo: vigencia y que la cuenta no haya pasado a plataforma.
         PasswordResetToken token = tokens.findByTokenHashForUpdate(tokenHash)
@@ -115,6 +114,7 @@ public class PasswordResetService {
         if (!token.isValidAt(now) || platformAdmins.existsByUserId(userId)) {
             throw new InvalidResetLinkException();
         }
+        probe.afterResetLinkValidated();
 
         // 5. Hash nuevo; conserva un bloqueo vigente y su contador, si no lo hay los pone a cero.
         users.resetPassword(userId, newHash, now);
