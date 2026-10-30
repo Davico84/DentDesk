@@ -16,7 +16,7 @@ El sistema SHALL permitir a cualquier persona sin sesión pedir la recuperación
 
 #### Scenario: La respuesta no delata la cuenta
 - **WHEN** se pide la recuperación con el correo de una cuenta activa dentro del límite, uno no registrado, uno de una identidad desactivada, uno de un administrador de plataforma y uno de una cuenta que superó el límite
-- **THEN** las cinco respuestas son idénticas en status, headers y cuerpo
+- **THEN** las cinco respuestas son idénticas en status, cuerpo y headers, salvo los que cambian en cada petición sin depender de la cuenta (la fecha y el identificador de traza)
 - **AND** llegan sin esperar a que se busque la cuenta ni a que se envíe el correo
 
 #### Scenario: Correo con mayúsculas o espacios
