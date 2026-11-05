@@ -5,8 +5,8 @@ import org.springframework.stereotype.Component;
 
 /**
  * IP del cliente para el límite de pedidos de recuperación ({@code update-authentication-password-recovery}
- * design.md D10). <b>Una sola fuente:</b> la cabecera configurada ({@code CF-Connecting-IP} en producción), que
- * Cloudflare escribe con la IP que se conectó y pisa si el cliente la manda.
+ * design.md D10). <b>Una sola fuente:</b> la cabecera configurada ({@code X-Real-IP} en producción, que escribe
+ * Vercel al reenviar {@code /api/*}; quien llame al backend directo puede inventarla, riesgo aceptado en D10).
  *
  * <p>Nunca {@code X-Forwarded-For}: el cliente controla sus valores a la izquierda y, con
  * {@code forward-headers-strategy: framework}, {@code getRemoteAddr()} devuelve justamente el primero. Por eso,
