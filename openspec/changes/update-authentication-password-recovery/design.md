@@ -158,7 +158,8 @@ no forman ciclo. Leer el token sin bloqueo en el paso 1 no cuenta como adquisici
   segundo ve el estado del primero.
 
 Se prueba con hilos reales, un `ExecutorService` propio y el punto de espera inyectable de Mi perfil
-(`AuthConcurrencyProbe`), que gana dos puntos nuevos: después de leer el token y después de bloquear `users`.
+(`AuthConcurrencyProbe`), que gana dos puntos nuevos en el restablecimiento: después de leer el token y después de
+validarlo bajo los bloqueos (la ventana en la que, sin ellos, otro restablecimiento también lo vería vigente).
 
 ### D6 — Aviso de cambio de contraseña
 
@@ -211,13 +212,14 @@ Un IT con el executor de recuperación **detenido por un latch** pide la recuper
 del límite, inexistente, identidad desactivada, administrador de plataforma, plataforma que también es miembro y
 cuenta que ya superó el límite. Comprueba:
 
-- **Respuestas idénticas:** status y cuerpo iguales, y los headers iguales **uno por uno**, salvo `Date`, que es el
-  único que se excluye (por nombre, no por "comparables").
+- **Respuestas idénticas:** status y cuerpo iguales, y los headers iguales **uno por uno**, salvo `Date` y
+  `X-Trace-Id` (aleatorio por petición, para correlacionar logs): se excluyen por nombre, no por "comparables".
 - **La petición no toca la base:** que la respuesta llegue antes que el worker no alcanza, porque una implementación
   que consultara la cuenta antes de encolar también lo cumpliría. Un contador global (las estadísticas de Hibernate)
-  tampoco: Hikari, Actuator y otros hilos lo mueven. Se prueba **por hilo**: en el IT, un `BeanPostProcessor` de test
-  envuelve el `DataSource` y registra qué hilo pide cada conexión; con MockMvc la petición corre en el hilo del test,
-  y ese hilo no pide ninguna conexión durante los pedidos. Además, un test unitario del servicio de pedido con
+  tampoco: Hikari, Actuator y otros hilos lo mueven. Se prueba **por hilo**: en el IT, un `StatementInspector` de
+  Hibernate registra el hilo de cada sentencia SQL; con MockMvc la petición corre en el hilo del test, y ese hilo no
+  ejecuta ninguna durante los pedidos. (Envolver el `DataSource` no sirve: Flyway deriva el suyo del bean principal y
+  no reconoce un tipo envoltorio.) Además, un test unitario del servicio de pedido con
   `verifyNoInteractions` sobre los repositorios.
 - **Las variantes de no atender:** un pedido rechazado por el límite de IP, uno repetido con otro pendiente y uno
   con la cola llena (executor detenido y cola completa) responden exactamente igual que los seis anteriores.

@@ -284,6 +284,7 @@ Consecuencia (decidida en `add-cloud-deployment`): **toda la API pasa a `/api`**
 | `MAIL_FROM` | remitente verificado en Brevo | |
 | `FRONTEND_URL` | `https://dentdeskapp.vercel.app` | base del enlace del correo de invitación |
 | `PLATFORM_ADMIN_*` | solo durante el bootstrap | ver §11.1; **se retiran** después |
+| `PASSWORD_RECOVERY_CLIENT_IP_HEADER` | `CF-Connecting-IP` | IP del cliente para el límite de pedidos de recuperación. **Obligatoria en producción**: sin ella el límite toma la dirección de la conexión, que detrás del proxy se puede falsificar. Verificarla antes de habilitar la recuperación (§12.2) |
 
 Los secretos se cargan en el panel de Render, **nunca** en el repo.
 
@@ -430,4 +431,39 @@ crear la clínica**, porque envía un correo real. No guarda el token.
 | 503 | el correo no se pudo enviar, o `MAIL_ENABLED` no es `true` | no se creó nada; revisar `MAIL_*` (en Render, `MAIL_PORT=2525`) y reintentar |
 | 502 tras ~2 min | sin `MAIL_TIMEOUT` (versión anterior a los timeouts) y puerto SMTP bloqueado | no se creó nada; usar `MAIL_PORT=2525` |
 | 400 | nombre vacío, de 1 carácter o de más de 120; correo inválido | corregir |
+
+## 12. Recuperación de la contraseña (`update-authentication-password-recovery`)
+
+### 12.1 Administrador de plataforma: recuperación operativa
+
+Los administradores de plataforma **no** recuperan la contraseña desde la aplicación: el pedido les responde lo
+mismo que a cualquiera y no les envía nada (su cuenta es la de mayor privilegio y no tiene segundo factor).
+`PlatformAdminBootstrapRunner` solo **crea** el administrador si no existe, así que tampoco sirve. El responsable:
+
+1. Genera **en su equipo** un hash BCrypt de la contraseña nueva (por ejemplo con `htpasswd -bnBC 10 "" '<nueva>' | tr -d ':
+'`, que produce un `$2y$`; Spring acepta `$2a$`, `$2b$` y `$2y$`). La contraseña nunca pasa por la terminal de un tercero ni por el repo.
+2. Con el **rol dueño** de Neon (`odontorisas_admin`), en el editor SQL de Neon:
+   ```sql
+   UPDATE users SET password_hash = '<hash>', failed_login_attempts = 0, locked_until = NULL, updated_at = now()
+    WHERE email = '<correo-del-admin>';
+   DELETE FROM refresh_tokens WHERE user_id = (SELECT id FROM users WHERE email = '<correo-del-admin>');
+   ```
+3. Inicia sesión por `POST /api/platform/auth/login` con la contraseña nueva.
+
+Se revisa si algún día hay más de un administrador de plataforma, o segundo factor.
+
+### 12.2 Antes de habilitar la recuperación en producción (bloqueante)
+
+1. **Seguimiento de clics de Brevo apagado.** Si está activo, Brevo reescribe el enlace y el token pasa por sus
+   servidores antes de llegar al navegador (`no-referrer` no lo evita). No hay un header SMTP documentado para
+   apagarlo por mensaje: se apaga en la cuenta de Brevo. **Verificar** con un correo de recuperación real que el
+   enlace llega como `https://<frontend>/auth/reset-password?token=...`, sin reescribir.
+2. **IP del cliente.** Con `PASSWORD_RECOVERY_CLIENT_IP_HEADER=CF-Connecting-IP`, comprobar con pedidos reales a
+   través de Render, sin dejar IPs en los logs permanentes:
+   - que la cabecera llega con la IP del cliente;
+   - que un `CF-Connecting-IP` o un `X-Forwarded-For` mandados por el cliente no cambian la IP contada;
+   - que el servicio no responde sin pasar por Cloudflare.
+
+   Si algo falla, se revisa el design D10 del change antes de desplegar.
+3. **Correo configurado** (`MAIL_*`, §6): sin él, los pedidos se aceptan pero no se envía nada.
 

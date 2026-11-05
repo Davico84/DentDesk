@@ -1,5 +1,6 @@
 package com.odontorisas.presentation.controller;
 
+import com.odontorisas.infra.security.ClientIpResolver;
 import com.odontorisas.infra.security.RefreshCookieFactory;
 import com.odontorisas.presentation.dto.ApiProblem;
 import com.odontorisas.presentation.dto.AuthResponse;
@@ -8,16 +9,23 @@ import com.odontorisas.presentation.dto.LoginRequest;
 import com.odontorisas.presentation.dto.InvitationValidationResponse;
 import com.odontorisas.presentation.dto.InvitationValidationRequest;
 import com.odontorisas.presentation.dto.InvitationVerificationRequest;
+import com.odontorisas.presentation.dto.PasswordRecoveryRequest;
+import com.odontorisas.presentation.dto.PasswordResetCheckRequest;
+import com.odontorisas.presentation.dto.PasswordResetRequest;
+import com.odontorisas.presentation.dto.PasswordResetResponse;
 import com.odontorisas.presentation.dto.RegisterRequest;
 import com.odontorisas.presentation.dto.ValidationProblem;
 import com.odontorisas.service.auth.AuthResult;
 import com.odontorisas.service.auth.AuthService;
+import com.odontorisas.service.auth.PasswordRecoveryService;
+import com.odontorisas.service.auth.PasswordResetService;
 import com.odontorisas.service.auth.RegisterCommand;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
@@ -45,12 +53,21 @@ public class AuthController {
     private final AuthService authService;
     private final RefreshCookieFactory refreshCookieFactory;
     private final com.odontorisas.service.staff.StaffService staffService;
+    private final PasswordRecoveryService passwordRecoveryService;
+    private final PasswordResetService passwordResetService;
+    private final ClientIpResolver clientIpResolver;
 
     public AuthController(AuthService authService, RefreshCookieFactory refreshCookieFactory,
-                          com.odontorisas.service.staff.StaffService staffService) {
+                          com.odontorisas.service.staff.StaffService staffService,
+                          PasswordRecoveryService passwordRecoveryService,
+                          PasswordResetService passwordResetService,
+                          ClientIpResolver clientIpResolver) {
         this.authService = authService;
         this.refreshCookieFactory = refreshCookieFactory;
         this.staffService = staffService;
+        this.passwordRecoveryService = passwordRecoveryService;
+        this.passwordResetService = passwordResetService;
+        this.clientIpResolver = clientIpResolver;
     }
 
     /**
@@ -151,6 +168,58 @@ public class AuthController {
     public ResponseEntity<AuthResponse> changePassword(@Valid @RequestBody ChangePasswordRequest request) {
         return authResponse(authService.changePassword(request.currentPassword(), request.newPassword()),
             HttpStatus.OK);
+    }
+
+    /**
+     * Pedido de recuperación ({@code update-authentication-password-recovery} design.md D1, D3, D10). Responde
+     * <b>siempre</b> {@code 202} sin cuerpo, exista o no la cuenta, cualquiera sea su estado, su límite, el de
+     * la IP o el de la cola: la petición no busca la cuenta. Solo un formato inválido da {@code 400}, que
+     * depende de lo enviado y no de la cuenta.
+     */
+    @ApiResponses({
+        @ApiResponse(responseCode = "202",
+            description = "Pedido recibido. Si existe una cuenta activa con ese correo, se le envía un enlace."),
+        @ApiResponse(responseCode = "400", description = "Correo vacío o con formato inválido.",
+            content = @Content(mediaType = PROBLEM_JSON,
+                schema = @Schema(implementation = ValidationProblem.class)))
+    })
+    @PostMapping("/password-recovery")
+    public ResponseEntity<Void> requestPasswordRecovery(@Valid @RequestBody PasswordRecoveryRequest request,
+                                                        HttpServletRequest http) {
+        passwordRecoveryService.request(request.email(), clientIpResolver.resolve(http));
+        return ResponseEntity.accepted().build();
+    }
+
+    /** ¿El enlace sigue vigente? El mismo {@code 400} para inválido, vencido, usado o anulado (design.md D1). */
+    @ApiResponses({
+        @ApiResponse(responseCode = "204", description = "El enlace es vigente."),
+        @ApiResponse(responseCode = "400",
+            description = "El enlace no es válido o ya venció (`/errors/invalid-reset-link`), sin decir por qué.",
+            content = @Content(mediaType = PROBLEM_JSON, schema = @Schema(implementation = ApiProblem.class)))
+    })
+    @PostMapping("/password-reset/check")
+    public ResponseEntity<Void> checkPasswordReset(@Valid @RequestBody PasswordResetCheckRequest request) {
+        passwordResetService.check(request.token());
+        return ResponseEntity.noContent().build();
+    }
+
+    /**
+     * Restablece la contraseña con el enlace (design.md D1, D5): cierra todas las sesiones y <b>no</b> abre una
+     * nueva (no hay {@code Set-Cookie}). {@code outcome} dice si ya puede entrar.
+     */
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "Contraseña cambiada; todas las sesiones se cerraron.",
+            content = @Content(mediaType = "application/json",
+                schema = @Schema(implementation = PasswordResetResponse.class))),
+        @ApiResponse(responseCode = "400",
+            description = "Campos inválidos (no consume el enlace), o el enlace no es válido o ya venció "
+                + "(`/errors/invalid-reset-link`).",
+            content = @Content(mediaType = PROBLEM_JSON,
+                schema = @Schema(implementation = ValidationProblem.class)))
+    })
+    @PostMapping("/password-reset")
+    public PasswordResetResponse resetPassword(@Valid @RequestBody PasswordResetRequest request) {
+        return PasswordResetResponse.from(passwordResetService.reset(request.token(), request.newPassword()));
     }
 
     /** Devuelve <b>204</b> (sin cuerpo), no 200. Hay que declararlo por la misma razón que el 201. */

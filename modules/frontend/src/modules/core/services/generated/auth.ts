@@ -12,6 +12,10 @@ import type {
   InvitationValidationResponse,
   InvitationVerificationRequest,
   LoginRequest,
+  PasswordRecoveryRequest,
+  PasswordResetCheckRequest,
+  PasswordResetRequest,
+  PasswordResetResponse,
   ProfileRequest,
   ProfileResponse,
   RegisterRequest
@@ -47,6 +51,36 @@ import { customInstance } from '../../config/httpClient';
       {url: `/auth/password`, method: 'POST',
       headers: {'Content-Type': 'application/json', },
       data: changePasswordRequest
+    },
+      );
+    }
+  export const resetPassword = (
+    passwordResetRequest: PasswordResetRequest,
+ ) => {
+      return customInstance<PasswordResetResponse>(
+      {url: `/auth/password-reset`, method: 'POST',
+      headers: {'Content-Type': 'application/json', },
+      data: passwordResetRequest
+    },
+      );
+    }
+  export const checkPasswordReset = (
+    passwordResetCheckRequest: PasswordResetCheckRequest,
+ ) => {
+      return customInstance<void>(
+      {url: `/auth/password-reset/check`, method: 'POST',
+      headers: {'Content-Type': 'application/json', },
+      data: passwordResetCheckRequest
+    },
+      );
+    }
+  export const requestPasswordRecovery = (
+    passwordRecoveryRequest: PasswordRecoveryRequest,
+ ) => {
+      return customInstance<void>(
+      {url: `/auth/password-recovery`, method: 'POST',
+      headers: {'Content-Type': 'application/json', },
+      data: passwordRecoveryRequest
     },
       );
     }
@@ -109,6 +143,9 @@ import { customInstance } from '../../config/httpClient';
   export type RegisterResult = NonNullable<Awaited<ReturnType<typeof register>>>
 export type RefreshResult = NonNullable<Awaited<ReturnType<typeof refresh>>>
 export type ChangePasswordResult = NonNullable<Awaited<ReturnType<typeof changePassword>>>
+export type ResetPasswordResult = NonNullable<Awaited<ReturnType<typeof resetPassword>>>
+export type CheckPasswordResetResult = NonNullable<Awaited<ReturnType<typeof checkPasswordReset>>>
+export type RequestPasswordRecoveryResult = NonNullable<Awaited<ReturnType<typeof requestPasswordRecovery>>>
 export type LogoutResult = NonNullable<Awaited<ReturnType<typeof logout>>>
 export type LoginResult = NonNullable<Awaited<ReturnType<typeof login>>>
 export type VerifyInvitationResult = NonNullable<Awaited<ReturnType<typeof verifyInvitation>>>

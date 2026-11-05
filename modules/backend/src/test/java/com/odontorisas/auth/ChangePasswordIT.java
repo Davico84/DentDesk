@@ -2,15 +2,20 @@ package com.odontorisas.auth;
 
 import com.odontorisas.AbstractIntegrationTest;
 import com.odontorisas.common.Role;
+import com.odontorisas.infra.concurrency.AccountTaskExecutors;
 import com.odontorisas.infra.security.TokenService;
+import com.odontorisas.service.auth.AccountMailer;
+import com.odontorisas.service.auth.AccountMailer.PasswordChangedMail;
 import jakarta.servlet.http.Cookie;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.http.MediaType;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 
@@ -18,9 +23,16 @@ import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.time.Duration;
+import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.RejectedExecutionException;
+import java.util.concurrent.TimeUnit;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.atLeast;
+import static org.mockito.Mockito.verify;
 import static org.hamcrest.Matchers.allOf;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.endsWith;
@@ -47,6 +59,8 @@ class ChangePasswordIT extends AbstractIntegrationTest {
     @Autowired MockMvc mockMvc;
     @Autowired TokenService tokenService;
     @Autowired PasswordEncoder passwordEncoder;
+    @Autowired AccountTaskExecutors executors;
+    @MockitoBean AccountMailer mailer;
 
     private long clinicA;
     private long clinicB;
@@ -293,5 +307,59 @@ class ChangePasswordIT extends AbstractIntegrationTest {
 
         assertThat(refresh(first)).isEqualTo(200);
         assertThat(refresh(second)).isEqualTo(200);
+    }
+
+    // ================================================================ Aviso por correo del cambio de contraseña
+    // (update-authentication-password-recovery tarea 2.4)
+
+    private List<PasswordChangedMail> noticesSent() throws InterruptedException {
+        assertThat(executors.awaitIdle(Duration.ofSeconds(20))).isTrue();
+        ArgumentCaptor<PasswordChangedMail> captor = ArgumentCaptor.forClass(PasswordChangedMail.class);
+        verify(mailer, atLeast(0)).sendPasswordChanged(captor.capture());
+        return captor.getAllValues();
+    }
+
+    @Test
+    void a_successful_change_sends_the_notice_to_the_account_email() throws Exception {
+        assertThat(change(bearerA(), CURRENT, NEW).getResponse().getStatus()).isEqualTo(200);
+
+        assertThat(noticesSent()).extracting(PasswordChangedMail::recipient).containsExactly(email);
+    }
+
+    @Test
+    void a_rejected_change_sends_no_notice() throws Exception {
+        assertThat(change(bearerA(), "no-es-esta", NEW).getResponse().getStatus()).isEqualTo(400);
+        assertThat(change(bearerA(), CURRENT, CURRENT).getResponse().getStatus()).isEqualTo(400);
+
+        assertThat(noticesSent()).isEmpty();
+    }
+
+    /** Requirement <i>Admisión de los pedidos de recuperación</i>: <i>Los avisos no esperan a los pedidos</i>. */
+    @Test
+    void the_notice_is_sent_even_with_the_recovery_queue_saturated() throws Exception {
+        CountDownLatch hold = new CountDownLatch(1);
+        try {
+            try {
+                for (int i = 0; i < 1_000; i++) {
+                    executors.submitRecovery(() -> {
+                        try {
+                            hold.await(30, TimeUnit.SECONDS);
+                        } catch (InterruptedException e) {
+                            Thread.currentThread().interrupt();
+                        }
+                    });
+                }
+            } catch (RejectedExecutionException full) {
+                // la cola de recuperación quedó llena
+            }
+
+            assertThat(change(bearerA(), CURRENT, NEW).getResponse().getStatus()).isEqualTo(200);
+
+            ArgumentCaptor<PasswordChangedMail> captor = ArgumentCaptor.forClass(PasswordChangedMail.class);
+            verify(mailer, org.mockito.Mockito.timeout(10_000)).sendPasswordChanged(captor.capture());
+            assertThat(captor.getValue().recipient()).isEqualTo(email);
+        } finally {
+            hold.countDown();
+        }
     }
 }

@@ -75,4 +75,12 @@ describe("LoginForm", () => {
     ).toBeInTheDocument();
     expect(useSessionStore.getState().status).toBe("idle");
   });
+
+  it("el enlace de contraseña olvidada lleva a la pantalla de pedido y se alcanza con el teclado", () => {
+    renderWithProviders(<LoginForm />);
+
+    const link = screen.getByRole("link", { name: /olvidaste tu contraseña/i });
+    expect(link).toHaveAttribute("href", "/auth/forgot-password");
+    expect(link).not.toHaveAttribute("tabindex", "-1");
+  });
 });

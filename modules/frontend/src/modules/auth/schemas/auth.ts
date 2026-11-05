@@ -33,3 +33,25 @@ export const invitationVerificationSchema = z.object({
 });
 
 export type InvitationVerificationValues = z.infer<typeof invitationVerificationSchema>;
+
+/**
+ * Pedir la recuperación de la contraseña (update-authentication-password-recovery D7). Paridad con
+ * `PasswordRecoveryRequest`: los espacios de los extremos se quitan antes de validar, como en el servidor.
+ */
+export const passwordRecoverySchema = z.object({
+  email: z.string().trim().min(1, "El correo es obligatorio").check(z.email("Correo electrónico no válido")),
+});
+
+/** Elegir la contraseña nueva desde el enlace: la regla del registro, confirmada (sin la contraseña actual). */
+export const resetPasswordSchema = z
+  .object({
+    newPassword: newPasswordSchema,
+    confirmPassword: z.string().min(1, "Confirma tu contraseña nueva"),
+  })
+  .refine((data) => data.newPassword === data.confirmPassword, {
+    message: "Las contraseñas no coinciden",
+    path: ["confirmPassword"],
+  });
+
+export type PasswordRecoveryValues = z.infer<typeof passwordRecoverySchema>;
+export type ResetPasswordValues = z.infer<typeof resetPasswordSchema>;
