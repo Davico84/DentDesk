@@ -1,4 +1,4 @@
-import { createBrowserRouter, type RouteObject } from "react-router-dom";
+import { createBrowserRouter, Navigate, type RouteObject } from "react-router-dom";
 import { RootLayout } from "@/layouts/RootLayout";
 import { AppLayout } from "@/layouts/AppLayout";
 import { HomeScreen } from "@/screens/home/HomeScreen";
@@ -11,12 +11,15 @@ import { ClinicalHistoryScreen } from "@/screens/clinical-history/ClinicalHistor
 import { DentalChartScreen } from "@/screens/dental-chart/DentalChartScreen";
 import { ConsultationNotesScreen } from "@/screens/consultation-notes/ConsultationNotesScreen";
 import { LoginScreen } from "@/screens/auth/LoginScreen";
+import { ProfileScreen } from "@/screens/profile/ProfileScreen";
 import { RegisterScreen } from "@/screens/auth/RegisterScreen";
+import { ForgotPasswordScreen } from "@/screens/auth/ForgotPasswordScreen";
+import { ResetPasswordScreen } from "@/screens/auth/ResetPasswordScreen";
 import { RequireAuth } from "@/modules/core/auth/RequireAuth";
 import { RequireGuest } from "@/modules/core/auth/RequireGuest";
 import { RouteError } from "@/modules/core/components/RouteError";
 import { sectionById, type SectionId } from "@/modules/core/config/sections";
-import { PATHS } from "./paths";
+import { PATHS, PROFILE_CREDENTIAL } from "./paths";
 
 // RootLayout (bootstrap de sesión + splash) envuelve dos zonas:
 // - RequireGuest: rutas de auth (solo sin sesión), sin shell
@@ -37,8 +40,12 @@ export const appRoutes: RouteObject[] = [
     children: [
       { path: PATHS.LOGIN, element: <LoginScreen /> },
       { path: PATHS.REGISTER, element: <RegisterScreen /> },
+      { path: PATHS.FORGOT_PASSWORD, element: <ForgotPasswordScreen /> },
     ],
   },
+  // Fuera de RequireGuest a propósito: quien abre el enlace con una sesión abierta también tiene que poder usarlo;
+  // restablecer cierra todas las sesiones, también esa (update-authentication-password-recovery D7).
+  { path: PATHS.RESET_PASSWORD, element: <ResetPasswordScreen /> },
   {
     element: <RequireAuth />,
     children: [
@@ -57,6 +64,11 @@ export const appRoutes: RouteObject[] = [
           ]),
           section("branding", [{ path: PATHS.BRANDING, element: <BrandingSettingsScreen /> }]),
           section("staff", [{ path: PATHS.STAFF, element: <StaffSettingsScreen /> }]),
+          // De la persona, no una sección de la clínica: cualquier autenticado, sin ítem en la barra
+          // lateral (se llega desde el menú de la cuenta). update-authentication-my-profile D6.
+          { path: PATHS.PROFILE, element: <ProfileScreen /> },
+          // La credencial vivía suelta aquí: la ruta anterior lleva a su sección, sin romper enlaces.
+          { path: PATHS.LEGACY_PROFESSIONAL_CREDENTIAL, element: <Navigate to={PROFILE_CREDENTIAL} replace /> },
         ],
       },
     ],

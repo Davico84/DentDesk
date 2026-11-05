@@ -130,6 +130,39 @@ class MultiTenancyArchitectureTest {
         rule.check(classes);
     }
 
+    /**
+     * <b>Lo que el tripwire protege, en las tareas que sí corren fuera de la petición</b>
+     * ({@code update-authentication-password-recovery} design.md D4). El pedido de recuperación y el aviso de
+     * cambio de contraseña corren en executors propios, sin contexto de tenant, y solo tocan tablas sin RLS.
+     * Si una de estas clases empezara a leer o fijar el contexto, el día que lo necesitara lo leería vacío o
+     * heredado de otra petición. La limpieza de los {@code ThreadLocal} vive en el executor
+     * ({@code AccountTaskExecutors}), no en las tareas.
+     */
+    @Test
+    void account_background_tasks_do_not_touch_the_tenant_context() {
+        assertThat(classes.stream().map(JavaClass::getSimpleName))
+                .as("si se renombran, esta regla dejaría de vigilar algo")
+                .contains("PasswordRecoveryWorker", "PasswordChangeNotifier", "SmtpAccountMailer");
+        ArchRule rule = noClasses()
+                .that().haveSimpleName("PasswordRecoveryWorker")
+                .or().haveSimpleName("PasswordChangeNotifier")
+                .or().resideInAPackage("..infra.mail..")
+                .should().dependOnClassesThat().haveSimpleName("IdentityContext")
+                .orShould().dependOnClassesThat().haveSimpleName("OrganizationContext")
+                .orShould().dependOnClassesThat().haveSimpleName("TenantSession")
+                .because("corren fuera de la petición, sin contexto de tenant (design.md D4)");
+        rule.check(classes);
+    }
+
+    /** Los correos no leen la base: reciben todo armado, así que no pueden tocar una tabla con RLS (D4). */
+    @Test
+    void mail_adapters_do_not_depend_on_persistence() {
+        ArchRule rule = noClasses()
+                .that().resideInAPackage("..infra.mail..")
+                .should().dependOnClassesThat().resideInAPackage("..persistence..");
+        rule.check(classes);
+    }
+
     @Test
     void async_must_not_be_used_until_tenant_context_is_propagated() {
         ArchRule noAsync = noMethods()

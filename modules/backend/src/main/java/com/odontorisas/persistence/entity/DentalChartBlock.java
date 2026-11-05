@@ -3,6 +3,7 @@ package com.odontorisas.persistence.entity;
 import com.odontorisas.common.DentalChartBlockStatus;
 import com.odontorisas.common.DentalChartBlockType;
 import jakarta.persistence.Column;
+import jakarta.persistence.Embedded;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EntityListeners;
 import jakarta.persistence.EnumType;
@@ -74,6 +75,13 @@ public class DentalChartBlock {
 
     @Column(name = "sealed_at")
     private Instant sealedAt;
+
+    /** Quién lo selló (al cerrar la admisión), y su credencial en ese momento (update-staff-professional-credential D5). */
+    @Column(name = "sealed_by")
+    private Long sealedBy;
+
+    @Embedded
+    private Signature signature;
 
     // --- Dos campos de texto DISTINTOS (ADR-0017 D6) ---
     // "revisado y sin nada que anotar" es un dato clínico válido, distinto de "nunca revisado"

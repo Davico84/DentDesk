@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { Routes, Route } from "react-router-dom";
@@ -6,7 +6,12 @@ import { http, HttpResponse } from "msw";
 import { renderWithProviders } from "@/test/utils";
 import { server } from "@/test/mocks/server";
 import { useSessionStore } from "@/store/useSessionStore";
+import { credentialHandlers, ENABLED, EXPIRED, WITHOUT_CREDENTIAL } from "@/modules/staff/test/credentialApiMocks";
 import { ConsultationNotesScreen } from "./ConsultationNotesScreen";
+
+// Firmar exige capacidad clínica (update-staff-professional-credential): salvo que un test diga otra cosa, quien usa
+// la pantalla puede firmar.
+beforeEach(() => server.use(...credentialHandlers({ current: ENABLED }).handlers));
 
 const PATIENT = { id: 1, fullName: "Ada Lovelace", status: "ACTIVE", allergies: ["Látex"] };
 
@@ -482,6 +487,53 @@ describe("ConsultationNotesScreen — notas selladas como acordeón", () => {
     await user.click(sealed);
     expect(sealed).toHaveAttribute("aria-expanded", "true");
     expect(screen.getByText("Encía sana; caries 37")).toBeInTheDocument();
+  });
+});
+
+// Scenarios de clinical-history: La interfaz explica por qué no se puede firmar · Ver quién firmó · Ver una nota sellada
+// antes del cambio.
+describe("ConsultationNotesScreen — firma con credencial", () => {
+  it("sin credencial, sellar está deshabilitado y explica por qué, con acceso para declararla", async () => {
+    server.use(...credentialHandlers({ current: WITHOUT_CREDENTIAL }).handlers);
+    renderScreen({ notes: [OPEN_COMPLETE] });
+
+    expect(await screen.findByText("Para firmar actos clínicos, declara tu credencial profesional.")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /sellar nota/i })).toBeDisabled();
+    expect(screen.getByRole("link", { name: "Declarar credencial" })).toHaveAttribute("href", "/profile#credencial");
+  });
+
+  it("si el servidor rechaza la firma porque venció, el aviso se actualiza y sellar queda deshabilitado", async () => {
+    let reads = 0;
+    server.use(
+      http.get("*/me/professional-credential", () => HttpResponse.json(reads++ === 0 ? ENABLED : EXPIRED)),
+      http.post("*/patients/1/consultation-notes/10/seal", () =>
+        HttpResponse.json(
+          { status: 403, type: "/errors/clinical-capacity-required", reason: "EXPIRED", expiredOn: "2026-10-20",
+            detail: "Tu habilitación venció el 20/10/2026: renueva tu credencial profesional para firmar." },
+          { status: 403 },
+        )),
+    );
+    const user = userEvent.setup();
+    renderScreen({ notes: [OPEN_COMPLETE] });
+
+    await user.click(await screen.findByRole("button", { name: /sellar nota/i }));
+    await user.click(within(screen.getByRole("dialog")).getByRole("button", { name: /^sellar$/i }));
+
+    // El 403 vuelve a pedir la capacidad: el aviso junto al botón pasa a decir que venció.
+    expect(await screen.findByText(/Tu habilitación venció el 20 oct\.? 2026/)).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Renovar credencial" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /sellar nota/i })).toBeDisabled();
+  });
+
+  it("una nota sellada muestra a quién la firmó y su COP", async () => {
+    renderScreen({ notes: [{ ...SEALED, signer: { fullName: "Dra. Ana Ruiz", copNumber: "12345", licensedUntil: "2099-12-31" },
+      signedBeforeCredentials: false }] });
+    expect(await screen.findByText("Firmado por Dra. Ana Ruiz · COP 12345")).toBeInTheDocument();
+  });
+
+  it("una nota sellada antes del registro de credenciales lo indica", async () => {
+    renderScreen({ notes: [{ ...SEALED, signer: null, signedBeforeCredentials: true }] });
+    expect(await screen.findByText("Firmado antes del registro de credenciales")).toBeInTheDocument();
   });
 });
 

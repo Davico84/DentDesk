@@ -6,6 +6,7 @@ import com.odontorisas.common.MembershipStatus;
 import com.odontorisas.common.OrganizationContext;
 import com.odontorisas.common.Role;
 import com.odontorisas.persistence.entity.Invitation;
+import com.odontorisas.persistence.entity.Membership;
 import com.odontorisas.persistence.entity.Organization;
 import com.odontorisas.persistence.entity.User;
 import com.odontorisas.persistence.repository.InvitationRepository;
@@ -43,16 +44,18 @@ public class StaffService {
     private final UserRepository users;
     private final Clock clock;
     private final InvitationMailer invitationMailer;
+    private final ClinicalCapacityService clinicalCapacity;
 
     public StaffService(InvitationRepository invitations, MembershipRepository memberships,
                         OrganizationRepository organizations, UserRepository users, Clock clock,
-                        InvitationMailer invitationMailer) {
+                        InvitationMailer invitationMailer, ClinicalCapacityService clinicalCapacity) {
         this.invitations = invitations;
         this.memberships = memberships;
         this.organizations = organizations;
         this.users = users;
         this.clock = clock;
         this.invitationMailer = invitationMailer;
+        this.clinicalCapacity = clinicalCapacity;
     }
 
     public IssuedInvitation invite(String email, Role role) {
@@ -123,8 +126,13 @@ public class StaffService {
 
     @Transactional(readOnly = true)
     public List<MemberView> members() {
-        return memberships.findByOrganizationId(OrganizationContext.get()).stream()
-            .map(m -> new MemberView(m.getUser().getId(), m.getUser().getEmail(), m.getUser().getFullName(), m.getRole(), m.getStatus()))
+        List<Membership> members = memberships.findByOrganizationId(OrganizationContext.get());
+        // Una sola lectura de credenciales para todo el listado; la RLS solo deja ver las de miembros de la
+        // clínica activa (design.md D1 de update-staff-professional-credential).
+        var capacities = clinicalCapacity.forMembers(members);
+        return members.stream()
+            .map(m -> new MemberView(m.getUser().getId(), m.getUser().getEmail(), m.getUser().getFullName(), m.getRole(),
+                m.getStatus(), capacities.get(m.getUser().getId())))
             .toList();
     }
 
@@ -192,6 +200,31 @@ public class StaffService {
             throw new AccessDeniedException("No puedes desactivar al administrador de la organización.");
         }
         membership.setStatus(status);
+    }
+
+    /**
+     * Retira o restituye la capacidad clínica de un {@code MEMBER} en la clínica activa
+     * ({@code update-staff-professional-credential} design.md D2). Restituir solo levanta el retiro: la
+     * capacidad sigue dependiendo de la credencial que declaró el profesional. La guarda de V30 repite
+     * estas reglas en la base.
+     */
+    public void changeClinicalCapacity(Long memberId, boolean revoked) {
+        Long adminId = IdentityContext.get();
+        if (memberId.equals(adminId)) {
+            throw new AccessDeniedException("No puedes retirar tu propia capacidad clínica.");
+        }
+        var membership = memberships.findByUserIdAndOrganizationId(memberId, OrganizationContext.get())
+            .orElseThrow(MemberNotFoundException::new);
+        if (membership.getRole() == Role.ADMIN) {
+            throw new AccessDeniedException("No puedes retirar la capacidad clínica de un administrador.");
+        }
+        if (revoked && membership.getClinicalCapacityRevokedAt() == null) {
+            membership.setClinicalCapacityRevokedAt(clock.instant());
+            membership.setClinicalCapacityRevokedBy(adminId);
+        } else if (!revoked) {
+            membership.setClinicalCapacityRevokedAt(null);
+            membership.setClinicalCapacityRevokedBy(null);
+        }
     }
 
     public Invitation consume(String rawToken, String email) {
@@ -266,7 +299,8 @@ public class StaffService {
     public record InvitationView(String email, Role role, String organizationName, Instant expiresAt) {
         static InvitationView from(Invitation i) { return new InvitationView(i.getEmail(), i.getRole(), i.getOrganization().getName(), i.getExpiresAt()); }
     }
-    public record MemberView(Long id, String email, String fullName, Role role, MembershipStatus status) {}
+    public record MemberView(Long id, String email, String fullName, Role role, MembershipStatus status,
+                             ClinicalCapacityService.CapacityView clinicalCapacity) {}
 
     /**
      * Invitación en el listado del administrador. Nunca lleva el token ni el código. {@code manageable}: si la

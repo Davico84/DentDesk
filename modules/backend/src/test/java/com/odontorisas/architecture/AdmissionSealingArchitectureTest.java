@@ -1,5 +1,6 @@
 package com.odontorisas.architecture;
 
+import com.odontorisas.common.SignerSnapshot;
 import com.odontorisas.service.admission.CloseAdmissionService;
 import com.odontorisas.service.dentalchart.DentalChartService;
 import com.tngtech.archunit.core.domain.JavaClasses;
@@ -26,7 +27,7 @@ class AdmissionSealingArchitectureTest {
 
     private static final ArchRule ONLY_THE_COORDINATOR_SEALS_THE_DENTAL_CHART = noClasses()
         .that().doNotHaveFullyQualifiedName(CloseAdmissionService.class.getName())
-        .should().callMethod(DentalChartService.class, "sealInitial", Long.class)
+        .should().callMethod(DentalChartService.class, "sealInitial", Long.class, SignerSnapshot.class)
         .because("sellar el odontograma sin la Historia rompe el sellado atómico (ADR-0012 D5)");
 
     @Test
@@ -56,7 +57,7 @@ class AdmissionSealingArchitectureTest {
     @SuppressWarnings("unused")
     private static final class IntruderThatSealsAlone {
         void sealWithoutClinicalHistory(DentalChartService service) {
-            service.sealInitial(1L);
+            service.sealInitial(1L, null);
         }
     }
 }

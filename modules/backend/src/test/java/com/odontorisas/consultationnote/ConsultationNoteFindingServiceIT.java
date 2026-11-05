@@ -1,5 +1,6 @@
 package com.odontorisas.consultationnote;
 
+import com.odontorisas.ClinicalSignerFixtures;
 import com.odontorisas.common.DentalArch;
 import com.odontorisas.common.FindingType;
 import com.odontorisas.common.LocationKind;
@@ -127,6 +128,8 @@ class ConsultationNoteFindingServiceIT extends AbstractConsultationNoteIT {
                  + UUID.randomUUID() + "') RETURNING id")) {
             rs.next();
             otherOrg = rs.getLong(1);
+            // La admisión de la otra clínica también la firma someUser: necesita capacidad clínica ahí.
+            ClinicalSignerFixtures.enableSigner(owner, someUser, otherOrg);
         }
         OrganizationContext.set(otherOrg);
         Long foreignFinding = aPatientWithSealedFindings(caries(16)).findingIds().get(0);

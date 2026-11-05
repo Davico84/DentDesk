@@ -28,4 +28,8 @@ export interface ApiProblem {
   existingPatientId?: number;
   /** Campos que faltan para completar el checklist. Opcional: solo se emite en el error 'clinical-history-incomplete'. */
   missingFields?: string[];
+  /** Por qué no se puede firmar: INACTIVE_MEMBERSHIP | REVOKED | NO_CREDENTIAL | EXPIRED. Opcional: solo se emite en el error 'clinical-capacity-required'. */
+  reason?: string;
+  /** Fecha en que venció la habilitación. Opcional: solo se emite en 'clinical-capacity-required' con reason=EXPIRED. */
+  expiredOn?: string;
 }

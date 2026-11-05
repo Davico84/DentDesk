@@ -24,4 +24,12 @@ public interface RefreshTokenRepository extends JpaRepository<RefreshToken, Long
     @Modifying
     @Query("delete from RefreshToken rt where rt.tokenHash = :tokenHash")
     int deleteByTokenHash(@Param("tokenHash") String tokenHash);
+
+    /**
+     * Cierra todas las sesiones del usuario, en todas las clínicas ({@code refresh_tokens.user_id} es global):
+     * bulk delete, sin cargar las filas ({@code update-authentication-my-profile} design.md D2).
+     */
+    @Modifying
+    @Query("delete from RefreshToken rt where rt.user.id = :userId")
+    int deleteAllOfUser(@Param("userId") Long userId);
 }

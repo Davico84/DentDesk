@@ -4,6 +4,7 @@ import { ChevronDown } from "lucide-react";
 import { cn } from "@/modules/core/utils/cn";
 import { Label } from "./label";
 import { Input } from "./input";
+import { PasswordInput } from "./password-input";
 
 /** Opción de un {@link SelectField}: el valor que viaja y la etiqueta que se lee. */
 export type SelectOption = { value: string; label: string };
@@ -67,6 +68,42 @@ export function FormField<T extends FieldValues>({
         aria-invalid={error ? true : undefined}
         aria-describedby={describedBy(error ? errorId : undefined, hint ? hintId : undefined)}
         {...register(name, valueAsNumber ? { setValueAs: numberOrEmpty } : undefined)}
+      />
+    </FieldShell>
+  );
+}
+
+/**
+ * Campo de contraseña con el botón de mostrar/ocultar ({@link PasswordInput}). Mismo contrato de
+ * accesibilidad que {@link FormField}; primitivo de `core/ui`: no conoce ningún dominio.
+ */
+export function PasswordField<T extends FieldValues>({
+  label,
+  name,
+  register,
+  error,
+  required,
+  placeholder,
+  hint,
+  wide,
+  autoComplete,
+}: BaseProps<T> & {
+  placeholder?: string;
+  /** `current-password` o `new-password`: así el gestor de contraseñas sabe cuál sugerir. */
+  autoComplete: "current-password" | "new-password";
+}) {
+  const errorId = `${name}-error`;
+  const hintId = `${name}-hint`;
+  return (
+    <FieldShell label={label} name={name} required={required} error={error} hint={hint} wide={wide}>
+      <PasswordInput
+        id={name}
+        autoComplete={autoComplete}
+        placeholder={placeholder}
+        className="h-11 rounded-xl"
+        aria-invalid={error ? true : undefined}
+        aria-describedby={describedBy(error ? errorId : undefined, hint ? hintId : undefined)}
+        {...register(name)}
       />
     </FieldShell>
   );

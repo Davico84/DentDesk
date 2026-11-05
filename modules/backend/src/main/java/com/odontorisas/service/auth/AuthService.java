@@ -1,6 +1,8 @@
 package com.odontorisas.service.auth;
 
+import com.odontorisas.common.IdentityContext;
 import com.odontorisas.common.MembershipStatus;
+import com.odontorisas.common.OrganizationContext;
 import com.odontorisas.common.OrganizationStatus;
 import com.odontorisas.common.Role;
 import com.odontorisas.common.UserStatus;
@@ -16,6 +18,7 @@ import com.odontorisas.persistence.repository.RefreshTokenRepository;
 import com.odontorisas.persistence.repository.UserRepository;
 import com.odontorisas.service.organization.OrganizationSlugService;
 import com.odontorisas.service.staff.StaffService;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -47,6 +50,8 @@ public class AuthService {
     private final LoginAttemptService loginAttemptService;
     private final Clock clock;
     private final StaffService staffService;
+    private final PasswordChangeNotifier passwordChangeNotifier;
+    private AuthConcurrencyProbe probe = AuthConcurrencyProbe.NONE;
 
     public AuthService(UserRepository users,
                        MembershipRepository memberships,
@@ -56,7 +61,8 @@ public class AuthService {
                        TokenService tokenService,
                        LoginAttemptService loginAttemptService,
                        Clock clock,
-                       StaffService staffService) {
+                       StaffService staffService,
+                       PasswordChangeNotifier passwordChangeNotifier) {
         this.users = users;
         this.memberships = memberships;
         this.refreshTokens = refreshTokens;
@@ -66,6 +72,13 @@ public class AuthService {
         this.loginAttemptService = loginAttemptService;
         this.clock = clock;
         this.staffService = staffService;
+        this.passwordChangeNotifier = passwordChangeNotifier;
+    }
+
+    /** Solo los tests de concurrencia registran un probe (design.md D3); en producción queda {@code NONE}. */
+    @Autowired(required = false)
+    void setConcurrencyProbe(AuthConcurrencyProbe probe) {
+        this.probe = probe;
     }
 
     /** Alta autoservicio: organización + configuración + identidad + membresía ADMIN, atómico. */
@@ -120,7 +133,10 @@ public class AuthService {
             throw new InvalidCredentialsException();
         }
         Membership membership = activeMembership(user, InvalidCredentialsException::new);
-        if (users.resetLoginAttemptsIfNotLocked(user.getId(), now) == 0) {
+        probe.afterLoginPasswordVerified();
+        // Exige además el hash verificado: si un cambio de contraseña ganó en el medio, 0 filas y no hay
+        // sesión con la contraseña anterior (update-authentication-my-profile design.md D3.2).
+        if (users.resetLoginAttemptsIfNotLocked(user.getId(), user.getPasswordHash(), now) == 0) {
             throw new InvalidCredentialsException();
         }
         return issueTokens(user, membership);
@@ -140,11 +156,72 @@ public class AuthService {
         // Reevaluación del estado en cada renovación: suspender una membresía corta la
         // sesión en el siguiente refresh (ventana = TTL del access), no al expirar el refresh.
         Membership membership = activeMembership(user, InvalidRefreshTokenException::new);
+        // FOR SHARE de la fila del usuario ANTES de consumir el token: serializa con un cambio de contraseña
+        // (FOR UPDATE), que si va primero ya borró este token (update-authentication-my-profile design.md D3.3).
+        users.lockForShare(user.getId());
         // Rotación atómica: consume el token con un bulk delete. Si otra petición concurrente
         // ya lo consumió (0 filas), esta pierde la carrera → 401 (no 500).
         if (refreshTokens.deleteByTokenHash(tokenHash) == 0) {
             throw new InvalidRefreshTokenException();
         }
+        probe.afterRefreshTokenConsumed();
+        return issueTokens(user, membership);
+    }
+
+    /**
+     * Cambia la contraseña propia y cierra las otras sesiones ({@code update-authentication-my-profile}
+     * design.md D2–D4). El usuario y la clínica salen de la sesión (token verificado), nunca de la petición.
+     *
+     * <p><b>Protocolo de bloqueo (D3.1):</b> se verifica <b>sin bloqueo</b> y se bloquea después. Es
+     * obligatorio: {@link LoginAttemptService#recordFailure} corre en {@code REQUIRES_NEW} y actualiza la
+     * misma fila; con el {@code FOR UPDATE} ya tomado esperaría a esta transacción, que espera a aquella, y
+     * Postgres no lo detecta (el ciclo pasa por el hilo de Java). Bajo el bloqueo se relee el hash: si ya no
+     * es el verificado, otro cambio ganó, y se rechaza <b>sin</b> contar el fallo (la contraseña era correcta
+     * al verificarla).
+     *
+     * <p>Los tokens nuevos usan la membresía de la clínica de la sesión, no la primera activa: un usuario
+     * puede tener varias. El rol sale de esa membresía, así que un rol cambiado mientras tanto queda al día.
+     *
+     * @throws AccountTemporarilyLockedException si la cuenta está bloqueada (antes de comparar, o en el medio)
+     * @throws CurrentPasswordIncorrectException si la actual no coincide (cuenta como fallo) o ya cambió
+     * @throws NewPasswordSameAsCurrentException si la nueva es igual a la actual
+     * @throws InvalidRefreshTokenException      si la identidad o la membresía de la sesión ya no están activas
+     */
+    public AuthResult changePassword(String currentPassword, String newPassword) {
+        Long userId = IdentityContext.get();
+        Long organizationId = OrganizationContext.get();
+        if (userId == null || organizationId == null) {
+            throw new InvalidRefreshTokenException();
+        }
+        User user = users.findById(userId).orElseThrow(InvalidRefreshTokenException::new);
+        Instant now = clock.instant();
+        if (user.getLockedUntil() != null && user.getLockedUntil().isAfter(now)) {
+            throw new AccountTemporarilyLockedException();
+        }
+        String verifiedHash = user.getPasswordHash();
+        if (!passwordEncoder.matches(currentPassword, verifiedHash)) {
+            loginAttemptService.recordFailure(userId); // sin bloqueo tomado: ver el Javadoc
+            throw new CurrentPasswordIncorrectException();
+        }
+        if (passwordEncoder.matches(newPassword, verifiedHash)) {
+            throw new NewPasswordSameAsCurrentException();
+        }
+        // BCrypt antes del bloqueo: no lo retiene ~100 ms más de lo necesario.
+        String newHash = passwordEncoder.encode(newPassword);
+        probe.afterChangePasswordVerified();
+
+        String lockedHash = users.lockPasswordHashIfNotLocked(userId, now)
+            .orElseThrow(AccountTemporarilyLockedException::new);
+        if (!lockedHash.equals(verifiedHash)) {
+            throw new CurrentPasswordIncorrectException();
+        }
+        probe.afterChangePasswordLocked();
+        Membership membership = activeMembershipIn(user, organizationId);
+        users.changePassword(userId, newHash, now);
+        refreshTokens.deleteAllOfUser(userId);
+        // Aviso después del commit (update-authentication-password-recovery design.md D6): un rechazo no avisa.
+        passwordChangeNotifier.notifyAfterCommit(user.getEmail(), now);
+        // `user` quedó con el hash viejo (bulk update): issueTokens solo lee id, correo y nombre, que no cambian.
         return issueTokens(user, membership);
     }
 
@@ -173,6 +250,20 @@ public class AuthService {
                 && m.getOrganization().getStatus() == OrganizationStatus.ACTIVE)
             .findFirst()
             .orElseThrow(onFail);
+    }
+
+    /** Como {@link #activeMembership}, pero en la clínica de la sesión: no la primera activa. */
+    private Membership activeMembershipIn(User user, Long organizationId) {
+        if (user.getStatus() != UserStatus.ACTIVE) {
+            throw new InvalidRefreshTokenException();
+        }
+        tenantSession.bindIdentity(user.getId());
+        return memberships.findByUserId(user.getId()).stream()
+            .filter(m -> m.getOrganization().getId().equals(organizationId)
+                && m.getStatus() == MembershipStatus.ACTIVE
+                && m.getOrganization().getStatus() == OrganizationStatus.ACTIVE)
+            .findFirst()
+            .orElseThrow(InvalidRefreshTokenException::new);
     }
 
     private AuthResult issueTokens(User user, Membership membership) {

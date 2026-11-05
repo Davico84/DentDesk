@@ -9,6 +9,11 @@ Thumbs.db
 !.env.example
 secrets.properties
 !secrets.properties.example
+# Claves privadas (p. ej. la de age que descifra las copias de la base) y volcados descifrados
+*.key
+*.dump
+*.age
+*.dump.sql
 
 # === Node === (general: raíz por los hooks + modules/*)
 node_modules/

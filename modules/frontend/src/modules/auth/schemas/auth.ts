@@ -1,5 +1,11 @@
 import { z } from "zod";
 
+/**
+ * Regla de la contraseña nueva, la misma en el registro y al cambiarla (paridad con el `@Size(min = 8)` de
+ * `RegisterRequest` y `ChangePasswordRequest`). Se comparte para que no diverjan.
+ */
+export const newPasswordSchema = z.string().min(8, "La contraseña debe tener al menos 8 caracteres");
+
 export const loginSchema = z.object({
   email: z.string().min(1, "El correo es obligatorio").check(z.email("Correo electrónico no válido")),
   password: z.string().min(1, "La contraseña es obligatoria"),
@@ -10,7 +16,7 @@ export const registerSchema = z
     token: z.string().min(1, "El enlace de invitación es obligatorio"),
     fullName: z.string().min(2, "Ingresa tu nombre completo").max(120),
     email: z.string().min(1, "El correo es obligatorio").check(z.email("Correo electrónico no válido")),
-    password: z.string().min(8, "La contraseña debe tener al menos 8 caracteres"),
+    password: newPasswordSchema,
     confirmPassword: z.string().min(1, "Confirma tu contraseña"),
   })
   .refine((data) => data.password === data.confirmPassword, {
@@ -27,3 +33,25 @@ export const invitationVerificationSchema = z.object({
 });
 
 export type InvitationVerificationValues = z.infer<typeof invitationVerificationSchema>;
+
+/**
+ * Pedir la recuperación de la contraseña (update-authentication-password-recovery D7). Paridad con
+ * `PasswordRecoveryRequest`: los espacios de los extremos se quitan antes de validar, como en el servidor.
+ */
+export const passwordRecoverySchema = z.object({
+  email: z.string().trim().min(1, "El correo es obligatorio").check(z.email("Correo electrónico no válido")),
+});
+
+/** Elegir la contraseña nueva desde el enlace: la regla del registro, confirmada (sin la contraseña actual). */
+export const resetPasswordSchema = z
+  .object({
+    newPassword: newPasswordSchema,
+    confirmPassword: z.string().min(1, "Confirma tu contraseña nueva"),
+  })
+  .refine((data) => data.newPassword === data.confirmPassword, {
+    message: "Las contraseñas no coinciden",
+    path: ["confirmPassword"],
+  });
+
+export type PasswordRecoveryValues = z.infer<typeof passwordRecoverySchema>;
+export type ResetPasswordValues = z.infer<typeof resetPasswordSchema>;

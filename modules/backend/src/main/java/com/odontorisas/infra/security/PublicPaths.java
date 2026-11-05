@@ -16,9 +16,15 @@ import org.springframework.util.AntPathMatcher;
  */
 public final class PublicPaths {
 
-    /** Patrones de ruta accesibles sin autenticar. */
+    /**
+     * Patrones de ruta accesibles sin autenticar. Bajo {@code /auth} es una <b>lista explícita</b>, no
+     * {@code /auth/**}: ahí vive también el cambio de contraseña, que exige sesión
+     * ({@code update-authentication-my-profile} design.md D1), y un endpoint nuevo bajo {@code /auth} no debe
+     * nacer público por omisión.
+     */
     public static final String[] PATTERNS = {
-        "/auth/**",
+        "/auth/login", "/auth/register", "/auth/refresh", "/auth/logout", "/auth/invitations/**",
+        "/auth/password-recovery", "/auth/password-reset", "/auth/password-reset/check",
         "/platform/auth/login",
         // Solo health: /actuator/info queda autenticado (add-cold-start-warmup D2), nada lo usa.
         "/actuator/health/**",

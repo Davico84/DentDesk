@@ -108,6 +108,9 @@ public class ClinicalHistoryController {
             content = @Content(schema = @Schema(implementation = ClinicalHistoryResponse.class))),
         @ApiResponse(responseCode = "400", description = "Falta un ítem del checklist mínimo, de cualquiera de los dos documentos.",
             content = @Content(mediaType = "application/problem+json", schema = @Schema(implementation = ApiProblem.class))),
+        @ApiResponse(responseCode = "403", description = "Quien firma no tiene capacidad clínica en la clínica "
+            + "(`/errors/clinical-capacity-required`, con `reason` y, si venció, `expiredOn`). No se sella nada.",
+            content = @Content(mediaType = "application/problem+json", schema = @Schema(implementation = ApiProblem.class))),
         @ApiResponse(responseCode = "409", description = "La Historia o el odontograma ya están sellados (transición inválida).",
             content = @Content(mediaType = "application/problem+json", schema = @Schema(implementation = ApiProblem.class)))
     })

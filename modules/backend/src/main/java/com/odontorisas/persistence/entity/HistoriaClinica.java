@@ -2,6 +2,7 @@ package com.odontorisas.persistence.entity;
 
 import com.odontorisas.common.HistoriaClinicaStatus;
 import jakarta.persistence.Column;
+import jakarta.persistence.Embedded;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EntityListeners;
 import jakarta.persistence.EnumType;
@@ -107,6 +108,13 @@ public class HistoriaClinica {
 
     @Column(name = "completed_at")
     private Instant completedAt;
+
+    /** Quién cerró la admisión, y su credencial en ese momento (update-staff-professional-credential D5). */
+    @Column(name = "completed_by")
+    private Long completedBy;
+
+    @Embedded
+    private Signature signature;
 
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)

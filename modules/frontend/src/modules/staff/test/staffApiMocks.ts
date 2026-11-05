@@ -7,11 +7,20 @@ import type { MemberResponse, StaffInvitationResponse } from "@/modules/core/ser
  */
 export const ADMIN_ID = 1;
 
+const none = { copNumber: null, licensedUntil: null, expiredOn: null };
 export const MEMBERS: MemberResponse[] = [
-  { id: ADMIN_ID, fullName: "Ana Admin", email: "ana@clinica.test", role: "ADMIN", status: "ACTIVE" },
-  { id: 2, fullName: "María Ruiz", email: "maria@clinica.test", role: "MEMBER", status: "ACTIVE" },
-  { id: 3, fullName: "Luis Pérez", email: "luis@clinica.test", role: "MEMBER", status: "INACTIVE" },
-  { id: 4, fullName: "Otra Admin", email: "otra@clinica.test", role: "ADMIN", status: "ACTIVE" },
+  { id: ADMIN_ID, fullName: "Ana Admin", email: "ana@clinica.test", role: "ADMIN", status: "ACTIVE",
+    clinicalCapacity: { state: "ENABLED", copNumber: "11111", licensedUntil: "2099-12-31", expiredOn: null } },
+  { id: 2, fullName: "María Ruiz", email: "maria@clinica.test", role: "MEMBER", status: "ACTIVE",
+    clinicalCapacity: { state: "ENABLED", copNumber: "22222", licensedUntil: "2099-06-30", expiredOn: null } },
+  { id: 3, fullName: "Luis Pérez", email: "luis@clinica.test", role: "MEMBER", status: "INACTIVE",
+    clinicalCapacity: { state: "INACTIVE_MEMBERSHIP", ...none } },
+  { id: 4, fullName: "Otra Admin", email: "otra@clinica.test", role: "ADMIN", status: "ACTIVE",
+    clinicalCapacity: { state: "NO_CREDENTIAL", ...none } },
+  { id: 5, fullName: "Rosa Vega", email: "rosa@clinica.test", role: "MEMBER", status: "ACTIVE",
+    clinicalCapacity: { state: "REVOKED", copNumber: "55555", licensedUntil: "2099-01-31", expiredOn: null } },
+  { id: 6, fullName: "Pedro Soto", email: "pedro@clinica.test", role: "MEMBER", status: "ACTIVE",
+    clinicalCapacity: { state: "EXPIRED", copNumber: "66666", licensedUntil: "2026-10-20", expiredOn: "2026-10-20" } },
 ];
 
 const base = { createdAt: "2026-10-10T15:00:00Z", expiresAt: "2026-10-17T15:00:00Z" };
@@ -22,14 +31,19 @@ export const INVITATIONS: StaffInvitationResponse[] = [
   { id: 13, email: "admin@x.test", role: "ADMIN", state: "ACCEPTED", manageable: false, ...base },
 ];
 
-export type StaffCalls = { statusChanges: { id: string; body: unknown }[]; resends: string[]; revokes: string[] };
+export type StaffCalls = {
+  statusChanges: { id: string; body: unknown }[];
+  capacityChanges: { id: string; body: unknown }[];
+  resends: string[];
+  revokes: string[];
+};
 
 export function staffHandlers({
   members = MEMBERS,
   invitations = INVITATIONS,
   inviteStatus = 200,
 }: { members?: MemberResponse[]; invitations?: StaffInvitationResponse[]; inviteStatus?: number } = {}) {
-  const calls: StaffCalls = { statusChanges: [], resends: [], revokes: [] };
+  const calls: StaffCalls = { statusChanges: [], capacityChanges: [], resends: [], revokes: [] };
   const handlers = [
     http.get("*/staff/members", () => HttpResponse.json(members)),
     http.get("*/staff/invitations", () => HttpResponse.json(invitations)),
@@ -51,6 +65,10 @@ export function staffHandlers({
     }),
     http.patch("*/staff/members/:id/status", async ({ params, request }) => {
       calls.statusChanges.push({ id: String(params.id), body: await request.json() });
+      return new HttpResponse(null, { status: 204 });
+    }),
+    http.patch("*/staff/members/:id/clinical-capacity", async ({ params, request }) => {
+      calls.capacityChanges.push({ id: String(params.id), body: await request.json() });
       return new HttpResponse(null, { status: 204 });
     }),
   ];

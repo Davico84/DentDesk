@@ -1,6 +1,7 @@
 package com.odontorisas.consultationnote;
 
 import com.odontorisas.AbstractTenantAwareIntegrationTest;
+import com.odontorisas.ClinicalSignerFixtures;
 import com.odontorisas.common.DiagnosisLocation;
 import com.odontorisas.common.IdentityContext;
 import com.odontorisas.common.OrganizationContext;
@@ -86,6 +87,9 @@ abstract class AbstractConsultationNoteIT extends AbstractTenantAwareIntegration
                 + "@test.local', 'x') RETURNING id");
             otherUser = id(s, "INSERT INTO users (email, password_hash) VALUES ('cn2-" + suffix
                 + "@test.local', 'x') RETURNING id");
+            // Firmar exige capacidad clínica (update-staff-professional-credential): membresía y credencial vigentes.
+            ClinicalSignerFixtures.enableSigner(owner, someUser, org);
+            ClinicalSignerFixtures.enableSigner(owner, otherUser, org);
         }
         asUser(someUser);
     }

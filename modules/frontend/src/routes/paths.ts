@@ -3,6 +3,10 @@ export const PATHS = {
   ROOT: "/",
   LOGIN: "/auth/login",
   REGISTER: "/auth/register",
+  /** Pedir la recuperación de la contraseña (solo sin sesión). */
+  FORGOT_PASSWORD: "/auth/forgot-password",
+  /** Elegir la contraseña nueva desde el enlace del correo (con o sin sesión). */
+  RESET_PASSWORD: "/auth/reset-password",
   BRANDING: "/settings/branding",
   STAFF: "/settings/staff",
   PATIENTS: "/patients",
@@ -12,7 +16,16 @@ export const PATHS = {
   CLINICAL_HISTORY: "/patients/:id/clinical-history",
   DENTAL_CHART: "/patients/:id/dental-chart",
   CONSULTATION_NOTES: "/patients/:id/consultations",
+  /** De la persona, no de una sección: se llega desde el menú de la cuenta. */
+  PROFILE: "/profile",
+  /** Ruta anterior de la credencial: redirige a su sección en Mi perfil, para no romper enlaces guardados. */
+  LEGACY_PROFESSIONAL_CREDENTIAL: "/profile/credential",
 } as const;
+
+/** Ancla de la sección de la credencial dentro de Mi perfil. */
+export const CREDENTIAL_SECTION_ID = "credencial";
+/** La credencial profesional, en su sección de Mi perfil. */
+export const PROFILE_CREDENTIAL = `${PATHS.PROFILE}#${CREDENTIAL_SECTION_ID}`;
 
 /** Construye la ruta de detalle de un paciente. */
 export const patientDetailPath = (id: number) => `/patients/${id}`;

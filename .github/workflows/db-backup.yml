@@ -1,0 +1,142 @@
+name: DB backup
+
+# Copia diaria de la base de producción, cifrada con `age` y verificada por restauración antes de
+# subirla como artifact (add-database-backups). El repositorio es privado, pero se trata como si no
+# lo fuera: nada sin cifrar sale del runner y los logs no muestran la cadena de conexión ni datos.
+# Guía, rol de copia y restauración: docs/deployment.md (copias de la base).
+#
+# Configuración (si falta, la copia se omite en verde):
+#   - secreto  BACKUP_DATABASE_URL  URL libpq directa (sin -pooler, sslmode=require) del rol
+#                                   odontorisas_backup: BYPASSRLS + solo lectura. Con un rol que la
+#                                   RLS filtra, pg_dump falla en vez de volcar menos.
+#   - variable BACKUP_AGE_RECIPIENT clave pública de `age` (la privada nunca entra a GitHub)
+#
+# Los programados corren desde la rama por defecto (dev).
+
+on:
+  schedule:
+    - cron: "0 8 * * *" # 08:00 UTC = 03:00 en Lima
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: db-backup
+  cancel-in-progress: false
+
+env:
+  # Imagen fijada por digest: recibe el secreto y el volcado, así que nunca un tag mutable.
+  # Actualizar en un PR: `docker buildx imagetools inspect postgres:16` (Digest del índice).
+  # El servicio `restore` repite el mismo valor (no admite expresiones de `env`).
+  PG_IMAGE: postgres:16@sha256:9e2cf6287f25c3151f4c9421ccce2b17f3e60061c111a29165e0d2cdd9ff0a97 # 2026-10-26
+  MIGRATIONS_DIR: modules/backend/src/main/resources/db/migration
+  VERIFY_SCRIPT: .github/scripts/db-backup-verify.sh
+  RESTORE_URL: postgresql://restore:restore@localhost:5432/restore
+
+jobs:
+  backup:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    services:
+      restore:
+        image: postgres:16@sha256:9e2cf6287f25c3151f4c9421ccce2b17f3e60061c111a29165e0d2cdd9ff0a97
+        env:
+          POSTGRES_DB: restore
+          POSTGRES_USER: restore
+          # Efímera: la base del servicio está vacía hasta la restauración y muere con el job.
+          POSTGRES_PASSWORD: restore
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U restore -d restore"
+          --health-interval 2s --health-timeout 2s --health-retries 30
+    steps:
+      - name: Configuración
+        id: config
+        env:
+          DATABASE_URL: ${{ secrets.BACKUP_DATABASE_URL }}
+          AGE_RECIPIENT: ${{ vars.BACKUP_AGE_RECIPIENT }}
+        run: |
+          if [ -z "$DATABASE_URL" ] || [ -z "$AGE_RECIPIENT" ]; then
+            echo "Copia omitida: falta configuración (BACKUP_DATABASE_URL o BACKUP_AGE_RECIPIENT)." >> "$GITHUB_STEP_SUMMARY"
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "configured=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      # Solo las migraciones y el script de verificación (sin dependencias ni nada más del repo).
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        if: steps.config.outputs.configured == 'true'
+        with:
+          persist-credentials: false
+          sparse-checkout: |
+            ${{ env.MIGRATIONS_DIR }}
+            ${{ env.VERIFY_SCRIPT }}
+          sparse-checkout-cone-mode: false
+
+      - name: Volcado
+        if: steps.config.outputs.configured == 'true'
+        env:
+          DATABASE_URL: ${{ secrets.BACKUP_DATABASE_URL }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/backup"
+          chmod 700 "$RUNNER_TEMP/backup"
+          # La URL entra por variable de entorno; `--user` deja el archivo legible para el runner.
+          # Sin --enable-row-security: si la RLS filtraría filas, pg_dump falla en vez de volcar menos.
+          # Los errores de pg_dump nombran el host y el usuario: no van al log; solo el tipo de falla.
+          if ! docker run --rm --network host --user "$(id -u):$(id -g)" -e DATABASE_URL \
+            -v "$RUNNER_TEMP/backup:/backup" "$PG_IMAGE" \
+            sh -c 'pg_dump --format=custom --no-owner --no-acl --dbname="$DATABASE_URL" --file=/backup/db.dump' \
+            2> "$RUNNER_TEMP/backup/pg_dump.err"; then
+            err=$(cat "$RUNNER_TEMP/backup/pg_dump.err")
+            case "$err" in
+              *"row-level security"*) why="el rol de la copia no salta RLS (debe ser BYPASSRLS)" ;;
+              *"translate host name"*) why="host desconocido" ;;
+              *"password authentication failed"*) why="usuario o contraseña incorrectos" ;;
+              *"does not exist"*) why="la base o el rol no existe" ;;
+              *"permission denied"*) why="permisos insuficientes del rol" ;;
+              *"timeout"* | *"timed out"* | *"Connection refused"*) why="la base no respondió" ;;
+              *) why="error de pg_dump" ;;
+            esac
+            echo "::error::Volcado fallido: $why (detalle oculto)."
+            exit 1
+          fi
+          rm -f "$RUNNER_TEMP/backup/pg_dump.err"
+          test -s "$RUNNER_TEMP/backup/db.dump"
+          echo "Volcado ok."
+
+      - name: Restauración y verificación
+        if: steps.config.outputs.configured == 'true'
+        env:
+          BACKUP_DIR: ${{ runner.temp }}/backup
+        run: bash "$VERIFY_SCRIPT"
+
+      - name: Cifrado
+        if: steps.config.outputs.configured == 'true'
+        id: encrypt
+        env:
+          AGE_RECIPIENT: ${{ vars.BACKUP_AGE_RECIPIENT }}
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq age > /dev/null
+          age --version
+          name="db-backup-$(date -u +%F)"
+          age -r "$AGE_RECIPIENT" -o "$RUNNER_TEMP/backup/$name.dump.age" "$RUNNER_TEMP/backup/db.dump"
+          rm -f "$RUNNER_TEMP/backup/db.dump"
+          test -s "$RUNNER_TEMP/backup/$name.dump.age"
+          echo "name=$name" >> "$GITHUB_OUTPUT"
+
+      # Solo el .age: ni el volcado ni los archivos de trabajo de la verificación.
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: steps.config.outputs.configured == 'true'
+        with:
+          name: ${{ steps.encrypt.outputs.name }}
+          path: ${{ runner.temp }}/backup/${{ steps.encrypt.outputs.name }}.dump.age
+          if-no-files-found: error
+          retention-days: 90
+          compression-level: 0 # ya está cifrado: no comprime
+
+      # Siempre, también si algo falló: no queda nada de la copia en el runner.
+      - name: Limpieza
+        if: always()
+        run: rm -rf "$RUNNER_TEMP/backup"

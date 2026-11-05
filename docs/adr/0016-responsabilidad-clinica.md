@@ -80,7 +80,7 @@ No es un log técnico. Es un **registro clínico de quién vio qué**, exigido p
 
 | Nivel | Alcance | Dueño |
 |---|---|---|
-| **Base** | disco, backups, réplicas | **infraestructura** — sin dueño técnico asignado hoy (ver Open Questions) |
+| **Base** | disco, backups, réplicas | **infraestructura** — las **copias** las cifra `add-database-backups` (`age`, clave solo del responsable); disco y réplicas, el proveedor (ver Open Questions) |
 | **Dominio** | columnas de **clase clínica** (D2) | esta decisión |
 
 **Qué se cifra**: texto libre clínico — motivo de consulta, antecedentes, anamnesis, notas, evolución, especificaciones.
@@ -103,6 +103,8 @@ No es un log técnico. Es un **registro clínico de quién vio qué**, exigido p
 - El texto de cada versión **se conserva íntegro**: referenciar una versión que ya no existe no prueba nada.
 
 ### D7 — La capacidad clínica **no es un rol: es una credencial**
+
+> ✅ **Implementado** (2026-10-27) por [`update-staff-professional-credential`](../../openspec/changes/archive/2026-10-27-update-staff-professional-credential/design.md): el profesional **declara** su COP y la fecha hasta la que está habilitado (no se verifica contra el padrón del COP); la habilitación vence sola; el `ADMIN` puede **retirar** la capacidad en su clínica, nunca otorgarla; firmar exige la capacidad y copia la credencial. Lo que D7 abre además —que lo clínico **no se vea** sin credencial (D2–D3)— va en el change siguiente.
 
 > 🔴 **Refinado por [`ADR-0018`](0018-cumplimiento-nts-139-y-cop.md) D6: la credencial es la _habilitación_, no la colegiatura.** La colegiatura es un número permanente; la habilitación es la colegiatura **vigente**, y se pierde por impago de la cuota (COP art. **65**) o por sanción. El perfil profesional guarda **los dos datos**: número (estable, para trazar autoría) y estado de habilitación (mutable, con vigencia); la puerta de los actos clínicos la abre el **estado**. Esto **no debilita la decisión: la completa** — el argumento *"la suspensión revoca sola"* de más abajo era falso con un número que nunca cambia, y con la habilitación como estado por fin funciona.
 
@@ -150,7 +152,7 @@ Es una simplificación, no una pérdida: tres roles con significado ambiguo pasa
 - ⚠️ **D4 acopla disponibilidad a auditoría**: si la tabla de auditoría no acepta escrituras, la lectura clínica se detiene. Es deliberado y acotado a datos clínicos.
 - ⚠️ **El cifrado de columnas rompe la búsqueda sobre ellas.** Hoy no se busca por texto clínico; si mañana se quisiera, hay que resolverlo con otra técnica (índices cifrados, búsqueda fuera de la base) y no revirtiendo el cifrado.
 - ⚠️ **Toca capacidades construidas**: `clinical-history` y `patients` ganan cifrado en columnas existentes (migración con datos), y toda lectura clínica gana auditoría.
-- ⚠️ **El nivel base del cifrado (backups, disco) no tiene dueño.** No es de este ADR ni de `ADR-0014`: es de despliegue, y está sin asignar.
+- ⚠️ **El nivel base del cifrado (backups, disco) no es de este ADR ni de `ADR-0014`**: es de despliegue. Las **copias** ya tienen dueño (`add-database-backups`, 2026-10-26); el disco y las réplicas del proveedor no tienen una decisión propia.
 
 ## Alternativas descartadas
 
@@ -166,6 +168,6 @@ Es una simplificación, no una pérdida: tres roles con significado ambiguo pasa
 ## Open Questions
 
 1. ✅ **¿`ADMIN` es un rol clínico? — RESUELTO** (D7): **ni sí ni no, la pregunta estaba mal planteada**. `ADMIN` es capacidad administrativa; lo clínico lo habilita la colegiatura. Un odontólogo dueño tiene ambas; un gerente administrativo, solo la primera.
-2. **¿Quién es el dueño técnico del cifrado de backups e infraestructura?** Heredada de `ADR-0014`: no cae en integridad ni en confidencialidad de aplicación, y sigue sin asignar.
+2. ✅ **¿Quién es el dueño técnico del cifrado de backups e infraestructura? — RESUELTO para las copias** (2026-10-26): el change `add-database-backups`, con el mismo modelo de amenaza que D5 (*un volcado o un backup filtrado*): la copia sale cifrada con una clave que solo tiene el responsable. El rol de la copia salta RLS a propósito (lee todas las clínicas) pero no escribe. El **cifrado en reposo** de columnas (D5) sigue pendiente.
 3. **¿La auditoría de acceso se conserva 15 años como el expediente?** La Ley 29733 exige el registro pero no fija el plazo. Si se conserva igual que la historia, su volumen supera al del dato clínico.
 4. **¿El paciente puede consultar quién vio su historia?** La Ley 29733 da derechos de acceso al titular. Está fuera de alcance hoy —el paciente no es usuario del sistema—, pero el registro de D4 es lo que haría posible responderlo.

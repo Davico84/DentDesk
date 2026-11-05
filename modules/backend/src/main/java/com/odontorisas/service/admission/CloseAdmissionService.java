@@ -1,10 +1,12 @@
 package com.odontorisas.service.admission;
 
+import com.odontorisas.common.SignerSnapshot;
 import com.odontorisas.persistence.repository.PatientRepository;
 import com.odontorisas.service.clinicalhistory.ClinicalHistoryService;
 import com.odontorisas.service.clinicalhistory.ClinicalHistoryView;
 import com.odontorisas.service.dentalchart.DentalChartBlockView;
 import com.odontorisas.service.dentalchart.DentalChartService;
+import com.odontorisas.service.staff.ClinicalCapacityService;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -15,8 +17,9 @@ import org.springframework.transaction.annotation.Transactional;
  * no se importan entre sí; este coordinador depende de ambos y es el único punto que sabe que el
  * cierre de admisión involucra dos documentos.
  *
- * <p><b>Orden de bloqueo, único y obligatorio</b> (design.md D4): paciente → historia →
- * odontograma, cada uno con {@code SELECT ... FOR UPDATE}. Si dos rutas bloquearan los mismos
+ * <p><b>Orden de bloqueo, único y obligatorio</b> (design.md D4): membresía → credencial (con
+ * {@code FOR SHARE}, {@code update-staff-professional-credential} D4) → paciente → historia →
+ * odontograma, estos tres con {@code SELECT ... FOR UPDATE}. Si dos rutas bloquearan los mismos
  * agregados en orden distinto, dos cierres concurrentes se deadlockearían — lo verifica con hilos
  * reales {@code CloseAdmissionServiceIT} (tarea 2.8a).
  *
@@ -41,22 +44,29 @@ public class CloseAdmissionService {
     private final PatientRepository patientRepository;
     private final ClinicalHistoryService clinicalHistoryService;
     private final DentalChartService dentalChartService;
+    private final ClinicalCapacityService clinicalCapacityService;
 
     public CloseAdmissionService(PatientRepository patientRepository,
                                   ClinicalHistoryService clinicalHistoryService,
-                                  DentalChartService dentalChartService) {
+                                  DentalChartService dentalChartService,
+                                  ClinicalCapacityService clinicalCapacityService) {
         this.patientRepository = patientRepository;
         this.clinicalHistoryService = clinicalHistoryService;
         this.dentalChartService = dentalChartService;
+        this.clinicalCapacityService = clinicalCapacityService;
     }
 
     @Transactional
     public AdmissionClosedResult close(Long patientId) {
+        // Primero la capacidad clínica de quien firma (update-staff-professional-credential D4): bloquea
+        // membresía → credencial con FOR SHARE, antes que cualquier fila clínica. Sin capacidad no se sella nada.
+        SignerSnapshot signer = clinicalCapacityService.require();
         // Si el paciente no existe no se rechaza acá: el paso de la Historia ya responde como antes.
         patientRepository.lockById(patientId);
         boolean hasInitialDentalChart = dentalChartService.existsForPatient(patientId);
-        ClinicalHistoryView clinicalHistory = clinicalHistoryService.complete(patientId, hasInitialDentalChart);
-        DentalChartBlockView dentalChart = dentalChartService.sealInitial(patientId);
+        // La misma foto en los dos documentos: los dos guardan exactamente al mismo firmante.
+        ClinicalHistoryView clinicalHistory = clinicalHistoryService.complete(patientId, hasInitialDentalChart, signer);
+        DentalChartBlockView dentalChart = dentalChartService.sealInitial(patientId, signer);
         return new AdmissionClosedResult(clinicalHistory, dentalChart);
     }
 }

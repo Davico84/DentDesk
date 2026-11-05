@@ -14,6 +14,7 @@ import {
 } from "@/modules/core/services/generated/clinical-history";
 import type { ClinicalHistoryRequest, DiagnosisRequest } from "@/modules/core/services/generated/model";
 import { getUserFriendlyError } from "@/modules/core/utils/apiError";
+import { refreshCapacityIfDenied } from "@/modules/staff/hooks/useProfessionalCredential";
 
 const CLINICAL_HISTORY_KEY = ["clinical-history"] as const;
 
@@ -71,7 +72,10 @@ export function useCompleteClinicalHistory(patientId: number) {
       queryClient.invalidateQueries({ queryKey: [...CLINICAL_HISTORY_KEY, patientId] });
       toast.success("Historia clínica completada");
     },
-    onError: (error) => toast.error(getUserFriendlyError(error)),
+    onError: (error) => {
+      refreshCapacityIfDenied(queryClient, error);
+      toast.error(getUserFriendlyError(error));
+    },
   });
 }
 

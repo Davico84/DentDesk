@@ -7,10 +7,17 @@
  */
 import type {
   AuthResponse,
+  ChangePasswordRequest,
   InvitationValidationRequest,
   InvitationValidationResponse,
   InvitationVerificationRequest,
   LoginRequest,
+  PasswordRecoveryRequest,
+  PasswordResetCheckRequest,
+  PasswordResetRequest,
+  PasswordResetResponse,
+  ProfileRequest,
+  ProfileResponse,
   RegisterRequest
 } from './model';
 
@@ -34,6 +41,46 @@ import { customInstance } from '../../config/httpClient';
  ) => {
       return customInstance<AuthResponse>(
       {url: `/auth/refresh`, method: 'POST'
+    },
+      );
+    }
+  export const changePassword = (
+    changePasswordRequest: ChangePasswordRequest,
+ ) => {
+      return customInstance<AuthResponse>(
+      {url: `/auth/password`, method: 'POST',
+      headers: {'Content-Type': 'application/json', },
+      data: changePasswordRequest
+    },
+      );
+    }
+  export const resetPassword = (
+    passwordResetRequest: PasswordResetRequest,
+ ) => {
+      return customInstance<PasswordResetResponse>(
+      {url: `/auth/password-reset`, method: 'POST',
+      headers: {'Content-Type': 'application/json', },
+      data: passwordResetRequest
+    },
+      );
+    }
+  export const checkPasswordReset = (
+    passwordResetCheckRequest: PasswordResetCheckRequest,
+ ) => {
+      return customInstance<void>(
+      {url: `/auth/password-reset/check`, method: 'POST',
+      headers: {'Content-Type': 'application/json', },
+      data: passwordResetCheckRequest
+    },
+      );
+    }
+  export const requestPasswordRecovery = (
+    passwordRecoveryRequest: PasswordRecoveryRequest,
+ ) => {
+      return customInstance<void>(
+      {url: `/auth/password-recovery`, method: 'POST',
+      headers: {'Content-Type': 'application/json', },
+      data: passwordRecoveryRequest
     },
       );
     }
@@ -75,9 +122,33 @@ import { customInstance } from '../../config/httpClient';
     },
       );
     }
+  export const myProfile = (
+    
+ ) => {
+      return customInstance<ProfileResponse>(
+      {url: `/me/profile`, method: 'GET'
+    },
+      );
+    }
+  export const updateMyProfile = (
+    profileRequest: ProfileRequest,
+ ) => {
+      return customInstance<ProfileResponse>(
+      {url: `/me/profile`, method: 'PATCH',
+      headers: {'Content-Type': 'application/json', },
+      data: profileRequest
+    },
+      );
+    }
   export type RegisterResult = NonNullable<Awaited<ReturnType<typeof register>>>
 export type RefreshResult = NonNullable<Awaited<ReturnType<typeof refresh>>>
+export type ChangePasswordResult = NonNullable<Awaited<ReturnType<typeof changePassword>>>
+export type ResetPasswordResult = NonNullable<Awaited<ReturnType<typeof resetPassword>>>
+export type CheckPasswordResetResult = NonNullable<Awaited<ReturnType<typeof checkPasswordReset>>>
+export type RequestPasswordRecoveryResult = NonNullable<Awaited<ReturnType<typeof requestPasswordRecovery>>>
 export type LogoutResult = NonNullable<Awaited<ReturnType<typeof logout>>>
 export type LoginResult = NonNullable<Awaited<ReturnType<typeof login>>>
 export type VerifyInvitationResult = NonNullable<Awaited<ReturnType<typeof verifyInvitation>>>
 export type ValidateInvitationResult = NonNullable<Awaited<ReturnType<typeof validateInvitation>>>
+export type MyProfileResult = NonNullable<Awaited<ReturnType<typeof myProfile>>>
+export type UpdateMyProfileResult = NonNullable<Awaited<ReturnType<typeof updateMyProfile>>>
