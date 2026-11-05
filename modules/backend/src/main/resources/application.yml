@@ -90,8 +90,8 @@ app:
     link-ttl: PT30M
     links-per-window: 3
     link-window: P1D
-    # IP del cliente para el límite por IP. En producción, CF-Connecting-IP (la escribe Cloudflare y pisa la
-    # que mande el cliente). Vacía: la dirección de la conexión (local, tests). Nunca X-Forwarded-For.
+    # IP del cliente para el límite por IP. En producción, X-Real-IP (la escribe Vercel al reenviar /api/*;
+    # CF-Connecting-IP traería la IP de Vercel). Vacía: la dirección de la conexión (local, tests). Nunca X-Forwarded-For.
     client-ip-header: ${PASSWORD_RECOVERY_CLIENT_IP_HEADER:}
     requests-per-ip: ${PASSWORD_RECOVERY_REQUESTS_PER_IP:10}
     ip-window: PT1H

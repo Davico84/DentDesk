@@ -243,21 +243,30 @@ Corre en la petición, después de validar el formato, y **no consulta la base**
   - tamaño máximo de 10 000 IPs. Si un ataque desde muchísimas IPs lo desborda, Caffeine descarta contadores y
     alguna IP recupera cupo. Se acepta, porque la memoria queda acotada y el peor caso es la cola llena de D4,
     pero queda **medido** (ver Métricas).
-- **IP del cliente: una sola fuente, `CF-Connecting-IP`.** Render atiende detrás de Cloudflare, que escribe esa
-  cabecera con la IP que se conectó y **pisa** la que mande el cliente. `X-Forwarded-For` se descarta como fuente:
+- **IP del cliente: una sola fuente, `X-Real-IP`** (revisado al desplegar, 2026-11-05). El navegador no llama a
+  Render directo: llama al frontend en Vercel, que reenvía `/api/*` a Render con un *rewrite* externo. La conexión
+  a Render la abre Vercel, así que `CF-Connecting-IP` (la que escribe el Cloudflare de Render) sería la IP de Vercel
+  y todos los usuarios compartirían un cupo. Vercel documenta que reenvía la IP del visitante a un origen externo en
+  `x-real-ip` y `x-forwarded-for` (vercel.com/docs/routing/rewrites, "Identifying the visitor at your origin").
+  `X-Forwarded-For` se descarta como fuente:
   - el cliente controla sus valores a la izquierda;
   - con `forward-headers-strategy: framework`, `getRemoteAddr()` devuelve justamente el primero;
-  - contar saltos desde la derecha exige conocer la cadena exacta de proxies de Render, que no está garantizada;
+  - contar saltos desde la derecha exige conocer la cadena exacta de proxies, que no está garantizada;
   - además, `ForwardedHeaderFilter` saca esas cabeceras y Boot lo registra con `HIGHEST_PRECEDENCE`, así que un
     filtro propio no puede asegurar correr antes.
 
-  `CF-Connecting-IP` no es una cabecera `X-Forwarded-*`, así que ese filtro no la toca, y la estrategia
-  `framework` (que sirve para `X-Forwarded-Proto` y las cookies `Secure`) queda como está. El nombre de la cabecera
-  se configura (`app.password-recovery.client-ip-header`): en producción, `CF-Connecting-IP`; vacío en local y en
-  tests, donde se usa la dirección de la conexión. Si en producción la cabecera falta, **no** se cae a
-  `getRemoteAddr()`, que sería falsificable: todos esos pedidos comparten un único cupo. Que Render la entregue, y que
-  la que mande el cliente se pise, es **precondición del despliegue** (Migration Plan 4). Si no se cumple, se revisa
-  esta decisión antes de desplegar.
+  `X-Real-IP` no es una cabecera `X-Forwarded-*`, así que ese filtro no la toca, y la estrategia `framework` (que
+  sirve para `X-Forwarded-Proto` y las cookies `Secure`) queda como está. El nombre de la cabecera se configura
+  (`app.password-recovery.client-ip-header`): en producción, `X-Real-IP`; vacío en local y en tests, donde se usa la
+  dirección de la conexión. Si en producción la cabecera falta, **no** se cae a `getRemoteAddr()`: todos esos
+  pedidos comparten un único cupo.
+
+  **Riesgo aceptado:** quien llame a `onrender.com` directo, sin pasar por Vercel, puede inventar `X-Real-IP` y
+  esquivar el límite por IP. Se acepta porque ese límite solo protege la cola: lo que cuesta sigue acotado sin
+  depender de la IP (un correo no registrado no envía nada, cada cuenta recibe como mucho 3 enlaces al día, la cola
+  es finita y descarta). El cierre es un secreto que Vercel agrega a cada petición reenviada (transformación
+  `routes` con `op: set`, la que recomienda Vercel) y que el backend exige para confiar en `X-Real-IP`; si no está,
+  usa `CF-Connecting-IP`. Queda como change futuro.
 - **Un solo pendiente por correo:** un conjunto concurrente de correos normalizados en cola o en proceso. Si el correo
   ya está, no se encola. Evita que un mismo correo ocupe la cola y que dos pedidos simultáneos generen dos enlaces.
   Su tamaño está acotado por la cola. Para que un correo **nunca quede retenido**:
@@ -295,9 +304,9 @@ Corre en la petición, después de validar el formato, y **no consulta la base**
   CAPTCHA en el formulario.
 - **IPs compartidas**: una clínica detrás de una sola IP comparte el cupo de 10 pedidos por hora. Alcanza para el
   uso normal (olvidos esporádicos); si no, se sube el número por configuración.
-- **IP mal resuelta**: si Render dejara de entregar `CF-Connecting-IP`, todos los pedidos compartirían un único cupo:
-  la recuperación se degrada, pero no se puede esquivar. Si alguien llegara al servicio sin pasar por Cloudflare,
-  podría inventar la cabecera. Las dos cosas se verifican en el despliegue (Migration Plan 4).
+- **IP mal resuelta**: si Vercel dejara de entregar `X-Real-IP`, todos los pedidos compartirían un único cupo: la
+  recuperación se degrada, pero no se puede esquivar. Quien llame a Render directo puede inventar la cabecera
+  (riesgo aceptado en D10). Se verifica en el despliegue (Migration Plan 4).
 - **Desalojo de contadores**: un ataque desde muchas IPs puede hacer que Caffeine descarte contadores y que alguna IP
   recupere cupo (D10). Queda medido por los contadores de desalojo y de `queue_full`.
 - **Tiempo de un correo repetido**: canal aceptado. Dice, como mucho, que alguien pidió hace instantes la recuperación
@@ -325,9 +334,10 @@ Corre en la petición, después de validar el formato, y **no consulta la base**
    comprobación no se despliega.
 4. **Bloqueante antes de producción:** con pedidos reales a través de Render, comprobar tres cosas, sin dejar IPs en
    los logs permanentes:
-   - que llega `CF-Connecting-IP` con la IP del cliente;
-   - que un `CF-Connecting-IP` o un `X-Forwarded-For` mandados por el cliente no cambian la IP contada;
-   - que el servicio no responde sin pasar por Cloudflare.
+   - que, a través de Vercel, `X-Real-IP` trae la IP del cliente: desde una misma IP, el 11.º pedido en la hora no
+     se atiende y desde otra IP sí;
+   - si un `X-Real-IP` mandado por el navegador a través de Vercel cambia la IP contada. Si la cambia, queda en el
+     mismo riesgo aceptado que la llamada directa (D10) y se anota.
 
    Si falla alguna, se revisa D10 antes de desplegar.
 5. **Rollback:** la tabla es aditiva; revertir la app la deja sin uso. Flyway no se revierte.
