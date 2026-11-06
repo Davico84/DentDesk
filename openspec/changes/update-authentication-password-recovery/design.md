@@ -243,30 +243,35 @@ Corre en la petición, después de validar el formato, y **no consulta la base**
   - tamaño máximo de 10 000 IPs. Si un ataque desde muchísimas IPs lo desborda, Caffeine descarta contadores y
     alguna IP recupera cupo. Se acepta, porque la memoria queda acotada y el peor caso es la cola llena de D4,
     pero queda **medido** (ver Métricas).
-- **IP del cliente: una sola fuente, `X-Real-IP`** (revisado al desplegar, 2026-11-05). El navegador no llama a
-  Render directo: llama al frontend en Vercel, que reenvía `/api/*` a Render con un *rewrite* externo. La conexión
-  a Render la abre Vercel, así que `CF-Connecting-IP` (la que escribe el Cloudflare de Render) sería la IP de Vercel
-  y todos los usuarios compartirían un cupo. Vercel documenta que reenvía la IP del visitante a un origen externo en
-  `x-real-ip` y `x-forwarded-for` (vercel.com/docs/routing/rewrites, "Identifying the visitor at your origin").
-  `X-Forwarded-For` se descarta como fuente:
-  - el cliente controla sus valores a la izquierda;
-  - con `forward-headers-strategy: framework`, `getRemoteAddr()` devuelve justamente el primero;
-  - contar saltos desde la derecha exige conocer la cadena exacta de proxies, que no está garantizada;
-  - además, `ForwardedHeaderFilter` saca esas cabeceras y Boot lo registra con `HIGHEST_PRECEDENCE`, así que un
-    filtro propio no puede asegurar correr antes.
+- **IP del cliente: `getRemoteAddr()`, que sale del `Forwarded` de Vercel** (revisado con pedidos reales en producción,
+  2026-11-06). El navegador no llama a Render directo: llama al frontend en Vercel, que reenvía `/api/*` con un
+  *rewrite* externo. Con `forward-headers-strategy: framework`, `ForwardedHeaderFilter` calcula `getRemoteAddr()` y
+  prefiere la cabecera `Forwarded` a `X-Forwarded-For`. Lo observado, comparando huellas por cabecera a través de
+  Vercel, con pedidos normales y con cabeceras inventadas por el cliente:
 
-  `X-Real-IP` no es una cabecera `X-Forwarded-*`, así que ese filtro no la toca, y la estrategia `framework` (que
-  sirve para `X-Forwarded-Proto` y las cookies `Secure`) queda como está. El nombre de la cabecera se configura
-  (`app.password-recovery.client-ip-header`): en producción, `X-Real-IP`; vacío en local y en tests, donde se usa la
-  dirección de la conexión. Si en producción la cabecera falta, **no** se cae a `getRemoteAddr()`: todos esos
-  pedidos comparten un único cupo.
+  | Fuente | Misma red | Otra red | Con cabeceras inventadas | Resultado |
+  |---|---|---|---|---|
+  | `X-Real-IP` | no llega | no llega | no llega | la documenta Vercel, pero no llega a Render: dejaba un solo cupo para todos |
+  | `CF-Connecting-IP`, `True-Client-IP` | cambia | cambia | no la toma | varía entre pedidos del mismo cliente: no identifica al cliente |
+  | `X-Vercel-Forwarded-For`, primero de `X-Forwarded-For` | estable | distinta | **toma el valor inventado** | se esquiva desde el navegador |
+  | **`getRemoteAddr()`** | estable | distinta | **no cambia** (también con un `Forwarded` inventado, simple o en lista) | **la fuente** |
 
-  **Riesgo aceptado:** quien llame a `onrender.com` directo, sin pasar por Vercel, puede inventar `X-Real-IP` y
-  esquivar el límite por IP. Se acepta porque ese límite solo protege la cola: lo que cuesta sigue acotado sin
-  depender de la IP (un correo no registrado no envía nada, cada cuenta recibe como mucho 3 enlaces al día, la cola
-  es finita y descarta). El cierre es un secreto que Vercel agrega a cada petición reenviada (transformación
-  `routes` con `op: set`, la que recomienda Vercel) y que el backend exige para confiar en `X-Real-IP`; si no está,
-  usa `CF-Connecting-IP`. Queda como change futuro.
+  Por eso `app.password-recovery.client-ip-header` queda **vacía también en producción**. La opción de configurar una
+  cabecera sigue en el código, sin uso: si está configurada y falta, todos comparten un cupo (nunca cae a
+  `getRemoteAddr()`), y eso fue justamente lo que pasó con `X-Real-IP`.
+
+  **Riesgos aceptados.** El límite por IP solo protege la cola: lo que cuesta sigue acotado sin depender de la IP (un
+  correo no registrado no envía nada, cada cuenta recibe como mucho 3 enlaces al día, la cola es finita y descarta).
+  - Quien llame a `onrender.com` directo, sin pasar por Vercel, puede inventar `Forwarded` o `X-Forwarded-For` y
+    esquivar el límite.
+  - Si Vercel dejara de mandar `Forwarded`, el filtro usaría el primero de `X-Forwarded-For`, que se puede inventar
+    desde el navegador. El límite se podría esquivar, sin aviso. Se acepta frente a leer la petición por debajo del
+    filtro para exigir `Forwarded`, más complejo de lo que este límite justifica.
+  - El límite es aproximado: en la misma red se observó otra IP en un pedido, sin causa confirmada. Un cliente cuya IP
+    rota recibe algo más de cupo.
+
+  El cierre de la llamada directa es un secreto que Vercel agrega a cada petición reenviada (transformación `routes`
+  con `op: set`) y que el backend exige para confiar en la IP reenviada. Queda como change futuro.
 - **Un solo pendiente por correo:** un conjunto concurrente de correos normalizados en cola o en proceso. Si el correo
   ya está, no se encola. Evita que un mismo correo ocupe la cola y que dos pedidos simultáneos generen dos enlaces.
   Su tamaño está acotado por la cola. Para que un correo **nunca quede retenido**:
@@ -304,9 +309,9 @@ Corre en la petición, después de validar el formato, y **no consulta la base**
   CAPTCHA en el formulario.
 - **IPs compartidas**: una clínica detrás de una sola IP comparte el cupo de 10 pedidos por hora. Alcanza para el
   uso normal (olvidos esporádicos); si no, se sube el número por configuración.
-- **IP mal resuelta**: si Vercel dejara de entregar `X-Real-IP`, todos los pedidos compartirían un único cupo: la
-  recuperación se degrada, pero no se puede esquivar. Quien llame a Render directo puede inventar la cabecera
-  (riesgo aceptado en D10). Se verifica en el despliegue (Migration Plan 4).
+- **IP mal resuelta**: si Vercel dejara de entregar `Forwarded`, el límite pasaría a usar un valor que el cliente
+  controla y se podría esquivar. Quien llame a Render directo también puede inventarla. Los dos son riesgos aceptados
+  en D10; verificado en el despliegue (Migration Plan 4).
 - **Desalojo de contadores**: un ataque desde muchas IPs puede hacer que Caffeine descarte contadores y que alguna IP
   recupere cupo (D10). Queda medido por los contadores de desalojo y de `queue_full`.
 - **Tiempo de un correo repetido**: canal aceptado. Dice, como mucho, que alguien pidió hace instantes la recuperación
@@ -334,10 +339,8 @@ Corre en la petición, después de validar el formato, y **no consulta la base**
    comprobación no se despliega.
 4. **Bloqueante antes de producción:** con pedidos reales a través de Render, comprobar tres cosas, sin dejar IPs en
    los logs permanentes:
-   - que, a través de Vercel, `X-Real-IP` trae la IP del cliente: desde una misma IP, el 11.º pedido en la hora no
-     se atiende y desde otra IP sí;
-   - si un `X-Real-IP` mandado por el navegador a través de Vercel cambia la IP contada. Si la cambia, queda en el
-     mismo riesgo aceptado que la llamada directa (D10) y se anota.
+   - que, a través de Vercel, desde una misma IP el 11.º pedido en la hora no se atiende y desde otra IP sí;
+   - que unas cabeceras de IP mandadas por el cliente a través de Vercel no cambian la IP contada.
 
    Si falla alguna, se revisa D10 antes de desplegar.
 5. **Rollback:** la tabla es aditiva; revertir la app la deja sin uso. Flyway no se revierte.

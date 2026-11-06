@@ -284,7 +284,7 @@ Consecuencia (decidida en `add-cloud-deployment`): **toda la API pasa a `/api`**
 | `MAIL_FROM` | remitente verificado en Brevo | |
 | `FRONTEND_URL` | `https://dentdeskapp.vercel.app` | base del enlace del correo de invitación |
 | `PLATFORM_ADMIN_*` | solo durante el bootstrap | ver §11.1; **se retiran** después |
-| `PASSWORD_RECOVERY_CLIENT_IP_HEADER` | `X-Real-IP` | IP del cliente para el límite de pedidos de recuperación; la escribe Vercel al reenviar `/api/*`. **Obligatoria en producción**: sin ella el límite toma la dirección de la conexión, que es la del proxy, y todos compartirían un cupo. Verificarla antes de habilitar la recuperación (§12.2) |
+| `PASSWORD_RECOVERY_CLIENT_IP_HEADER` | *(sin definir)* | **No definirla en producción.** Sin ella, la IP del límite de recuperación sale de la cabecera `Forwarded` que escribe Vercel. Con una cabecera definida que no llegue (como `X-Real-IP`), todos los usuarios comparten un solo cupo de pedidos. Ver §12.2 |
 
 Los secretos se cargan en el panel de Render, **nunca** en el repo.
 
@@ -458,15 +458,18 @@ Se revisa si algún día hay más de un administrador de plataforma, o segundo f
    servidores antes de llegar al navegador (`no-referrer` no lo evita). No hay un header SMTP documentado para
    apagarlo por mensaje: se apaga en la cuenta de Brevo. **Verificar** con un correo de recuperación real que el
    enlace llega como `https://<frontend>/auth/reset-password?token=...`, sin reescribir.
-2. **IP del cliente.** Con `PASSWORD_RECOVERY_CLIENT_IP_HEADER=X-Real-IP` (no `CF-Connecting-IP`: el navegador
-   llega por el *rewrite* de Vercel, y Cloudflare vería la IP de Vercel), comprobar desde el frontend publicado:
-   - desde tu PC, 10 pedidos con correos inventados y el 11.º con un correo real: ese correo **no** llega (límite
-     por IP); desde el celular con datos móviles, un pedido con el correo real **sí** llega;
-   - repetir el 11.º mandando un `X-Real-IP` inventado (`curl` al dominio de Vercel): si el correo llega, Vercel no
-     pisa la cabecera, y se anota como el riesgo aceptado del design D10.
+2. **IP del cliente.** `PASSWORD_RECOVERY_CLIENT_IP_HEADER` sin definir (design D10 del change, archivado). Comprobar
+   desde el frontend publicado, mirando las cuentas en `password_reset_tokens` y no la bandeja:
+   - elegir cuentas activas, que no sean de plataforma y con **menos de 3 enlaces en 24 h**: si no, las frena el límite
+     por cuenta y la prueba no mide nada;
+   - desde una misma IP, 10 pedidos con correos inventados y el 11.º con un correo real: **no** se crea enlace; desde
+     el celular con datos móviles, otro correo real: **sí** se crea;
+   - la IP del navegador puede variar entre pedidos aun en la misma red. Si el 11.º crea un enlace, repetir antes de
+     concluir;
+   - repetir mandando `Forwarded` y `X-Forwarded-For` inventados (`curl` al dominio de Vercel): la cuenta no cambia.
 
-   Quien llame a `onrender.com` directo puede inventar `X-Real-IP` y esquivar el límite por IP (riesgo aceptado: el
-   límite por cuenta, 3 al día, y la cola acotada no dependen de la IP). Cerrarlo es un change futuro: un secreto
-   que Vercel agrega al reenviar y que el backend exige para confiar en la cabecera.
+   Riesgos aceptados (D10): quien llame a `onrender.com` directo puede inventar la IP, y si Vercel dejara de mandar
+   `Forwarded` también se podría desde el navegador. El límite por cuenta, 3 al día, y la cola acotada no dependen de
+   la IP. Cerrarlo es un change futuro: un secreto que Vercel agrega al reenviar y que el backend exige.
 3. **Correo configurado** (`MAIL_*`, §6): sin él, los pedidos se aceptan pero no se envía nada.
 

@@ -13,8 +13,8 @@ import java.time.Duration;
  * @param linkTtl              vigencia del enlace (30 min)
  * @param linksPerWindow       enlaces por cuenta en {@code linkWindow} (3)
  * @param linkWindow           ventana móvil del límite por cuenta (24 h)
- * @param clientIpHeader       cabecera con la IP del cliente ({@code X-Real-IP} en producción); vacía
- *                             usa la dirección de la conexión (local, tests)
+ * @param clientIpHeader       cabecera con la IP del cliente; vacía, también en producción, usa
+ *                             {@code getRemoteAddr()} (D10)
  * @param requestsPerIp        pedidos por IP en {@code ipWindow} (10)
  * @param ipWindow             ventana fija del límite por IP (1 h)
  * @param ipCacheMaxSize       IPs contadas a la vez (10 000)

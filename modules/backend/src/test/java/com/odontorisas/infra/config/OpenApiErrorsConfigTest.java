@@ -59,7 +59,7 @@ class OpenApiErrorsConfigTest {
      */
     @Test
     void a_public_operation_gets_500_but_no_session_401() throws Exception {
-        Operation operation = customize(AuthController.class, new AuthController(null, null, null, null, null, null, null),
+        Operation operation = customize(AuthController.class, new AuthController(null, null, null, null, null, null),
             "register", RegisterRequest.class);
 
         assertThat(operation.getResponses()).containsKey("500");
