@@ -457,7 +457,7 @@ El sistema SHALL limitar los pedidos de recuperación por IP del cliente y SHALL
 - **THEN** se atienden como máximo tantos como el límite
 
 #### Scenario: Una IP declarada por el cliente no cuenta
-- **WHEN** un pedido declara otra IP en cabeceras que el cliente controla
+- **WHEN** un pedido que entra por el proxy de confianza declara otra IP en cabeceras que el cliente controla
 - **THEN** el límite se aplica a la IP del cliente que informa el proxy de confianza
 
 #### Scenario: Pedido repetido mientras otro está pendiente
