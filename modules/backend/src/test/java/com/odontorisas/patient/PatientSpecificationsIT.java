@@ -48,8 +48,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 @SpringBootTest
 class PatientSpecificationsIT extends AbstractTenantAwareIntegrationTest {
 
-    private static final long ORG_A = 1L;
-    private static final long ORG_B = 2L;
+    private static final long ORG_A = 1_000_001L;
+    private static final long ORG_B = 1_000_002L;
 
     private long someUser;
 
