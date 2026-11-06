@@ -1,7 +1,11 @@
 package com.odontorisas.infra.security;
 
+import jakarta.servlet.http.HttpServletRequest;
 import org.junit.jupiter.api.Test;
+import org.springframework.mock.web.MockFilterChain;
 import org.springframework.mock.web.MockHttpServletRequest;
+import org.springframework.mock.web.MockHttpServletResponse;
+import org.springframework.web.filter.ForwardedHeaderFilter;
 
 import java.time.Duration;
 
@@ -58,5 +62,23 @@ class ClientIpResolverTest {
     @Test
     void without_a_header_configured_it_uses_the_connection_address() {
         assertThat(new ClientIpResolver(properties("")).resolve(request())).isEqualTo("10.0.0.7");
+    }
+
+    /** La petición como llega al controller en producción: envuelta por el filtro real. */
+    private static HttpServletRequest throughForwardedHeaderFilter(MockHttpServletRequest request) throws Exception {
+        MockFilterChain chain = new MockFilterChain();
+        new ForwardedHeaderFilter().doFilter(request, new MockHttpServletResponse(), chain);
+        return (HttpServletRequest) chain.getRequest();
+    }
+
+    @Test
+    void in_production_it_counts_the_forwarded_header_and_not_an_x_forwarded_for_invented_by_the_client()
+            throws Exception {
+        MockHttpServletRequest request = request();
+        request.addHeader("Forwarded", "for=203.0.113.9;proto=https");
+        request.addHeader("X-Forwarded-For", "198.51.100.1, 203.0.113.9");
+
+        assertThat(new ClientIpResolver(properties("")).resolve(throughForwardedHeaderFilter(request)))
+            .isEqualTo("203.0.113.9");
     }
 }

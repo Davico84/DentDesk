@@ -90,11 +90,9 @@ app:
     link-ttl: PT30M
     links-per-window: 3
     link-window: P1D
-    # IP del cliente para el límite por IP. En producción, X-Real-IP (la escribe Vercel al reenviar /api/*;
-    # CF-Connecting-IP traería la IP de Vercel). Vacía: la dirección de la conexión (local, tests). Nunca X-Forwarded-For.
+    # Vacía también en producción: getRemoteAddr(), que ForwardedHeaderFilter toma del Forwarded de Vercel (D10).
+    # Si se configura y la cabecera no llega, todos comparten un cupo. Nunca X-Forwarded-For.
     client-ip-header: ${PASSWORD_RECOVERY_CLIENT_IP_HEADER:}
-    # Temporal: registra huellas de las cabeceras de IP de cada pedido (ClientIpDiagnostics). Se retira con D10.
-    ip-diagnostic: ${PASSWORD_RECOVERY_IP_DIAGNOSTIC:false}
     requests-per-ip: ${PASSWORD_RECOVERY_REQUESTS_PER_IP:10}
     ip-window: PT1H
     ip-cache-max-size: 10000
