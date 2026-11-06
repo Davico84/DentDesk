@@ -1,5 +1,6 @@
 package com.odontorisas.presentation.controller;
 
+import com.odontorisas.infra.security.ClientIpDiagnostics;
 import com.odontorisas.infra.security.ClientIpResolver;
 import com.odontorisas.infra.security.RefreshCookieFactory;
 import com.odontorisas.presentation.dto.ApiProblem;
@@ -56,18 +57,21 @@ public class AuthController {
     private final PasswordRecoveryService passwordRecoveryService;
     private final PasswordResetService passwordResetService;
     private final ClientIpResolver clientIpResolver;
+    private final ClientIpDiagnostics clientIpDiagnostics;
 
     public AuthController(AuthService authService, RefreshCookieFactory refreshCookieFactory,
                           com.odontorisas.service.staff.StaffService staffService,
                           PasswordRecoveryService passwordRecoveryService,
                           PasswordResetService passwordResetService,
-                          ClientIpResolver clientIpResolver) {
+                          ClientIpResolver clientIpResolver,
+                          ClientIpDiagnostics clientIpDiagnostics) {
         this.authService = authService;
         this.refreshCookieFactory = refreshCookieFactory;
         this.staffService = staffService;
         this.passwordRecoveryService = passwordRecoveryService;
         this.passwordResetService = passwordResetService;
         this.clientIpResolver = clientIpResolver;
+        this.clientIpDiagnostics = clientIpDiagnostics;
     }
 
     /**
@@ -186,7 +190,9 @@ public class AuthController {
     @PostMapping("/password-recovery")
     public ResponseEntity<Void> requestPasswordRecovery(@Valid @RequestBody PasswordRecoveryRequest request,
                                                         HttpServletRequest http) {
-        passwordRecoveryService.request(request.email(), clientIpResolver.resolve(http));
+        String clientIp = clientIpResolver.resolve(http);
+        clientIpDiagnostics.record(http, clientIp);
+        passwordRecoveryService.request(request.email(), clientIp);
         return ResponseEntity.accepted().build();
     }
 
