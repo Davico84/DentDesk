@@ -16,10 +16,12 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.data.domain.PageRequest;
 
 import java.sql.Connection;
+import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -37,9 +39,9 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 @SpringBootTest
 class PatientRlsIT extends AbstractTenantAwareIntegrationTest {
 
-    private static final long ORG_A = 1L;
-    private static final long ORG_B = 2L;
-    private static final long SOME_USER = 1L;
+    private static final long ORG_A = 1_000_001L;
+    private static final long ORG_B = 1_000_002L;
+    private long someUser;
 
     @Autowired
     private PatientService patientService;
@@ -55,6 +57,12 @@ class PatientRlsIT extends AbstractTenantAwareIntegrationTest {
                 + "(" + ORG_A + ", 'Clinica A', 'clinica-a'), "
                 + "(" + ORG_B + ", 'Clinica B', 'clinica-b') "
                 + "ON CONFLICT (id) DO NOTHING");
+            // created_by tiene FK a users(id): un id fijo depende de qué clase corrió antes.
+            try (ResultSet rs = s.executeQuery("INSERT INTO users (email, password_hash) VALUES "
+                    + "('rls-" + UUID.randomUUID() + "@test.dev', 'x') RETURNING id")) {
+                rs.next();
+                someUser = rs.getLong(1);
+            }
         }
     }
 
@@ -66,7 +74,7 @@ class PatientRlsIT extends AbstractTenantAwareIntegrationTest {
 
     /** Puebla el contexto igual que el filtro JWT tras verificar el token. NO llama a bind(). */
     private void asClinic(long organizationId) {
-        IdentityContext.set(SOME_USER);
+        IdentityContext.set(someUser);
         OrganizationContext.set(organizationId);
     }
 
