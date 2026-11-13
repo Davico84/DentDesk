@@ -77,6 +77,25 @@ Dimensión de **negocio** (sustituible por proyecto). Define **qué** construimo
 
 > `multi-tenancy` y `api-type-contracts` son capacidades **técnicas** (no numeradas aquí); ver "Estado de capacidades" abajo.
 
+### 2.1 Corte MVP para vender (decidido 2026-11-13)
+
+El MVP es la versión que se le puede **vender** a una clínica: la operación del día a día completa, más lo mínimo para cobrarle y para alojar datos de salud con respaldo legal. Lo ya construido (pacientes, historia clínica, odontograma, personal, credencial, marca) entra tal cual.
+
+Orden acordado:
+
+| # | Qué | Tipo | Por qué en este lugar |
+|---|---|---|---|
+| 1 | **Términos de los proveedores** (Render, Neon, Vercel, Brevo) contra el texto oficial: ¿admiten datos de salud? | revisión, sin change | Es rápido y **puede cambiar la infraestructura** (Render podría exigir un acuerdo tipo BAA o prohibirlos). Mejor saberlo antes de construir encima. |
+| 2 | **`appointments`** (fila 5) | `add-*` | La recepción agenda: sin agenda la clínica no opera en Dentdesk. Solo depende de `patients`. |
+| 3 | **`treatments`** + **`treatment-plans`** (filas 7-8) | `add-*` ×2 | Lo que se hace en la boca y el presupuesto; habilita el cobro. |
+| 4 | **`patient-billing` mínimo** (fila 10) | `add-*` | Pagos y saldo del paciente. **Sin** comprobantes SUNAT en el MVP. |
+| 5 | **`subscriptions` manual** + **correo con dominio propio** + **planes pagos de infraestructura** | `add-*` + operación | Para el lanzamiento: cobro a la clínica por transferencia y el `PLATFORM_ADMIN` suspende por impago (`Organization.status = SUSPENDED`, el gancho ya existe; ⚠️ verificar si hay pantalla para suspender). Dominio propio con SPF/DKIM para que los correos lleguen. Infra paga: hoy Render duerme. |
+| ∥ | **Documentos legales con abogado**: términos de servicio, política de privacidad y contrato de encargo de tratamiento (Dentdesk es el *encargado*, `ADR-0019`) | en paralelo, cuando se pueda | No bloquea construir, sí bloquea el primer paciente real. |
+
+**También antes del lanzamiento:** exportación de los datos de la clínica (que pueda llevárselos).
+
+**Después del MVP:** `images`, `inventory`, `dashboard`, `public-booking`, pasarela de pago para `subscriptions`, facturación electrónica SUNAT en `patient-billing`.
+
 ---
 
 ## 3. Estado de capacidades (puente hacia `specs/` y `changes/`)
