@@ -44,10 +44,10 @@ Render free da **750 h de instancia al mes por workspace**. Un servicio despiert
   - **Despertar diario: cron-job.org dispara un workflow de GitHub Actions** (`.github/workflows/wake-up.yml`). El workflow despierta Dentdesk y HSO con `curl` (hasta 3 intentos de 150 s) y falla, con aviso de GitHub por correo, si alguna no responde. ~1 min de Actions por día. **Verificado el 2026-10-12**: Dentdesk dormida despertó en **63 s**.
   - **El horario de GitHub (`schedule`) no sirve como despertador.** GitHub corre los programados solo desde la rama por defecto (`dev`) y los atrasó **4 a 6 horas** (13/10: 14:57; 14/10: 13:09, en vez de 8:45). Queda en el workflow solo como respaldo.
   - **Lo que sí dispara a tiempo: un job de cron-job.org que llama a la API de GitHub** (`workflow_dispatch`, que arranca en segundos), lunes a sábado **8:45** `America/Lima`:
-    - URL: `https://api.github.com/repos/Davico84/Odontorisas/actions/workflows/wake-up.yml/dispatches`, método `POST`.
+    - URL: `https://api.github.com/repos/Davico84/DentDesk/actions/workflows/wake-up.yml/dispatches`, método `POST`.
     - Encabezados (filas Key/Value): `Authorization: Bearer <token>`, `Accept: application/vnd.github+json`, `X-GitHub-Api-Version: 2022-11-28`, `Content-Type: application/json`.
     - **Cuerpo**: solo `{"ref":"dev"}`. Respuesta esperada: **204**. Un 422 es un cuerpo mal cargado (p. ej., los encabezados pegados en el cuerpo); 401/403, el token.
-    - **Token**: *fine-grained*, solo el repo `Odontorisas`, permiso **Actions: Read and write** y nada más. Guardado solo en cron-job.org. **Vence**: anotar la fecha y renovarlo antes, o el despertador deja de funcionar sin aviso (cron-job.org mostrará 401).
+    - **Token**: *fine-grained*, solo el repo `DentDesk` (antes `Odontorisas`; el token sigue valiendo tras el rename), permiso **Actions: Read and write** y nada más. Guardado solo en cron-job.org. **Vence**: anotar la fecha y renovarlo antes, o el despertador deja de funcionar sin aviso (cron-job.org mostrará 401).
     - **Verificado el 2026-10-15**: *Test run* → 204 → el workflow arrancó en segundos y despertó HSO en **54 s** y Dentdesk en **74 s** (ambas dormidas).
     - Un solo job despierta las dos apps: el workflow tiene un trabajo por servicio.
 - **UptimeRobot (el monitor 24/7 que tenía HSO) se pausa**: sin horario en el plan gratuito, despertaría a HSO de noche y agotaría el cupo compartido.
