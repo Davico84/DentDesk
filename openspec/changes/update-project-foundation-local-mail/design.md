@@ -29,14 +29,20 @@
 
 ### D2. Salvaguarda en el arranque: modo local solo con host de loopback
 
-Con correo habilitado y modo local encendido, la validación de la configuración falla al arrancar si `app.mail.host` no es `localhost`, `127.0.0.1` ni `::1` (sin distinguir mayúsculas). El mensaje nombra `MAIL_LOCAL_SMTP` y el host, nunca el usuario ni la contraseña. Mismo criterio que la validación de `JWT_SECRET`: fallar al arrancar, antes de atender pedidos, es mejor que descubrirlo con un correo ya enviado sin cifrar.
+**Política exacta.** Solo si `enabled=true` y `localSmtp=true`: el host se recorta (espacios alrededor) y se compara como texto, sin distinguir mayúsculas, contra exactamente `localhost`, `127.0.0.1` y `::1`. Cualquier otra forma se rechaza, también `[::1]`, `localhost.`, `127.0.0.2`, `0.0.0.0`, un nombre DNS o un host vacío. No se resuelve el DNS ni se interpreta la dirección: una regla corta y textual es más fácil de probar y no cambia según la red de la máquina. Con `enabled=false` no se valida el host (no se crea ningún conector SMTP).
 
-- Se valida en la construcción de la configuración de correo (o un validador de `MailProperties`), no en cada envío: el error tiene que verse al desplegar.
-- No se resuelve el DNS: se compara el texto del host. Un nombre que resuelve a loopback pero no está en la lista se rechaza; es aceptable.
+**Mecanismo.** Un método de validación en el propio record `MailProperties`, invocado desde su constructor compacto (el binding de `@ConfigurationProperties` construye el record al arrancar, antes de crear cualquier bean que lo use). Si falla, el binding falla y el contexto no levanta: el deploy queda en rojo antes de atender pedidos. El mensaje nombra `MAIL_LOCAL_SMTP` y el host rechazado, nunca el usuario ni la contraseña. Mismo criterio que la validación de `JWT_SECRET`.
+
+- *Alternativa descartada:* validar en `MailConfiguration` al crear los mailers. Depende de qué beans se crean según `enabled`, y un bean nuevo que use `MailProperties` podría saltársela.
+- *Alternativa descartada:* validar en cada envío. El error aparecería con el primer correo, no al desplegar.
+
+**Qué protege y qué no.** Protege contra un **error de configuración**: encender el modo local en un despliegue que apunta a un SMTP real. No es una frontera de seguridad contra quien controla la máquina: un túnel SSH o un relay en `localhost` hacia un SMTP real queda permitido, porque exige encender `MAIL_LOCAL_SMTP` a propósito. Se advierte en `docs/tooling-setup.md`.
 
 ### D3. Mailpit en el mismo `compose.yaml`, con imagen fijada
 
-Servicio `mailpit` junto a `db` en `modules/backend/compose.yaml`, imagen `axllent/mailpit` con versión exacta (no `latest`), puertos `1025` (SMTP) y `8025` (bandeja web) publicados solo en `127.0.0.1`. Sin volumen: los correos de prueba no necesitan persistir.
+Servicio `mailpit` junto a `db` en `modules/backend/compose.yaml`, imagen `axllent/mailpit` con versión exacta (no `latest`), publicado solo en `127.0.0.1`. Sin volumen: los correos de prueba no necesitan persistir.
+
+- Puertos publicados con variables **propias de compose**: `MAILPIT_SMTP_PORT` (por defecto `1025`) y `MAILPIT_WEB_PORT` (por defecto `8025`). No se reutiliza `MAIL_PORT`: ese es el puerto al que conecta el backend (en producción, 2525 de Brevo) y mezclarlo movería Mailpit sin querer. En el caso local estándar `MAIL_PORT=1025` y `MAILPIT_SMTP_PORT=1025` coinciden; si se cambia uno, se cambia el otro.
 
 - Un solo `docker compose ... up -d` levanta todo; quien no use correo no pierde nada (la app no lo usa sin `MAIL_ENABLED=true`).
 
@@ -48,7 +54,9 @@ Servicio `mailpit` junto a `db` en `modules/backend/compose.yaml`, imagen `axlle
 
 - [Alguien enciende `MAIL_LOCAL_SMTP` en Render] → D2 impide el arranque porque el host de Brevo no es loopback; el deploy falla visible y producción sigue con la versión anterior.
 - [Agregar un campo al record `MailProperties` rompe los `new MailProperties(...)` de los tests] → se actualizan en la misma tarea; es compilación, no comportamiento.
-- [Puertos 1025/8025 ocupados en la máquina] → se documentan y se pueden cambiar con variables, igual que `DB_PORT`.
+- [Puertos 1025/8025 ocupados en la máquina] → `MAILPIT_SMTP_PORT`/`MAILPIT_WEB_PORT`, igual que `DB_PORT`, documentados.
+- [Un relay o túnel en `localhost` hacia un SMTP real con el modo local encendido] → aceptado (ver D2, "Qué protege y qué no"); advertencia en `docs/tooling-setup.md`.
+- [Test con servidor SMTP falso por socket inestable en CI] → protocolo determinista, timeouts cortos y cierre garantizado (tarea 1.4).
 
 ## Migration Plan
 

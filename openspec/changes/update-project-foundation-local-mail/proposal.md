@@ -11,7 +11,7 @@ Desde que el alta es solo por invitación, nadie puede entrar a una instalación
 - **Salvaguarda:** con el interruptor encendido el backend solo arranca si el host SMTP es local (`localhost`, `127.0.0.1` o `::1`). Así un despliegue no puede quedar enviando correo sin cifrar por error.
 - Por defecto, sin el interruptor, el comportamiento no cambia: STARTTLS y autenticación exigidos (producción con Brevo igual que hoy).
 - `secrets.properties.example`: bloque comentado con la configuración local (Mailpit) lista para descomentar.
-- Documentación: `docs/tooling-setup.md` (sección nueva de correo local) y el `readme.md` (paso "Primer acceso").
+- Documentación: `docs/tooling-setup.md`, sección nueva de correo local, con el paso a paso desde un clon limpio.
 
 ## Capabilities
 
@@ -29,9 +29,10 @@ _Ninguna._
 - No agrega un mailer que escriba los enlaces en el log: el token de invitación y de recuperación nunca va al log (`update-authentication-password-recovery` design D4, `add-platform-admin` D6).
 - No automatiza el alta del primer usuario local (administrador de plataforma, clínica e invitación siguen el procedimiento de `docs/deployment.md` §11). Solo lo hace posible sin cuenta SMTP.
 - No se usa Mailpit en los tests automatizados: los tests siguen sustituyendo los mailers.
+- No toca el `readme.md`: su reestructuración va en otro PR (`docs/readme-portafolio`). Cuando ambos estén en `dev`, el paso "Primer acceso" del readme enlaza a la sección nueva de `docs/tooling-setup.md` en un cambio de documentación aparte.
 
 ## Impact
 
 - Backend: `infra/mail` (`MailProperties`, `SmtpSenders`, `MailConfiguration`), `application.yml`, tests unitarios del conector.
 - Configuración local: `modules/backend/compose.yaml`, `modules/backend/secrets.properties.example`.
-- Docs: `docs/tooling-setup.md`, `readme.md`. Sin cambios de API, contrato OpenAPI, base de datos ni frontend.
+- Docs: `docs/tooling-setup.md`. Sin cambios de API, contrato OpenAPI, base de datos ni frontend.
