@@ -167,3 +167,23 @@ Cambiar el secreto invalida los access tokens ya emitidos (tendrás que volver a
 Con `SWAGGER_ENABLED` ausente o en `false` la segunda línea dice `Swagger UI: desactivado (SWAGGER_ENABLED=false)`: la documentación está apagada por defecto para que un despliegue no exponga la API. En local, agrega `SWAGGER_ENABLED=true` a tu `secrets.properties` (el `.example` trae la línea **comentada**: copiarlo tal cual a un despliegue no enciende nada). Hace falta también para exportar el contrato con `curl` (`ContractDriftIT` te lo recuerda).
 
 Si no aparece, el arranque falló: busca el primer `Caused by:` del log (por ejemplo, un `JWT_SECRET` inválido).
+
+## 8. Correo local con Mailpit — primer acceso sin cuenta SMTP
+
+No hay registro público: toda cuenta nace de una **invitación por correo** (`docs/deployment.md` §11). En local, en vez de una cuenta SMTP real, se usa **Mailpit**, un servidor SMTP de prueba con bandeja web que ya viene en `modules/backend/compose.yaml` (`update-project-foundation-local-mail`).
+
+**Desde un clon limpio**, en `modules/backend`:
+
+1. `cp secrets.properties.example secrets.properties` y completa `DB_*` y `JWT_SECRET` (§7).
+2. Descomenta el bloque **"Correo LOCAL con Mailpit"** del final: `MAIL_ENABLED=true`, `MAIL_LOCAL_SMTP=true`, `MAIL_HOST=localhost`, `MAIL_PORT=1025`, `MAIL_FROM`, `MAILPIT_SMTP_PORT`, `MAILPIT_WEB_PORT`.
+3. Agrega las variables del administrador de plataforma (`PLATFORM_ADMIN_*`, `docs/deployment.md` §11.1) para el primer arranque.
+4. `docker compose --env-file secrets.properties up -d` levanta PostgreSQL y Mailpit.
+5. `./mvnw spring-boot:run` y, en otra terminal, desde la raíz: `pnpm --filter dentdesk-frontend dev`.
+6. Da de alta una clínica con `.\scripts\new-clinic.ps1` (`docs/deployment.md` §11.2). La invitación aparece en **http://localhost:8025**: su enlace abre el registro en `http://localhost:5173` y trae el código de verificación.
+7. Los correos de la cuenta (recuperación de contraseña, aviso de cambio) también llegan a esa bandeja.
+
+**Puertos.** `MAIL_PORT` es el puerto al que se conecta el backend; `MAILPIT_SMTP_PORT`, el que publica Mailpit en tu máquina. Tienen que coincidir (1025 por defecto). Si 1025 u 8025 están ocupados, cambia `MAILPIT_SMTP_PORT` junto con `MAIL_PORT`, o `MAILPIT_WEB_PORT`. Mailpit solo escucha en `127.0.0.1`: la bandeja no queda expuesta a tu red.
+
+**Por qué el backend no arranca con `MAIL_LOCAL_SMTP=true` y otro host.** El modo local manda el correo **sin STARTTLS ni autenticación**. Para que no llegue a un despliegue por error, con el correo habilitado solo acepta `MAIL_HOST` igual a `localhost`, `127.0.0.1` o `::1` (sin distinguir mayúsculas, ignorando espacios); con cualquier otro valor el arranque falla y el `Caused by:` nombra `MAIL_LOCAL_SMTP` y el host. Para usar un proveedor real (Brevo), comenta el bloque local y vuelve a los `MAIL_*` del proveedor.
+
+> ⚠️ La salvaguarda compara el **texto** del host: protege contra un error de configuración, no contra quien controla la máquina. Un túnel SSH o un relay en `localhost` hacia un SMTP real, con el modo local encendido, enviaría correo real **sin cifrar**. No lo uses así.
