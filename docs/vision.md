@@ -141,6 +141,8 @@ Dimensión de **negocio** (sustituible por proyecto). Define **qué** construimo
 
 - ✅ **`app-shell`** (técnica, frontend) — construida (2026-10-10). Spec: `openspec/specs/app-shell/spec.md` · change archivado: `openspec/changes/archive/2026-10-10-add-app-shell/`. Barra lateral y cabecera para toda la zona privada, secciones y roles en una sola configuración, responsive con barra contraíble, Inicio con atajos, y el listado de pacientes que conserva la búsqueda al volver (requirement sumado a `patients`). Traído de HSO (ver §8).
 
+- 🚧 **`update-project-foundation-local-mail`** (técnica, `project-foundation`) — **propuesto** (2026-11-19). Proposal: `openspec/changes/update-project-foundation-local-mail/proposal.md` · design: `openspec/changes/update-project-foundation-local-mail/design.md`. Mailpit en `compose.yaml` y un modo `MAIL_LOCAL_SMTP` (apagado por defecto, solo con host local) para que el primer acceso local funcione sin cuenta SMTP. Producción sigue exigiendo STARTTLS y autenticación.
+
 ## 4. Ciclo de vida de una capacidad (gobernanza)
 
 ```
