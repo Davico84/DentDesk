@@ -201,7 +201,7 @@ Detalle del flujo en [`SETUP-OPENSPEC.md`](SETUP-OPENSPEC.md).
 ```bash
 cd modules/backend
 cp secrets.properties.example secrets.properties   # completar DB_* y JWT_SECRET
-docker compose --env-file secrets.properties up -d  # PostgreSQL 16 local
+docker compose --env-file secrets.properties up -d  # PostgreSQL 16 y Mailpit
 ./mvnw spring-boot:run                              # http://localhost:8080/api
 ```
 
@@ -221,9 +221,15 @@ Sin `VITE_API_URL`, en desarrollo el frontend usa `http://localhost:8080/api` (v
 
 ### 3. Primer acceso
 
-No hay registro público. Para entrar en local hace falta crear el administrador de plataforma, dar
-de alta una clínica e invitar a su administrador. La invitación requiere SMTP configurado
-(`MAIL_*`). El procedimiento completo está en [`docs/deployment.md` §11](docs/deployment.md).
+No hay registro público: toda cuenta nace de una invitación por correo. En local no hace falta
+una cuenta SMTP real: `compose.yaml` incluye **Mailpit**, un servidor de correo de prueba, y las
+invitaciones y los correos de la cuenta se ven en `http://localhost:8025`.
+
+1. Descomenta el bloque "Correo LOCAL con Mailpit" de `secrets.properties` (está en el `.example`).
+2. Crea el administrador de plataforma y da de alta una clínica ([`docs/deployment.md` §11](docs/deployment.md)).
+3. Abre la invitación en Mailpit y regístrate con su código.
+
+Paso a paso completo en [`docs/tooling-setup.md` §8](docs/tooling-setup.md).
 
 ### Pruebas
 
