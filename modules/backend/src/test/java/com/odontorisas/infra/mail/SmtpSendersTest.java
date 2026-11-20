@@ -5,6 +5,9 @@ import com.odontorisas.service.auth.AccountMailer.RecoveryMail;
 import com.odontorisas.service.staff.InvitationDeliveryException;
 import com.odontorisas.service.staff.InvitationMailer.InvitationMail;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
+import org.springframework.mail.javamail.JavaMailSenderImpl;
 
 import java.time.Duration;
 import java.time.Instant;
@@ -41,12 +44,16 @@ class SmtpSendersTest {
     }
 
     @Test
-    void local_mode_turns_off_starttls_and_auth() {
-        Properties javaMail = SmtpSenders.create(properties("localhost", 1025, true)).getJavaMailProperties();
+    void local_mode_turns_off_starttls_ssl_and_auth_and_sends_no_credentials() {
+        JavaMailSenderImpl sender = SmtpSenders.create(properties("localhost", 1025, true));
+        Properties javaMail = sender.getJavaMailProperties();
 
         assertThat(javaMail.getProperty("mail.smtp.starttls.enable")).isEqualTo("false");
         assertThat(javaMail.getProperty("mail.smtp.starttls.required")).isEqualTo("false");
+        assertThat(javaMail.getProperty("mail.smtp.ssl.enable")).isEqualTo("false");
         assertThat(javaMail.getProperty("mail.smtp.auth")).isEqualTo("false");
+        assertThat(sender.getUsername()).isNull();
+        assertThat(sender.getPassword()).isNull();
     }
 
     @Test
@@ -59,18 +66,21 @@ class SmtpSendersTest {
         }
     }
 
-    @Test
-    void local_mode_delivers_an_invitation_without_starttls_or_auth() throws Exception {
-        try (FakeSmtpServer server = new FakeSmtpServer(true)) {
+    /** Mailpit no anuncia STARTTLS; con {@code true} se prueba además que el cliente no lo intenta si se ofrece. */
+    @ParameterizedTest
+    @ValueSource(booleans = {false, true})
+    void local_mode_delivers_an_invitation_without_starttls_or_auth(boolean serverOffersStartTls) throws Exception {
+        try (FakeSmtpServer server = new FakeSmtpServer(serverOffersStartTls)) {
             new SmtpInvitationMailer(properties("localhost", server.port(), true)).send(invitation());
 
             assertThat(server.commands()).contains("DATA").doesNotContain("STARTTLS", "AUTH");
         }
     }
 
-    @Test
-    void local_mode_delivers_a_recovery_link_without_starttls_or_auth() throws Exception {
-        try (FakeSmtpServer server = new FakeSmtpServer(true)) {
+    @ParameterizedTest
+    @ValueSource(booleans = {false, true})
+    void local_mode_delivers_a_recovery_link_without_starttls_or_auth(boolean serverOffersStartTls) throws Exception {
+        try (FakeSmtpServer server = new FakeSmtpServer(serverOffersStartTls)) {
             new SmtpAccountMailer(properties("localhost", server.port(), true))
                 .sendRecoveryLink(new RecoveryMail("ana@clinica.test", "tok", EXPIRES));
 

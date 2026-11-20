@@ -34,8 +34,13 @@ Un modo local, apagado por defecto, SHALL permitir enviar a un servidor SMTP de 
 
 #### Scenario: Error del arranque rechazado sin secretos
 - **WHEN** el backend no arranca por un host no local en modo local
-- **THEN** el error nombra `MAIL_LOCAL_SMTP` y el host rechazado
+- **THEN** el error nombra `MAIL_LOCAL_SMTP` y, si es un nombre o una dirección, el host rechazado
 - **AND** no contiene el usuario ni la contraseña SMTP
+
+#### Scenario: Host con credenciales o caracteres de control
+- **WHEN** el modo local está encendido y el host trae usuario y clave (`usuario:clave@host`), saltos de línea u otros caracteres de control
+- **THEN** el backend no arranca
+- **AND** el error nombra `MAIL_LOCAL_SMTP` pero no muestra ese valor
 
 #### Scenario: Modo local con el correo deshabilitado
 - **WHEN** el modo local está encendido pero el correo está deshabilitado, con cualquier host

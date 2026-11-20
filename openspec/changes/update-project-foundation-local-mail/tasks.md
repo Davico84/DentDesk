@@ -9,6 +9,8 @@
 - [x] 1.5 Test modo normal contra el servidor falso **sin** `STARTTLS`: `SmtpInvitationMailer.send` lanza `InvitationDeliveryException` y los comandos registrados no incluyen `DATA`. Verifica: Scenario "Servidor sin STARTTLS en modo normal".
 - [x] 1.6 Tests modo local contra el servidor falso: `SmtpInvitationMailer` y `SmtpAccountMailer` (enlace de recuperación) entregan, los comandos registrados incluyen `DATA` y no incluyen `STARTTLS` ni `AUTH`. Verifica: Scenarios "Invitación en modo local" y "Recuperación de contraseña en modo local".
 
+- [x] 1.7 Revisión de Codex de la implementación: el host del error solo se muestra si es limpio (userinfo y caracteres de control ocultos); modo local sin credenciales en el sender y con `ssl.enable=false`; barrera de fin de conversación en `FakeSmtpServer`; modo local probado contra servidor con y sin STARTTLS; `MailConfigurationStartupTest` con el binding real (host remoto no arranca y no apunta a credenciales, correo deshabilitado arranca, `application.yml` deja el modo apagado, el `AccountMailer` de Spring entrega en modo local). Verifica: `./mvnw test -Dtest='Mail*Test,Smtp*Test'` (41 tests).
+
 ## 2. Entorno local
 
 - [x] 2.1 Servicio `mailpit` en `modules/backend/compose.yaml`: versión exacta de `axllent/mailpit` verificada en Docker Hub (no `latest`), puertos `127.0.0.1:${MAILPIT_SMTP_PORT:-1025}:1025` y `127.0.0.1:${MAILPIT_WEB_PORT:-8025}:8025` (design D3). Verifica: desde `modules/backend`, con un `secrets.properties` copiado del `.example` y `DB_*` completos, `docker compose --env-file secrets.properties up -d` levanta `db` y `mailpit`, y `http://localhost:8025` responde.

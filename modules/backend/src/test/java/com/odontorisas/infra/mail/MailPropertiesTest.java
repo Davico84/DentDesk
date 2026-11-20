@@ -2,9 +2,11 @@ package com.odontorisas.infra.mail;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.MethodSource;
 import org.junit.jupiter.params.provider.ValueSource;
 
 import java.time.Duration;
+import java.util.stream.Stream;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
@@ -44,6 +46,27 @@ class MailPropertiesTest {
             .hasMessageContaining("MAIL_LOCAL_SMTP")
             .hasMessageContaining("smtp-relay.brevo.com")
             .satisfies(error -> assertThat(error.getMessage()).doesNotContain(USER).doesNotContain(PASSWORD));
+    }
+
+    static Stream<String> undisplayableHosts() {
+        return Stream.of(
+            "usuario:" + PASSWORD + "@smtp.example.com",
+            "smtp.example.com\nWARNING falso",
+            "smtp.example.com\u0000",
+            "smtp example.com");
+    }
+
+    @ParameterizedTest
+    @MethodSource("undisplayableHosts")
+    void a_host_with_userinfo_or_control_characters_is_not_shown(String host) {
+        assertThatThrownBy(() -> properties(true, host, true))
+            .hasMessageContaining("MAIL_LOCAL_SMTP")
+            .hasMessageContaining("un valor que no se muestra")
+            .satisfies(error -> assertThat(error.getMessage())
+                .doesNotContain(PASSWORD)
+                .doesNotContain("WARNING")
+                .doesNotContain("\n")
+                .doesNotContain("\u0000"));
     }
 
     @Test

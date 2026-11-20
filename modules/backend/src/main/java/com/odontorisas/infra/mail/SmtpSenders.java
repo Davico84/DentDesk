@@ -22,6 +22,7 @@ final class SmtpSenders {
             sender.getJavaMailProperties().put("mail.smtp.auth", "false");
             sender.getJavaMailProperties().put("mail.smtp.starttls.enable", "false");
             sender.getJavaMailProperties().put("mail.smtp.starttls.required", "false");
+            sender.getJavaMailProperties().put("mail.smtp.ssl.enable", "false");
         } else {
             sender.setUsername(properties.username());
             sender.setPassword(properties.password());

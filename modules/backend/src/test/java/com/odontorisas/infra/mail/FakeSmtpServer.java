@@ -9,9 +9,12 @@ import java.net.InetAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
 import java.util.List;
 import java.util.Locale;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 
 /**
  * Servidor SMTP mínimo para tests ({@code update-project-foundation-local-mail} tasks 1.4): atiende una sola
@@ -27,6 +30,7 @@ final class FakeSmtpServer implements AutoCloseable {
     private final boolean advertiseStartTls;
     private final List<String> commands = new CopyOnWriteArrayList<>();
     private final Thread worker;
+    private final CountDownLatch finished = new CountDownLatch(1);
 
     FakeSmtpServer(boolean advertiseStartTls) throws IOException {
         this.advertiseStartTls = advertiseStartTls;
@@ -41,9 +45,20 @@ final class FakeSmtpServer implements AutoCloseable {
         return socket.getLocalPort();
     }
 
-    /** Verbos recibidos en orden ({@code EHLO}, {@code MAIL}, {@code DATA}, ...). */
-    List<String> commands() {
+    /**
+     * Verbos recibidos en orden ({@code EHLO}, {@code MAIL}, {@code DATA}, ...), después de que la conversación
+     * terminó (cliente cerró o timeout): la lectura no corre contra el hilo que registra.
+     */
+    List<String> commands() throws InterruptedException {
+        awaitCompletion(Duration.ofMillis(SOCKET_TIMEOUT_MILLIS * 2L));
         return List.copyOf(commands);
+    }
+
+    /** Espera a que termine la conversación; falla si no termina a tiempo. */
+    void awaitCompletion(Duration timeout) throws InterruptedException {
+        if (!finished.await(timeout.toMillis(), TimeUnit.MILLISECONDS)) {
+            throw new AssertionError("El servidor SMTP falso no terminó la conversación a tiempo");
+        }
     }
 
     private void serveOneConnection() {
@@ -80,6 +95,8 @@ final class FakeSmtpServer implements AutoCloseable {
             }
         } catch (IOException ignored) {
             // timeout o cierre del cliente: el test decide por los comandos registrados
+        } finally {
+            finished.countDown();
         }
     }
 

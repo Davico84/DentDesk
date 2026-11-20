@@ -21,7 +21,7 @@
 
 ### D1. Un interruptor booleano explícito, no deducir el modo del host o del puerto
 
-`app.mail.local-smtp` (`MAIL_LOCAL_SMTP`, por defecto `false`). Encendido, `SmtpSenders` fija `mail.smtp.auth=false` y no habilita STARTTLS. Apagado, todo queda como hoy.
+`app.mail.local-smtp` (`MAIL_LOCAL_SMTP`, por defecto `false`). Encendido, `SmtpSenders` fija `mail.smtp.auth=false`, STARTTLS y `mail.smtp.ssl.enable` en `false`, y no carga usuario ni contraseña en el sender. Apagado, todo queda como hoy.
 
 - *Alternativa descartada:* relajar STARTTLS cuando el host es `localhost`. Es implícito y sorprende: un túnel SSH local hacia un SMTP real dejaría de cifrar sin que nadie lo pidiera.
 - *Alternativa descartada:* certificado autofirmado en Mailpit y confiar en él desde Java (opción B). Agrega pasos para quien clona el repo y un `mail.smtp.ssl.trust` que también es peligroso si se cuela a producción.
@@ -31,7 +31,7 @@
 
 **Política exacta.** Solo si `enabled=true` y `localSmtp=true`: el host se recorta (espacios alrededor) y se compara como texto, sin distinguir mayúsculas, contra exactamente `localhost`, `127.0.0.1` y `::1`. Cualquier otra forma se rechaza, también `[::1]`, `localhost.`, `127.0.0.2`, `0.0.0.0`, un nombre DNS o un host vacío. No se resuelve el DNS ni se interpreta la dirección: una regla corta y textual es más fácil de probar y no cambia según la red de la máquina. Con `enabled=false` no se valida el host (no se crea ningún conector SMTP).
 
-**Mecanismo.** Un método de validación en el propio record `MailProperties`, invocado desde su constructor compacto (el binding de `@ConfigurationProperties` construye el record al arrancar, antes de crear cualquier bean que lo use). Si falla, el binding falla y el contexto no levanta: el deploy queda en rojo antes de atender pedidos. El mensaje nombra `MAIL_LOCAL_SMTP` y el host rechazado, nunca el usuario ni la contraseña. Mismo criterio que la validación de `JWT_SECRET`.
+**Mecanismo.** Un método de validación en el propio record `MailProperties`, invocado desde su constructor compacto (el binding de `@ConfigurationProperties` construye el record al arrancar, antes de crear cualquier bean que lo use). Si falla, el binding falla y el contexto no levanta: el deploy queda en rojo antes de atender pedidos. El mensaje nombra `MAIL_LOCAL_SMTP` y muestra el host solo si es un nombre o una dirección limpia (letras, dígitos, `.`, `:`, `-`, `[`, `]`); un valor con userinfo (`usuario:clave@host`), espacios o caracteres de control se reemplaza por "un valor que no se muestra", para que una credencial pegada por error en `MAIL_HOST` no termine en el log (revisión de Codex). Nunca el usuario ni la contraseña. Mismo criterio que la validación de `JWT_SECRET`. Un test de contexto comprueba además que el reporte de arranque de Spring no apunta a `app.mail.username`/`password` como la propiedad que falló.
 
 - *Alternativa descartada:* validar en `MailConfiguration` al crear los mailers. Depende de qué beans se crean según `enabled`, y un bean nuevo que use `MailProperties` podría saltársela.
 - *Alternativa descartada:* validar en cada envío. El error aparecería con el primer correo, no al desplegar.
