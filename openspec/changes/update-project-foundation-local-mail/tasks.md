@@ -21,7 +21,7 @@
 
 ## 4. Cierre
 
-- [ ] 4.1 `./mvnw verify` en verde (como en CI) y `openspec validate update-project-foundation-local-mail --strict`. Verifica: salida de ambos comandos.
+- [x] 4.1 `./mvnw verify` en verde (como en CI) y `openspec validate update-project-foundation-local-mail --strict`. Verifica: salida de ambos comandos.
 
 ## Workflow follow-up
 
