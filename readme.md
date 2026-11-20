@@ -1,203 +1,243 @@
-# OdontoRisas
+# DentDesk
 
-**SaaS multi-clínica** de gestión dental: varias clínicas (organizaciones) con datos **aislados** gestionan pacientes (menores y adultos), citas, tratamientos con odontograma, imágenes, facturación e inventario, con acceso por rol dentro de su organización.
+Software odontológico **multi-clínica** (SaaS), en desarrollo, construido sobre las normas legales
+de la odontología peruana: el odontograma, la historia clínica y el registro de la información
+clínica siguen la norma, y solo los registra personal apto y habilitado. Cada clínica trabaja con
+sus datos aislados de las demás.
 
-Proyecto **greenfield** desarrollado con **especificaciones dirigidas (spec-driven) usando [OpenSpec](https://github.com/Fission-AI/OpenSpec)**. Monorepo modular: **backend** Java/Spring + **frontend** React/Vite.
+- **Problema:** el software odontológico del mercado peruano cubre bien agenda, pacientes y
+  facturación, pero la información clínica tiene exigencias legales propias que suelen quedar fuera:
+  - **Historia clínica** (NTS 139): lo registrado no se reescribe. Las correcciones son registros
+    nuevos y la historia se conserva 20 años.
+  - **Odontograma** (NTS 188): catálogo oficial de hallazgos, con sigla y color según la norma.
+  - **Quién registra**: cada acto clínico lo firma un odontólogo con colegiatura (COP) vigente,
+    y queda la constancia de quién firmó.
+  - **Datos personales** (Ley 29733): la clínica es la titular de los datos y DentDesk el encargado de tratarlos.
+
+  DentDesk aplica esas reglas en el modelo de datos y en la base, no solo en la interfaz.
+- **Para quién:** clínicas y consultorios dentales pequeños y medianos. Usuarios: administradores de
+  la clínica, recepción y odontólogos. El paciente no tiene cuenta.
+- **Estado:** en desarrollo activo, desplegado en un entorno de producción y usado solo con datos de
+  prueba. Todavía no tiene clínicas ni pacientes reales. Agenda de citas, tratamientos y cobros
+  están planificados, no implementados (ver [Estado de las funcionalidades](#estado-de-las-funcionalidades)).
+
+> "OdontoRisas" aparece en identificadores internos (package `com.odontorisas`, roles de base de
+> datos, carpeta local). Se conserva por compatibilidad: el nombre del producto es DentDesk.
 
 ---
 
-## Filosofía: spec-driven
+## Capturas
 
-Todo el desarrollo gira en torno a **capacidades** (capabilities), y cada capacidad se **especifica antes de construirse**. Dos preguntas, dos fuentes de verdad:
+Datos ficticios de una clínica de prueba.
 
-| Pregunta | Vive en |
+**Inicio**
+
+![Inicio con bienvenida y atajos](docs/assets/screenshots/inicio.png)
+
+**Pacientes**
+
+![Listado de pacientes con búsqueda](docs/assets/screenshots/pacientes.png)
+
+**Historia clínica**: la admisión se llena por partes y solo se completa cuando el checklist está
+cumplido. Desde ahí queda fija.
+
+| Motivo, antecedentes y checklist | Diagnóstico CIE10 por pieza |
 |---|---|
-| **¿Qué hace el sistema?** (capacidades + cambios) | `openspec/` |
-| **¿Cómo lo construimos?** (estándares perennes) | `docs/` |
+| ![Historia clínica: motivo, antecedentes y checklist](docs/assets/screenshots/historia-clinica-1.png) | ![Historia clínica: examen y diagnóstico CIE10](docs/assets/screenshots/historia-clinica-diagnostico.png) |
 
-> Las **capacidades = specs**. No se escribe código de una capacidad sin su spec.
+![Confirmación para completar la historia clínica con su checklist](docs/assets/screenshots/historia-clinica-completar.png)
 
----
+**Odontograma**: hallazgos con sigla y color según la NTS 188, su lista y la guía paso a paso.
 
-## Estructura del proyecto
+![Odontograma inicial con hallazgos](docs/assets/screenshots/odontograma-1.png)
 
-```
-OdontoRisas/
-├─ openspec/                  # 🧭 QUÉ hace el sistema (OpenSpec)
-│  ├─ specs/                  #   capacidades YA CONSTRUIDAS (1 carpeta = 1 capacidad)
-│  │  ├─ project-foundation/spec.md
-│  │  ├─ authentication/spec.md
-│  │  └─ api-type-contracts/spec.md
-│  ├─ changes/                #   capacidades EN PROGRESO (propuestas de cambio)
-│  │  ├─ add-multi-tenancy/   #     proposal.md · design.md · tasks.md · specs/ (delta)
-│  │  └─ archive/             #     changes ya archivados (add-authentication, ...)
-│  └─ config.yaml             #   contexto del proyecto para la IA
-│
-├─ docs/                      # 📚 CÓMO construimos (estándares perennes)
-│  ├─ vision.md               #   ⭐ catálogo/roadmap de capacidades + gobernanza del ciclo
-│  ├─ domain.md               #   modelo de dominio: actores, glosario, entidades, ER
-│  ├─ architecture.md         #   stack cerrado + arquitectura back/front
-│  ├─ backend.md              #   estándares Java/Spring (capas, DTOs, JPA, seguridad)
-│  ├─ frontend.md             #   estándares frontend (React Query, Zustand, UI, capa API)
-│  ├─ coding-style.md         #   estilo general (TypeScript, nombres) + paridad de validación
-│  ├─ testing.md              #   estrategia de pruebas + puente Scenario→test
-│  ├─ tooling-setup.md        #   tooling reproducible (scripts, MSW, husky, CI)
-│  ├─ commits.md              #   Conventional Commits en español + convención Refs:
-│  └─ adr/                    #   Architecture Decision Records
-│
-├─ modules/                   # 🧩 el código de la aplicación
-│  ├─ backend/                #   Java 25 · Maven · Spring Boot 4 (capas:
-│  │                          #     presentation · service · persistence · infra · common)
-│  └─ frontend/               #   React 19 · Vite · TypeScript (src/:
-│                             #     modules/{core,auth} · screens · routes · store · assets · styles)
-│
-├─ contracts/
-│  └─ openapi.json            # 📜 contrato OpenAPI versionado (fuente del codegen del front)
-│
-├─ .github/workflows/         # CI por área (backend · frontend · openspec)
-├─ SETUP-OPENSPEC.md          # flujo y comandos de OpenSpec (setup, ciclo)
-├─ CLAUDE.md                  # guía para agentes de IA (reglas del proyecto)
-└─ readme.md                  # este documento
-```
-
----
-
-## OpenSpec: dónde se definen las capacidades
-
-Este es el corazón del proyecto. Una **capacidad** es un área cohesiva de comportamiento con su propio `spec.md`.
-
-- **`openspec/specs/<capacidad>/spec.md`** → lo **YA construido**. Formato:
-  `## Requirements` → `### Requirement:` (con **SHALL**) → `#### Scenario:` (**WHEN/THEN**). Cada requirement tiene ≥ 1 scenario, y **los tests se derivan de esos scenarios**.
-- **`openspec/changes/<id>/`** → capacidades **en progreso**: `proposal.md` (por qué), `design.md` (cómo), `tasks.md` (pasos) y `specs/<cap>/spec.md` (el **delta**: `## ADDED | MODIFIED | REMOVED Requirements`). Al terminar, el delta se fusiona en `openspec/specs/` y el change pasa a `changes/archive/`.
-
-### Anatomía de una spec: por qué tiene *esas* secciones
-
-Una spec de OdontoRisas **no** lleva las secciones clásicas de un documento funcional (*Objetivo · Actores · Alcance · Reglas de negocio · Casos excepcionales · Restricciones · Criterios de aceptación · Fuera de alcance*). Lleva **estas**, porque son las que **OpenSpec exige** — su propio parser rechaza una spec que no las tenga:
-
-```
-# <capacidad> Specification
-
-## Purpose            ← para qué existe la capacidad  (obligatorio: el parser falla sin él)
-
-## Requirements
-### Requirement: <nombre>          ← una regla, redactada con SHALL
-#### Scenario: <nombre>            ← un caso comprobable
-- **WHEN**  <condición>
-- **THEN**  <resultado esperado>
-```
-
-La razón de fondo es que **una spec no es un documento que se lee: es un documento que se ejecuta.** Cada `#### Scenario` es un **test**: la regla del proyecto es *un WHEN/THEN → un test*. Un apartado como "Reglas de negocio" en prosa no se puede verificar; un `Scenario` sí, y la CI se encarga de que no mienta.
-
-**Entonces, ¿dónde están las otras secciones?** No desaparecen — están **repartidas** por el artefacto que de verdad les corresponde, en vez de amontonadas en un único documento:
-
-| Sección clásica | Dónde vive aquí |
+| Guía paso a paso sobre el odontograma | Especificaciones y observaciones |
 |---|---|
-| **Objetivo** | `## Purpose` de la spec · y el `## Why` del `proposal.md` |
-| **Actores** | dentro del `### Requirement:` que los nombra · catálogo en [`docs/domain.md`](docs/domain.md) |
-| **Alcance** | `## What Changes` del `proposal.md` |
-| **Fuera de alcance** | `## Non-goals` del `proposal.md` |
-| **Reglas de negocio** | **son** los `### Requirement:` (SHALL) |
-| **Casos excepcionales** | `#### Scenario:` de error y de borde (**obligatorios**, no un anexo) |
-| **Restricciones** | `## Decisions` y `## Risks / Trade-offs` del `design.md` |
-| **Criterios de aceptación** | **son** los `#### Scenario:` — no se escriben aparte |
-
-> Reglas de negocio y criterios de aceptación **son la misma cosa escrita una sola vez**. Ahí está la ganancia: en un documento clásico se escriben dos veces y **se desincronizan**.
-
-#### Una desviación deliberada: el `Purpose` va también en el *delta*
-
-OpenSpec **obliga** a que la spec construida tenga `## Purpose`… pero **su plantilla del delta no te lo pide**. Resultado: el objetivo de la capacidad acababa escribiéndose **al archivar**, cuando ya está todo construido y no queda nada que discutir — la **única** parte del spec que se saltaba la revisión humana.
-
-Por eso, **en este proyecto el delta de una capacidad nueva (`add-*`) lleva su `## Purpose` desde el `propose`**, para que se revise como todo lo demás; al archivar solo se copia. Un `update-*` **no** lo repite: ya vive en la spec construida, y duplicarlo sería crear una segunda fuente de verdad que se desincroniza. (Convención nuestra, no de OpenSpec; queda registrada en [`docs/vision.md`](docs/vision.md) y [`CLAUDE.md`](CLAUDE.md).)
-
-**El ciclo** (detalle en [`SETUP-OPENSPEC.md`](SETUP-OPENSPEC.md)):
-
-```
-/opsx:explore → /opsx:propose → revisión humana → /opsx:apply → tests → /opsx:archive
-```
-
-[`docs/vision.md`](docs/vision.md) es el **puente** entre las tres fases: `planeada` (roadmap) → `en progreso` (change activo) → `construida` (`specs/`).
-
-### Estado de las capacidades
-
-| Capacidad | Tipo | Estado | Dónde |
-|---|---|---|---|
-| `project-foundation` | técnica | ✅ construida | [`openspec/specs/project-foundation/`](openspec/specs/project-foundation/spec.md) |
-| `authentication` | negocio | ✅ construida | [`openspec/specs/authentication/`](openspec/specs/authentication/spec.md) |
-| `api-type-contracts` | técnica | ✅ construida | [`openspec/specs/api-type-contracts/`](openspec/specs/api-type-contracts/spec.md) |
-| ↳ *reforzada* | | ✅ | El contrato declara **status reales y errores tipados**; los errores transversales se inyectan solos; **CI vigila las dos direcciones del drift** (backend→contrato→cliente) |
-| `multi-tenancy` | técnica | ✅ construida | [`openspec/specs/multi-tenancy/`](openspec/specs/multi-tenancy/spec.md) |
-| `organization-branding` | negocio | ✅ construida | [`openspec/specs/organization-branding/`](openspec/specs/organization-branding/spec.md) |
-| ↳ *cierre del aislamiento* | | ✅ construido | El contexto de tenant se fija **solo** en cada transacción, defendido por una regla de build ([`update-multi-tenancy`](openspec/changes/archive/2026-07-15-update-multi-tenancy/proposal.md), archivado) |
-| `patients` | negocio | ✅ construida | La ficha del paciente: **núcleo del dominio** y **primera entidad de negocio aislada por organización** — [`openspec/specs/patients/`](openspec/specs/patients/spec.md) |
-| `staff`, `appointments`, `dental-chart`, `treatments`, `images`, `patient-billing`, `inventory`, `dashboard` | negocio | ⏳ planeadas | roadmap en [`docs/vision.md`](docs/vision.md) |
-
-> El producto es un **SaaS multi-tenant** (modelo identidad/organización/membresía, aislamiento por Row-Level Security). Reglas para construir capacidades de negocio: [`docs/backend.md §8.1`](docs/backend.md).
-
-> El catálogo completo, el orden sugerido y la convención de granularidad están en [`docs/vision.md`](docs/vision.md).
+| ![Guía para registrar hallazgos](docs/assets/screenshots/odontograma-guia.png) | ![Especificaciones y observaciones del odontograma](docs/assets/screenshots/odontograma-especificaciones.png) |
 
 ---
 
-## Stack
+## Estado de las funcionalidades
 
-- **Backend**: Java 25 · Maven · **Spring Boot 4** · Spring Web MVC + springdoc-openapi · Spring Data JPA + **PostgreSQL** · **Flyway** (`ddl-auto=none`) · Spring Security + JWT.
-- **Frontend**: **React 19** · Vite · TypeScript · Tailwind + shadcn · TanStack Query + axios · Zustand · react-hook-form + zod · react-router v7. Cliente API **generado con orval** desde `contracts/openapi.json`.
+### Implementadas
 
-Detalle y versiones en [`docs/architecture.md`](docs/architecture.md).
+**Acceso y cuenta**
+- Inicio de sesión con access token en memoria y refresh token en cookie `httpOnly` con rotación.
+- Bloqueo temporal de la cuenta por intentos fallidos.
+- Alta de usuarios **solo por invitación**: enlace por correo más código de verificación. No hay registro público.
+- *Mi perfil*: corregir el nombre y cambiar la contraseña (cierra las otras sesiones).
+- Recuperación de contraseña por correo: enlace de un solo uso, límites por cuenta y por IP, respuesta neutra.
+
+**Clínicas y personal**
+- Varias clínicas en la misma instalación, con aislamiento de datos en la base (ver [Arquitectura](#arquitectura-y-decisiones-técnicas)).
+- Roles `ADMIN` y `MEMBER` por clínica. Un administrador de plataforma da de alta las clínicas por API (sin pantalla propia).
+- Gestión del personal: invitar, reenviar o revocar invitaciones, desactivar y reactivar miembros.
+- Credencial profesional (colegiatura COP) declarada por el propio odontólogo, con vencimiento. Firmar actos clínicos la exige.
+- Marca por clínica: color de un catálogo con contraste verificado (WCAG AA) y logo, en modo claro y oscuro.
+
+**Pacientes**
+- Alta, edición, baja que archiva y reactivación. Listado con búsqueda que se conserva al volver.
+- Documento único por clínica. Responsable obligatorio para menores. Aviso de teléfono compartido.
+
+**Historia clínica**
+- Documento inicial único por paciente, de borrador a completado. Una vez completado no se modifica.
+- Diagnósticos CIE10 con búsqueda jerárquica, tipo (presuntivo, definitivo o repetitivo) y pieza dental.
+- Notas de consulta posteriores: se sellan, las correcciones se registran como un asiento nuevo y los antecedentes como altas y bajas.
+
+**Odontograma**
+- Odontograma inicial interactivo en SVG: hallazgos por superficie, pieza, entre piezas, rango y arco (numeración FDI, dentición permanente y temporal).
+- Catálogo cerrado de 38 hallazgos alineado a la norma técnica vigente, con sigla y color oficiales.
+- Sellado junto con la historia clínica; queda inmutable, protegido también por triggers en la base.
+- Guía paso a paso, búsqueda de hallazgos por nombre y vista ampliada de cada pieza en pantallas táctiles.
+
+**Plataforma**
+- Interfaz responsive con barra lateral contraíble e Inicio con bienvenida y atajos.
+- Copia diaria cifrada de la base de datos fuera del proveedor, con restauración verificada automáticamente.
+
+### Parcialmente implementadas
+
+- **Odontograma:** solo el odontograma inicial. Faltan los odontogramas de evolución y la comparación entre fechas.
+- **Control de acceso clínico:** firmar exige credencial vigente, pero un miembro sin credencial todavía puede *ver* la información clínica.
+- **Administración de plataforma:** el alta de clínicas funciona por API (script `modules/backend/scripts/new-clinic.ps1`), sin interfaz.
+
+### Planificadas (no implementadas)
+
+Agenda de citas, tratamientos, planes de tratamiento con presupuesto, cobros al paciente,
+suscripción de las clínicas, imágenes clínicas, inventario y panel de métricas. Orden y alcance en
+[`docs/vision.md`](docs/vision.md).
 
 ---
 
-## Cómo arrancar
+## Arquitectura y decisiones técnicas
 
-**Prerequisitos**: JDK 25 · Node 22 · pnpm · PostgreSQL. (Tooling reproducible en [`docs/tooling-setup.md`](docs/tooling-setup.md).)
+```
+React (Vercel)  --/api/*-->  Spring Boot (Render, Docker)  -->  PostgreSQL (Neon, RLS forzada)
+      ^                               |
+      +-- cliente generado (orval) <--+-- contrato OpenAPI versionado (contracts/openapi.json)
+```
 
-### Backend
+- **Frontend organizado por dominio.** `src/modules/{auth, patients, clinical-history, dental-chart, staff, branding, home}` más `core` con UI base, componentes genéricos y servicios. Las pantallas (`src/screens`) son finas y delegan en su módulo. Un archivo, un componente, verificado por ESLint.
+- **Estado.** TanStack Query para el estado del servidor, Zustand para el de la aplicación. Formularios con React Hook Form y validación en esquemas Zod, en paridad con la validación del backend.
+- **Backend por capas.** `presentation` → `service` → `persistence`, más `infra` y `common`. Las dependencias entre capas las verifica ArchUnit en cada build.
+- **API REST bajo `/api`.** Errores en formato RFC 9457 (`application/problem+json`) con mensajes en español.
+- **Contrato primero.** El backend publica OpenAPI. El contrato se versiona en `contracts/openapi.json` y orval genera los tipos y el cliente del frontend. El CI falla si el backend y el contrato, o el contrato y el cliente generado, no coinciden.
+- **Aislamiento multi-clínica en la base.** Row-Level Security forzada en PostgreSQL, con dos roles: uno dueño de las tablas para migrar y otro de aplicación, solo DML y sin `BYPASSRLS`. El contexto de clínica se fija automáticamente en cada transacción. Una regla de ArchUnit impide fijarlo a mano desde código de negocio.
+- **Autorización.** Rol administrativo por clínica (`ADMIN`/`MEMBER`). La capacidad clínica depende de una credencial profesional vigente, no del rol.
+- **Persistencia.** JPA/Hibernate con migraciones Flyway (sin `ddl-auto`). Autoría (`created_by`/`updated_by`) registrada automáticamente.
+- **Documentos clínicos como libro de asientos.** Lo sellado no se reescribe: las correcciones y los cambios son registros nuevos.
+- **Concurrencia.** Bloqueos pesimistas en los sellados y en los flujos de invitación y contraseña, con pruebas que usan hilos reales.
+
+Las decisiones de fondo están en 20 ADRs ([`docs/adr/`](docs/adr/)), incluidas las de cumplimiento
+normativo: NTS 139 (historia clínica), NTS 188 (odontograma) y Ley 29733 (protección de datos).
+
+---
+
+## Stack tecnológico
+
+| Área | Tecnologías |
+|---|---|
+| Frontend | React 19, TypeScript, Vite, Tailwind CSS 4, componentes estilo shadcn/ui sobre Radix UI, lucide-react, Framer Motion |
+| Estado y datos | TanStack Query 5, Zustand 5, React Hook Form, Zod 4, axios, React Router 7, orval |
+| Backend | Java 25, Spring Boot 4 (Web MVC, Security, Data JPA, Validation, Mail, Actuator), springdoc-openapi, java-jwt, Caffeine, Lombok |
+| Base de datos | PostgreSQL 16, Flyway, Row-Level Security |
+| Testing | JUnit 5, Mockito, Testcontainers, ArchUnit, Vitest, Testing Library, MSW, Playwright |
+| DevOps y CI/CD | GitHub Actions, Docker, Render, Vercel, Neon, Brevo (SMTP), cifrado `age` para las copias |
+| Herramientas | pnpm (workspace), Maven Wrapper, ESLint, husky, lint-staged, commitlint, OpenSpec |
+
+---
+
+## Calidad y pruebas
+
+| Tipo | Herramientas | Qué cubre |
+|---|---|---|
+| Unitarias (backend) | JUnit 5, Mockito | Reglas de negocio y servicios aislados |
+| Integración (backend) | Spring Boot Test, Testcontainers (PostgreSQL real) | Endpoints, seguridad por rol, consultas, aislamiento RLS entre clínicas, migraciones con un dueño no superusuario, concurrencia |
+| Arquitectura | ArchUnit | Dependencias entre capas, contexto de clínica, autoría obligatoria |
+| Componentes y hooks (frontend) | Vitest, Testing Library, MSW | Pantallas, formularios y su validación, interacción con la API simulada |
+| E2E de humo | Playwright (Chromium) | Rutas privadas sin sesión, validación del login, registro sin invitación y navegación del shell. Sin backend real: el shell usa respuestas simuladas |
+| Contrato | `ContractDriftIT` y job `codegen-drift` | Backend, contrato y cliente generado sincronizados |
+
+Las pruebas se derivan de los escenarios de cada especificación: un escenario WHEN/THEN, un test.
+Para el backend, `*Test` corre con Surefire y `*IT` con Failsafe; los `*IT` necesitan Docker.
+No hay un umbral de cobertura definido: el CI del frontend genera el reporte de cobertura, pero no
+lo exige.
+
+**CI (GitHub Actions):**
+- `backend.yml`: `mvn verify`.
+- `frontend.yml`: typecheck, lint, tests, deriva del cliente generado y E2E de humo.
+- `openspec.yml`: validación estricta de especificaciones.
+- `db-backup.yml`: copia cifrada diaria y su restauración de prueba.
+
+Render despliega el backend solo con el CI en verde.
+
+---
+
+## Desarrollo guiado por especificaciones
+
+El proyecto usa [OpenSpec](https://github.com/Fission-AI/OpenSpec). Cada capacidad se especifica
+antes de construirse, con requisitos (`SHALL`) y escenarios verificables (`WHEN`/`THEN`):
+
+```
+explorar -> proponer (proposal, design, delta de spec, tasks) -> revisión humana -> implementar -> pruebas -> archivar
+```
+
+- [`openspec/specs/`](openspec/specs/) contiene solo lo **ya construido**: 11 capacidades.
+- [`openspec/changes/archive/`](openspec/changes/archive/) guarda cada cambio con su propuesta, diseño y tareas.
+- [`docs/vision.md`](docs/vision.md) une el roadmap, lo que está en curso y lo construido.
+
+Detalle del flujo en [`SETUP-OPENSPEC.md`](SETUP-OPENSPEC.md).
+
+---
+
+## Ejecución local
+
+**Requisitos:**
+- JDK 25.
+- Node 22 y pnpm 10.
+- Docker, para PostgreSQL local y para las pruebas de integración.
+
+### 1. Base de datos y backend
+
 ```bash
 cd modules/backend
-cp secrets.properties.example secrets.properties   # rellena DB_* y JWT_SECRET
-./mvnw spring-boot:run                              # arranca en http://localhost:8080
-```
-> **`JWT_SECRET` propio, obligatorio:** el de ejemplo no arranca. Reemplaza su línea en `secrets.properties` por `JWT_SECRET=` + la salida de `openssl rand -base64 48` (al menos 32 bytes aleatorios). Detalle en [`docs/tooling-setup.md`](docs/tooling-setup.md).
-Contrato OpenAPI en `http://localhost:8080/v3/api-docs` (y Swagger UI en `/swagger-ui.html`), **solo con `SWAGGER_ENABLED=true`** en `secrets.properties` (descomenta su línea del `.example`): la documentación está apagada por defecto, y copiar el `.example` tal cual la deja apagada.
-
-### Frontend
-```bash
-pnpm install                                        # instala todo el workspace
-pnpm --filter dentdesk-frontend dev              # arranca en http://localhost:5173
+cp secrets.properties.example secrets.properties   # completar DB_* y JWT_SECRET
+docker compose --env-file secrets.properties up -d  # PostgreSQL 16 local
+./mvnw spring-boot:run                              # http://localhost:8080/api
 ```
 
-### Pruebas y calidad
+- `JWT_SECRET` debe tener al menos 32 bytes aleatorios (`openssl rand -base64 48`). Con el valor de
+  ejemplo la aplicación no arranca.
+- Swagger UI y `/api/v3/api-docs` están apagados por defecto: se activan con `SWAGGER_ENABLED=true`
+  en `secrets.properties`.
+
+### 2. Frontend
+
 ```bash
-cd modules/backend && ./mvnw verify                 # backend (test slices + ArchUnit)
-pnpm --filter dentdesk-frontend validate         # frontend (typecheck + lint + test)
+pnpm install                             # desde la raíz: instala el workspace y los hooks de git
+pnpm --filter dentdesk-frontend dev      # http://localhost:5173
 ```
 
-#### Estrategia de pruebas y razón de ser
-Para garantizar la estabilidad y la paridad con producción sin comprometer la velocidad de desarrollo, el proyecto clasifica y aplica las pruebas según su propósito (detalle en [`docs/testing.md`](docs/testing.md)):
+Sin `VITE_API_URL`, en desarrollo el frontend usa `http://localhost:8080/api` (ver `modules/frontend/.env.example`).
 
-##### Backend
-*   **Tests de Arquitectura (ArchUnit)**: Validan de manera estática que no se rompan las dependencias entre capas (ej. `presentation` -> `service` -> `persistence`) ni las restricciones de multi-tenancy.
-*   **Tests Unitarios (JUnit 5 + Mockito)**: Prueban la lógica de negocio pura y servicios de forma aislada, mockeando la persistencia para máxima velocidad.
-*   **Tests de Integración y Slices (`@WebMvcTest`, `@SpringBootTest` + Testcontainers)**:
-    *   *Controladores y Seguridad*: Prueban los endpoints HTTP, serialización y permisos por rol.
-    *   *Persistencia y RLS (PostgreSQL real)*: Validan consultas JPA y el aislamiento multi-tenant a nivel de base de datos usando **Testcontainers**, lo que garantiza que los datos de una organización estén aislados de otra.
+### 3. Primer acceso
 
-##### Frontend
-*   **Tests Unitarios (Vitest)**: Validan funciones puras, helpers, mappers, validadores y estados globales (Zustand).
-*   **Tests de Componentes e Integración (Vitest + React Testing Library + MSW)**: Prueban la renderización, interacción de formularios y comunicación con la API interceptando peticiones de red mediante Mock Service Worker (MSW).
-*   **Tests de Extremo a Extremo (Playwright)**: Simulan flujos de usuario completos en navegadores reales (ej. workflows CRUD y flujos de login/logout).
+No hay registro público. Para entrar en local hace falta crear el administrador de plataforma, dar
+de alta una clínica e invitar a su administrador. La invitación requiere SMTP configurado
+(`MAIL_*`). El procedimiento completo está en [`docs/deployment.md` §11](docs/deployment.md).
 
-##### Ejecución: local vs CI
-Las clases **`*IT`** (integración con **Testcontainers**) corren en la fase `verify` vía `maven-failsafe-plugin`; los **`*Test`** (unitarios/ArchUnit) en `test` vía surefire.
+### Pruebas
 
-*   **Solo unitarios (rápido, sin Docker):** `cd modules/backend && ./mvnw test`
-*   **Todo, incluidos los IT (requiere Docker):** `./mvnw verify`
-
-> [!WARNING]
-> **Los IT con Testcontainers requieren Docker.** En **Windows con Docker Desktop** pueden **saltarse** en local (`Skipped`) por una incompatibilidad conocida entre el proxy de Docker Desktop y docker-java (`/info` devuelve HTTP 400) — **no es un fallo del código ni de la config del proyecto**. Estos tests **corren siempre en CI** (Linux, socket estándar). Si necesitas ejecutarlos en local en Windows, la vía fiable es lanzar `./mvnw verify` **desde una terminal WSL2** (Docker en el socket estándar, sin el proxy). Ver [`docs/testing.md`](docs/testing.md).
-
-### Regenerar el cliente API (tras cambiar el contrato)
 ```bash
-curl http://localhost:8080/v3/api-docs > contracts/openapi.json
+cd modules/backend && ./mvnw verify          # unitarias + integración (requiere Docker)
+cd modules/backend && ./mvnw test            # solo unitarias, sin Docker
+pnpm --filter dentdesk-frontend validate     # typecheck + lint + tests
+pnpm --filter dentdesk-frontend test:e2e     # E2E de humo (Playwright)
+```
+
+### Regenerar el cliente de la API
+
+```bash
+curl -o contracts/openapi.json http://localhost:8080/api/v3/api-docs   # con SWAGGER_ENABLED=true
 pnpm --filter dentdesk-frontend generate:api
 ```
 
@@ -205,24 +245,19 @@ pnpm --filter dentdesk-frontend generate:api
 
 ## Documentación
 
-| Documento | Para qué |
+| Documento | Contenido |
 |---|---|
-| [`docs/vision.md`](docs/vision.md) | Objetivos de producto, **roadmap de capacidades**, gobernanza y granularidad |
-| [`docs/domain.md`](docs/domain.md) | Modelo de dominio: actores, glosario, entidades y diagrama ER |
-| [`docs/architecture.md`](docs/architecture.md) | Stack cerrado + arquitectura de backend y frontend |
-| [`docs/backend.md`](docs/backend.md) | Estándares Java/Spring (capas, DTOs/validación, JPA, seguridad, errores RFC 9457) |
-| [`docs/frontend.md`](docs/frontend.md) | Estándares frontend (arquitectura, capa API generada, React Query, Zustand, UI) |
-| [`docs/coding-style.md`](docs/coding-style.md) | Estilo general (TypeScript, nombres) + paridad de validación Zod↔Bean Validation |
-| [`docs/testing.md`](docs/testing.md) | Estrategia de pruebas y puente Scenario→test |
-| [`docs/tooling-setup.md`](docs/tooling-setup.md) | Tooling reproducible (Vitest/MSW, husky/commitlint, CI) |
-| [`docs/commits.md`](docs/commits.md) | Estándar de commits |
+| [`docs/vision.md`](docs/vision.md) | Producto, roadmap y estado de cada capacidad |
+| [`docs/domain.md`](docs/domain.md) | Modelo de dominio: actores, glosario y diagrama ER |
+| [`docs/architecture.md`](docs/architecture.md) | Stack y arquitectura de backend y frontend |
+| [`docs/backend.md`](docs/backend.md) | Estándares Java/Spring: capas, validación, JPA, seguridad, errores |
+| [`docs/frontend.md`](docs/frontend.md) | Estándares frontend: módulos, cliente generado, React Query, Zustand, UI |
+| [`docs/coding-style.md`](docs/coding-style.md) | Estilo de código y paridad de validación |
+| [`docs/testing.md`](docs/testing.md) | Estrategia de pruebas y relación escenario-test |
+| [`docs/tooling-setup.md`](docs/tooling-setup.md) | Tooling, CI y Testcontainers en local |
+| [`docs/deployment.md`](docs/deployment.md) | Despliegue en Vercel, Render y Neon, copias de la base, operación |
+| [`docs/adr/`](docs/adr/) | Registros de decisiones de arquitectura |
+| [`docs/compliance/regulatory-matrix.md`](docs/compliance/regulatory-matrix.md) | Trazabilidad norma, decisión y requisito |
+| [`docs/commits.md`](docs/commits.md) | Conventional Commits en español |
 | [`SETUP-OPENSPEC.md`](SETUP-OPENSPEC.md) | Flujo y comandos de OpenSpec |
-| [`CLAUDE.md`](CLAUDE.md) | Guía para agentes de IA (reglas del proyecto) |
-
----
-
-## Convenciones
-
-- **Commits**: [Conventional Commits](https://www.conventionalcommits.org/) en **español** (hook `commit-msg` los valida). Ver [`docs/commits.md`](docs/commits.md).
-- **Gates antes de subir**: `openspec validate <change> --strict` + revisión humana · `./mvnw verify` (backend) · `pnpm --filter dentdesk-frontend validate` (frontend).
-- **No commitear** secretos (`secrets.properties`, `.env`), `target/`, `dist/`, `node_modules/`.
+| [`CLAUDE.md`](CLAUDE.md) | Reglas del proyecto para agentes de IA |
