@@ -217,6 +217,8 @@ El documento médico-legal inicial de la atención: **una por paciente, de por v
 > **Pendiente, fuera de esta capacidad** (ver `docs/vision.md §3` y §7): odontograma de evolución sellado con la nota (corte B, `update-dental-chart`), retención legal de **20 años** + archivo pasivo ([`ADR-0018`](adr/0018-cumplimiento-nts-139-y-cop.md) D1 — la cifra anterior, 15 años, era más corta que la legal), la **Ficha Odonto-Estomatológica** que NTS 139 § 5.2.2 numeral 12 exige y esta capacidad no cubre (IHO simplificado, placa blanda/calcificada, alta básica con fecha, odontograma inicial **y final** — `ADR-0018` D2), y diagnóstico sin CIE10 para casos estéticos.
 
 ### `appointments` → **Appointment**
+> 🚧 **Bosquejo reemplazado** por el change en curso [`add-appointments`](../openspec/changes/add-appointments/design.md) (inicio y fin como instantes, cuatro estados, horario de atención, enlace con la nota de consulta). Mientras se implementa, manda su `design.md` y su spec; este apartado se reescribe al archivar.
+
 Cita agendada.
 - `patient` (FK), `dentist` (FK → User con rol clínico), `scheduledAt`, `status` (agendada/atendida/cancelada), `notes`
 
