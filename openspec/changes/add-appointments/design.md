@@ -226,6 +226,13 @@ diálogo precargado. El selector de paciente reutiliza la búsqueda de `patients
 - **Cambiar el horario no reubica citas** → una cita puede quedar fuera de horario; se ve igual en la agenda y la
   reprogramación la obliga a entrar. Aceptado (spec).
 - **Color por índice** → el color de un odontólogo puede cambiar si cambia la lista de agendables. Aceptado en v1.
+- **Policy de lectura del dueño de las migraciones (V32)** → si la app usara el mismo rol que Flyway, leería todas las
+  membresías y credenciales. Producción usa roles separados; en local el rol único del `compose.yaml` es superusuario y
+  ya salta toda la RLS. Documentado en `docs/deployment.md`. Decisión del dueño del producto (revisión del apply):
+  documentar, sin chequeo al arrancar.
+- **Membresía inactiva con sesión abierta** → la desactivación corta el login y la renovación, pero el access token
+  vigente sigue sirviendo hasta que vence, en la agenda como en todo el sistema (`patients` incluido). Cortarlo por
+  petición es un cambio transversal de `multi-tenancy`, fuera de este change.
 
 ## Migration Plan
 
