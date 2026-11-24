@@ -6,8 +6,8 @@
 
 ## 2. Backend: horario de atención
 
-- [ ] 2.1 Modelo del horario (record por día con tramos), conversión JSONB en `OrganizationSettings` y `BusinessHoursService` (leer, reemplazar con `FOR UPDATE`, validar grilla de 5 min, apertura < cierre, sin solapes; `contains(LocalDateTime civilStart, LocalDateTime civilEnd)`, que solo recibe valores derivados de `Instant.atZone(zonaDeLaClínica)` dentro del servicio, nunca persistidos ni de la API; documentarlo en el Javadoc, `docs/backend.md` §8.2). Tests unitarios de la validación y de `contains` (turno partido, día cerrado, borde exacto de cierre)
-- [ ] 2.2 `GET`/`PUT /api/business-hours` (`PUT` con `@PreAuthorize` `ADMIN`), DTOs con Bean Validation. Tests webmvc/IT de los scenarios "Horario de atención configurable por el administrador" (turno partido, tramos inválidos sin guardar nada, `MEMBER` → 403, horario por defecto de una organización nueva) e IT con dos organizaciones: el `ADMIN` de A lee y guarda solo el horario de A y el de B no cambia; el `GET` devuelve la `timezone` de la clínica
+- [x] 2.1 Modelo del horario (record por día con tramos), conversión JSONB en `OrganizationSettings` y `BusinessHoursService` (leer, reemplazar con `FOR UPDATE`, validar grilla de 5 min, apertura < cierre, sin solapes; `contains(LocalDateTime civilStart, LocalDateTime civilEnd)`, que solo recibe valores derivados de `Instant.atZone(zonaDeLaClínica)` dentro del servicio, nunca persistidos ni de la API; documentarlo en el Javadoc, `docs/backend.md` §8.2). Tests unitarios de la validación y de `contains` (turno partido, día cerrado, borde exacto de cierre)
+- [x] 2.2 `GET`/`PUT /api/business-hours` (`PUT` con `@PreAuthorize` `ADMIN`), DTOs con Bean Validation. Tests webmvc/IT de los scenarios "Horario de atención configurable por el administrador" (turno partido, tramos inválidos sin guardar nada, `MEMBER` → 403, horario por defecto de una organización nueva) e IT con dos organizaciones: el `ADMIN` de A lee y guarda solo el horario de A y el de B no cambia; el `GET` devuelve la `timezone` de la clínica
 
 ## 3. Backend: citas
 
