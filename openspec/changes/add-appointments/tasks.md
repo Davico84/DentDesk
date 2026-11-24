@@ -37,9 +37,9 @@
 
 ## 6. Cierre
 
-- [ ] 6.1 `pnpm validate` y `mvn verify` en verde; `openspec validate add-appointments --strict`
+- [x] 6.1 `pnpm validate` y `mvn verify` en verde; `openspec validate add-appointments --strict`
 - [ ] 6.2 Prueba manual con datos falsos en local: agendar, choque, fuera de horario, reprogramar, cancelar, no asistió, atender con nota, próxima cita desde la nota, editar horario, vista en celular
-- [ ] 6.3 `docs/domain.md`: reemplazar el bosquejo de `Appointment` por el modelo real (estados, horario, enlace con la nota)
+- [x] 6.3 `docs/domain.md`: reemplazar el bosquejo de `Appointment` por el modelo real (estados, horario, enlace con la nota)
 
 ## Workflow follow-up
 
