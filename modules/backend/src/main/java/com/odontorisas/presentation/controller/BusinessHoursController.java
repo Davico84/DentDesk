@@ -33,7 +33,7 @@ public class BusinessHoursController {
     }
 
     @GetMapping
-    public BusinessHoursResponse get() {
+    public BusinessHoursResponse getBusinessHours() {
         return BusinessHoursResponse.from(businessHoursService.current());
     }
 
@@ -48,7 +48,7 @@ public class BusinessHoursController {
     })
     @PutMapping
     @PreAuthorize("hasRole('ADMIN')")
-    public BusinessHoursResponse replace(@Valid @RequestBody UpdateBusinessHoursRequest request) {
+    public BusinessHoursResponse replaceBusinessHours(@Valid @RequestBody UpdateBusinessHoursRequest request) {
         return BusinessHoursResponse.from(businessHoursService.replace(request.toBusinessHours()));
     }
 }
