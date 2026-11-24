@@ -229,9 +229,13 @@ enlazada a la vez; si se descarta, puede enlazar otra.
 
 #### Scenario: Quien atiende no tiene capacidad clínica
 - **WHEN** un miembro sin credencial, con la capacidad retirada o vencida elige "Atender con nota"
-- **THEN** el sistema responde `409` con el motivo de capacidad clínica
+- **THEN** el sistema responde con acceso denegado (`403`) y el motivo de capacidad clínica
 - **AND** la cita no cambia y no se crea ninguna nota
 - **AND** la interfaz no le ofrece la acción, pero sí "marcar atendida"
+
+#### Scenario: La clínica retira la capacidad mientras se atiende con nota
+- **WHEN** el administrador retira la capacidad clínica de un miembro al mismo tiempo que ese miembro elige "Atender con nota"
+- **THEN** o "Atender con nota" termina primero y la nota queda abierta y enlazada, o el retiro termina primero y "Atender con nota" se rechaza sin cambios
 
 #### Scenario: Paciente sin Historia Clínica completada
 - **WHEN** se elige "Atender con nota" para un paciente cuya Historia Clínica no está completada
@@ -285,6 +289,10 @@ mostrar un día por vez.
 #### Scenario: Navegador en otra zona horaria
 - **WHEN** la clínica está en Lima y el usuario abre la Agenda desde un equipo configurado en otra zona horaria
 - **THEN** la cita de las 10:00 de Lima se muestra a las 10:00, y un hueco elegido a las 10:00 se agenda a las 10:00 de Lima
+
+#### Scenario: Hora inexistente o repetida por cambio de horario
+- **WHEN** la clínica está en una zona con horario de verano y se elige una hora que ese día no existe o se repite
+- **THEN** el formulario muestra, antes de confirmar, la hora resultante con su desfase: la inexistente avanzada al primer instante válido y la repetida en su primera ocurrencia
 
 #### Scenario: Agendar desde un hueco libre
 - **WHEN** el usuario hace clic en un hueco libre dentro del horario

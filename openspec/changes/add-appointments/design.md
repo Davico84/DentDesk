@@ -77,8 +77,12 @@ Pantalla: la hora que se muestra y se elige es la **de la clínica**, no la del 
 laptop en otra zona vería horas corridas). `GET /api/business-hours` devuelve también `timezone`, y `core` gana
 `clinicLocalToInstant` / `instantToClinicLocal` (Intl, sin librería) junto a `clinicDate.ts`, que hoy fija
 `CLINIC_TIMEZONE` a mano y queda alimentado por el servidor en la agenda. Una hora local que no existe en la zona
-de la clínica (salto de horario de verano; no aplica a Lima) se avanza al primer instante válido y el diálogo lo
-muestra antes de confirmar; los tests del helper usan una zona con cambio de horario.
+de la clínica (salto de horario de verano; no aplica a Lima) se avanza al primer instante válido; una hora local
+**repetida** (el retroceso del horario de verano) se resuelve a su **primera ocurrencia**, el instante anterior
+(lo mismo que `ZonedDateTime.ofLocal` sin preferencia y que `disambiguation: "compatible"`). En ambos casos el
+diálogo muestra la hora resultante con su desfase antes de confirmar. El contrato no cambia: viaja el `Instant`
+ya resuelto, así que el backend nunca recibe una hora ambigua. Los tests del helper usan una zona con cambio de
+horario.
 
 La grilla y la duración (10–240, múltiplo de 5) se validan en el servicio (dependen de la zona) y su espejo en el
 schema Zod (`docs/coding-style.md` §7); la duración, además, con Bean Validation en el DTO.
@@ -88,7 +92,9 @@ schema Zod (`docs/coding-style.md` §7); la duración, además, con Bean Validat
 `ClinicalCapacityService` gana `requireForDate(userId, LocalDate)`: lee membresía y credencial del odontólogo
 en la organización activa y aplica `evaluate(..., fechaDeLaCita)`. Lectura simple, sin `FOR SHARE`: retirar la
 capacidad después de agendar **no** cancela la cita (Non-goal), así que no hay carrera que proteger. El error
-reutiliza `ClinicalCapacityRequiredException` (ya `409` con el motivo). La lista de odontólogos agendables
+es uno nuevo, `DentistNotSchedulableException` (`409`, con el motivo `ClinicalCapacityState` y la fecha de
+vencimiento si aplica): **no** reutiliza `ClinicalCapacityRequiredException`, que es `403` porque describe la
+falta de permiso de quien llama; aquí quien llama está autorizado y el conflicto es del dato elegido. La lista de odontólogos agendables
 (`GET /api/appointments/dentists`) reutiliza `forMembers` sobre las membresías activas y filtra los habilitados
 hoy; la ve cualquier miembro (solo id y nombre).
 
@@ -120,9 +126,13 @@ compara la fila consigo misma porque es un `UPDATE` de la misma fila.
 
 ### D7 — "Atender con nota" en una sola transacción
 
-`POST /api/appointments/{id}/consultation-note`: primero exige capacidad clínica vigente a quien llama
-(`ClinicalCapacityService.current()`, lectura sin bloqueo: no firma nada; error `ClinicalCapacityRequiredException`,
-`409`, decisión del dueño del producto en la línea de `ADR-0016`). Luego bloquea la cita, verifica `AGENDADA` con inicio llegado o
+`POST /api/appointments/{id}/consultation-note`: primero exige capacidad clínica vigente a quien llama con
+`ClinicalCapacityService.require()` —membresía y credencial `FOR SHARE`, igual que el sellado— y no con
+`current()`, que lee sin bloquear: un retiro confirmado entre la lectura y el commit dejaría abrir y enlazar la
+nota sin capacidad. Con `FOR SHARE`, o termina primero "Atender con nota" o termina primero el retiro y se
+rechaza (mismo contrato que el sellado en `clinical-history`). El error es el de siempre,
+`ClinicalCapacityRequiredException` (`403` con el motivo; decisión del dueño del producto en la línea de
+`ADR-0016`). Luego bloquea la cita, verifica `AGENDADA` con inicio llegado o
 `ATENDIDA` sin nota, llama a `ConsultationNoteService.open(patientId, startsAtInstant)` **en la misma
 transacción** (propagación `REQUIRED`), guarda `consultation_note_id` y pasa a `ATENDIDA`. Si `open` lanza
 (Historia no completada, nota ya abierta, paciente inactivo, atención anterior a la última sellada), la
@@ -136,6 +146,15 @@ clínico que perder— la columna vuelve a NULL y la cita puede enlazar otra. No
 descartadas: no son registro clínico.
 
 La nota no gana columna ni cambia su spec: el enlace vive en la cita.
+
+**Orden de bloqueos.** "Atender con nota": membresía → credencial (`FOR SHARE`) → cita (`FOR UPDATE`) → inserción
+de la nota. Descartar (sin cambios en `clinical-history`): nota (`FOR UPDATE`) → borrado, cuyo `SET NULL` escribe
+la cita enlazada. Un ciclo exigiría que "Atender con nota" espere a una nota que otro está borrando mientras
+retiene la cita que ese borrado escribe. No ocurre: si la cita ya tiene nota enlazada, se rechaza al leerla bajo
+su propio bloqueo y antes de tocar notas; si la nota que se borra es de otra cita, el `SET NULL` escribe esa otra
+fila, no la bloqueada; y si el paciente tiene una nota abierta visible, `open` la rechaza en su pre-chequeo
+antes de insertar. Se deja un IT de la carrera (tarea 3.6) para que un cambio futuro del orden no lo rompa en
+silencio; si PostgreSQL detectara un interbloqueo (`40P01`), el IT falla.
 
 ### D8 — API
 
@@ -152,7 +171,8 @@ La nota no gana columna ni cambia su spec: el enlace vive en la cita.
 
 La respuesta de la cita trae nombres de paciente y odontólogo (evita N+1 en el front), estado, inicio y fin
 (instantes), duración, motivos, `consultationNoteId` y quién/cuándo del último cambio de estado. Errores nuevos:
-`AppointmentConflictException` (choque, `409`), `AppointmentClosedException` (`409`),
+`AppointmentConflictException` (choque, `409`), `DentistNotSchedulableException` (`409`, D4),
+`AppointmentClosedException` (`409`),
 `AppointmentNotStartedException` (`409`), `OutsideBusinessHoursException` (`422`), `AppointmentInPastException`
 (`422`).
 
@@ -187,8 +207,9 @@ diálogo precargado. El selector de paciente reutiliza la búsqueda de `patients
   B de D2 (bloqueo de membresía + consulta) y se documenta.
 - **`ON DELETE SET NULL (columna)` exige PostgreSQL ≥ 15** → confirmar la versión de Neon y de la imagen de
   Testcontainers (tarea 1.1); si no, trigger `BEFORE DELETE` en `consultation_note` que limpia el enlace.
-- **Horas locales sin zona en el contrato** → un consumidor futuro (app móvil, `public-booking`) debe saber que
-  son de la clínica: se documenta en el `@Schema` de OpenAPI.
+- **Instantes en el contrato, reglas en hora de la clínica** → un consumidor futuro (app móvil, `public-booking`)
+  debe convertir con la `timezone` de `GET /api/business-hours`, no con la del dispositivo: se documenta en el
+  `@Schema` de OpenAPI.
 - **Cambiar el horario no reubica citas** → una cita puede quedar fuera de horario; se ve igual en la agenda y la
   reprogramación la obliga a entrar. Aceptado (spec).
 - **Color por índice** → el color de un odontólogo puede cambiar si cambia la lista de agendables. Aceptado en v1.
