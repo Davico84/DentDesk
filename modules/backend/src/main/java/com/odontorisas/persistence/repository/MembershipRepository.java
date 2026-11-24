@@ -7,6 +7,7 @@ import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 
@@ -32,4 +33,27 @@ public interface MembershipRepository extends JpaRepository<Membership, Long> {
     @Lock(LockModeType.PESSIMISTIC_READ)
     @Query("select m from Membership m where m.user.id = :userId and m.organization.id = :organizationId")
     Optional<Membership> lockForShare(@Param("userId") Long userId, @Param("organizationId") Long organizationId);
+
+    /**
+     * Lo que la regla de capacidad clínica necesita de cada miembro de la clínica activa (add-appointments
+     * design.md D4), por la función {@code clinic_capacity_facts} de V32: la RLS no deja a un {@code MEMBER} leer
+     * las membresías y credenciales ajenas. Sin número COP. {@code userId} {@code null} = todos los miembros.
+     */
+    @Query(value = "SELECT user_id AS userId, full_name AS fullName, membership_status AS membershipStatus, "
+        + "capacity_revoked AS capacityRevoked, licensed_until AS licensedUntil "
+        + "FROM clinic_capacity_facts(CAST(:userId AS BIGINT))", nativeQuery = true)
+    List<CapacityFacts> capacityFacts(@Param("userId") Long userId);
+
+    /** Fila de {@code clinic_capacity_facts}; {@code licensedUntil} {@code null} = sin credencial declarada. */
+    interface CapacityFacts {
+        Long getUserId();
+
+        String getFullName();
+
+        String getMembershipStatus();
+
+        Boolean getCapacityRevoked();
+
+        LocalDate getLicensedUntil();
+    }
 }

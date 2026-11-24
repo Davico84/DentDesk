@@ -14,6 +14,10 @@ describe("sections — una sola fuente de verdad (add-app-shell)", () => {
     expect(canAccess(sectionById("patients"), "ADMIN")).toBe(true);
     expect(canAccess(sectionById("branding"), "MEMBER")).toBe(false);
     expect(canAccess(sectionById("branding"), "ADMIN")).toBe(true);
+    // add-appointments: la agenda la usa todo el personal; el horario lo edita solo el ADMIN.
+    expect(canAccess(sectionById("appointments"), "MEMBER")).toBe(true);
+    expect(canAccess(sectionById("business-hours"), "MEMBER")).toBe(false);
+    expect(canAccess(sectionById("business-hours"), "ADMIN")).toBe(true);
   });
 
   it("los roles salen del contrato: uno mal escrito no compila", () => {
@@ -24,12 +28,14 @@ describe("sections — una sola fuente de verdad (add-app-shell)", () => {
 
   // Scenario: Menú y rutas derivados de la misma configuración
   it("el menú filtra por rol y toma la ruta de la sección", () => {
-    expect(navItemsFor("MEMBER").map((i) => i.label)).toEqual(["Inicio", "Pacientes"]);
+    expect(navItemsFor("MEMBER").map((i) => i.label)).toEqual(["Inicio", "Pacientes", "Agenda"]);
     expect(navItemsFor("ADMIN").map((i) => [i.label, i.to])).toEqual([
       ["Inicio", "/"],
       ["Pacientes", "/patients"],
+      ["Agenda", "/appointments"],
       ["Marca", "/settings/branding"],
       ["Personal", "/settings/staff"],
+      ["Horario de atención", "/settings/business-hours"],
     ]);
   });
 });

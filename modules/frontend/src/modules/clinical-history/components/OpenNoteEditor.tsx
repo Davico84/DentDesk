@@ -35,6 +35,7 @@ import { NoteFindingsPanel } from "./NoteFindingsPanel";
 import { NOTE_CHECKLIST_LABELS, NOTE_TEXT_FIELDS, OPTIONAL_TEXT_KEYS, labelOfField, type NoteTextKey } from "./noteOptions";
 import { useMyClinicalCapacity } from "@/modules/staff/hooks/useProfessionalCredential";
 import { SigningCapacityNotice } from "@/modules/staff/components/SigningCapacityNotice";
+import { ScheduleNextAppointmentLink } from "@/modules/appointments/components/ScheduleNextAppointmentLink";
 
 /**
  * La nota abierta (spec: <i>Nota abierta editable y descartable solo vacía</i> y <i>Sellado
@@ -139,6 +140,11 @@ ${line}` : line, { shouldDirty: true });
           required
         />
         <FormField label="Próxima cita" name="nextAppointmentOn" type="date" register={register} error={errors.nextAppointmentOn} />
+        {note.nextAppointmentOn ? (
+          <div className="flex items-end">
+            <ScheduleNextAppointmentLink patientId={patientId} date={note.nextAppointmentOn} />
+          </div>
+        ) : null}
         {textField("reason", { required: true })}
       </FormSection>
 

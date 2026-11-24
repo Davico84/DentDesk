@@ -8,6 +8,7 @@ import com.odontorisas.common.SignerSnapshot;
 import com.odontorisas.persistence.entity.Membership;
 import com.odontorisas.persistence.entity.ProfessionalCredential;
 import com.odontorisas.persistence.repository.MembershipRepository;
+import com.odontorisas.persistence.repository.MembershipRepository.CapacityFacts;
 import com.odontorisas.persistence.repository.ProfessionalCredentialRepository;
 import com.odontorisas.persistence.repository.UserRepository;
 import org.springframework.security.access.AccessDeniedException;
@@ -19,6 +20,8 @@ import java.time.Clock;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.Collection;
+import java.util.Comparator;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.function.Function;
@@ -67,21 +70,32 @@ public class ClinicalCapacityService {
 
     /** Regla pura, en el orden de {@link ClinicalCapacityState}: la primera condición que falla es el motivo. */
     static CapacityView evaluate(Membership membership, ProfessionalCredential credential, LocalDate today) {
-        String cop = credential == null ? null : credential.getCopNumber();
-        LocalDate until = credential == null ? null : credential.getLicensedUntil();
+        return evaluate(membership.getStatus(), membership.getClinicalCapacityRevokedAt() != null,
+            credential == null ? null : credential.getCopNumber(),
+            credential == null ? null : credential.getLicensedUntil(), today);
+    }
+
+    /** La misma regla sobre los datos sueltos; {@code licensedUntil} {@code null} = sin credencial. */
+    static CapacityView evaluate(MembershipStatus status, boolean revoked, String copNumber, LocalDate licensedUntil,
+                                 LocalDate today) {
         ClinicalCapacityState state;
-        if (membership.getStatus() != MembershipStatus.ACTIVE) {
+        if (status != MembershipStatus.ACTIVE) {
             state = ClinicalCapacityState.INACTIVE_MEMBERSHIP;
-        } else if (membership.getClinicalCapacityRevokedAt() != null) {
+        } else if (revoked) {
             state = ClinicalCapacityState.REVOKED;
-        } else if (credential == null) {
+        } else if (licensedUntil == null) {
             state = ClinicalCapacityState.NO_CREDENTIAL;
-        } else if (until.isBefore(today)) {
+        } else if (licensedUntil.isBefore(today)) {
             state = ClinicalCapacityState.EXPIRED;
         } else {
             state = ClinicalCapacityState.ENABLED;
         }
-        return new CapacityView(state, cop, until);
+        return new CapacityView(state, copNumber, licensedUntil);
+    }
+
+    private static CapacityView evaluate(CapacityFacts facts, LocalDate date) {
+        return evaluate(MembershipStatus.valueOf(facts.getMembershipStatus()), Boolean.TRUE.equals(facts.getCapacityRevoked()),
+            null, facts.getLicensedUntil(), date);
     }
 
     /**
@@ -110,6 +124,41 @@ public class ClinicalCapacityService {
         return members.stream().collect(Collectors.toMap(
             m -> m.getUser().getId(),
             m -> evaluate(m, byUser.get(m.getUser().getId()), today)));
+    }
+
+    /**
+     * Capacidad de otro miembro de la clínica activa en una fecha dada, sin bloquear (add-appointments design.md
+     * D4: el odontólogo de una cita, en el día de la cita). Vacía si el usuario no es miembro de la clínica
+     * activa. Lectura simple: retirar la capacidad después de agendar no cancela la cita, así que no hay carrera
+     * que proteger.
+     */
+    @Transactional(readOnly = true)
+    public Optional<CapacityView> onDate(Long userId, LocalDate date) {
+        if (OrganizationContext.get() == null) {
+            return Optional.empty();
+        }
+        return memberships.capacityFacts(userId).stream().findFirst().map(facts -> evaluate(facts, date));
+    }
+
+    /** Miembro con capacidad clínica vigente hoy, para elegirlo como odontólogo de una cita. */
+    public record EnabledMember(Long userId, String fullName) {
+    }
+
+    /**
+     * Los miembros de la clínica activa con capacidad clínica vigente hoy, por nombre (design.md D4). Lo ve
+     * cualquier miembro: va por {@code clinic_capacity_facts}, no por la RLS de membresías y credenciales.
+     */
+    @Transactional(readOnly = true)
+    public List<EnabledMember> enabledMembersToday() {
+        if (OrganizationContext.get() == null) {
+            return List.of();
+        }
+        LocalDate today = todayInPeru();
+        return memberships.capacityFacts(null).stream()
+            .filter(facts -> evaluate(facts, today).enabled())
+            .map(facts -> new EnabledMember(facts.getUserId(), facts.getFullName()))
+            .sorted(Comparator.comparing(EnabledMember::fullName, Comparator.nullsLast(String.CASE_INSENSITIVE_ORDER)))
+            .toList();
     }
 
     /**

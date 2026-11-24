@@ -39,7 +39,7 @@ import java.util.UUID;
  * regla de autoría de la corrección) y pacientes con la Historia ya sellada por la ruta real
  * ({@link CloseAdmissionService}), que es la precondición de toda nota (design.md D1).
  */
-abstract class AbstractConsultationNoteIT extends AbstractTenantAwareIntegrationTest {
+public abstract class AbstractConsultationNoteIT extends AbstractTenantAwareIntegrationTest {
 
     protected long org;
     protected long someUser;
@@ -75,7 +75,7 @@ abstract class AbstractConsultationNoteIT extends AbstractTenantAwareIntegration
     }
 
     @BeforeEach
-    void seedClinic() throws SQLException {
+    protected void seedClinic() throws SQLException {
         try (Connection owner = ownerConnection(); Statement s = owner.createStatement()) {
             s.execute("TRUNCATE consultation_note_finding, consultation_note_correction, clinical_background_entry, consultation_note_diagnosis, "
                 + "consultation_note, dental_chart_finding_tooth, dental_chart_finding, dental_chart_block, "
@@ -95,7 +95,7 @@ abstract class AbstractConsultationNoteIT extends AbstractTenantAwareIntegration
     }
 
     @AfterEach
-    void clearContext() {
+    protected void clearContext() {
         IdentityContext.clear();
         OrganizationContext.clear();
     }
