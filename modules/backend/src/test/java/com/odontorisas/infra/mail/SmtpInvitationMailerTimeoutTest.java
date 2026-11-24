@@ -32,7 +32,7 @@ class SmtpInvitationMailerTimeoutTest {
             acceptor.setDaemon(true);
             acceptor.start();
             var mailer = new SmtpInvitationMailer(new MailProperties(true, "localhost", silent.getLocalPort(),
-                "usuario", "clave", "no-reply@dentdesk.test", "http://localhost:5173", Duration.ofMillis(500)));
+                "usuario", "clave", "no-reply@dentdesk.test", "http://localhost:5173", Duration.ofMillis(500), false));
             var mail = new InvitationMail("ana@clinica.test", "Clínica", Role.MEMBER, "Ana", "tok", "123456",
                 Instant.parse("2026-10-21T00:00:00Z"));
 

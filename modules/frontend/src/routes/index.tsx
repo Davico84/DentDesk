@@ -3,6 +3,8 @@ import { RootLayout } from "@/layouts/RootLayout";
 import { AppLayout } from "@/layouts/AppLayout";
 import { HomeScreen } from "@/screens/home/HomeScreen";
 import { BrandingSettingsScreen } from "@/screens/settings/BrandingSettingsScreen";
+import { AppointmentsScreen } from "@/screens/appointments/AppointmentsScreen";
+import { BusinessHoursSettingsScreen } from "@/screens/settings/BusinessHoursSettingsScreen";
 import { StaffSettingsScreen } from "@/screens/settings/StaffSettingsScreen";
 import { PatientListScreen } from "@/screens/patients/PatientListScreen";
 import { PatientFormScreen } from "@/screens/patients/PatientFormScreen";
@@ -62,8 +64,10 @@ export const appRoutes: RouteObject[] = [
             { path: PATHS.DENTAL_CHART, element: <DentalChartScreen /> },
             { path: PATHS.CONSULTATION_NOTES, element: <ConsultationNotesScreen /> },
           ]),
+          section("appointments", [{ path: PATHS.APPOINTMENTS, element: <AppointmentsScreen /> }]),
           section("branding", [{ path: PATHS.BRANDING, element: <BrandingSettingsScreen /> }]),
           section("staff", [{ path: PATHS.STAFF, element: <StaffSettingsScreen /> }]),
+          section("business-hours", [{ path: PATHS.BUSINESS_HOURS, element: <BusinessHoursSettingsScreen /> }]),
           // De la persona, no una sección de la clínica: cualquier autenticado, sin ítem en la barra
           // lateral (se llega desde el menú de la cuenta). update-authentication-my-profile D6.
           { path: PATHS.PROFILE, element: <ProfileScreen /> },

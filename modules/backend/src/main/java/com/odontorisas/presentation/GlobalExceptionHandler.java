@@ -2,6 +2,8 @@ package com.odontorisas.presentation;
 
 import com.odontorisas.infra.config.TraceIdFilter;
 import com.odontorisas.service.BusinessException;
+import com.odontorisas.service.appointment.DentistNotSchedulableException;
+import com.odontorisas.service.appointment.InvalidAppointmentScheduleException;
 import com.odontorisas.service.clinicalhistory.ChecklistIncompleteException;
 import com.odontorisas.service.consultationnote.ConsultationNoteChecklistIncompleteException;
 import com.odontorisas.service.dentalchart.DentalChartChecklistIncompleteException;
@@ -61,6 +63,35 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
         if (ex.getExpiredOn() != null) {
             problem.setProperty("expiredOn", ex.getExpiredOn().toString());
         }
+        return problem;
+    }
+
+    /**
+     * Odontólogo no agendable (409) con el motivo de capacidad ({@code reason}, ausente si no es miembro) y, si
+     * la credencial vence antes de la cita, la fecha ({@code expiredOn}) (add-appointments design.md D4).
+     */
+    @ExceptionHandler(DentistNotSchedulableException.class)
+    public ProblemDetail handleDentistNotSchedulable(DentistNotSchedulableException ex) {
+        ProblemDetail problem = ProblemDetails.of(ex.getStatus(), ex.getErrorType(), ex.getMessage());
+        if (ex.getReason() != null) {
+            problem.setProperty("reason", ex.getReason().name());
+        }
+        if (ex.getExpiredOn() != null) {
+            problem.setProperty("expiredOn", ex.getExpiredOn().toString());
+        }
+        return problem;
+    }
+
+    /**
+     * Inicio fuera de la grilla de la clínica, duración o rango inválidos (400) con la misma forma que
+     * {@link #handleMethodArgumentNotValid}: la extensión {@code errors} con el campo, así el cliente lo marca
+     * igual que un error de Bean Validation (add-appointments design.md D3).
+     */
+    @ExceptionHandler(InvalidAppointmentScheduleException.class)
+    public ProblemDetail handleInvalidAppointmentSchedule(InvalidAppointmentScheduleException ex) {
+        ProblemDetail problem = ProblemDetails.of(HttpStatus.BAD_REQUEST, "validation-error", "Uno o más campos son inválidos.");
+        problem.setTitle("Validation failed");
+        problem.setProperty("errors", List.of(Map.of("field", ex.getField(), "message", ex.getMessage())));
         return problem;
     }
 

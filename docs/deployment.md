@@ -44,10 +44,10 @@ Render free da **750 h de instancia al mes por workspace**. Un servicio despiert
   - **Despertar diario: cron-job.org dispara un workflow de GitHub Actions** (`.github/workflows/wake-up.yml`). El workflow despierta Dentdesk y HSO con `curl` (hasta 3 intentos de 150 s) y falla, con aviso de GitHub por correo, si alguna no responde. ~1 min de Actions por día. **Verificado el 2026-10-12**: Dentdesk dormida despertó en **63 s**.
   - **El horario de GitHub (`schedule`) no sirve como despertador.** GitHub corre los programados solo desde la rama por defecto (`dev`) y los atrasó **4 a 6 horas** (13/10: 14:57; 14/10: 13:09, en vez de 8:45). Queda en el workflow solo como respaldo.
   - **Lo que sí dispara a tiempo: un job de cron-job.org que llama a la API de GitHub** (`workflow_dispatch`, que arranca en segundos), lunes a sábado **8:45** `America/Lima`:
-    - URL: `https://api.github.com/repos/Davico84/Odontorisas/actions/workflows/wake-up.yml/dispatches`, método `POST`.
+    - URL: `https://api.github.com/repos/Davico84/DentDesk/actions/workflows/wake-up.yml/dispatches`, método `POST`.
     - Encabezados (filas Key/Value): `Authorization: Bearer <token>`, `Accept: application/vnd.github+json`, `X-GitHub-Api-Version: 2022-11-28`, `Content-Type: application/json`.
     - **Cuerpo**: solo `{"ref":"dev"}`. Respuesta esperada: **204**. Un 422 es un cuerpo mal cargado (p. ej., los encabezados pegados en el cuerpo); 401/403, el token.
-    - **Token**: *fine-grained*, solo el repo `Odontorisas`, permiso **Actions: Read and write** y nada más. Guardado solo en cron-job.org. **Vence**: anotar la fecha y renovarlo antes, o el despertador deja de funcionar sin aviso (cron-job.org mostrará 401).
+    - **Token**: *fine-grained*, solo el repo `DentDesk` (antes `Odontorisas`; el token sigue valiendo tras el rename), permiso **Actions: Read and write** y nada más. Guardado solo en cron-job.org. **Vence**: anotar la fecha y renovarlo antes, o el despertador deja de funcionar sin aviso (cron-job.org mostrará 401).
     - **Verificado el 2026-10-15**: *Test run* → 204 → el workflow arrancó en segundos y despertó HSO en **54 s** y Dentdesk en **74 s** (ambas dormidas).
     - Un solo job despierta las dos apps: el workflow tiene un trabajo por servicio.
 - **UptimeRobot (el monitor 24/7 que tenía HSO) se pausa**: sin horario en el plan gratuito, despertaría a HSO de noche y agotaría el cupo compartido.
@@ -103,6 +103,16 @@ WHERE rolname LIKE 'odontorisas_%';
 Si `rolbypassrls` es `true` o `hereda_neon_superuser` es `true` para `odontorisas_app`, **no despliegues**: borra el rol y vuelve a crearlo por SQL.
 
 La app usa `odontorisas_app` (`DB_USERNAME` / `DB_PASSWORD`); Flyway, `odontorisas_admin` (`DB_ADMIN_USERNAME` / `DB_ADMIN_PASSWORD`).
+
+> [!WARNING]
+> **App y Flyway nunca con el mismo rol fuera de tu máquina.** Desde V32 (`add-appointments`) el rol dueño de las
+> migraciones tiene una policy de **solo lectura total** sobre `memberships` y `professional_credential`: la necesita
+> la función `clinic_capacity_facts`, porque con `FORCE ROW LEVEL SECURITY` un `SECURITY DEFINER` de un dueño no
+> superusuario seguiría filtrado. Si la app se conectara con ese mismo rol, leería directamente las membresías y
+> credenciales de todas las clínicas. En producción no pasa (roles separados, arriba). En local, sin
+> `DB_ADMIN_USERNAME`, Flyway usa `DB_USERNAME`; con el `postgres` del `compose.yaml` eso no cambia nada (es
+> superusuario: ya salta toda la RLS), pero **no repliques ese arreglo con un rol no superusuario** pensando que te da
+> el aislamiento de producción. Para probar la RLS como en producción, usa `scripts/db-roles.sql`.
 
 > ⚠️ **Después del `ALTER DATABASE … OWNER`, el SQL Editor de Neon entra como el dueño de la base**
 > (`odontorisas_admin`), no como el dueño del proyecto, y su selector solo cambia de base, no de rol.
@@ -284,7 +294,7 @@ Consecuencia (decidida en `add-cloud-deployment`): **toda la API pasa a `/api`**
 | `MAIL_FROM` | remitente verificado en Brevo | |
 | `FRONTEND_URL` | `https://dentdeskapp.vercel.app` | base del enlace del correo de invitación |
 | `PLATFORM_ADMIN_*` | solo durante el bootstrap | ver §11.1; **se retiran** después |
-| `PASSWORD_RECOVERY_CLIENT_IP_HEADER` | `X-Real-IP` | IP del cliente para el límite de pedidos de recuperación; la escribe Vercel al reenviar `/api/*`. **Obligatoria en producción**: sin ella el límite toma la dirección de la conexión, que es la del proxy, y todos compartirían un cupo. Verificarla antes de habilitar la recuperación (§12.2) |
+| `PASSWORD_RECOVERY_CLIENT_IP_HEADER` | *(sin definir)* | **No definirla en producción.** Sin ella, la IP del límite de recuperación sale de la cabecera `Forwarded` que escribe Vercel. Con una cabecera definida que no llegue (como `X-Real-IP`), todos los usuarios comparten un solo cupo de pedidos. Ver §12.2 |
 
 Los secretos se cargan en el panel de Render, **nunca** en el repo.
 
@@ -458,15 +468,18 @@ Se revisa si algún día hay más de un administrador de plataforma, o segundo f
    servidores antes de llegar al navegador (`no-referrer` no lo evita). No hay un header SMTP documentado para
    apagarlo por mensaje: se apaga en la cuenta de Brevo. **Verificar** con un correo de recuperación real que el
    enlace llega como `https://<frontend>/auth/reset-password?token=...`, sin reescribir.
-2. **IP del cliente.** Con `PASSWORD_RECOVERY_CLIENT_IP_HEADER=X-Real-IP` (no `CF-Connecting-IP`: el navegador
-   llega por el *rewrite* de Vercel, y Cloudflare vería la IP de Vercel), comprobar desde el frontend publicado:
-   - desde tu PC, 10 pedidos con correos inventados y el 11.º con un correo real: ese correo **no** llega (límite
-     por IP); desde el celular con datos móviles, un pedido con el correo real **sí** llega;
-   - repetir el 11.º mandando un `X-Real-IP` inventado (`curl` al dominio de Vercel): si el correo llega, Vercel no
-     pisa la cabecera, y se anota como el riesgo aceptado del design D10.
+2. **IP del cliente.** `PASSWORD_RECOVERY_CLIENT_IP_HEADER` sin definir (design D10 del change, archivado). Comprobar
+   desde el frontend publicado, mirando las cuentas en `password_reset_tokens` y no la bandeja:
+   - elegir cuentas activas, que no sean de plataforma y con **menos de 3 enlaces en 24 h**: si no, las frena el límite
+     por cuenta y la prueba no mide nada;
+   - desde una misma IP, 10 pedidos con correos inventados y el 11.º con un correo real: **no** se crea enlace; desde
+     el celular con datos móviles, otro correo real: **sí** se crea;
+   - la IP del navegador puede variar entre pedidos aun en la misma red. Si el 11.º crea un enlace, repetir antes de
+     concluir;
+   - repetir mandando `Forwarded` y `X-Forwarded-For` inventados (`curl` al dominio de Vercel): la cuenta no cambia.
 
-   Quien llame a `onrender.com` directo puede inventar `X-Real-IP` y esquivar el límite por IP (riesgo aceptado: el
-   límite por cuenta, 3 al día, y la cola acotada no dependen de la IP). Cerrarlo es un change futuro: un secreto
-   que Vercel agrega al reenviar y que el backend exige para confiar en la cabecera.
+   Riesgos aceptados (D10): quien llame a `onrender.com` directo puede inventar la IP, y si Vercel dejara de mandar
+   `Forwarded` también se podría desde el navegador. El límite por cuenta, 3 al día, y la cola acotada no dependen de
+   la IP. Cerrarlo es un change futuro: un secreto que Vercel agrega al reenviar y que el backend exige.
 3. **Correo configurado** (`MAIL_*`, §6): sin él, los pedidos se aceptan pero no se envía nada.
 

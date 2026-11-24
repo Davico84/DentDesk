@@ -39,3 +39,6 @@ modules/**/test-results/
 # === Skills con motor Python (ui-ux-pro-max): bytecode generado ===
 __pycache__/
 *.pyc
+
+# Análisis de mercado: privado, fuera del repo público (vive en ../dentdesk-privado/)
+docs/market-research/

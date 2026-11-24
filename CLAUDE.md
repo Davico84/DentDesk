@@ -3,10 +3,12 @@
 Proyecto **greenfield** con desarrollo dirigido por especificaciones (spec-driven) usando **OpenSpec**.
 Monorepo modular: `modules/backend/` (Java/Spring) + `modules/frontend/` (React/Vite), con `openspec/` y `docs/` en la raíz.
 
-> **El producto se llama Dentdesk** (decisión 2026-07-20, ver `docs/vision.md`). "OdontoRisas" queda
-> como el nombre **interno** del repo/código — carpeta del repo, package Java (`com.odontorisas`),
-> roles de base de datos (`odontorisas_admin`/`odontorisas_app`), `groupId` Maven — por estabilidad:
-> renombrarlos toca migraciones Flyway ya aplicadas y una restructuración de paquete de bajo valor.
+> **El producto se llama Dentdesk** (decisión 2026-07-20, ver `docs/vision.md`). El repo de GitHub
+> también: `Davico84/DentDesk` (renombrado 2026-11-19). "OdontoRisas" queda como el nombre **interno**
+> del código — carpeta local, package Java (`com.odontorisas`), roles de base de datos
+> (`odontorisas_admin`/`odontorisas_app`), `groupId` Maven — por estabilidad: renombrarlos toca
+> migraciones Flyway ya aplicadas y una restructuración de paquete de bajo valor. La carpeta local no se
+> renombra: la memoria de Claude Code está atada a su ruta.
 > Lo que **renderiza** al usuario (UI, copy, título de pestaña) ya dice Dentdesk. Al escribir código o
 > rutas nuevas, seguí usando `odontorisas`/`com.odontorisas`; al escribir copy visible o docs de
 > negocio/producto, usá Dentdesk.

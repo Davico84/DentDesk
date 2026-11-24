@@ -29,6 +29,14 @@
   --success-foreground: hsl(0 0% 100%); /* #ffffff */
   --warning: hsl(38 92% 46%); /* #e18b0a */
   --warning-foreground: hsl(40 92% 10%); /* #311d02 */
+  /* Paleta categórica de la agenda (add-appointments D9): un color por odontólogo, por índice. No deriva de
+     la marca: distingue personas, no identifica a la clínica. Pensada para texto oscuro encima. */
+  --chart-1: hsl(173 58% 82%);
+  --chart-2: hsl(38 92% 80%);
+  --chart-3: hsl(262 70% 86%);
+  --chart-4: hsl(345 80% 87%);
+  --chart-5: hsl(199 85% 84%);
+  --chart-foreground: hsl(222 47% 11%);
   --border: hsl(290 16% 89%); /* #e5dbe7 */
   --input: hsl(290 16% 89%); /* #e5dbe7 */
   --ring: hsl(292 72% 45%); /* #9f21cf */
@@ -70,6 +78,12 @@
   --success-foreground: hsl(289 45% 10%); /* #230e28 */
   --warning: hsl(38 88% 60%); /* #f3a63e */
   --warning-foreground: hsl(40 92% 10%); /* #311d02 */
+  --chart-1: hsl(173 45% 30%);
+  --chart-2: hsl(38 60% 32%);
+  --chart-3: hsl(262 40% 38%);
+  --chart-4: hsl(345 45% 36%);
+  --chart-5: hsl(199 55% 32%);
+  --chart-foreground: hsl(0 0% 98%);
   --border: hsl(289 20% 22%); /* #3d2b42 */
   --input: hsl(289 20% 22%); /* #3d2b42 */
   --ring: hsl(292 65% 66%); /* #cf74ed */
@@ -113,6 +127,12 @@
   --color-success-foreground: var(--success-foreground);
   --color-warning: var(--warning);
   --color-warning-foreground: var(--warning-foreground);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --color-chart-foreground: var(--chart-foreground);
 
   --color-brand-cta: var(--brand-cta);
   --color-brand-cta-hover: var(--brand-cta-hover);

@@ -5,14 +5,13 @@ import org.springframework.stereotype.Component;
 
 /**
  * IP del cliente para el límite de pedidos de recuperación ({@code update-authentication-password-recovery}
- * design.md D10). <b>Una sola fuente:</b> la cabecera configurada ({@code X-Real-IP} en producción, que escribe
- * Vercel al reenviar {@code /api/*}; quien llame al backend directo puede inventarla, riesgo aceptado en D10).
+ * design.md D10). <b>En producción no hay cabecera configurada:</b> {@code getRemoteAddr()}, que
+ * {@code ForwardedHeaderFilter} toma de la cabecera {@code Forwarded} que escribe Vercel al reenviar {@code /api/*}
+ * y que el cliente no pudo cambiar a través de Vercel. Quien llame al backend directo puede inventarla (riesgo
+ * aceptado en D10).
  *
- * <p>Nunca {@code X-Forwarded-For}: el cliente controla sus valores a la izquierda y, con
- * {@code forward-headers-strategy: framework}, {@code getRemoteAddr()} devuelve justamente el primero. Por eso,
- * con la cabecera configurada y ausente, <b>no</b> se cae a {@code getRemoteAddr()}, que sería falsificable:
- * todos esos pedidos comparten un único cupo. Sin cabecera configurada (local, tests) se usa la dirección de la
- * conexión.
+ * <p>Con una cabecera configurada se lee solo esa; si falta, <b>no</b> se cae a {@code getRemoteAddr()}: todos esos
+ * pedidos comparten un único cupo.
  */
 @Component
 public class ClientIpResolver {

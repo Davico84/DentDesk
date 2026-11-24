@@ -1,4 +1,4 @@
-# PostgreSQL para desarrollo local.
+# PostgreSQL y correo (Mailpit) para desarrollo local.
 # Ejecutar con la misma fuente de secretos que la app:
 #   docker compose --env-file secrets.properties up -d
 services:
@@ -19,6 +19,17 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+
+  # Servidor SMTP de prueba con bandeja web (update-project-foundation-local-mail design D3). La app lo usa
+  # solo con MAIL_ENABLED=true y MAIL_LOCAL_SMTP=true (ver secrets.properties.example). MAIL_PORT es el puerto
+  # al que conecta el backend y MAILPIT_SMTP_PORT el que publica este servicio: van coordinados (1025).
+  # Solo en 127.0.0.1: la bandeja no queda expuesta a la red local.
+  mailpit:
+    image: axllent/mailpit:v1.32.0
+    container_name: odontorisas-mailpit
+    ports:
+      - "127.0.0.1:${MAILPIT_SMTP_PORT:-1025}:1025"
+      - "127.0.0.1:${MAILPIT_WEB_PORT:-8025}:8025"
 
 volumes:
   pgdata:

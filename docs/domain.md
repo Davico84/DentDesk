@@ -119,6 +119,7 @@ La organización cliente del SaaS (una **clínica** es una organización). Es el
 ### `multi-tenancy` → **OrganizationSettings** *(construida)*
 Configuración 1:1 de la organización (punto de extensión).
 - `organizationId` (PK/FK, comparte clave con `Organization`), `timezone`, `locale`, `currency`.
+- **`businessHours`** (`add-appointments`): para cada día de la semana, cero o más tramos `opens`–`closes` en hora de la clínica (múltiplos de 5 min, sin solaparse). Lo edita solo el `ADMIN`; por defecto lunes a viernes 09:00–18:00, sábado 09:00–13:00 y domingo cerrado.
 
 ### `multi-tenancy` → **Membership** *(puente identidad↔organización; construida)*
 Define a qué organización pertenece un usuario y **con qué rol**. Es el corazón del modelo multi-tenant. Un usuario puede tener varias membresías (multi-organización). **Una membresía solo nace al aceptar una `Invitation`**, que fija la organización y el rol: el registro público no existe (`update-registration-organization-linking`). El **selector de organización activa** sigue diferido (es re-emitir el token con otro `oid`: una operación de sesión).
@@ -216,9 +217,14 @@ El documento médico-legal inicial de la atención: **una por paciente, de por v
 
 > **Pendiente, fuera de esta capacidad** (ver `docs/vision.md §3` y §7): odontograma de evolución sellado con la nota (corte B, `update-dental-chart`), retención legal de **20 años** + archivo pasivo ([`ADR-0018`](adr/0018-cumplimiento-nts-139-y-cop.md) D1 — la cifra anterior, 15 años, era más corta que la legal), la **Ficha Odonto-Estomatológica** que NTS 139 § 5.2.2 numeral 12 exige y esta capacidad no cubre (IHO simplificado, placa blanda/calcificada, alta básica con fecha, odontograma inicial **y final** — `ADR-0018` D2), y diagnóstico sin CIE10 para casos estéticos.
 
-### `appointments` → **Appointment**
-Cita agendada.
-- `patient` (FK), `dentist` (FK → User con rol clínico), `scheduledAt`, `status` (agendada/atendida/cancelada), `notes`
+### `appointments` → **Appointment** *(agenda interna)*
+Cita de la agenda interna de la clínica ([`add-appointments`](../openspec/changes/archive/2026-11-24-add-appointments/design.md)). La agenda la usa todo el personal (`ADMIN` y `MEMBER`): la cita es dato administrativo (`ADR-0016`). La reserva por el propio paciente es otra capacidad (`public-booking`).
+- `patient` (FK compuesta por tenant), `dentist` (FK → User: miembro con **capacidad clínica vigente en la fecha de la cita**, hora de Perú), `startsAt` y `endsAt` (**instantes**; la duración se deriva, múltiplo de 5 entre 10 y 240 min), `reason` (≤500), `status`, `cancellationReason` (solo `CANCELADA`), `consultationNoteId` (solo `ATENDIDA`), `statusChangedAt/By`.
+- **Estados**: `AGENDADA` → `ATENDIDA` | `NO_ASISTIO` (desde la hora de inicio) | `CANCELADA` (en cualquier momento). Los tres finales no cambian más. **Reprogramar** (inicio, duración, odontólogo) es una acción sobre una `AGENDADA`, no un estado; no guarda historial.
+- **Sin choques**: el mismo odontólogo no tiene dos citas `AGENDADA`/`ATENDIDA` que se pisen (rango semiabierto: contiguas sí). Lo garantiza la base con una restricción de exclusión; `CANCELADA` y `NO_ASISTIO` liberan el hueco.
+- **Reglas civiles** (grilla de 5 minutos, "futura", día de la semana, horario de atención) se evalúan en la **zona horaria de la clínica**, nunca la del navegador.
+- **Enlace con la nota de consulta**: "Atender con nota" abre la `ConsultationNote` del paciente con la atención igual al inicio de la cita y la enlaza, todo o nada; exige capacidad clínica a quien lo hace. Una cita tiene a lo sumo una nota a la vez; si la nota se descarta (vacía), el enlace vuelve a nulo. La nota no conoce la cita.
+- **Horario de atención**: vive en `OrganizationSettings.businessHours` (tramos por día). Toda cita cae completa dentro de un tramo; cambiar el horario no mueve citas existentes.
 
 > **Dos capacidades, no una** (`docs/vision.md §2`). El núcleo clínico se parte por **sustantivo**:
 > **`dental-chart`** es el **estado** de la boca (el odontograma) y **`treatments`** son las **acciones** que lo cambian. Juntas necesitaban una "y" y cargaban con cinco entidades: mala granularidad.
@@ -340,6 +346,7 @@ erDiagram
     Cie10Code ||--o{ Cie10Code : "jerarquía (parentCode)"
     User ||--o{ Appointment : "atiende (dentista)"
     Patient ||--o{ Appointment : "reserva"
+    Appointment |o--o| ConsultationNote : "atendida con"
     Patient ||--o{ Treatment : "recibe"
     Appointment ||--o| Treatment : "origina"
     Patient ||--o{ Image : "tiene"
@@ -374,6 +381,7 @@ erDiagram
         String timezone
         String locale
         String currency
+        Json businessHours
     }
     OrganizationBranding {
         Long organizationId PK
@@ -495,9 +503,15 @@ erDiagram
     Appointment {
         Long id PK
         Long patientId FK
-        Long dentistId FK
-        DateTime scheduledAt
+        Long dentistUserId FK
+        Instant startsAt
+        Instant endsAt
         String status
+        String reason
+        String cancellationReason
+        Long consultationNoteId FK
+        Instant statusChangedAt
+        Long statusChangedBy FK
     }
     Treatment {
         Long id PK
