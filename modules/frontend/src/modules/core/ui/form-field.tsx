@@ -1,6 +1,6 @@
 import { useState, type ReactNode } from "react";
 import type { FieldError, FieldValues, Path, UseFormRegister } from "react-hook-form";
-import { ChevronDown } from "lucide-react";
+import { ChevronDown, Clock } from "lucide-react";
 import { cn } from "@/modules/core/utils/cn";
 import { Label } from "./label";
 import { Input } from "./input";
@@ -71,6 +71,57 @@ export function FormField<T extends FieldValues>({
       />
     </FieldShell>
   );
+}
+
+/**
+ * Campo de hora (`<input type="time">`) que se entiende solo: **todo el campo** abre el selector del sistema al hacer
+ * clic o tocarlo (no solo el ícono diminuto del navegador, que pasaba desapercibido), con un reloj a la izquierda como
+ * pista. `step` en segundos (300 = de 5 en 5 minutos) y `min`/`max` en `HH:mm` acotan lo que el selector ofrece.
+ * Donde el navegador no tiene selector (`showPicker` ausente), se escribe la hora como siempre. Mismo contrato de
+ * accesibilidad que {@link FormField}; primitivo de `core/ui`: no conoce ningún dominio.
+ */
+export function TimeField<T extends FieldValues>({
+  label,
+  name,
+  register,
+  error,
+  required,
+  hint,
+  wide,
+  step,
+  min,
+  max,
+}: BaseProps<T> & { step?: number; min?: string; max?: string }) {
+  const errorId = `${name}-error`;
+  const hintId = `${name}-hint`;
+  return (
+    <FieldShell label={label} name={name} required={required} error={error} hint={hint} wide={wide}>
+      <div className="relative">
+        <Clock className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+        <Input
+          id={name}
+          type="time"
+          step={step}
+          min={min}
+          max={max}
+          className="h-11 cursor-pointer rounded-xl pl-9 tabular-nums [&::-webkit-calendar-picker-indicator]:hidden"
+          aria-invalid={error ? true : undefined}
+          aria-describedby={describedBy(error ? errorId : undefined, hint ? hintId : undefined)}
+          onClick={(event) => openPicker(event.currentTarget)}
+          {...register(name)}
+        />
+      </div>
+    </FieldShell>
+  );
+}
+
+/** Abre el selector nativo si el navegador lo permite; si no (o lo rechaza), el campo sigue editable a mano. */
+function openPicker(input: HTMLInputElement) {
+  try {
+    input.showPicker?.();
+  } catch {
+    // Sin gesto del usuario o dentro de un iframe ajeno: el navegador lo rechaza; se escribe a mano.
+  }
 }
 
 /**

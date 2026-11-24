@@ -92,6 +92,15 @@ describe("Navegación declarada por configuración", () => {
     expect(within(nav).getByRole("link", { name: "Inicio" })).not.toHaveAttribute("aria-current");
   });
 
+  // add-appointments 4.1: la Agenda la ven MEMBER y ADMIN, y queda activa en /appointments.
+  it.each(["MEMBER", "ADMIN"] as const)("un %s ve la Agenda, activa en /appointments", async (role) => {
+    signIn({ role });
+    renderAt("/appointments");
+    const nav = await waitFor(sidebarNav);
+    expect(within(nav).getByRole("link", { name: "Agenda" })).toHaveAttribute("aria-current", "page");
+    expect(within(nav).getByRole("link", { name: "Pacientes" })).not.toHaveAttribute("aria-current");
+  });
+
   it("un USER no ve el ítem de Marca; un ADMIN sí", async () => {
     signIn();
     renderAt("/");

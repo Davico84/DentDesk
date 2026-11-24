@@ -13,6 +13,12 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
+
+import java.time.DayOfWeek;
+import java.util.List;
+import java.util.Map;
 
 /**
  * Configuración 1:1 de una organización (punto de extensión: zona horaria, locale,
@@ -49,6 +55,19 @@ public class OrganizationSettings {
 
     @Column(nullable = false, length = 3)
     private String currency;
+
+    /**
+     * Horario de atención (add-appointments design.md D5): tramos por día en hora de la clínica,
+     * {@code "HH:mm"}. {@code insertable = false}: al crear la organización lo pone el {@code DEFAULT} de la
+     * columna (V32), así el alta de plataforma no lo conoce.
+     */
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "business_hours", columnDefinition = "jsonb", nullable = false, insertable = false)
+    private Map<DayOfWeek, List<StoredSegment>> businessHours;
+
+    /** Forma persistida de un tramo: horas como texto {@code "HH:mm"}. */
+    public record StoredSegment(String opens, String closes) {
+    }
 
     /** Crea la configuración por defecto para una organización recién creada. */
     public static OrganizationSettings defaultsFor(Organization organization) {

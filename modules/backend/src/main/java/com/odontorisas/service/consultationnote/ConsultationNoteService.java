@@ -13,6 +13,7 @@ import com.odontorisas.persistence.repository.ClinicalBackgroundEntryRepository;
 import com.odontorisas.persistence.repository.ConsultationNoteCorrectionRepository;
 import com.odontorisas.persistence.repository.ConsultationNoteDiagnosisRepository;
 import com.odontorisas.persistence.repository.ConsultationNoteFindingRepository;
+import com.odontorisas.persistence.repository.AppointmentRepository;
 import com.odontorisas.persistence.repository.ConsultationNoteRepository;
 import com.odontorisas.persistence.repository.HistoriaClinicaRepository;
 import com.odontorisas.persistence.repository.OrganizationSettingsRepository;
@@ -61,6 +62,7 @@ public class ConsultationNoteService {
     private final OrganizationSettingsRepository organizationSettingsRepository;
     private final Clock clock;
     private final ClinicalCapacityService clinicalCapacityService;
+    private final AppointmentRepository appointmentRepository;
 
     public ConsultationNoteService(ConsultationNoteRepository noteRepository,
                                    ConsultationNoteDiagnosisRepository diagnosisRepository,
@@ -71,7 +73,8 @@ public class ConsultationNoteService {
                                    PatientRepository patientRepository,
                                    OrganizationSettingsRepository organizationSettingsRepository,
                                    Clock clock,
-                                   ClinicalCapacityService clinicalCapacityService) {
+                                   ClinicalCapacityService clinicalCapacityService,
+                                   AppointmentRepository appointmentRepository) {
         this.noteRepository = noteRepository;
         this.diagnosisRepository = diagnosisRepository;
         this.entryRepository = entryRepository;
@@ -82,6 +85,7 @@ public class ConsultationNoteService {
         this.organizationSettingsRepository = organizationSettingsRepository;
         this.clock = clock;
         this.clinicalCapacityService = clinicalCapacityService;
+        this.appointmentRepository = appointmentRepository;
     }
 
     /**
@@ -173,6 +177,9 @@ public class ConsultationNoteService {
 
     /** Descarta la nota abierta, solo si estÃ¡ vacÃ­a (design.md D2). */
     public void discard(Long patientId, Long noteId) {
+        // Si una cita enlaza la nota, se bloquea ANTES que la nota: el ON DELETE SET NULL escribe esa cita y "atender
+        // con nota" toma cita -> nota. Mismo orden en los dos caminos: sin interbloqueo (add-appointments design.md D7).
+        appointmentRepository.lockByConsultationNoteId(noteId);
         ConsultationNote note = lockOpenNote(noteRepository, patientId, noteId);
         boolean empty = NoteTextFields.hasNoContent(note)
             && diagnosisRepository.countByNoteId(noteId) == 0

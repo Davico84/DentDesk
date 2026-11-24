@@ -89,14 +89,24 @@ schema Zod (`docs/coding-style.md` §7); la duración, además, con Bean Validat
 
 ### D4 — Capacidad del odontólogo en la fecha de la cita
 
-`ClinicalCapacityService` gana `requireForDate(userId, LocalDate)`: lee membresía y credencial del odontólogo
-en la organización activa y aplica `evaluate(..., fechaDeLaCita)`. Lectura simple, sin `FOR SHARE`: retirar la
+`ClinicalCapacityService` gana `onDate(userId, LocalDate)` (y el servicio de citas la exige): obtiene membresía
+y credencial del odontólogo en la organización activa y aplica `evaluate(..., fechaDeLaCita)`.
+
+**Lectura a través de la RLS (decidido en el apply, 2026-11-24).** La RLS de V28/V30 deja que un `MEMBER` vea
+solo *su* membresía y *su* credencial; la recepción no podría evaluar a otro odontólogo. Se descartó ampliar
+esas políticas (expondría número COP y retiros a todo el personal). En su lugar, V32 agrega la función
+`clinic_capacity_facts(userId)`, `SECURITY DEFINER`, que solo para un miembro **activo** de la clínica del token
+devuelve por miembro: nombre, estado de la membresía, si se retiró la capacidad y "habilitado hasta" — sin COP.
+La regla sigue en Java. Como ambas tablas tienen `FORCE ROW LEVEL SECURITY` y en Neon el dueño no es
+superusuario, el dueño gana una política de **solo lectura para sí mismo** (`TO CURRENT_USER` al migrar); la app
+se conecta como `odontorisas_app` y no la recibe. `ClinicCapacityFactsAsNonSuperuserOwnerIT` lo prueba como en
+Neon (dueño no superusuario + rol de app). Lectura simple, sin `FOR SHARE`: retirar la
 capacidad después de agendar **no** cancela la cita (Non-goal), así que no hay carrera que proteger. El error
 es uno nuevo, `DentistNotSchedulableException` (`409`, con el motivo `ClinicalCapacityState` y la fecha de
 vencimiento si aplica): **no** reutiliza `ClinicalCapacityRequiredException`, que es `403` porque describe la
 falta de permiso de quien llama; aquí quien llama está autorizado y el conflicto es del dato elegido. La lista de odontólogos agendables
-(`GET /api/appointments/dentists`) reutiliza `forMembers` sobre las membresías activas y filtra los habilitados
-hoy; la ve cualquier miembro (solo id y nombre).
+(`GET /api/appointments/dentists`) sale de la misma función y filtra los habilitados hoy; la ve cualquier
+miembro (solo id y nombre).
 
 ### D5 — Horario de atención como JSONB en `organization_settings`
 
@@ -147,14 +157,12 @@ descartadas: no son registro clínico.
 
 La nota no gana columna ni cambia su spec: el enlace vive en la cita.
 
-**Orden de bloqueos.** "Atender con nota": membresía → credencial (`FOR SHARE`) → cita (`FOR UPDATE`) → inserción
-de la nota. Descartar (sin cambios en `clinical-history`): nota (`FOR UPDATE`) → borrado, cuyo `SET NULL` escribe
-la cita enlazada. Un ciclo exigiría que "Atender con nota" espere a una nota que otro está borrando mientras
-retiene la cita que ese borrado escribe. No ocurre: si la cita ya tiene nota enlazada, se rechaza al leerla bajo
-su propio bloqueo y antes de tocar notas; si la nota que se borra es de otra cita, el `SET NULL` escribe esa otra
-fila, no la bloqueada; y si el paciente tiene una nota abierta visible, `open` la rechaza en su pre-chequeo
-antes de insertar. Se deja un IT de la carrera (tarea 3.6) para que un cambio futuro del orden no lo rompa en
-silencio; si PostgreSQL detectara un interbloqueo (`40P01`), el IT falla.
+**Orden de bloqueos.** Los dos caminos toman cita → nota. "Atender con nota": membresía → credencial
+(`FOR SHARE`) → cita (`FOR UPDATE`) → inserción de la nota. Descartar: si una cita enlaza la nota, la bloquea
+primero (`lockByConsultationNoteId`, `FOR UPDATE`) y recién después la nota y su borrado, cuyo `SET NULL` escribe
+esa cita ya tomada. Con el mismo orden no hay ciclo posible. (El propose lo resolvía razonando que el ciclo no se
+daba; la revisión del apply pidió imponerlo en el código, que es más barato que depender de ese razonamiento.)
+`AppointmentConcurrencyIT` prueba los dos órdenes de llegada: descarte primero y cita tomada primero.
 
 ### D8 — API
 
@@ -183,7 +191,9 @@ es una grilla CSS propia: columnas lunes–domingo, filas de 15 minutos entre la
 más tardío de la semana, horas fuera de horario sombreadas con token, bloques posicionados por inicio/duración;
 citas de distintos odontólogos que se solapan se reparten el ancho de la columna. Color por odontólogo: paleta
 de tokens `--chart-1..5` por índice en la lista de agendables (con más de 5 se repite, el nombre sigue en el
-bloque). Bajo el breakpoint `md`, un día por vez.
+bloque). Esos tokens no existían: el apply los agregó a `globals.css` (claro y oscuro, con
+`--chart-foreground` para el texto). No derivan de la marca de la clínica: distinguen personas, no identifican a
+la clínica. Bajo el breakpoint `md`, un día por vez.
 
 *Alternativa:* FullCalendar o similar — rápido, pero pesa, su tematización pelea con los tokens por clínica
 (`docs/frontend.md`) y la grilla es la pieza de portafolio del change.
@@ -205,6 +215,9 @@ diálogo precargado. El selector de paciente reutiliza la búsqueda de `patients
 - **`btree_gist` en Neon con dueño no superusuario** → es extensión *trusted* desde PostgreSQL 13 (la puede crear
   quien tenga `CREATE` en la base); verificarlo en una rama de Neon **antes** del merge (tarea 1.1). Si falla, plan
   B de D2 (bloqueo de membresía + consulta) y se documenta.
+  **Verificado 2026-11-24 (tarea 1.1):** en una rama de Neon, como `odontorisas_admin`, PostgreSQL 16.16 y
+  `CREATE EXTENSION btree_gist` (1.7) sin error; en `postgres:16-alpine` (Testcontainers), 16.15 y 1.7. Plan B
+  descartado.
 - **`ON DELETE SET NULL (columna)` exige PostgreSQL ≥ 15** → confirmar la versión de Neon y de la imagen de
   Testcontainers (tarea 1.1); si no, trigger `BEFORE DELETE` en `consultation_note` que limpia el enlace.
 - **Instantes en el contrato, reglas en hora de la clínica** → un consumidor futuro (app móvil, `public-booking`)
@@ -213,6 +226,13 @@ diálogo precargado. El selector de paciente reutiliza la búsqueda de `patients
 - **Cambiar el horario no reubica citas** → una cita puede quedar fuera de horario; se ve igual en la agenda y la
   reprogramación la obliga a entrar. Aceptado (spec).
 - **Color por índice** → el color de un odontólogo puede cambiar si cambia la lista de agendables. Aceptado en v1.
+- **Policy de lectura del dueño de las migraciones (V32)** → si la app usara el mismo rol que Flyway, leería todas las
+  membresías y credenciales. Producción usa roles separados; en local el rol único del `compose.yaml` es superusuario y
+  ya salta toda la RLS. Documentado en `docs/deployment.md`. Decisión del dueño del producto (revisión del apply):
+  documentar, sin chequeo al arrancar.
+- **Membresía inactiva con sesión abierta** → la desactivación corta el login y la renovación, pero el access token
+  vigente sigue sirviendo hasta que vence, en la agenda como en todo el sistema (`patients` incluido). Cortarlo por
+  petición es un cambio transversal de `multi-tenancy`, fuera de este change.
 
 ## Migration Plan
 
