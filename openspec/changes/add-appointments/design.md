@@ -205,6 +205,9 @@ diálogo precargado. El selector de paciente reutiliza la búsqueda de `patients
 - **`btree_gist` en Neon con dueño no superusuario** → es extensión *trusted* desde PostgreSQL 13 (la puede crear
   quien tenga `CREATE` en la base); verificarlo en una rama de Neon **antes** del merge (tarea 1.1). Si falla, plan
   B de D2 (bloqueo de membresía + consulta) y se documenta.
+  **Verificado 2026-11-24 (tarea 1.1):** en una rama de Neon, como `odontorisas_admin`, PostgreSQL 16.16 y
+  `CREATE EXTENSION btree_gist` (1.7) sin error; en `postgres:16-alpine` (Testcontainers), 16.15 y 1.7. Plan B
+  descartado.
 - **`ON DELETE SET NULL (columna)` exige PostgreSQL ≥ 15** → confirmar la versión de Neon y de la imagen de
   Testcontainers (tarea 1.1); si no, trigger `BEFORE DELETE` en `consultation_note` que limpia el enlace.
 - **Instantes en el contrato, reglas en hora de la clínica** → un consumidor futuro (app móvil, `public-booking`)
