@@ -9,6 +9,7 @@ import { DiagnosisList } from "./DiagnosisList";
 import { NOTE_TEXT_FIELDS, backgroundCategoryOptions } from "./noteOptions";
 import { labelOf } from "./diagnosisOptions";
 import { SignedByLine } from "@/modules/staff/components/SignedByLine";
+import { ScheduleNextAppointmentLink } from "@/modules/appointments/components/ScheduleNextAppointmentLink";
 
 /**
  * Una nota sellada, en lectura (spec: <i>Sellado irreversible de la nota</i>). Cada corrección se
@@ -61,6 +62,11 @@ export function SealedNoteCard({
           <div className="ml-6">
             <SignedByLine signer={note.signer} signedBeforeCredentials={note.signedBeforeCredentials} />
           </div>
+          {note.nextAppointmentOn ? (
+            <div className="ml-6 mt-2">
+              <ScheduleNextAppointmentLink patientId={patientId} date={note.nextAppointmentOn} />
+            </div>
+          ) : null}
           {!expanded ? (
             <p className="ml-6 mt-1 truncate text-sm">
               {note.reason ?? "Sin motivo"}

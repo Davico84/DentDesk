@@ -2,7 +2,7 @@ import type { Role } from "@/store/useSessionStore";
 import { PATHS } from "@/routes/paths";
 
 /** Secciones de la zona privada. Cada capacidad nueva agrega la suya al construirse. */
-export type SectionId = "home" | "patients" | "branding" | "staff";
+export type SectionId = "home" | "patients" | "appointments" | "branding" | "staff" | "business-hours";
 
 /**
  * Política de una sección: dónde vive y quién la ve (`add-app-shell` design.md D1). Sin `roles` =
@@ -23,8 +23,11 @@ export const sections: readonly SectionConfig[] = [
   { id: "home", path: PATHS.ROOT },
   // Pacientes y todo lo que cuelga de su ficha (Historia, odontograma, consultas).
   { id: "patients", path: PATHS.PATIENTS },
+  // La agenda: cualquier miembro agenda y gestiona citas (add-appointments).
+  { id: "appointments", path: PATHS.APPOINTMENTS },
   { id: "branding", path: PATHS.BRANDING, roles: ["ADMIN"] },
   { id: "staff", path: PATHS.STAFF, roles: ["ADMIN"] },
+  { id: "business-hours", path: PATHS.BUSINESS_HOURS, roles: ["ADMIN"] },
 ];
 
 export function sectionById(id: SectionId): SectionConfig {

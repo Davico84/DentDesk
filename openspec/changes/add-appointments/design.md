@@ -193,7 +193,9 @@ es una grilla CSS propia: columnas lunes–domingo, filas de 15 minutos entre la
 más tardío de la semana, horas fuera de horario sombreadas con token, bloques posicionados por inicio/duración;
 citas de distintos odontólogos que se solapan se reparten el ancho de la columna. Color por odontólogo: paleta
 de tokens `--chart-1..5` por índice en la lista de agendables (con más de 5 se repite, el nombre sigue en el
-bloque). Bajo el breakpoint `md`, un día por vez.
+bloque). Esos tokens no existían: el apply los agregó a `globals.css` (claro y oscuro, con
+`--chart-foreground` para el texto). No derivan de la marca de la clínica: distinguen personas, no identifican a
+la clínica. Bajo el breakpoint `md`, un día por vez.
 
 *Alternativa:* FullCalendar o similar — rápido, pero pesa, su tematización pelea con los tokens por clínica
 (`docs/frontend.md`) y la grilla es la pieza de portafolio del change.

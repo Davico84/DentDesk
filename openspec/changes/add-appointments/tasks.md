@@ -23,17 +23,17 @@
 
 ## 4. Frontend: agenda
 
-- [ ] 4.1 Regenerar el cliente orval; `PATHS.APPOINTMENTS`, sección `appointments` en `core/config/sections`, ítem "Agenda" en el menú y ruta en `routes/index.tsx` con screen de una línea (design.md D9, `docs/frontend.md` §1). Verifica: el ítem aparece para `ADMIN` y `MEMBER` y marca `aria-current` en `/appointments`
-- [ ] 4.1b Helpers `clinicLocalToInstant` / `instantToClinicLocal` en `core/utils` junto a `clinicDate.ts`, con la zona del servidor (design.md D3). Tests: Lima, una zona con horario de verano (hora inexistente avanzada al primer instante válido, hora repetida resuelta a su primera ocurrencia, desfase visible en el diálogo), y navegador simulado en otra zona
-- [ ] 4.2 Hooks de React Query (semana, odontólogos, horario, mutaciones con invalidación de la semana) y schemas Zod con paridad del DTO (grilla de 5 min, duración 10–240, motivo ≤ 500). Tests del schema
-- [ ] 4.3 Grilla semanal (D9): navegación entre semanas, horas fuera de horario sombreadas, bloques por cita con paciente, odontólogo, color y estado, solapes repartidos, filtro por odontólogo; un día por vez bajo `md`. Tests Vitest/MSW de "Vista semanal de la agenda" (ver semana, filtrar, celular)
-- [ ] 4.4 Diálogo de agendar (paciente con búsqueda, odontólogo agendable, fecha, hora, duración, motivo) abierto desde un hueco libre o desde `?patientId&date`; muestra los errores `409`/`422` del backend. Tests: hueco precarga día y hora; error de choque visible
-- [ ] 4.5 Detalle de la cita con solo las acciones permitidas por estado y hora (reprogramar, cancelar con motivo, atendida, no asistió, atender con nota, ir a la nota). Tests de visibilidad de acciones ("Atender con nota" oculta sin capacidad clínica, "marcar atendida" visible) y de "Atender con nota" que navega a la nota
-- [ ] 4.6 "Agendar próxima cita" en la nota de consulta cuando tiene próxima cita (navega a la Agenda con paciente y fecha). Tests: aparece solo con próxima cita; precarga correcta
+- [x] 4.1 Regenerar el cliente orval; `PATHS.APPOINTMENTS`, sección `appointments` en `core/config/sections`, ítem "Agenda" en el menú y ruta en `routes/index.tsx` con screen de una línea (design.md D9, `docs/frontend.md` §1). Verifica: el ítem aparece para `ADMIN` y `MEMBER` y marca `aria-current` en `/appointments`
+- [x] 4.1b Helpers `clinicLocalToInstant` / `instantToClinicLocal` en `core/utils` junto a `clinicDate.ts`, con la zona del servidor (design.md D3). Tests: Lima, una zona con horario de verano (hora inexistente avanzada al primer instante válido, hora repetida resuelta a su primera ocurrencia, desfase visible en el diálogo), y navegador simulado en otra zona
+- [x] 4.2 Hooks de React Query (semana, odontólogos, horario, mutaciones con invalidación de la semana) y schemas Zod con paridad del DTO (grilla de 5 min, duración 10–240, motivo ≤ 500). Tests del schema
+- [x] 4.3 Grilla semanal (D9): navegación entre semanas, horas fuera de horario sombreadas, bloques por cita con paciente, odontólogo, color y estado, solapes repartidos, filtro por odontólogo; un día por vez bajo `md`. Tests Vitest/MSW de "Vista semanal de la agenda" (ver semana, filtrar, celular)
+- [x] 4.4 Diálogo de agendar (paciente con búsqueda, odontólogo agendable, fecha, hora, duración, motivo) abierto desde un hueco libre o desde `?patientId&date`; muestra los errores `409`/`422` del backend. Tests: hueco precarga día y hora; error de choque visible
+- [x] 4.5 Detalle de la cita con solo las acciones permitidas por estado y hora (reprogramar, cancelar con motivo, atendida, no asistió, atender con nota, ir a la nota). Tests de visibilidad de acciones ("Atender con nota" oculta sin capacidad clínica, "marcar atendida" visible) y de "Atender con nota" que navega a la nota
+- [x] 4.6 "Agendar próxima cita" en la nota de consulta cuando tiene próxima cita (navega a la Agenda con paciente y fecha). Tests: aparece solo con próxima cita; precarga correcta
 
 ## 5. Frontend: horario de atención
 
-- [ ] 5.1 `PATHS.BUSINESS_HOURS`, sección `business-hours` (`roles: ["ADMIN"]`), ítem "Horario de atención" junto a Marca y Personal, ruta con screen de una línea en `screens/settings/` (design.md D9): editor por día con tramos (agregar, quitar, día cerrado), schema Zod con las mismas reglas del backend. Tests: turno partido válido, solape y apertura ≥ cierre bloqueados en el formulario, `MEMBER` no ve la sección
+- [x] 5.1 `PATHS.BUSINESS_HOURS`, sección `business-hours` (`roles: ["ADMIN"]`), ítem "Horario de atención" junto a Marca y Personal, ruta con screen de una línea en `screens/settings/` (design.md D9): editor por día con tramos (agregar, quitar, día cerrado), schema Zod con las mismas reglas del backend. Tests: turno partido válido, solape y apertura ≥ cierre bloqueados en el formulario, `MEMBER` no ve la sección
 
 ## 6. Cierre
 
