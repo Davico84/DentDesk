@@ -117,37 +117,23 @@ export function gridBounds(
   return { start, end };
 }
 
-/** Un inicio posible para una cita: su hora y si está libre para el odontólogo elegido. */
-export interface StartOption {
-  time: string;
-  busy: boolean;
-  past: boolean;
-}
-
 /**
- * Inicios posibles de una cita de `duration` minutos, cada `step` minutos, dentro de cada tramo del horario (la cita
- * entera tiene que caber en el tramo). `busy` = se pisa con una de las citas vigentes dadas (rango semiabierto, como el
- * backend); `past` = ese inicio ya pasó (solo el día de hoy).
+ * Tramos libres de un día: el horario de atención menos las citas vigentes dadas, en minutos de la clínica. Se descartan
+ * los que no admiten ni la cita mínima (10 minutos).
  */
-export function startOptions(
-  ranges: Array<[number, number]>,
-  duration: number,
-  step: number,
-  busyRanges: Array<[number, number]>,
-  nowMinute: number | null,
-): StartOption[] {
-  const options: StartOption[] = [];
+export function freeRanges(ranges: Array<[number, number]>, busyRanges: Array<[number, number]>): Array<[number, number]> {
+  const busy = [...busyRanges].sort((a, b) => a[0] - b[0]);
+  const free: Array<[number, number]> = [];
   for (const [opens, closes] of ranges) {
-    for (let start = Math.ceil(opens / step) * step; start + duration <= closes; start += step) {
-      const end = start + duration;
-      options.push({
-        time: timeOf(start),
-        busy: busyRanges.some(([from, to]) => start < to && end > from),
-        past: nowMinute !== null && start <= nowMinute,
-      });
+    let cursor = opens;
+    for (const [from, to] of busy) {
+      if (to <= cursor || from >= closes) continue;
+      if (from > cursor) free.push([cursor, from]);
+      cursor = Math.max(cursor, to);
     }
+    if (cursor < closes) free.push([cursor, closes]);
   }
-  return options;
+  return free.filter(([from, to]) => to - from >= 10);
 }
 
 /** Color del odontólogo por su posición en la lista de agendables; fuera de ella, neutro. */

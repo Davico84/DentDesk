@@ -11,7 +11,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/modules/core/ui/dialog";
-import { FormField, SelectField, TextareaField } from "@/modules/core/ui/form-field";
+import { FormField, SelectField, TextareaField, TimeField } from "@/modules/core/ui/form-field";
 import type { SchedulableDentistResponse } from "@/modules/core/services/generated/model";
 import { clinicLocalToInstant } from "@/modules/core/utils/clinicTime";
 import { useScheduleAppointment } from "../hooks/useAppointmentsApi";
@@ -20,11 +20,12 @@ import {
   scheduleAppointmentSchema,
   type ScheduleAppointmentValues,
 } from "../schemas/appointment";
+import { useDayAvailability } from "../hooks/useDayAvailability";
 import { applyAgendaServerError } from "../utils/serverErrors";
 import { AgendaFormError } from "./AgendaFormError";
 import { ClinicTimeNotice } from "./ClinicTimeNotice";
 import { PatientPicker } from "./PatientPicker";
-import { TimeSlotPicker } from "./TimeSlotPicker";
+import { AvailabilityHint } from "./AvailabilityHint";
 
 export interface ScheduleInitialValues {
   patientId?: string;
@@ -72,10 +73,11 @@ export function ScheduleAppointmentDialog({
       reason: "",
     },
   });
-  const [patientId, date, time, durationMinutes, dentistUserId] = useWatch({
+  const [patientId, date, time, dentistUserId] = useWatch({
     control,
-    name: ["patientId", "date", "time", "durationMinutes", "dentistUserId"],
+    name: ["patientId", "date", "time", "dentistUserId"],
   });
+  const availability = useDayAvailability(date, dentistUserId, timeZone);
 
   const submit = (values: ScheduleAppointmentValues) => {
     setServerError(null);
@@ -118,26 +120,28 @@ export function ScheduleAppointmentDialog({
           />
           <div className="grid grid-cols-2 gap-3">
             <FormField label="Fecha" name="date" type="date" register={register} error={errors.date} required />
-            <SelectField
-              label="Duración"
-              name="durationMinutes"
+            <TimeField
+              label="Hora"
+              name="time"
               register={register}
-              error={errors.durationMinutes}
-              placeholder="Elige la duración"
-              options={DURATION_OPTIONS.map((m) => ({ value: String(m), label: `${m} minutos` }))}
+              error={errors.time}
+              step={300}
+              min={availability.min}
+              max={availability.max}
               required
             />
           </div>
-          <TimeSlotPicker
-            date={date}
-            durationMinutes={durationMinutes}
-            dentistUserId={dentistUserId}
-            timeZone={timeZone}
-            value={time}
-            onChange={(next) => setValue("time", next, { shouldValidate: true })}
-            error={errors.time?.message}
-          />
+          <AvailabilityHint availability={availability} withDentist={Boolean(dentistUserId)} />
           <ClinicTimeNotice date={date} time={time} timeZone={timeZone} />
+          <SelectField
+            label="Duración"
+            name="durationMinutes"
+            register={register}
+            error={errors.durationMinutes}
+            placeholder="Elige la duración"
+            options={DURATION_OPTIONS.map((m) => ({ value: String(m), label: `${m} minutos` }))}
+            required
+          />
           <TextareaField label="Motivo" name="reason" register={register} error={errors.reason} rows={2} />
           <AgendaFormError message={serverError} />
           <DialogFooter className="gap-2 sm:gap-2">

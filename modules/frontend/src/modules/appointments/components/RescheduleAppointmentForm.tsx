@@ -3,7 +3,7 @@ import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Loader2 } from "lucide-react";
 import { Button } from "@/modules/core/ui/button";
-import { FormField, SelectField } from "@/modules/core/ui/form-field";
+import { FormField, SelectField, TimeField } from "@/modules/core/ui/form-field";
 import type { AppointmentResponse, SchedulableDentistResponse } from "@/modules/core/services/generated/model";
 import { clinicLocalToInstant, instantToClinicLocal } from "@/modules/core/utils/clinicTime";
 import { useRescheduleAppointment } from "../hooks/useAppointmentsApi";
@@ -12,10 +12,11 @@ import {
   rescheduleAppointmentSchema,
   type RescheduleAppointmentValues,
 } from "../schemas/appointment";
+import { useDayAvailability } from "../hooks/useDayAvailability";
 import { applyAgendaServerError } from "../utils/serverErrors";
 import { AgendaFormError } from "./AgendaFormError";
 import { ClinicTimeNotice } from "./ClinicTimeNotice";
-import { TimeSlotPicker } from "./TimeSlotPicker";
+import { AvailabilityHint } from "./AvailabilityHint";
 
 const FIELDS = ["dentistUserId", "time", "durationMinutes"] as const;
 
@@ -40,7 +41,6 @@ export function RescheduleAppointmentForm({
     register,
     handleSubmit,
     control,
-    setValue,
     setError,
     formState: { errors },
   } = useForm<RescheduleAppointmentValues>({
@@ -53,10 +53,11 @@ export function RescheduleAppointmentForm({
       durationMinutes: String(appointment.durationMinutes),
     },
   });
-  const [date, time, durationMinutes, dentistUserId] = useWatch({
+  const [date, time, dentistUserId] = useWatch({
     control,
-    name: ["date", "time", "durationMinutes", "dentistUserId"],
+    name: ["date", "time", "dentistUserId"],
   });
+  const availability = useDayAvailability(date, dentistUserId, timeZone, appointment.id);
   const durations = DURATION_OPTIONS.includes(appointment.durationMinutes as (typeof DURATION_OPTIONS)[number])
     ? DURATION_OPTIONS
     : [...DURATION_OPTIONS, appointment.durationMinutes].sort((a, b) => a - b);
@@ -92,27 +93,28 @@ export function RescheduleAppointmentForm({
       />
       <div className="grid grid-cols-2 gap-3">
         <FormField label="Fecha" name="date" type="date" register={register} error={errors.date} required />
-        <SelectField
-          label="Duración"
-          name="durationMinutes"
+        <TimeField
+          label="Hora"
+          name="time"
           register={register}
-          error={errors.durationMinutes}
-          placeholder="Elige la duración"
-          options={durations.map((m) => ({ value: String(m), label: `${m} minutos` }))}
+          error={errors.time}
+          step={300}
+          min={availability.min}
+          max={availability.max}
           required
         />
       </div>
-      <TimeSlotPicker
-        date={date}
-        durationMinutes={durationMinutes}
-        dentistUserId={dentistUserId}
-        excludeAppointmentId={appointment.id}
-        timeZone={timeZone}
-        value={time}
-        onChange={(next) => setValue("time", next, { shouldValidate: true })}
-        error={errors.time?.message}
-      />
+      <AvailabilityHint availability={availability} withDentist={Boolean(dentistUserId)} />
       <ClinicTimeNotice date={date} time={time} timeZone={timeZone} />
+      <SelectField
+        label="Duración"
+        name="durationMinutes"
+        register={register}
+        error={errors.durationMinutes}
+        placeholder="Elige la duración"
+        options={durations.map((m) => ({ value: String(m), label: `${m} minutos` }))}
+        required
+      />
       <AgendaFormError message={serverError} />
       <div className="flex justify-end gap-2">
         <Button type="button" variant="ghost" onClick={onBack} disabled={rescheduleMutation.isPending}>
