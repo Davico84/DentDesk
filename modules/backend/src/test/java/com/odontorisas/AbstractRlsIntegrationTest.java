@@ -57,6 +57,9 @@ public abstract class AbstractRlsIntegrationTest extends AbstractIntegrationTest
              Statement s = c.createStatement()) {
             s.execute("GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO " + APP_USER);
             s.execute("GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO " + APP_USER);
+            // Funciones con EXECUTE revocado a PUBLIC (V32 clinic_capacity_facts): en producción el rol existe
+            // al migrar y la migración se lo concede; acá el rol puede nacer antes o después.
+            s.execute("GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA public TO " + APP_USER);
         }
     }
 }

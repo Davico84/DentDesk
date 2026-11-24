@@ -89,14 +89,24 @@ schema Zod (`docs/coding-style.md` §7); la duración, además, con Bean Validat
 
 ### D4 — Capacidad del odontólogo en la fecha de la cita
 
-`ClinicalCapacityService` gana `requireForDate(userId, LocalDate)`: lee membresía y credencial del odontólogo
-en la organización activa y aplica `evaluate(..., fechaDeLaCita)`. Lectura simple, sin `FOR SHARE`: retirar la
+`ClinicalCapacityService` gana `onDate(userId, LocalDate)` (y el servicio de citas la exige): obtiene membresía
+y credencial del odontólogo en la organización activa y aplica `evaluate(..., fechaDeLaCita)`.
+
+**Lectura a través de la RLS (decidido en el apply, 2026-11-24).** La RLS de V28/V30 deja que un `MEMBER` vea
+solo *su* membresía y *su* credencial; la recepción no podría evaluar a otro odontólogo. Se descartó ampliar
+esas políticas (expondría número COP y retiros a todo el personal). En su lugar, V32 agrega la función
+`clinic_capacity_facts(userId)`, `SECURITY DEFINER`, que solo para un miembro **activo** de la clínica del token
+devuelve por miembro: nombre, estado de la membresía, si se retiró la capacidad y "habilitado hasta" — sin COP.
+La regla sigue en Java. Como ambas tablas tienen `FORCE ROW LEVEL SECURITY` y en Neon el dueño no es
+superusuario, el dueño gana una política de **solo lectura para sí mismo** (`TO CURRENT_USER` al migrar); la app
+se conecta como `odontorisas_app` y no la recibe. `ClinicCapacityFactsAsNonSuperuserOwnerIT` lo prueba como en
+Neon (dueño no superusuario + rol de app). Lectura simple, sin `FOR SHARE`: retirar la
 capacidad después de agendar **no** cancela la cita (Non-goal), así que no hay carrera que proteger. El error
 es uno nuevo, `DentistNotSchedulableException` (`409`, con el motivo `ClinicalCapacityState` y la fecha de
 vencimiento si aplica): **no** reutiliza `ClinicalCapacityRequiredException`, que es `403` porque describe la
 falta de permiso de quien llama; aquí quien llama está autorizado y el conflicto es del dato elegido. La lista de odontólogos agendables
-(`GET /api/appointments/dentists`) reutiliza `forMembers` sobre las membresías activas y filtra los habilitados
-hoy; la ve cualquier miembro (solo id y nombre).
+(`GET /api/appointments/dentists`) sale de la misma función y filtra los habilitados hoy; la ve cualquier
+miembro (solo id y nombre).
 
 ### D5 — Horario de atención como JSONB en `organization_settings`
 

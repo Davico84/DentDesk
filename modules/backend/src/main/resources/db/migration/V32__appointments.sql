@@ -88,6 +88,55 @@ BEGIN
     END IF;
 END $$;
 
+-- Capacidad clínica de los miembros de la clínica activa, para agendar (design.md D4). La RLS de V28/V30
+-- deja que un MEMBER vea solo SU membresía y SU credencial; la recepción necesita saber si el odontólogo
+-- elegido está habilitado, sin ver los datos de su credencial. La función devuelve solo lo que la regla
+-- necesita (estado de la membresía, si se retiró la capacidad, "habilitado hasta"), sin número COP, y solo a
+-- un miembro activo de la clínica del token. La regla misma sigue en Java (ClinicalCapacityService).
+--
+-- Las dos tablas tienen FORCE ROW LEVEL SECURITY, que vale también para su dueño: en Neon el dueño
+-- (odontorisas_admin) no es superusuario y un SECURITY DEFINER suyo seguiría filtrado. Por eso el dueño
+-- gana una política de SOLO LECTURA para sí mismo (TO CURRENT_USER, el rol que migra). La app se conecta
+-- como odontorisas_app, que no la recibe: lo que la app ve directamente no cambia.
+CREATE POLICY migration_owner_read ON memberships FOR SELECT TO CURRENT_USER USING (true);
+CREATE POLICY migration_owner_read ON professional_credential FOR SELECT TO CURRENT_USER USING (true);
+
+CREATE FUNCTION clinic_capacity_facts(target_user_id BIGINT)
+RETURNS TABLE (
+    user_id            BIGINT,
+    full_name          VARCHAR,
+    membership_status  VARCHAR,
+    capacity_revoked   BOOLEAN,
+    licensed_until     DATE
+)
+LANGUAGE SQL
+STABLE
+SECURITY DEFINER
+SET search_path = public
+AS $$
+    SELECT m.user_id, u.full_name, m.status, m.clinical_capacity_revoked_at IS NOT NULL, c.licensed_until
+    FROM memberships m
+    JOIN users u ON u.id = m.user_id
+    LEFT JOIN professional_credential c ON c.user_id = m.user_id
+    -- Estrictos (sin missing_ok): sin identidad ni clínica activa, la función falla cerrada.
+    WHERE m.organization_id = current_setting('app.organization_id')::BIGINT
+      AND (target_user_id IS NULL OR m.user_id = target_user_id)
+      AND EXISTS (
+          SELECT 1 FROM memberships caller
+          WHERE caller.user_id = current_setting('app.user_id')::BIGINT
+            AND caller.organization_id = m.organization_id
+            AND caller.status = 'ACTIVE'
+      )
+$$;
+
+REVOKE ALL ON FUNCTION clinic_capacity_facts(BIGINT) FROM PUBLIC;
+DO $$
+BEGIN
+    IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'odontorisas_app') THEN
+        EXECUTE 'GRANT EXECUTE ON FUNCTION clinic_capacity_facts(BIGINT) TO odontorisas_app';
+    END IF;
+END $$;
+
 -- Horario de atención por día, cero o más tramos (D5). Lunes a viernes 09:00-18:00, sábado 09:00-13:00,
 -- domingo cerrado.
 ALTER TABLE organization_settings ADD COLUMN business_hours JSONB NOT NULL DEFAULT '{
