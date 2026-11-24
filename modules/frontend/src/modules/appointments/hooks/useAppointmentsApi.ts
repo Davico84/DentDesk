@@ -29,10 +29,11 @@ export const APPOINTMENT_KEYS = {
 export const BUSINESS_HOURS_KEY = ["business-hours"] as const;
 
 /** Citas que empiezan en los días `from..to` de la clínica (máximo 7). */
-export function useWeekAppointments(from: string, to: string, dentistId?: number) {
+export function useWeekAppointments(from: string, to: string, dentistId?: number, { enabled = true } = {}) {
   return useQuery({
     queryKey: APPOINTMENT_KEYS.week(from, to, dentistId),
     queryFn: () => listAppointments({ from, to, dentistId }),
+    enabled,
   });
 }
 

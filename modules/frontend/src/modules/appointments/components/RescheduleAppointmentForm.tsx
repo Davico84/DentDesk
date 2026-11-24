@@ -15,6 +15,7 @@ import {
 import { applyAgendaServerError } from "../utils/serverErrors";
 import { AgendaFormError } from "./AgendaFormError";
 import { ClinicTimeNotice } from "./ClinicTimeNotice";
+import { TimeSlotPicker } from "./TimeSlotPicker";
 
 const FIELDS = ["dentistUserId", "time", "durationMinutes"] as const;
 
@@ -39,6 +40,7 @@ export function RescheduleAppointmentForm({
     register,
     handleSubmit,
     control,
+    setValue,
     setError,
     formState: { errors },
   } = useForm<RescheduleAppointmentValues>({
@@ -51,7 +53,10 @@ export function RescheduleAppointmentForm({
       durationMinutes: String(appointment.durationMinutes),
     },
   });
-  const [date, time] = useWatch({ control, name: ["date", "time"] });
+  const [date, time, durationMinutes, dentistUserId] = useWatch({
+    control,
+    name: ["date", "time", "durationMinutes", "dentistUserId"],
+  });
   const durations = DURATION_OPTIONS.includes(appointment.durationMinutes as (typeof DURATION_OPTIONS)[number])
     ? DURATION_OPTIONS
     : [...DURATION_OPTIONS, appointment.durationMinutes].sort((a, b) => a - b);
@@ -87,18 +92,27 @@ export function RescheduleAppointmentForm({
       />
       <div className="grid grid-cols-2 gap-3">
         <FormField label="Fecha" name="date" type="date" register={register} error={errors.date} required />
-        <FormField label="Hora" name="time" type="time" register={register} error={errors.time} required />
+        <SelectField
+          label="Duración"
+          name="durationMinutes"
+          register={register}
+          error={errors.durationMinutes}
+          placeholder="Elige la duración"
+          options={durations.map((m) => ({ value: String(m), label: `${m} minutos` }))}
+          required
+        />
       </div>
-      <ClinicTimeNotice date={date} time={time} timeZone={timeZone} />
-      <SelectField
-        label="Duración"
-        name="durationMinutes"
-        register={register}
-        error={errors.durationMinutes}
-        placeholder="Elige la duración"
-        options={durations.map((m) => ({ value: String(m), label: `${m} minutos` }))}
-        required
+      <TimeSlotPicker
+        date={date}
+        durationMinutes={durationMinutes}
+        dentistUserId={dentistUserId}
+        excludeAppointmentId={appointment.id}
+        timeZone={timeZone}
+        value={time}
+        onChange={(next) => setValue("time", next, { shouldValidate: true })}
+        error={errors.time?.message}
       />
+      <ClinicTimeNotice date={date} time={time} timeZone={timeZone} />
       <AgendaFormError message={serverError} />
       <div className="flex justify-end gap-2">
         <Button type="button" variant="ghost" onClick={onBack} disabled={rescheduleMutation.isPending}>

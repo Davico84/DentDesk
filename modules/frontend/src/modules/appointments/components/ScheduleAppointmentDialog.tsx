@@ -24,6 +24,7 @@ import { applyAgendaServerError } from "../utils/serverErrors";
 import { AgendaFormError } from "./AgendaFormError";
 import { ClinicTimeNotice } from "./ClinicTimeNotice";
 import { PatientPicker } from "./PatientPicker";
+import { TimeSlotPicker } from "./TimeSlotPicker";
 
 export interface ScheduleInitialValues {
   patientId?: string;
@@ -71,7 +72,10 @@ export function ScheduleAppointmentDialog({
       reason: "",
     },
   });
-  const [patientId, date, time] = useWatch({ control, name: ["patientId", "date", "time"] });
+  const [patientId, date, time, durationMinutes, dentistUserId] = useWatch({
+    control,
+    name: ["patientId", "date", "time", "durationMinutes", "dentistUserId"],
+  });
 
   const submit = (values: ScheduleAppointmentValues) => {
     setServerError(null);
@@ -114,18 +118,26 @@ export function ScheduleAppointmentDialog({
           />
           <div className="grid grid-cols-2 gap-3">
             <FormField label="Fecha" name="date" type="date" register={register} error={errors.date} required />
-            <FormField label="Hora" name="time" type="time" register={register} error={errors.time} required />
+            <SelectField
+              label="Duración"
+              name="durationMinutes"
+              register={register}
+              error={errors.durationMinutes}
+              placeholder="Elige la duración"
+              options={DURATION_OPTIONS.map((m) => ({ value: String(m), label: `${m} minutos` }))}
+              required
+            />
           </div>
-          <ClinicTimeNotice date={date} time={time} timeZone={timeZone} />
-          <SelectField
-            label="Duración"
-            name="durationMinutes"
-            register={register}
-            error={errors.durationMinutes}
-            placeholder="Elige la duración"
-            options={DURATION_OPTIONS.map((m) => ({ value: String(m), label: `${m} minutos` }))}
-            required
+          <TimeSlotPicker
+            date={date}
+            durationMinutes={durationMinutes}
+            dentistUserId={dentistUserId}
+            timeZone={timeZone}
+            value={time}
+            onChange={(next) => setValue("time", next, { shouldValidate: true })}
+            error={errors.time?.message}
           />
+          <ClinicTimeNotice date={date} time={time} timeZone={timeZone} />
           <TextareaField label="Motivo" name="reason" register={register} error={errors.reason} rows={2} />
           <AgendaFormError message={serverError} />
           <DialogFooter className="gap-2 sm:gap-2">

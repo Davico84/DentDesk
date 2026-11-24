@@ -117,6 +117,39 @@ export function gridBounds(
   return { start, end };
 }
 
+/** Un inicio posible para una cita: su hora y si está libre para el odontólogo elegido. */
+export interface StartOption {
+  time: string;
+  busy: boolean;
+  past: boolean;
+}
+
+/**
+ * Inicios posibles de una cita de `duration` minutos, cada `step` minutos, dentro de cada tramo del horario (la cita
+ * entera tiene que caber en el tramo). `busy` = se pisa con una de las citas vigentes dadas (rango semiabierto, como el
+ * backend); `past` = ese inicio ya pasó (solo el día de hoy).
+ */
+export function startOptions(
+  ranges: Array<[number, number]>,
+  duration: number,
+  step: number,
+  busyRanges: Array<[number, number]>,
+  nowMinute: number | null,
+): StartOption[] {
+  const options: StartOption[] = [];
+  for (const [opens, closes] of ranges) {
+    for (let start = Math.ceil(opens / step) * step; start + duration <= closes; start += step) {
+      const end = start + duration;
+      options.push({
+        time: timeOf(start),
+        busy: busyRanges.some(([from, to]) => start < to && end > from),
+        past: nowMinute !== null && start <= nowMinute,
+      });
+    }
+  }
+  return options;
+}
+
 /** Color del odontólogo por su posición en la lista de agendables; fuera de ella, neutro. */
 export function dentistColor(dentistIds: number[], dentistId: number): string {
   const index = dentistIds.indexOf(dentistId);

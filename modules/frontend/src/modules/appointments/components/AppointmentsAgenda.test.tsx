@@ -160,7 +160,7 @@ describe("AppointmentsAgenda", () => {
 
     const dialog = await screen.findByRole("dialog", { name: "Agendar cita" });
     expect(within(dialog).getByLabelText(/Fecha/)).toHaveValue("2030-12-05");
-    expect(within(dialog).getByLabelText(/Hora/)).toHaveValue("10:00");
+    expect(within(dialog).getByRole("button", { name: "10:00" })).toHaveAttribute("aria-pressed", "true");
   });
 
   it("muestra el error de choque que devuelve el servidor", async () => {
@@ -185,7 +185,28 @@ describe("AppointmentsAgenda", () => {
     expect(await within(dialog).findByRole("alert")).toHaveTextContent("ya tiene otra cita");
   });
 
-  it("no envía una hora fuera de la grilla de 5 minutos", async () => {
+  it("ofrece solo horas dentro del horario y marca las ocupadas por el odontólogo", async () => {
+    serve();
+    const user = userEvent.setup();
+    renderAgenda("/appointments?patientId=42&date=2030-12-04");
+    const dialog = await screen.findByRole("dialog", { name: "Agendar cita" });
+
+    // Dr. Soto tiene a Bruno el miércoles de 11:00 a 11:30; con 30 minutos, 10:45 también se pisa.
+    await user.selectOptions(within(dialog).getByLabelText(/Odontólogo/), "8");
+
+    expect(await within(dialog).findByRole("button", { name: "11:00, ocupado" })).toBeDisabled();
+    expect(within(dialog).getByRole("button", { name: "10:45, ocupado" })).toBeDisabled();
+    expect(within(dialog).getByRole("button", { name: "11:30" })).toBeEnabled();
+    // Cierra a las 18:00: el último inicio de 30 minutos es 17:30.
+    expect(within(dialog).getByRole("button", { name: "17:30" })).toBeInTheDocument();
+    expect(within(dialog).queryByRole("button", { name: /^17:45/ })).not.toBeInTheDocument();
+    expect(within(dialog).queryByRole("button", { name: /^08:45/ })).not.toBeInTheDocument();
+
+    await user.click(within(dialog).getByRole("button", { name: "11:30" }));
+    expect(within(dialog).getByRole("button", { name: "11:30" })).toHaveAttribute("aria-pressed", "true");
+  });
+
+  it("exige elegir la hora antes de enviar", async () => {
     serve();
     let posted = false;
     server.use(http.post("*/appointments", () => ((posted = true), HttpResponse.json({}))));
@@ -194,10 +215,9 @@ describe("AppointmentsAgenda", () => {
     const dialog = await screen.findByRole("dialog", { name: "Agendar cita" });
 
     await user.selectOptions(within(dialog).getByLabelText(/Odontólogo/), "7");
-    await user.type(within(dialog).getByLabelText(/Hora/), "10:03");
     await user.click(within(dialog).getByRole("button", { name: "Agendar" }));
 
-    expect(await within(dialog).findByText("La hora debe ser múltiplo de 5 minutos")).toBeInTheDocument();
+    expect(await within(dialog).findByText("Elige la hora")).toBeInTheDocument();
     expect(posted).toBe(false);
   });
 
@@ -208,7 +228,7 @@ describe("AppointmentsAgenda", () => {
     const dialog = await screen.findByRole("dialog", { name: "Agendar cita" });
     expect(within(dialog).getByLabelText(/Fecha/)).toHaveValue("2030-12-05");
     expect(await within(dialog).findByText("Ana Gómez")).toBeInTheDocument();
-    expect(within(dialog).getByLabelText(/Hora/)).toHaveValue("");
+    expect(within(dialog).queryByRole("button", { pressed: true })).not.toBeInTheDocument();
   });
 
   it("sin capacidad clínica el detalle no ofrece atender con nota, pero sí marcar atendida", async () => {
