@@ -11,7 +11,7 @@
 Se preguntó cómo se manejan los límites y la comunicación entre módulos (¿puede `patients` importar algo interno de `auth`?). La respuesta honesta, tras auditar los imports reales:
 
 - **No había regla formal** ni en el frontend ni entre los paquetes `service.*` del backend. Sí había una promesa en la spec (`core` no depende de módulos) cumplida por costumbre.
-- **Hay dependencias directas entre módulos de negocio**, por ruta profunda y sin barrels: `clinical-history → staff / dental-chart / patients`, `dental-chart → staff`, `auth → staff`, `home → patients`. Son legítimas: la credencial clínica (ADR-0016) atraviesa la historia, el odontograma y el perfil.
+- **Hay dependencias directas entre módulos de negocio**, por ruta profunda y sin barrels: `clinical-history → staff / dental-chart / patients / appointments`, `appointments → staff / patients`, `dental-chart → staff`, `auth → staff`, `home → patients`. Son legítimas: la credencial clínica (ADR-0016) atraviesa la historia, el odontograma, el perfil y la agenda (odontólogos agendables), y la nota de consulta propone la próxima cita.
 - **Un ciclo real en el backend**: `auth ↔ staff`, causado por dos excepciones del flujo de invitación alojadas en `service.auth`.
 
 Lo que sí estaba vigilado por la build: capas (`presentation`/`service`/`persistence`), tenancy (RLS), `@Async`/`@Scheduled`, sellado coordinado del odontograma.

@@ -2,10 +2,10 @@
 
 Dentdesk dice ser un monorepo modular, pero **hoy ninguna regla vigila los límites entre módulos**. Una auditoría de los imports reales (2026-11-24) lo confirmó:
 
-- **Frontend:** la spec `project-foundation` ya promete *"`modules/core` no depende de otros módulos"*, y es cierto, pero **por costumbre, no por regla**: ESLint solo tiene `react/no-multi-comp`. Entre módulos de negocio hay imports directos por ruta profunda (`clinical-history → staff / dental-chart / patients`, `dental-chart → staff`, `auth → staff`, `home → patients`) que nadie declaró y que un import nuevo puede ampliar sin que nada lo note. No hay barrels ni API pública por módulo.
+- **Frontend:** la spec `project-foundation` ya promete *"`modules/core` no depende de otros módulos"*, y es cierto, pero **por costumbre, no por regla**: ESLint solo tiene `react/no-multi-comp`. Entre módulos de negocio hay imports directos por ruta profunda (`clinical-history → staff / dental-chart / patients / appointments`, `appointments → staff / patients`, `dental-chart → staff`, `auth → staff`, `home → patients`) que nadie declaró y que un import nuevo puede ampliar sin que nada lo note. No hay barrels ni API pública por módulo.
 - **Backend:** ArchUnit vigila **capas** (`presentation`/`service`/`persistence`) y tenancy, pero **no las dependencias entre paquetes `service.*`**. Hay un **ciclo real, `auth ↔ staff`**: `AuthService → StaffService` y `StaffService → EmailAlreadyExistsException / InvalidInvitationException` (viven en `service.auth`). Nada lo detecta.
 
-Es el mismo patrón que `docs/testing.md §5` ya documenta: una regla escrita en prosa se incumple. Se cierra ahora porque viene `appointments` (más módulos, más aristas) y es barato hacerlo antes de que el grafo crezca.
+Es el mismo patrón que `docs/testing.md §5` ya documenta: una regla escrita en prosa se incumple. Se cierra ahora porque `appointments` acaba de sumar un módulo y cuatro aristas (en ambos lados) y es barato hacerlo antes de que el grafo siga creciendo.
 
 ## What Changes
 
@@ -29,7 +29,7 @@ Es el mismo patrón que `docs/testing.md §5` ya documenta: una regla escrita en
 - **Frontend:** `modules/frontend/eslint.config.js` (+ un test de Vitest que ejecuta ESLint sobre un archivo falso). Ningún archivo de `src/` cambia: el mapa se escribe para que el código actual **pase** (tests exentos, ver design).
 - **Backend:** `service.auth` / `service.staff` (2 clases movidas + imports de `AuthService`, `StaffService` y `AuthServiceTest`; el manejador de excepciones **no** las referencia); nueva clase de test en `architecture/`.
 - **Contrato OpenAPI:** sin cambios. **Base de datos:** sin cambios. **Normativa:** sin impacto (no se toca `regulatory-matrix.md`).
-- **Convive con `add-appointments`** (en apply): el paquete `service.appointment` aún no existe en `dev`; el mapa backend lo incorpora cuando ese change llegue a `dev` (task 4), recalculando el grafo desde la rama integrada (`appointment` depende de `consultationnote`, `patient` y `staff`), sin bloquearse mutuamente.
+- **Incluye `appointments`** (archivado y en producción 2026-11-24): el grafo de `design.md` se recalculó sobre `dev` con la agenda integrada (`895f11c`), así que el mapa nace con `appointments` (front) y `service.appointment` (back) declarados.
 
 ## Non-goals
 

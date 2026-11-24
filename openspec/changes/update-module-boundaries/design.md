@@ -1,6 +1,6 @@
 ## Context
 
-Auditoría de imports (2026-11-24, sobre `dev` en `06d6c1d`). Lo que **existe** y lo que **no**:
+Auditoría de imports (2026-11-24, sobre `dev` en `06d6c1d`; **recalculada sobre `895f11c`**, con `add-appointments` integrado). Lo que **existe** y lo que **no**:
 
 **Frontend (`modules/frontend/src/modules/*`)**
 
@@ -11,23 +11,27 @@ Auditoría de imports (2026-11-24, sobre `dev` en `06d6c1d`). Lo que **existe** 
 | `branding`, `staff` | ninguno |
 | `patients` | ninguno (solo un `*.test.tsx` importa `auth`) |
 | `dental-chart` | `staff` (1: `SignedByLine`); algunos tests importan de sí mismo |
-| `clinical-history` | `staff` (8), `dental-chart` (7), `patients` (1) |
+| `clinical-history` | `staff` (8), `dental-chart` (7), `appointments` (2: el enlace "agendar la próxima cita" en `OpenNoteEditor` y `SealedNoteCard`), `patients` (1) |
+| `appointments` | `staff` (2: odontólogos agendables), `patients` (1: buscador de pacientes) |
 | `home` | `patients` (1: `listNavigation`) |
 
-Sin ciclos hoy. Sin barrels (`index.ts`): se importa por ruta profunda (`@/modules/staff/hooks/useProfessionalCredential`). ESLint: solo `react/no-multi-comp`.
+Sin ciclos hoy (`clinical-history → appointments` es de una sola dirección: la agenda no importa de la historia). Sin barrels (`index.ts`): se importa por ruta profunda (`@/modules/staff/hooks/useProfessionalCredential`). ESLint: solo `react/no-multi-comp`.
 
 **Backend (`com.odontorisas.service.*`)**: ArchUnit vigila capas, tenancy, `@Async`/`@Scheduled` y el sellado coordinado. Grafo real entre paquetes `service.*`:
 
 ```
 admission        → clinicalhistory, dentalchart, staff
+appointment      → consultationnote, patient, staff
 auth             → organization, staff
 clinicalhistory  → patient
 consultationnote → clinicalhistory, patient, staff
 dentalchart      → patient
 platform         → auth, organization, staff
 staff            → auth          ← CICLO con auth → staff
-appointment, organization, patient → (nada)
+organization, patient → (nada)
 ```
+
+`dentalchart` menciona `clinicalhistory.ClinicalHistoryService` solo en un `{@link}` de Javadoc: no deja dependencia en el bytecode y ArchUnit no la ve, así que **no** es una arista. `ConsultationNoteService` usa `AppointmentRepository` (bloqueo del descarte), que es `persistence`, no un dominio `service`: tampoco es arista.
 
 El único ciclo es `auth ↔ staff`. `StaffService` solo usa de `auth` dos excepciones (`EmailAlreadyExistsException`, `InvalidInvitationException`), ambas del flujo de invitación.
 
@@ -43,7 +47,7 @@ El único ciclo es `auth ↔ staff`. `StaffService` solo usa de `auth` dos excep
 ## Decisions
 
 ### D1. Frontend: `no-restricted-imports` nativo con un mapa en `eslint.config.js`
-Un objeto `ALLOWED = { auth: ["staff"], "clinical-history": ["staff", "dental-chart", "patients"], "dental-chart": ["staff"], home: ["patients"], core: [], branding: [], patients: [], staff: [] }`. Para cada módulo se genera un bloque `files: ["src/modules/<m>/**/*.{ts,tsx}"]` con `patterns` que prohíben `@/modules/<otro>` y `@/modules/<otro>/**` para todo `otro` ∉ `ALLOWED[m] ∪ {m, core}`. `core` es **una entrada más del mismo mapa** (`ALLOWED.core = []`): prohíbe todos los de negocio en su propio bloque generado, **no** en un bloque aparte. El mensaje del error nombra la regla y apunta a `docs/frontend.md`.
+Un objeto `ALLOWED = { appointments: ["patients", "staff"], auth: ["staff"], "clinical-history": ["appointments", "staff", "dental-chart", "patients"], "dental-chart": ["staff"], home: ["patients"], core: [], branding: [], patients: [], staff: [] }`. Para cada módulo se genera un bloque `files: ["src/modules/<m>/**/*.{ts,tsx}"]` con `patterns` que prohíben `@/modules/<otro>` y `@/modules/<otro>/**` para todo `otro` ∉ `ALLOWED[m] ∪ {m, core}`. `core` es **una entrada más del mismo mapa** (`ALLOWED.core = []`): prohíbe todos los de negocio en su propio bloque generado, **no** en un bloque aparte. El mensaje del error nombra la regla y apunta a `docs/frontend.md`.
 
 - ⚠️ **Los bloques NO pueden solaparse.** En flat config, si un archivo cae en dos objetos con `no-restricted-imports`, **el último reemplaza al primero** (las `patterns` no se acumulan; ESLint 10.6.0 según `pnpm-lock.yaml`). Por eso: un bloque por módulo, con `files: ["src/modules/<m>/**/*.{ts,tsx}"]` disjuntos, generados en un solo bucle, y **ningún otro bloque** del config configura `no-restricted-imports` sobre `src/modules/**`. Un test (task 1.1) lo vigila: un archivo de `core` debe recibir **todas** las restricciones.
 - Las `patterns` son explícitas por módulo (`@/modules/staff` y `@/modules/staff/**`); no se usa un único `@/modules/*` esperando que sea recursivo.
@@ -86,12 +90,11 @@ Las clases sueltas directamente en `service` (`BusinessException`) no pertenecen
 - ⚠️ **ESLint no ve dependencias de tipos puras ni imports dinámicos construidos**. Aceptado: el proyecto usa imports estáticos con alias.
 - ⚠️ **ArchUnit ve dependencias de bytecode**, así que una referencia por tipo genérico o anotación cuenta; un `String` con un nombre de clase, no. Aceptado.
 - ⚠️ **Alcance real de "no entra sin verse"**: solo cubre imports estáticos entre módulos con alias en el frontend, y dependencias de bytecode entre paquetes `service.<dominio>` en el backend. No cubre imports relativos entre módulos (si aparecieran, task 1.4), imports dinámicos, `screens/`, `routes/`, `layouts/`, `store/`, `presentation`, `infra` ni las clases sueltas de `service`.
-- ⚠️ **`add-appointments` en apply** agregará `service.appointment`. Sus dependencias **reales** en la rama `apply-appointments` (`AppointmentService`) son `consultationnote`, `patient` y `staff` — no solo `staff`/`patient`. Quien llegue segundo **recalcula el grafo desde la rama integrada** y declara la entrada completa; no se copia de este documento. Si este change llega primero, el test del paso 3 de D2 fallará al llegar `appointment`, que es exactamente su función. Ninguno bloquea al otro.
-- ⚠️ **Conflicto de merge con `add-appointments`**: textualmente improbable (`ClinicalCapacityService` está modificado allí; este change no lo toca: solo `AuthService`, `StaffService`, dos excepciones, un test). El riesgo real es de **integración del mapa**, no de merge.
+- ⚠️ **El grafo puede moverse entre el propose y el apply.** `add-appointments` ya se integró y está en el mapa; si otro change toca imports entre módulos antes del apply, la task 4 recalcula el grafo sobre `dev` y el test de "dominio sin entrada" (D2.3) lo fuerza en el backend.
 
 ## Alternativas descartadas
 
-- **`eslint-plugin-boundaries`**: expresa el mismo mapa en una sintaxis de tipos de elemento + resolvers; agrega una dependencia y configuración de resolución de alias. Este proyecto ya sufrió un plugin de ESLint que se rompió con ESLint 10 (`react`, ver `eslint.config.js`). Para 8 módulos, un mapa y `no-restricted-imports` bastan.
+- **`eslint-plugin-boundaries`**: expresa el mismo mapa en una sintaxis de tipos de elemento + resolvers; agrega una dependencia y configuración de resolución de alias. Este proyecto ya sufrió un plugin de ESLint que se rompió con ESLint 10 (`react`, ver `eslint.config.js`). Para 9 módulos, un mapa y `no-restricted-imports` bastan.
 - **`dependency-cruiser`**: herramienta aparte con su propio script y CI. Más potente (ciclos en todo el árbol), desproporcionada hoy: el frontend **no tiene ciclos** y el mapa ya vigila lo que importa.
 - **Barrels (`index.ts`) y API pública por módulo**: restringiría el import a un punto de entrada. Es un rediseño del frontend con decenas de imports a reescribir y sin dolor actual que lo justifique. Se puede añadir después **encima** de este mapa; no lo contradice.
 - **Prohibir toda dependencia entre módulos de negocio**: falso. `clinical-history` necesita la credencial clínica de `staff` (ADR-0016, ADR-0020). Prohibirla obligaría a mover código a `core` que no lo merece (§4.1: "¿lo usaría otra capacidad?").

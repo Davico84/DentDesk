@@ -1,7 +1,7 @@
 ## 1. Frontend — mapa y regla de lint (scope: front)
 
 - [ ] 1.1 Escribir `eslint.boundaries.test.ts` (Vitest) **primero**: casos de import declarado (sin error), no declarado (error), `core → negocio` (error), `core → core` (sin error) y archivo de test (sin error). Debe fallar antes de tocar la config. Incluir un caso que compruebe que un archivo de `core` recibe **todas** las restricciones (que ningún bloque pisa a otro).
-- [ ] 1.2 En `eslint.config.js`, definir el mapa `ALLOWED` con el grafo actual (`auth: [staff]`, `clinical-history: [staff, dental-chart, patients]`, `dental-chart: [staff]`, `home: [patients]`; `core`, `branding`, `patients`, `staff`: `[]`) y generar, **en un solo bucle**, un bloque `no-restricted-imports` por módulo con `files: src/modules/<m>/**/*.{ts,tsx}` disjuntos (**el glob debe terminar en extensión**: sin ella ESLint 10 ignora el archivo y la regla no se aplica), `ignores` de `**/*.test.{ts,tsx}`, `**/*.spec.{ts,tsx}` y `**/test/**`, `patterns` explícitos (`@/modules/<x>` y `@/modules/<x>/**`) y mensaje que apunta a `docs/frontend.md`.
+- [ ] 1.2 En `eslint.config.js`, definir el mapa `ALLOWED` con el grafo actual (`appointments: [patients, staff]`, `auth: [staff]`, `clinical-history: [appointments, staff, dental-chart, patients]`, `dental-chart: [staff]`, `home: [patients]`; `core`, `branding`, `patients`, `staff`: `[]`) y generar, **en un solo bucle**, un bloque `no-restricted-imports` por módulo con `files: src/modules/<m>/**/*.{ts,tsx}` disjuntos (**el glob debe terminar en extensión**: sin ella ESLint 10 ignora el archivo y la regla no se aplica), `ignores` de `**/*.test.{ts,tsx}`, `**/*.spec.{ts,tsx}` y `**/test/**`, `patterns` explícitos (`@/modules/<x>` y `@/modules/<x>/**`) y mensaje que apunta a `docs/frontend.md`.
 - [ ] 1.3 `core` es una entrada más del mismo bucle (`ALLOWED.core = []`, prohíbe todos los módulos de negocio): **sin bloque aparte** y sin ningún otro bloque con `no-restricted-imports` sobre `src/modules/**`.
 - [ ] 1.4 Verificar que no hay imports relativos entre módulos (`../../staff/...`); si aparece alguno, agregar patrón relativo.
 - [ ] 1.5 El test usa `new ESLint({ cwd: <frontend>, overrideConfigFile: <eslint.config.js> })` y rutas relativas (`src/modules/patients/components/X.tsx`) con `lintText`; sin opciones obsoletas (`useEslintrc`). `pnpm lint` pasa sobre el código actual **sin tocar `src/`**; `pnpm validate` verde.
@@ -16,15 +16,15 @@
 
 - [ ] 3.1 Crear `architecture/ServiceDomainBoundariesTest` con `the_importer_actually_reads_the_bytecode` (debe contener clases de `service.auth` **y** `service.staff`, no solo "no vacío"). Las reglas se escriben como métodos que reciben el `JavaClasses` a evaluar. Correr bajo JDK 25.
 - [ ] 3.2 Regla `slices().matching("com.odontorisas.service.(*)..").should().beFreeOfCycles()`.
-- [ ] 3.3 Mapa `ALLOWED` con el grafo actual (`admission`, `auth`, `clinicalhistory`, `consultationnote`, `dentalchart`, `platform`, `staff`, `organization`, `patient`) y una regla por dominio.
+- [ ] 3.3 Mapa `ALLOWED` con el grafo actual (`admission`, `appointment`, `auth`, `clinicalhistory`, `consultationnote`, `dentalchart`, `platform`, `staff`, `organization`, `patient`) y una regla por dominio.
 - [ ] 3.4 Test que falla si existe un paquete `service.<dominio>` sin entrada en el mapa.
 - [ ] 3.5 Pruebas de que las reglas fallan con **fixtures package-private, vacíos y sin estereotipos Spring, en `src/test`, que declaran los paquetes reales** (`com.odontorisas.service.staff.*` / `com.odontorisas.service.auth.*`; una clase en `...architecture` no pertenece a ningún slice): ciclo `staff ↔ auth`, dependencia no declarada y dominio sin entrada en el mapa, importados con `importClasses(...)` y verificando que `check` lanza `AssertionError`.
 - [ ] 3.6 `mvn verify` verde.
 
-## 4. Convivencia con `add-appointments` (scope: back)
+## 4. Grafo al día (scope: front + back)
 
-- [ ] 4.1 Antes de empezar el apply, revisar si `service.appointment` ya está en `dev`.
-- [ ] 4.2 **Recalcular el grafo desde la rama integrada**, no copiarlo de este documento. En `apply-appointments`, `AppointmentService` depende de `consultationnote`, `patient` y `staff`. Si `service.appointment` ya está en `dev`, declarar su entrada completa; si no, anotar en el PR que quien llegue segundo declara el dominio (el test de "dominio sin entrada" lo fuerza).
+- [ ] 4.1 Al empezar el apply, recalcular el grafo sobre `dev` (imports de producción `@/modules/...` en el frontend; imports entre `service.<dominio>` en el backend, descartando referencias que solo están en Javadoc) y compararlo con `design.md` (recalculado en `895f11c`, con `appointments`).
+- [ ] 4.2 Si difiere, actualizar ambos mapas con el grafo real **y** `design.md`; no copiar el grafo de este documento sin verificarlo.
 - [ ] 4.3 Confirmar que el mapa no se evalúa contra una lista fija de dominios: un dominio nuevo sin entrada debe **fallar**, no quedar fuera.
 
 ## 5. Verificación contra violación real (docs/testing.md §5)
