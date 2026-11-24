@@ -35,6 +35,14 @@ public interface AppointmentRepository extends JpaRepository<Appointment, Long> 
     Optional<Appointment> findForUpdate(@Param("id") Long id);
 
     /**
+     * {@code SELECT ... FOR UPDATE} de la cita que enlaza una nota, si la hay. Lo toma el descarte de la nota antes de
+     * bloquearla, el mismo orden cita -> nota que "atender con nota" (design.md D7).
+     */
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select a from Appointment a where a.consultationNoteId = :noteId")
+    Optional<Appointment> lockByConsultationNoteId(@Param("noteId") Long noteId);
+
+    /**
      * Si el odontólogo ya tiene una cita vigente ({@code AGENDADA} o {@code ATENDIDA}) que se solapa con
      * {@code [startsAt, endsAt)}, sin contar {@code excludedId}. Es el pre-chequeo del {@code 409} con detalle;
      * la garantía ante carreras es la restricción de exclusión de V32.

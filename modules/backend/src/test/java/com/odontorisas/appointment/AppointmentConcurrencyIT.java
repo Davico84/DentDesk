@@ -214,4 +214,35 @@ class AppointmentConcurrencyIT extends AbstractConsultationNoteIT {
         assertThat(linked).isNotNull().isNotEqualTo(firstNote);
         assertThat(noteRepository.count()).isEqualTo(1);
     }
+
+    @Test
+    void discarding_waits_for_the_linked_appointment_before_locking_the_note() throws Exception {
+        long appointment = startedAppointment();
+        Long note = appointmentService.attendWithNote(appointment).consultationNoteId();
+        ExecutorService pool = Executors.newFixedThreadPool(1);
+        try (Connection attending = ownerConnection(); Statement s = attending.createStatement()) {
+            // Como "atender con nota" en curso: la cita ya está tomada.
+            attending.setAutoCommit(false);
+            s.execute("SELECT id FROM appointments WHERE id = " + appointment + " FOR UPDATE");
+
+            Future<Throwable> discard = inThread(pool, new CountDownLatch(0), () -> {
+                noteService.discard(patient, note);
+                return null;
+            });
+            awaitSomeoneBlocked();
+            // El descarte espera la cita SIN haber bloqueado la nota: mismo orden cita -> nota que "atender con nota".
+            try (Connection probe = ownerConnection(); Statement p = probe.createStatement()) {
+                probe.setAutoCommit(false);
+                p.execute("SELECT id FROM consultation_note WHERE id = " + note + " FOR UPDATE NOWAIT");
+                probe.rollback();
+            }
+            attending.commit();
+
+            assertThat(discard.get(30, TimeUnit.SECONDS)).as("termina sin 40P01").isNull();
+        } finally {
+            pool.shutdownNow();
+        }
+        assertThat(appointmentService.get(appointment).consultationNoteId()).isNull();
+        assertThat(noteRepository.count()).isZero();
+    }
 }

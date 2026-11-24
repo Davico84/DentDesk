@@ -349,6 +349,25 @@ class AppointmentServiceIT extends AbstractConsultationNoteIT {
     }
 
     @Test
+    void changing_the_hours_does_not_touch_existing_appointments() {
+        LocalDate saturday = tuesday.plusDays(4);
+        AppointmentView booked = appointmentService.schedule(
+            new ScheduleData(patient, dentist, at(saturday, "12:00"), 30, null));
+        Map<DayOfWeek, List<BusinessHours.Segment>> week = businessHoursService.current().hours().asMap();
+        week.put(DayOfWeek.SATURDAY, List.of(new BusinessHours.Segment(LocalTime.of(9, 0), LocalTime.of(12, 0))));
+
+        businessHoursService.replace(BusinessHours.of(week));
+
+        assertThat(appointmentService.get(booked.id()).status()).isEqualTo(AppointmentStatus.AGENDADA);
+        assertThat(appointmentService.list(saturday, saturday, null)).extracting(AppointmentView::id)
+            .containsExactly(booked.id());
+        // Reprogramarla exige el horario vigente: el mismo hueco ya no entra.
+        assertThatThrownBy(() -> appointmentService.reschedule(booked.id(),
+                new RescheduleData(dentist, at(saturday, "12:00"), 30)))
+            .isInstanceOf(OutsideBusinessHoursException.class);
+    }
+
+    @Test
     void a_range_longer_than_seven_days_or_inverted_is_rejected() {
         assertThatThrownBy(() -> appointmentService.list(tuesday, tuesday.plusDays(7), null))
             .isInstanceOf(InvalidAppointmentScheduleException.class);

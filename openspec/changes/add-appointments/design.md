@@ -157,14 +157,12 @@ descartadas: no son registro clínico.
 
 La nota no gana columna ni cambia su spec: el enlace vive en la cita.
 
-**Orden de bloqueos.** "Atender con nota": membresía → credencial (`FOR SHARE`) → cita (`FOR UPDATE`) → inserción
-de la nota. Descartar (sin cambios en `clinical-history`): nota (`FOR UPDATE`) → borrado, cuyo `SET NULL` escribe
-la cita enlazada. Un ciclo exigiría que "Atender con nota" espere a una nota que otro está borrando mientras
-retiene la cita que ese borrado escribe. No ocurre: si la cita ya tiene nota enlazada, se rechaza al leerla bajo
-su propio bloqueo y antes de tocar notas; si la nota que se borra es de otra cita, el `SET NULL` escribe esa otra
-fila, no la bloqueada; y si el paciente tiene una nota abierta visible, `open` la rechaza en su pre-chequeo
-antes de insertar. Se deja un IT de la carrera (tarea 3.6) para que un cambio futuro del orden no lo rompa en
-silencio; si PostgreSQL detectara un interbloqueo (`40P01`), el IT falla.
+**Orden de bloqueos.** Los dos caminos toman cita → nota. "Atender con nota": membresía → credencial
+(`FOR SHARE`) → cita (`FOR UPDATE`) → inserción de la nota. Descartar: si una cita enlaza la nota, la bloquea
+primero (`lockByConsultationNoteId`, `FOR UPDATE`) y recién después la nota y su borrado, cuyo `SET NULL` escribe
+esa cita ya tomada. Con el mismo orden no hay ciclo posible. (El propose lo resolvía razonando que el ciclo no se
+daba; la revisión del apply pidió imponerlo en el código, que es más barato que depender de ese razonamiento.)
+`AppointmentConcurrencyIT` prueba los dos órdenes de llegada: descarte primero y cita tomada primero.
 
 ### D8 — API
 

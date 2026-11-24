@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Dialog,
   DialogContent,
@@ -29,6 +29,13 @@ export function AppointmentDetailDialog({
   onClose: () => void;
 }) {
   const [mode, setMode] = useState<Mode>("detail");
+  // Las acciones dependen de la hora (desde el inicio: atendida, no asistió, atender con nota): el reloj avanza
+  // mientras el detalle está abierto, así aparecen al llegar la hora sin cerrar y volver a abrir.
+  const [now, setNow] = useState(() => new Date());
+  useEffect(() => {
+    const timer = window.setInterval(() => setNow(new Date()), 15_000);
+    return () => window.clearInterval(timer);
+  }, []);
   const start = instantToClinicLocal(appointment.startsAt, timeZone);
   const end = instantToClinicLocal(appointment.endsAt, timeZone);
   const title = mode === "reschedule" ? "Reprogramar cita" : mode === "cancel" ? "Cancelar cita" : "Cita";
@@ -73,7 +80,7 @@ export function AppointmentDetailDialog({
         {mode === "detail" ? (
           <AppointmentActions
             appointment={appointment}
-            now={new Date()}
+            now={now}
             onReschedule={() => setMode("reschedule")}
             onCancel={() => setMode("cancel")}
             onDone={onClose}

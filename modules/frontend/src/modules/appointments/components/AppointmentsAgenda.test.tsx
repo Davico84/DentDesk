@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { screen, waitFor, within } from "@testing-library/react";
+import { act, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { http, HttpResponse } from "msw";
 import { Route, Routes } from "react-router-dom";
@@ -236,6 +236,25 @@ describe("AppointmentsAgenda", () => {
     expect(within(dialog).getByRole("button", { name: "Cancelar cita" })).toBeInTheDocument();
     expect(within(dialog).queryByRole("button", { name: "Marcar atendida" })).not.toBeInTheDocument();
     expect(within(dialog).queryByRole("button", { name: "Atender con nota" })).not.toBeInTheDocument();
+  });
+
+  it("las acciones de asistencia aparecen al llegar la hora, con el detalle abierto", async () => {
+    vi.useFakeTimers({ toFake: ["Date", "setInterval", "clearInterval"] });
+    vi.setSystemTime(new Date("2030-12-04T15:59:50Z")); // miércoles 10:59:50 en Lima; Bruno es a las 11:00
+    serve();
+    const user = userEvent.setup();
+    renderAgenda();
+
+    await user.click(await screen.findByRole("button", { name: /Bruno Díaz/ }));
+    const dialog = await screen.findByRole("dialog");
+    expect(within(dialog).queryByRole("button", { name: "Marcar atendida" })).not.toBeInTheDocument();
+
+    act(() => {
+      vi.setSystemTime(new Date("2030-12-04T16:00:05Z"));
+      vi.advanceTimersByTime(15_000);
+    });
+
+    expect(await within(dialog).findByRole("button", { name: "Marcar atendida" })).toBeInTheDocument();
   });
 
   it("atender con nota abre la nota y lleva a las notas del paciente", async () => {

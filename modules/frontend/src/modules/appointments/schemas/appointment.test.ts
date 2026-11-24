@@ -72,6 +72,12 @@ describe("businessHoursSchema", () => {
     expect(issue?.message).toMatch(/solapa/);
   });
 
+  it("rechaza un día repetido (paridad con el backend)", () => {
+    const repeated = week([]);
+    repeated.days[6] = { day: "MONDAY", segments: [] };
+    expect(businessHoursSchema.safeParse(repeated).success).toBe(false);
+  });
+
   it("rechaza una hora fuera de la grilla", () => {
     expect(businessHoursSchema.safeParse(week([{ opens: "09:07", closes: "12:00" }])).success).toBe(false);
   });

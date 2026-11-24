@@ -42,8 +42,12 @@ const daySchema = z
     }
   });
 
+/** Los siete días, una vez cada uno (el backend rechaza un día repetido). */
 export const businessHoursSchema = z.object({
-  days: z.array(daySchema).length(7),
+  days: z
+    .array(daySchema)
+    .length(7)
+    .refine((days) => new Set(days.map((d) => d.day)).size === 7, "Cada día de la semana debe aparecer una sola vez"),
 });
 
 export type BusinessHoursValues = z.infer<typeof businessHoursSchema>;
