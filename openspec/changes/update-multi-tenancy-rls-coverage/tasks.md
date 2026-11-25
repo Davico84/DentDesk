@@ -2,7 +2,7 @@
 
 - [ ] 1.1 Escribir `TenantTableClassificationTest` **primero**: una instantánea correcta (devuelve vacío) y una violación deliberada por regla (sin clasificar, entrada obsoleta, en dos listas, RLS no habilitada, RLS no forzada, sin política, lista 1 sin `organization_id`, lista 3 con RLS, lista 3 sin `organization_id`, lista 4 con `organization_id`); cada una debe nombrar tabla y regla. Debe fallar antes de implementar.
 - [ ] 1.2 Crear `TenantTableClassification` (clase de test, sin Spring) con `TableInfo`, `Violation` y `evaluate(List<TableInfo>)`.
-- [ ] 1.3 Declarar las cuatro listas como `Map<tabla, motivo>` con el contenido de `design.md` (11 + 2 + 3 + 8); la lista 3 incluye el ADR de cada entrada (`ADR-0003` ×2, `ADR-0022` para `invitations`).
+- [ ] 1.3 Declarar las cuatro listas como `Map<tabla, motivo>` con el contenido de `design.md` (12 + 2 + 3 + 8); la lista 3 incluye el ADR de cada entrada (`ADR-0003` ×2, `ADR-0022` para `invitations`).
 
 ## 2. Inventario contra PostgreSQL real (scope: back)
 
@@ -18,11 +18,10 @@
 - [ ] 3.2 `docs/adr/0003-excepcion-rls-metadatos-del-tenant.md`: **solo** su línea de estado → *"Aceptado — válida con matiz, revalidada en ADR-0022"*.
 - [ ] 3.3 Verificar que el número 0022 sigue libre (la rama `update-module-boundaries` reserva 0021) y que los enlaces del ADR resuelven.
 
-## 4. Convivencia (scope: back)
+## 4. Listas al día (scope: back)
 
-- [ ] 4.1 Antes de aplicar, revisar si `appointments` ya está en `dev`.
-- [ ] 4.2 Si está, declararla en la lista 1 (tras comprobar `organization_id`, `@TenantId` y RLS forzada en su migración real); si no, anotar en el PR que quien llegue segundo la declara (el test lo fuerza).
-- [ ] 4.3 Recalcular las listas contra las migraciones **integradas**, no copiarlas de este documento.
+- [ ] 4.1 Al empezar el apply, recalcular las listas contra las migraciones de `origin/dev` (no la rama `dev` local) y compararlas con `design.md` (recalculado con V32: 25 tablas, `appointments` en la lista 1).
+- [ ] 4.2 Si aparece una tabla nueva, comprobar en su migración real `organization_id`, `@TenantId` y RLS forzada antes de declararla; no copiar las listas de este documento sin verificarlas.
 
 ## 5. Verificación contra violación real (docs/testing.md §5)
 

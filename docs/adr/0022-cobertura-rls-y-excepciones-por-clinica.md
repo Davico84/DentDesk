@@ -8,25 +8,25 @@
 
 ## Contexto
 
-Se sostenía que *"toda entidad de negocio lleva `organization_id` + RLS"*, con excepciones documentadas en distintos sitios. Al auditar las migraciones V1–V31 se vio que **la lista de excepciones estaba incompleta** y que **nada impide que crezca sin que nadie lo decida**:
+Se sostenía que *"toda entidad de negocio lleva `organization_id` + RLS"*, con excepciones documentadas en distintos sitios. Al auditar las migraciones V1–V31 (y recalcular con V32) se vio que **la lista de excepciones estaba incompleta** y que **nada impide que crezca sin que nadie lo decida**:
 
 - **`invitations`** tiene `organization_id`, no tiene RLS y **ningún ADR la menciona**.
 - **`ADR-0003`** se escribió antes de `platform-admin`, y sus condiciones de invalidación hablan precisamente de un panel de superadministrador.
-- No hay control que detecte una **tabla sin clasificar** (la próxima es `appointments`).
+- No hay control que detecte una **tabla sin clasificar** (`appointments`, V32, entró bien declarada, pero nada lo exigía).
 
 ## Decisión
 
 ### D1. Cada tabla pertenece a una de cuatro listas, y la build lo comprueba
 Un test de inventario (`TenantTableInventoryIT`, como rol de aplicación no superusuario, leyendo `pg_class`/`pg_attribute`/`pg_policies`) exige que **toda** tabla de `public` esté en exactamente una lista, y que las listas coincidan con la realidad:
 
-| Lista | Tablas (estado a 2026-11-24) | Exige |
+| Lista | Tablas (estado a 2026-11-24, con V32) | Exige |
 |---|---|---|
-| **1. Por organización** | `patients`, `historia_clinica`, `clinical_history_diagnosis`, `clinical_background_entry`, `consultation_note`, `consultation_note_correction`, `consultation_note_diagnosis`, `consultation_note_finding`, `dental_chart_block`, `dental_chart_finding`, `dental_chart_finding_tooth` (11) | `organization_id` + RLS habilitada, **forzada** y con política |
+| **1. Por organización** | `patients`, `historia_clinica`, `clinical_history_diagnosis`, `clinical_background_entry`, `consultation_note`, `consultation_note_correction`, `consultation_note_diagnosis`, `consultation_note_finding`, `dental_chart_block`, `dental_chart_finding`, `dental_chart_finding_tooth`, `appointments` (12) | `organization_id` + RLS habilitada, **forzada** y con política |
 | **2. Por identidad** | `memberships`, `professional_credential` | RLS habilitada, forzada y con política (clave `user_id`) |
 | **3. Excepción por clínica** | `organization_settings`, `organization_branding` (`ADR-0003`) · `invitations` (**D2**) | `organization_id`, **sin** RLS; motivo + ADR |
 | **4. Sin `organization_id`** | `organizations`, `users`, `refresh_tokens`, `password_reset_tokens`, `platform_admins`, `cie10_code`, `dental_finding_catalog`, `app_metadata` | no tener `organization_id` |
 
-Las 13 tablas con RLS son 11 + 2. `flyway_schema_history` se excluye (la crea Flyway).
+Las 14 tablas con RLS son 12 + 2. `flyway_schema_history` se excluye (la crea Flyway).
 
 ### D2. `invitations`: excepción por clínica documentada; **sin RLS en este change**
 **Estado real (código leído):** la entidad no lleva `@TenantId`; el listado filtra por `OrganizationContext` en la consulta; `resend`/`revoke` cargan por id y comparan la organización **después** de leer y bloquear la fila (404 si es de otra clínica); la aceptación llega por `tokenHash` **sin sesión ni organización**.

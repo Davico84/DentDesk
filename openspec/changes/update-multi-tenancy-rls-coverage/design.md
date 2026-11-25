@@ -1,18 +1,18 @@
 ## Context
 
-Auditoría de las migraciones de `dev` (V1–V31) y del código (2026-11-24). La clasificación **observada**, no supuesta:
+Auditoría de las migraciones de `dev` (V1–V31) y del código (2026-11-24); **recalculada sobre `origin/dev` con V32** (`add-appointments` integrado): 25 tablas, la única nueva es `appointments`. La clasificación **observada**, no supuesta:
 
 | Lista | Tablas | Observación |
 |---|---|---|
-| 1. Por organización (RLS forzada + política) | `patients`, `historia_clinica`, `clinical_history_diagnosis`, `clinical_background_entry`, `consultation_note`, `consultation_note_correction`, `consultation_note_diagnosis`, `consultation_note_finding`, `dental_chart_block`, `dental_chart_finding`, `dental_chart_finding_tooth` (**11**) | todas con `organization_id`, `@TenantId` y `FORCE ROW LEVEL SECURITY` en sus migraciones |
-| 2. Por identidad (RLS forzada + política) | `memberships` (tiene `organization_id` pero se aísla por `user_id`), `professional_credential` (**sin** `organization_id`; política por `user_id` o admin de la clínica del miembro) (**2**) | 11 + 2 = las **13** tablas con RLS |
+| 1. Por organización (RLS forzada + política) | `patients`, `historia_clinica`, `clinical_history_diagnosis`, `clinical_background_entry`, `consultation_note`, `consultation_note_correction`, `consultation_note_diagnosis`, `consultation_note_finding`, `dental_chart_block`, `dental_chart_finding`, `dental_chart_finding_tooth`, `appointments` (**12**) | todas con `organization_id`, `@TenantId` y `FORCE ROW LEVEL SECURITY` en sus migraciones |
+| 2. Por identidad (RLS forzada + política) | `memberships` (tiene `organization_id` pero se aísla por `user_id`), `professional_credential` (**sin** `organization_id`; política por `user_id` o admin de la clínica del miembro) (**2**) | 12 + 2 = las **14** tablas con RLS |
 | 3. Excepción por clínica (**con** `organization_id`, **sin** RLS) | `organization_settings`, `organization_branding` (`ADR-0003`) · **`invitations` (sin ADR)** | `settings`/`branding`: la PK **es** el `organization_id`. `invitations`: PK propia, acceso por id, por organización y por hash de token |
 | 4. Sin `organization_id` | `organizations`, `users`, `refresh_tokens`, `password_reset_tokens`, `platform_admins`, `cie10_code`, `dental_finding_catalog`, `app_metadata` | tenant raíz, identidad global, catálogos globales. `flyway_schema_history` la crea Flyway: se excluye por nombre |
 
 Nota: el catálogo CIE se llama `cie10_code`; en conversaciones previas se abrevió `cie`.
 
 **`invitations`, hoy (código leído, no inferido):**
-- `Invitation` mapea `organization` con `@ManyToOne`; **no** lleva `@TenantId` (las 11 de la lista 1 sí).
+- `Invitation` mapea `organization` con `@ManyToOne`; **no** lleva `@TenantId` (las 12 de la lista 1 sí).
 - Listado: `findByOrganizationIdOrderByCreatedAtDesc(OrganizationContext.get())` — filtro **en la consulta**.
 - `resend`/`revoke`: `findByIdForUpdate(id)` **sin filtro de organización** y luego `.filter(i -> i.getOrganization().getId().equals(OrganizationContext.get()))` → 404. Correcto, pero **lee y bloquea la fila de otra clínica antes de rechazarla** y depende de que cada método nuevo repita el filtro.
 - Alta/aceptación: `findByTokenHash(...)` y `findByTokenHashForUpdate(...)` **sin organización** y **sin contexto** (el invitado aún no tiene sesión): es el motivo por el que meterle RLS no es trivial.
@@ -25,7 +25,7 @@ Nota: el catálogo CIE se llama `cie10_code`; en conversaciones previas se abrev
 - Una **lista única, ejecutable** de clasificación de tablas que rompe la build ante una tabla nueva sin clasificar.
 - `invitations` y la revalidación de `ADR-0003` **decididas por escrito**.
 
-**Non-Goals**: ver `proposal.md` (sin RLS nueva, sin migraciones, sin tocar producción ni `appointments`).
+**Non-Goals**: ver `proposal.md` (sin RLS nueva, sin migraciones, sin tocar producción).
 
 ## Decisions
 
@@ -61,13 +61,13 @@ El ADR declara el **riesgo** (no hay barrera de motor: una consulta nueva sobre 
 Se concluye **válida con matiz**, con lo verificado (un único endpoint de plataforma; id generado por el servicio; inserción por PK) y lo **no** verificado (que no haya otros caminos futuros: el ADR reescribe la invariante como *"el `organizationId` viene del token firmado **o lo genera el propio servicio al crear la organización**; nunca de la petición"*). `ADR-0003` solo anota su estado.
 
 ### D6. El inventario es un candado de **clasificación**, no de corrección
-Que una tabla esté en la lista 1 con RLS forzada **no prueba** que su política sea correcta; eso lo siguen probando los `*RlsIT` por capacidad (obligatorios). El inventario garantiza que **ninguna tabla escapa a la decisión**, no que cada decisión sea buena. Se dice así en `docs/testing.md`.
+Que una tabla esté en la lista 1 con RLS forzada **no prueba** que su política sea correcta (y el conteo de políticas incluye las de solo lectura del dueño de migraciones que agregó V32 sobre `memberships` y `professional_credential`, `migration_owner_read ... TO CURRENT_USER`: para el rol de aplicación no aplican, y con RLS forzada sin política aplicable el motor niega todo, así que el error posible es por defecto cerrado); eso lo siguen probando los `*RlsIT` por capacidad (obligatorios). El inventario garantiza que **ninguna tabla escapa a la decisión**, no que cada decisión sea buena. Se dice así en `docs/testing.md`.
 
 ## Risks / Trade-offs
 
 - ⚠️ **La lista puede volverse ritual** (agregar la tabla "para que pase"). Mitigación: cada entrada exige **motivo**, y la lista 3 exige ADR; aparece en el diff.
 - ⚠️ **El motivo es texto libre** y no se valida. Aceptado.
-- ⚠️ **`appointments`** (en apply) romperá el test hasta que se declare; es su función. Quien llegue segundo la declara en la lista 1 (con `organization_id`, `@TenantId` y RLS forzada) — task 4.
+- ⚠️ **El esquema puede moverse entre el propose y el apply.** `appointments` ya se integró y está en la lista 1 (V32: `organization_id`, `@TenantId`, `FORCE ROW LEVEL SECURITY` y `organization_isolation`, verificado). Si otra migración llega antes del apply, la task 4 recalcula las listas y el test la fuerza.
 - ⚠️ **El IT requiere Docker** (`disabledWithoutDocker=true`): sin Docker se salta. La función pura **no**, así que la lógica se prueba siempre; el catálogo real, solo con Docker/CI.
 - ⚠️ **Conclusión sobre `invitations` y `ADR-0003` basada en lectura de código**, no en un pentest. Dicho en el ADR.
 
