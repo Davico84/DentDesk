@@ -44,6 +44,26 @@ public abstract class AbstractIntegrationTest {
         return POSTGRES.getJdbcUrl();
     }
 
+    /** Superusuario del contenedor, para herramientas que corren dentro de él (p. ej. pg_dump). */
+    protected String containerSuperuser() {
+        return POSTGRES.getUsername();
+    }
+
+    /**
+     * Corre un comando dentro del contenedor de PostgreSQL (pg_dump, pg_restore: la misma versión que el
+     * servidor). Las conexiones por socket local del contenedor no piden contraseña.
+     */
+    protected org.testcontainers.containers.Container.ExecResult execInDatabaseContainer(String... command) {
+        try {
+            return POSTGRES.execInContainer(command);
+        } catch (java.io.IOException e) {
+            throw new java.io.UncheckedIOException(e);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new IllegalStateException(e);
+        }
+    }
+
     /** Conexión como superusuario/owner del contenedor (sembrar fixtures, DDL, o probar un CHECK). */
     protected Connection ownerConnection() throws SQLException {
         return DriverManager.getConnection(POSTGRES.getJdbcUrl(), POSTGRES.getUsername(), POSTGRES.getPassword());
