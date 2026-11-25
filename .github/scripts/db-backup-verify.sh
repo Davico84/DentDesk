@@ -54,7 +54,12 @@ if ! pg pg_restore --no-owner --no-acl --exit-on-error --dbname="$RESTORE_URL" /
   # tipo y nombres, nunca el mensaje ni el comando (pueden traer valores de filas). Se filtra a un
   # juego de caracteres seguro por si acaso.
   failed=$(sed -nE 's/^pg_restore: from TOC entry [0-9]+; [0-9]+ [0-9]+ //p' "$ERR" | head -n 1 | tr -cd 'A-Za-z0-9_. ')
-  fail "La copia no se restauró (objeto: ${failed:-desconocido}; detalle oculto)"
+  # Categoría del error de pg_restore (lo que va entre "error:" y los dos puntos siguientes) y la
+  # línea ERROR del servidor con todo texto entre comillas reemplazado por "…", salvo que parezca un
+  # identificador con "_" (minúsculas, dígitos, "_" y ".": un valor de una sola palabra también se tapa): se ven nombres de objetos, nunca valores de filas.
+  kind=$(sed -nE 's/^pg_restore: error: ([^:]*).*/\1/p' "$ERR" | head -n 1 | tr -cd 'A-Za-z0-9_. ')
+  server=$(grep -m 1 -oE 'ERROR: .*' "$ERR" | sed -E -e 's/"[^"]*[^a-z0-9_."][^"]*"/"…"/g' -e 's/"[a-z0-9.]*"/"…"/g' | tr -cd 'A-Za-z0-9_. :"…()' | cut -c1-160)
+  fail "La copia no se restauró (error: ${kind:-desconocido}; objeto: ${failed:-desconocido}; ${server:-sin línea ERROR}; detalle oculto)"
 fi
 
 # Migraciones: la mayor versión aplicada con éxito, comparada como número dentro de PostgreSQL
