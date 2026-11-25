@@ -1,7 +1,7 @@
 ## ADDED Requirements
 
 ### Requirement: Dependencias del frontend entre módulos declaradas
-El frontend SHALL declarar en un único mapa de configuración las dependencias permitidas entre `modules/*`, y el lint MUST rechazar cualquier import de un módulo hacia otro módulo de negocio que no figure en ese mapa. Los archivos de prueba (`*.test.*`, `*.spec.*` y carpetas `test/`) quedan exentos. La regla cubre imports estáticos con alias `@/modules/...`.
+El frontend SHALL declarar en un único mapa de configuración las dependencias permitidas entre `modules/*`, y el lint MUST rechazar cualquier import de un módulo hacia otro módulo de negocio que no figure en ese mapa. Los archivos de prueba (`*.test.*`, `*.spec.*` y carpetas `test/`) quedan exentos. La regla cubre imports estáticos con alias `@/modules/...`, y todo módulo existente MUST tener entrada en el mapa.
 
 #### Scenario: Import entre módulos declarado
 - **WHEN** `modules/clinical-history` importa de `@/modules/staff`, y el mapa lo declara
@@ -15,12 +15,20 @@ El frontend SHALL declarar en un único mapa de configuración las dependencias 
 - **WHEN** un `*.test.tsx` de `modules/patients` importa de `@/modules/auth`
 - **THEN** `pnpm lint` no reporta error
 
+#### Scenario: Módulo sin entrada en el mapa
+- **WHEN** existe un directorio bajo `src/modules/` sin entrada en el mapa
+- **THEN** la prueba de límites del frontend falla pidiendo declararlo
+
 ### Requirement: Core independiente de los módulos de negocio
-`modules/core` SHALL NOT importar de ningún otro módulo bajo `modules/`, y el lint MUST rechazarlo en el código de producción (los archivos de prueba quedan exentos, igual que arriba). Esto hace cumplir por regla lo que la estructura del frontend ya exige.
+`modules/core` SHALL NOT importar de ningún otro módulo bajo `modules/`, y el lint MUST rechazarlo en el código de producción (los archivos de prueba quedan exentos, igual que arriba). El código generado por orval queda fuera del lint, pero una prueba MUST verificar que no importa de módulos de negocio.
 
 #### Scenario: Core importa de un módulo de negocio
 - **WHEN** un archivo de `modules/core` importa de `@/modules/patients`
 - **THEN** `pnpm lint` falla con un error de `no-restricted-imports`
+
+#### Scenario: Código generado importa de un módulo de negocio
+- **WHEN** un archivo de `core/services/generated` importa de `@/modules/patients`
+- **THEN** la prueba de límites del frontend falla
 
 #### Scenario: Core importa de sí mismo
 - **WHEN** un archivo de `modules/core` importa de `@/modules/core/ui`

@@ -27,7 +27,8 @@ Lo que sí estaba vigilado por la build: capas (`presentation`/`service`/`persis
 ## Consecuencias
 
 - ✅ Un import estático nuevo entre módulos del frontend (alias `@/modules/...`) o una dependencia nueva entre paquetes `service.<dominio>` **no entra sin verse**, **dentro del alcance declarado de estas reglas**; los ciclos entre dominios `service` rompen la build. Fuera de ese alcance (imports relativos o dinámicos, `screens`, `routes`, `layouts`, `store`, `presentation`, `infra`, clases sueltas de `service`) no hay vigilancia.
-- ✅ La promesa de la spec sobre `core` deja de depender de la memoria.
+- ✅ La promesa de la spec sobre `core` deja de depender de la memoria, incluido el código generado por orval (fuera del lint, verificado por un test aparte).
+- ✅ Un módulo o dominio nuevo sin entrada en el mapa rompe la build: no puede nacer sin vigilancia.
 - ✅ Cero dependencias nuevas; el mapa es un objeto de JavaScript y un `Map` de Java.
 - ⚠️ **No es desacoplamiento.** Las dependencias existentes se aceptan tal cual; `clinical-history` sigue conociendo detalles de `staff`. La regla promete *declaradas y sin ciclos*, no *bajo acoplamiento*.
 - ⚠️ El mapa puede convertirse en ritual (agregar la arista para que pase). Se mitiga con la revisión del diff, no con la herramienta.

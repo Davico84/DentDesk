@@ -1,6 +1,6 @@
 ## Context
 
-Auditoría de imports (2026-11-24, sobre `dev` en `06d6c1d`; **recalculada sobre `895f11c`**, con `add-appointments` integrado). Lo que **existe** y lo que **no**:
+Auditoría de imports (2026-11-24, sobre `dev` en `06d6c1d`; **recalculada sobre `origin/dev` en `895f11c`**, con `add-appointments` integrado). La base de comparación es siempre `origin/dev`, no una rama `dev` local que puede estar atrasada. Lo que **existe** y lo que **no**:
 
 **Frontend (`modules/frontend/src/modules/*`)**
 
@@ -56,6 +56,8 @@ Un objeto `ALLOWED = { appointments: ["patients", "staff"], auth: ["staff"], "cl
 - Cero dependencias nuevas.
 - ⚠️ **El glob de `files` debe terminar en extensión.** Verificado empíricamente con ESLint 10.6.0: `files: ["src/modules/<m>/**"]` responde *"File ignored because no matching configuration was supplied"* y la regla **no se aplica** (tampoco con `lintText` y un `filePath` inexistente); `src/modules/<m>/**/*.{ts,tsx}` sí. También verificado: `patterns` con `@/modules/staff` y `@/modules/staff/**` detectan import exacto y subruta; dos bloques solapados → el segundo reemplaza las `patterns` del primero; bloques disjuntos → independientes.
 - **Tests exentos** (`ignores: ["**/*.test.{ts,tsx}", "**/*.spec.{ts,tsx}", "**/test/**"]`): un test de integración legítimamente arma varios módulos (hoy 4 archivos `*.test.*` lo hacen) y los helpers de `src/modules/*/test/` son soporte de pruebas (hoy no cruzan módulos). Se documenta como excepción, igual que `core/ui` en `no-multi-comp`. La exención aplica **también a `core`**; el requirement lo dice.
+- **Módulo nuevo sin entrada = error.** El test lista los directorios reales de `src/modules/` y exige que coincidan con las claves de `ALLOWED` (sobrantes y faltantes). Sin esto, un módulo nuevo quedaría sin bloque generado y sin vigilancia; es el mismo control que D2.3 hace en el backend.
+- **Código generado por orval** (`src/modules/core/services/generated`): sigue en `globalIgnores` (se valida con `tsc`, no con ESLint; se regenera desde el contrato). Hoy solo importa con rutas relativas dentro de `core` (`./model`, `../../config/httpClient`). Para que la promesa de `core` no tenga un agujero silencioso, el mismo test **recorre esos archivos y falla si alguno importa de `@/modules/<x>` con `x ≠ core`** (verificación aparte, sin sacarlo del ignore).
 - **Solo alias `@/modules/...`.** El proyecto importa así; no hay imports relativos entre módulos (verificado: `0` coincidencias). Si aparecieran, la task 1.4 los cubre con un patrón relativo.
 
 ### D2. Backend: ArchUnit con `slices()` + mapa de aristas permitidas

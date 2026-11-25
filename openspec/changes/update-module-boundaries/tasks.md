@@ -1,6 +1,6 @@
 ## 1. Frontend — mapa y regla de lint (scope: front)
 
-- [ ] 1.1 Escribir `eslint.boundaries.test.ts` (Vitest) **primero**: casos de import declarado (sin error), no declarado (error), `core → negocio` (error), `core → core` (sin error) y archivo de test (sin error). Debe fallar antes de tocar la config. Incluir un caso que compruebe que un archivo de `core` recibe **todas** las restricciones (que ningún bloque pisa a otro).
+- [ ] 1.1 Escribir `eslint.boundaries.test.ts` (Vitest) **primero**: casos de import declarado (sin error), no declarado (error), `core → negocio` (error), `core → core` (sin error) y archivo de test (sin error). Debe fallar antes de tocar la config. Incluir un caso que compruebe que un archivo de `core` recibe **todas** las restricciones (que ningún bloque pisa a otro), uno que falla si un directorio de `src/modules/` no tiene clave en `ALLOWED` (o una clave no tiene directorio), y uno que recorre `src/modules/core/services/generated` y falla si algún archivo importa de `@/modules/<x>` con `x ≠ core`.
 - [ ] 1.2 En `eslint.config.js`, definir el mapa `ALLOWED` con el grafo actual (`appointments: [patients, staff]`, `auth: [staff]`, `clinical-history: [appointments, staff, dental-chart, patients]`, `dental-chart: [staff]`, `home: [patients]`; `core`, `branding`, `patients`, `staff`: `[]`) y generar, **en un solo bucle**, un bloque `no-restricted-imports` por módulo con `files: src/modules/<m>/**/*.{ts,tsx}` disjuntos (**el glob debe terminar en extensión**: sin ella ESLint 10 ignora el archivo y la regla no se aplica), `ignores` de `**/*.test.{ts,tsx}`, `**/*.spec.{ts,tsx}` y `**/test/**`, `patterns` explícitos (`@/modules/<x>` y `@/modules/<x>/**`) y mensaje que apunta a `docs/frontend.md`.
 - [ ] 1.3 `core` es una entrada más del mismo bucle (`ALLOWED.core = []`, prohíbe todos los módulos de negocio): **sin bloque aparte** y sin ningún otro bloque con `no-restricted-imports` sobre `src/modules/**`.
 - [ ] 1.4 Verificar que no hay imports relativos entre módulos (`../../staff/...`); si aparece alguno, agregar patrón relativo.
@@ -23,7 +23,7 @@
 
 ## 4. Grafo al día (scope: front + back)
 
-- [ ] 4.1 Al empezar el apply, recalcular el grafo sobre `dev` (imports de producción `@/modules/...` en el frontend; imports entre `service.<dominio>` en el backend, descartando referencias que solo están en Javadoc) y compararlo con `design.md` (recalculado en `895f11c`, con `appointments`).
+- [ ] 4.1 Al empezar el apply, recalcular el grafo sobre `origin/dev` (no la rama `dev` local) (imports de producción `@/modules/...` en el frontend; imports entre `service.<dominio>` en el backend, descartando referencias que solo están en Javadoc) y compararlo con `design.md` (recalculado en `895f11c`, con `appointments`).
 - [ ] 4.2 Si difiere, actualizar ambos mapas con el grafo real **y** `design.md`; no copiar el grafo de este documento sin verificarlo.
 - [ ] 4.3 Confirmar que el mapa no se evalúa contra una lista fija de dominios: un dominio nuevo sin entrada debe **fallar**, no quedar fuera.
 
