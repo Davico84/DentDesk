@@ -26,7 +26,9 @@ Un test de inventario (`TenantTableInventoryIT`, como rol de aplicación no supe
 | **3. Excepción por clínica** | `organization_settings`, `organization_branding` (`ADR-0003`) · `invitations` (**D2**) | `organization_id`, **sin** RLS; motivo + ADR |
 | **4. Sin `organization_id`** | `organizations`, `users`, `refresh_tokens`, `password_reset_tokens`, `platform_admins`, `cie10_code`, `dental_finding_catalog`, `app_metadata` | no tener `organization_id` |
 
-Además, una **quinta lista** declara las funciones `SECURITY DEFINER` de `public` que no son de una extensión (hoy `current_user_is_org_admin`, V24, y `clinic_capacity_facts`, V32), con motivo y los tests que las cubren, y exige que fijen `search_path`. Son la única vía para leer por encima de la RLS del rol de aplicación: una nueva no entra sin declararse.
+Además, una **quinta lista** declara las funciones `SECURITY DEFINER` de `public` que no son de una extensión (hoy `current_user_is_org_admin`, V24, y `clinic_capacity_facts`, V32), con motivo y los tests que las cubren, y exige que fijen `search_path`. Son la única vía para leer por encima de la RLS del rol de aplicación: una nueva no entra sin declararse. Se identifican por firma (una sobrecarga es otra entrada) y su `search_path` debe ser exactamente un valor permitido (hoy `public`).
+
+El inventario también **falla ante lo que no clasifica**: una vista o vista materializada en `public`, cualquier objeto en otro esquema de usuario, y un rol de lectura con `SUPERUSER` o `BYPASSRLS` propios o heredados (hoy no existe ninguno de los tres). Quedan fuera, dicho: secuencias (no guardan filas de clínicas), `odontorisas_backup` (`BYPASSRLS` deliberado) y el rol de producción, que la CI no alcanza (chequeo manual en `docs/deployment.md`).
 
 Las 14 tablas con RLS son 12 + 2. `flyway_schema_history` se excluye (la crea Flyway).
 

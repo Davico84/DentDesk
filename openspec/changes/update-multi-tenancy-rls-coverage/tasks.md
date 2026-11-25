@@ -1,14 +1,14 @@
 ## 1. Clasificación pura y sus pruebas (scope: back, sin Docker)
 
-- [ ] 1.1 Escribir `TenantTableClassificationTest` **primero**: una instantánea correcta (devuelve vacío) y una violación deliberada por regla (sin clasificar, entrada obsoleta, en dos listas, RLS no habilitada, RLS no forzada, sin política, lista 1 sin `organization_id`, lista 3 con RLS, lista 3 sin `organization_id`, lista 4 con `organization_id`, función `SECURITY DEFINER` sin declarar, función declarada obsoleta, función sin `search_path` fijo); cada una debe nombrar tabla o función y regla. Debe fallar antes de implementar.
-- [ ] 1.2 Crear `TenantTableClassification` (clase de test, sin Spring) con `TableInfo`, `FunctionInfo`, `Violation` y `evaluate(List<TableInfo>, List<FunctionInfo>)`.
+- [ ] 1.1 Escribir `TenantTableClassificationTest` **primero**: una instantánea correcta (devuelve vacío) y una violación deliberada por regla (sin clasificar, entrada obsoleta, en dos listas, RLS no habilitada, RLS no forzada, sin política, lista 1 sin `organization_id`, lista 3 con RLS, lista 3 sin `organization_id`, lista 4 con `organization_id`, función `SECURITY DEFINER` sin declarar, sobrecarga sin declarar, función declarada obsoleta, función sin `search_path` o con un valor no permitido, vista en `public`, objeto en otro esquema, rol con `BYPASSRLS` heredado); cada una debe nombrar el objeto y la regla. Debe fallar antes de implementar.
+- [ ] 1.2 Crear `TenantTableClassification` (clase de test, sin Spring) con `TableInfo`, `FunctionInfo` (firma + valor de `search_path`), `RoleInfo`, `Violation` y `evaluate(...)`.
 - [ ] 1.3 Declarar las cinco listas como `Map<nombre, motivo>` con el contenido de `design.md` (12 + 2 + 3 + 8 tablas + 2 funciones); la lista 3 incluye el ADR de cada entrada (`ADR-0003` ×2, `ADR-0022` para `invitations`) y la 5 los tests que cubren cada función.
 
 ## 2. Inventario contra PostgreSQL real (scope: back)
 
 - [ ] 2.1 Crear `TenantTableInventoryIT extends AbstractRlsIntegrationTest`, conectado con `appConnection()` (rol no superusuario).
-- [ ] 2.2 Extraer la instantánea con `pg_class` + `pg_attribute` + `pg_policies` (**no** `information_schema.columns`); excluir `flyway_schema_history`. Funciones con `pg_proc` + `pg_namespace` (`prosecdef`), excluyendo las de extensiones vía `pg_depend` (`deptype = 'e'`), y `proconfig` para `search_path`.
-- [ ] 2.3 Guardián de importador vacío: la instantánea contiene `patients` e `invitations`; la de funciones contiene `current_user_is_org_admin` y ninguna de `btree_gist`.
+- [ ] 2.2 Extraer la instantánea con `pg_class` + `pg_attribute` + `pg_policies` (**no** `information_schema.columns`); excluir `flyway_schema_history`. Funciones con `pg_proc` + `pg_namespace` (`prosecdef`, `prokind IN ('f','p')`), identificadas por `proname` + `pg_get_function_identity_arguments(oid)`, excluyendo las de extensiones vía `pg_depend` (`deptype = 'e'`), y el valor de `search_path` extraído de `proconfig`. Vistas (`relkind IN ('v','m')`) de `public` y objetos de esquemas de usuario distintos de `public`. Rol: `pg_roles` de `current_user` y sus membresías transitivas (`pg_auth_members`).
+- [ ] 2.3 Guardián de importador vacío: la instantánea contiene por nombre `patients` e `invitations`; la de funciones contiene `current_user_is_org_admin` y `clinic_capacity_facts` (con `EXECUTE` revocado a `PUBLIC`) y ninguna de `btree_gist`.
 - [ ] 2.4 Ejecutar `evaluate` y fallar listando **todas** las violaciones, no solo la primera.
 - [ ] 2.5 Ejecutarlo; si la realidad contradice una lista (p. ej. una tabla de la lista 1 sin `FORCE`), **corregir la lista o abrir hallazgo** — no ajustar el test para que pase. Registrar lo encontrado en el ADR.
 
@@ -21,7 +21,7 @@
 ## 4. Listas al día (scope: back)
 
 - [ ] 4.1 Al empezar el apply, recalcular las listas contra las migraciones de `origin/dev` (no la rama `dev` local) y compararlas con `design.md` (recalculado con V32: 25 tablas, `appointments` en la lista 1).
-- [ ] 4.2 Si aparece una tabla nueva, comprobar en su migración real `organization_id`, `@TenantId` y RLS forzada antes de declararla; no copiar las listas de este documento sin verificarlas.
+- [ ] 4.2 Si aparece una tabla nueva, comprobar en su **migración** `organization_id`, RLS forzada y políticas, y en su **entidad Java** `@TenantId` (el inventario solo ve el catálogo, no las anotaciones), antes de declararla; no copiar las listas de este documento sin verificarlas.
 
 ## 5. Verificación contra violación real (docs/testing.md §5)
 
@@ -33,6 +33,7 @@
 
 ## 6. Documentación (scope: docs)
 
+- [ ] 6.0 `docs/deployment.md`: agregar la consulta de D7 como chequeo manual del rol `odontorisas_app` en Neon (sin `SUPERUSER`/`BYPASSRLS`, propios ni heredados de `neon_superuser`).
 - [ ] 6.1 `docs/backend.md §8.1`: enlazar el inventario y la regla "tabla nueva ⇒ se clasifica en el mismo cambio; función `SECURITY DEFINER` nueva ⇒ se declara con su test y fija `search_path`".
 - [ ] 6.2 `docs/architecture.md` (aislamiento): reemplazar la frase de "`users`/`refresh_tokens` sin RLS" por la clasificación completa y el enlace al ADR-0022.
 - [ ] 6.3 `docs/testing.md`: añadir el inventario a "Test de aislamiento" y decir que garantiza **clasificación**, no corrección de las políticas (D6).

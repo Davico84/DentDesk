@@ -16,7 +16,7 @@ Toda tabla del esquema `public` SHALL figurar en exactamente una lista declarada
 - **THEN** la prueba de inventario falla y nombra la tabla
 
 ### Requirement: Las tablas aisladas por el motor tienen RLS forzada con política
-Toda tabla clasificada como aislada por organización o por identidad SHALL tener Row-Level Security habilitada, forzada y al menos una política; las aisladas por organización MUST además tener la columna `organization_id`.
+Toda tabla clasificada como aislada por organización o por identidad SHALL tener Row-Level Security habilitada, forzada y al menos una política en el catálogo; las aisladas por organización MUST además tener la columna `organization_id`. Es una garantía estructural: que la política aísle bien lo prueban los tests de aislamiento de cada capacidad.
 
 #### Scenario: Tabla aislada sin RLS forzada
 - **WHEN** una tabla aislada por organización tiene RLS habilitada pero no forzada
@@ -46,19 +46,38 @@ Una tabla con columna `organization_id` y sin RLS SHALL figurar como excepción 
 - **THEN** la prueba de inventario falla y nombra la tabla
 
 ### Requirement: Toda función que salta la RLS se declara
-Toda función `SECURITY DEFINER` del esquema `public` que no pertenezca a una extensión SHALL figurar en una lista declarada con su motivo y los tests que la cubren, y MUST fijar su `search_path`. La build MUST fallar ante una función sin declarar, una entrada obsoleta o una función sin `search_path` fijo.
+Toda función o procedimiento `SECURITY DEFINER` de `public` que no pertenezca a una extensión SHALL figurar, por su firma, en una lista declarada con su motivo y los tests que lo cubren, y MUST fijar `search_path` a un valor permitido. La build MUST fallar ante una función sin declarar, una entrada obsoleta o un `search_path` ausente o no permitido.
 
 #### Scenario: Función SECURITY DEFINER sin declarar
 - **WHEN** una migración crea una función `SECURITY DEFINER` que no figura en la lista
 - **THEN** la prueba de inventario falla y nombra la función
 
 #### Scenario: Función sin search_path fijo
-- **WHEN** una función declarada es `SECURITY DEFINER` y no fija `search_path`
+- **WHEN** una función declarada es `SECURITY DEFINER` y no fija `search_path`, o lo fija a un valor no permitido
 - **THEN** la prueba de inventario falla y nombra la función
+
+#### Scenario: Sobrecarga sin declarar
+- **WHEN** una migración crea una sobrecarga `SECURITY DEFINER` de una función declarada, con otros argumentos
+- **THEN** la prueba de inventario falla y nombra la firma nueva
 
 #### Scenario: Funciones de extensiones ignoradas
 - **WHEN** una extensión instala funciones en `public`
 - **THEN** la prueba de inventario no las exige en la lista
+
+### Requirement: Nada queda fuera del inventario sin decidirse
+La prueba de inventario MUST fallar si en `public` existe una vista o vista materializada, si existe una tabla, vista o función en un esquema de usuario distinto de `public`, o si el rol con el que lee tiene `SUPERUSER` o `BYPASSRLS`, propios o heredados. Cada uno de esos casos SHALL decidirse en su propio cambio.
+
+#### Scenario: Vista nueva
+- **WHEN** una migración crea una vista en `public`
+- **THEN** la prueba de inventario falla y nombra la vista
+
+#### Scenario: Objeto en otro esquema
+- **WHEN** una migración crea una tabla en un esquema distinto de `public`
+- **THEN** la prueba de inventario falla y nombra el esquema y la tabla
+
+#### Scenario: Rol que salta la RLS
+- **WHEN** el rol con el que lee la prueba tiene `BYPASSRLS` o es miembro de un rol que lo tiene
+- **THEN** la prueba de inventario falla en vez de clasificar
 
 ### Requirement: El inventario se verifica como rol de aplicación y se prueba fallando
 La prueba de inventario SHALL leer el catálogo de PostgreSQL conectada como el rol de aplicación no superusuario, sin depender de vistas filtradas por privilegios, y su lógica de clasificación MUST tener pruebas con instantáneas sintéticas que demuestren que cada violación hace fallar la regla.

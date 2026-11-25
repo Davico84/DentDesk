@@ -16,7 +16,8 @@ Es el mismo patrón de "regla en prosa que se incumple" que ya se cerró para ca
   2. aisladas **por identidad** (`memberships`, `professional_credential`): RLS habilitada, forzada y con política;
   3. **excepciones por clínica** (con `organization_id` y **sin** RLS): `invitations`, `organization_settings`, `organization_branding`, cada una con motivo y ADR;
   4. **sin `organization_id`** (tenant raíz, identidad global, catálogos): `organizations`, `users`, `refresh_tokens`, `password_reset_tokens`, `platform_admins`, `cie10_code`, `dental_finding_catalog`, `app_metadata`.
-  5. **funciones `SECURITY DEFINER`** de `public` (sin contar las de extensiones como `btree_gist`): `current_user_is_org_admin`, `clinic_capacity_facts`, cada una con motivo y los tests que la cubren; deben fijar `search_path`.
+  5. **funciones y procedimientos `SECURITY DEFINER`** de `public` (sin contar los de extensiones como `btree_gist`), identificados por firma: `current_user_is_org_admin`, `clinic_capacity_facts`, cada uno con motivo y los tests que lo cubren; deben fijar `search_path` a un valor permitido (hoy `public`).
+  Además: ninguna vista ni objeto en otro esquema sin decidir (hoy no hay), y el rol conectado no puede tener `SUPERUSER` ni `BYPASSRLS`, ni heredarlos.
   El test falla ante tabla sin clasificar, entrada obsoleta, RLS ausente o no forzada, tabla con `organization_id` mal clasificada, o función `SECURITY DEFINER` sin declarar, obsoleta o sin `search_path` fijo. La lógica de clasificación es una función pura probada con instantáneas sintéticas (sin Docker), de modo que **se ve fallar**.
 - **ADR-0022**: clasifica cada tabla, **documenta `invitations` como excepción conocida** (motivo, riesgo y condiciones que la invalidan) y **revalida `ADR-0003` contra `platform-admin`**. Conclusión adelantada tras leer el código: **válida con matiz** (el `organizationId` de `provision` lo genera el propio servicio al crear la organización, no viene de la petición; lo que cambia es que la invariante "siempre del token" deja de ser literal). El ADR deja constancia de qué se verificó y qué no.
 - **`ADR-0003`** solo anota su estado (*"Válida con matiz — ver ADR-0022"*), como pide `docs/adr/README.md`.
@@ -46,3 +47,5 @@ Es el mismo patrón de "regla en prosa que se incumple" que ya se cerró para ca
 - **No** cambiar código de producción (`StaffService`, repositorios, entidades), aunque se anoten observaciones (p. ej. `findByIdForUpdate` bloquea una fila de otra clínica antes de rechazarla).
 - **No** extender la suite de integración completa al rol no superusuario (deuda ya anotada en `AbstractTenantAwareIntegrationTest`).
 - **No** editar `ADR-0003` más allá de su línea de estado.
+- **No** inventariar secuencias (no guardan filas de clínicas) ni evaluar `odontorisas_backup` (`BYPASSRLS` deliberado, `docs/deployment.md`). **No** verificar desde la CI el rol de producción: queda como chequeo manual documentado (design D7).
+- **No** diseñar el aislamiento de vistas ni de otros esquemas: hoy no existen; el primero rompe el inventario y se decide en su change (design D8).
