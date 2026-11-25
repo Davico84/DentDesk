@@ -11,7 +11,8 @@ name: DB backup
 #                                   RLS filtra, pg_dump falla en vez de volcar menos.
 #   - variable BACKUP_AGE_RECIPIENT clave pública de `age` (la privada nunca entra a GitHub)
 #
-# Los programados corren desde la rama por defecto (dev).
+# Los programados corren desde la rama por defecto (dev), pero verifican contra las migraciones y el
+# script de `main` (lo desplegado): ver el paso de checkout.
 
 on:
   schedule:
@@ -75,9 +76,13 @@ jobs:
           fi
 
       # Solo las migraciones y el script de verificación (sin dependencias ni nada más del repo).
+      # Programado: desde `main`, lo que Render despliega. Con `dev` (la rama por defecto), una migración
+      # mergeada a dev y no liberada hacía fallar la copia ("V32 y el repositorio en V33") hasta el release.
+      # A mano: desde la rama elegida, para probar cambios del script antes de liberarlos.
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         if: steps.config.outputs.configured == 'true'
         with:
+          ref: ${{ github.event_name == 'schedule' && 'main' || github.ref }}
           persist-credentials: false
           sparse-checkout: |
             ${{ env.MIGRATIONS_DIR }}
