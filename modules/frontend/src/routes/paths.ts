@@ -9,6 +9,9 @@ export const PATHS = {
   RESET_PASSWORD: "/auth/reset-password",
   BRANDING: "/settings/branding",
   STAFF: "/settings/staff",
+  BUSINESS_HOURS: "/settings/business-hours",
+  /** La agenda semanal. Acepta `?patientId&date` para abrir el formulario de agendar precargado. */
+  APPOINTMENTS: "/appointments",
   PATIENTS: "/patients",
   PATIENT_NEW: "/patients/new",
   PATIENT_DETAIL: "/patients/:id",
@@ -35,5 +38,8 @@ export const patientEditPath = (id: number) => `/patients/${id}/edit`;
 export const clinicalHistoryPath = (id: number) => `/patients/${id}/clinical-history`;
 /** Construye la ruta del odontograma de un paciente. */
 export const dentalChartPath = (id: number) => `/patients/${id}/dental-chart`;
+/** La Agenda con el formulario de agendar abierto y precargado (p. ej. la próxima cita de una nota). */
+export const scheduleAppointmentPath = (patientId: number, date: string) =>
+  `/appointments?patientId=${patientId}&date=${date}`;
 /** Construye la ruta de las notas de consulta de un paciente. */
 export const consultationNotesPath = (id: number) => `/patients/${id}/consultations`;

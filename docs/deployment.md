@@ -104,6 +104,16 @@ Si `rolbypassrls` es `true` o `hereda_neon_superuser` es `true` para `odontorisa
 
 La app usa `odontorisas_app` (`DB_USERNAME` / `DB_PASSWORD`); Flyway, `odontorisas_admin` (`DB_ADMIN_USERNAME` / `DB_ADMIN_PASSWORD`).
 
+> [!WARNING]
+> **App y Flyway nunca con el mismo rol fuera de tu máquina.** Desde V32 (`add-appointments`) el rol dueño de las
+> migraciones tiene una policy de **solo lectura total** sobre `memberships` y `professional_credential`: la necesita
+> la función `clinic_capacity_facts`, porque con `FORCE ROW LEVEL SECURITY` un `SECURITY DEFINER` de un dueño no
+> superusuario seguiría filtrado. Si la app se conectara con ese mismo rol, leería directamente las membresías y
+> credenciales de todas las clínicas. En producción no pasa (roles separados, arriba). En local, sin
+> `DB_ADMIN_USERNAME`, Flyway usa `DB_USERNAME`; con el `postgres` del `compose.yaml` eso no cambia nada (es
+> superusuario: ya salta toda la RLS), pero **no repliques ese arreglo con un rol no superusuario** pensando que te da
+> el aislamiento de producción. Para probar la RLS como en producción, usa `scripts/db-roles.sql`.
+
 > ⚠️ **Después del `ALTER DATABASE … OWNER`, el SQL Editor de Neon entra como el dueño de la base**
 > (`odontorisas_admin`), no como el dueño del proyecto, y su selector solo cambia de base, no de rol.
 > `odontorisas_admin` no puede crear roles. Para crear o tocar roles hay que conectarse como

@@ -1,5 +1,5 @@
 import type { LucideIcon } from "lucide-react";
-import { House, Palette, Users } from "lucide-react";
+import { CalendarDays, Clock, House, Palette, Users } from "lucide-react";
 import type { Role } from "@/store/useSessionStore";
 import { canAccess, sections, type SectionId } from "@/modules/core/config/sections";
 
@@ -16,8 +16,10 @@ export interface NavItemConfig {
 const PRESENTATION: Record<SectionId, Pick<NavItemConfig, "label" | "icon" | "end">> = {
   home: { label: "Inicio", icon: House, end: true },
   patients: { label: "Pacientes", icon: Users },
+  appointments: { label: "Agenda", icon: CalendarDays },
   branding: { label: "Marca", icon: Palette },
   staff: { label: "Personal", icon: Users },
+  "business-hours": { label: "Horario de atención", icon: Clock },
 };
 
 /** Ítems de navegación visibles para un rol, en el orden de `sections`. */

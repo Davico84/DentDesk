@@ -57,6 +57,19 @@ const BACKGROUND = {
   ],
 };
 
+const HOURS = {
+  timezone: "America/Lima",
+  days: ["MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY", "SUNDAY"].map((day) => ({
+    day,
+    segments: day === "SUNDAY" ? [] : [{ opens: "09:00", closes: "13:00" }, { opens: "15:00", closes: "19:00" }],
+  })),
+};
+const APPOINTMENTS = [
+  { id: 1, patientId: 1, patientName: "Armando Lios Con Un Apellido Muy Largo", dentistUserId: 7,
+    dentistName: "Odontóloga Con Un Nombre Bastante Largo", startsAt: "2026-10-20T15:00:00Z",
+    endsAt: "2026-10-20T15:30:00Z", durationMinutes: 30, status: "AGENDADA" },
+];
+
 async function mockApi(page: Page, { authed, preset }: { authed: boolean; preset: string | null }) {
   await page.route("**/*", async (route) => {
     const req = route.request();
@@ -83,6 +96,10 @@ async function mockApi(page: Page, { authed, preset }: { authed: boolean; preset
         { id: 2, fullName: "Lucía Paz", document: "87654321", birthDate: "2015-06-01", minor: true, phone: "+51911122233", status: "ACTIVE" },
       ], page: 0, size: 20, totalElements: 2, totalPages: 1, last: true });
     }
+    // Agenda y horario (add-appointments): nombres largos y un turno partido ponen a prueba el desborde.
+    if (path.endsWith("/business-hours")) return json(HOURS);
+    if (path.endsWith("/appointments/dentists")) return json([{ userId: 7, fullName: "Odontóloga Con Un Nombre Bastante Largo" }]);
+    if (/\/appointments$/.test(path)) return json(APPOINTMENTS);
     if (/\/patients\/1$/.test(path)) return json(PATIENT);
     if (path.endsWith("/clinical-history/enablement")) return json({ status: "COMPLETED", enabledForTreatment: true });
     if (path.endsWith("/clinical-history")) return json(HISTORY);
@@ -96,7 +113,7 @@ async function mockApi(page: Page, { authed, preset }: { authed: boolean; preset
 const PRIVATE = [
   "/", "/patients", "/patients/new", "/patients/1", "/patients/1/clinical-history",
   "/patients/1/dental-chart", "/patients/1/consultations", "/settings/branding",
-  "/settings/staff", "/settings/staff?tab=invitaciones",
+  "/settings/staff", "/settings/staff?tab=invitaciones", "/appointments", "/settings/business-hours",
 ];
 
 for (const width of [375, 768, 1280]) {

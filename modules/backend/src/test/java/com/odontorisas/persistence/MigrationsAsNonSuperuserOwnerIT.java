@@ -61,20 +61,9 @@ class MigrationsAsNonSuperuserOwnerIT extends AbstractIntegrationTest {
                 rs.next();
                 assertThat(rs.getBoolean(1)).as("la RLS forzada queda restaurada").isTrue();
             }
-            // Rama "ADMIN gestiona su organización" de la policy (V24/V28): con organización activa se
-            // evalúa current_user_is_org_admin(), que consulta memberships bajo la misma RLS forzada.
-            // El miembro 2 solo es visible para el usuario 1 por esa rama (no por user_id): la fuerza a evaluarse.
-            st.execute("UPDATE memberships SET role = 'ADMIN' WHERE user_id = 1");
-            st.execute("INSERT INTO users(id, email, password_hash, full_name, status) "
-                + "VALUES (2, 'b@test.dev', 'x', 'B', 'ACTIVE')");
-            st.execute("SELECT set_config('app.user_id', '2', false)");
-            st.execute("INSERT INTO memberships(user_id, organization_id, role, status) VALUES (2, 1, 'MEMBER', 'ACTIVE')");
-            st.execute("SELECT set_config('app.user_id', '1', false)");
-            st.execute("SELECT set_config('app.organization_id', '1', false)");
-            try (ResultSet rs = st.executeQuery("SELECT count(*) FROM memberships WHERE organization_id = 1")) {
-                rs.next();
-                assertThat(rs.getInt(1)).as("el ADMIN ve a los miembros de su clínica").isEqualTo(2);
-            }
+            // La rama "ADMIN gestiona su organización" (V24/V28) ya no se puede observar como dueño: desde V32 el
+            // dueño lee memberships por su propia policy. Se verifica con el rol de la app en
+            // ClinicCapacityFactsAsNonSuperuserOwnerIT.
         }
     }
 
