@@ -34,6 +34,12 @@ env:
   # vuelca y una menor anterior la rechaza al restaurar ("unrecognized parameter"). Así fallaron las
   # copias del 2026-11-25. Ver la versión de Neon con `SELECT version();`.
   PG_IMAGE: postgres:16@sha256:07abc3f43c9395b0bdbbab36bc25ddb0e8d83cd4fcafb5fb7d6abe14ff156dd8 # 16.16, 2026-11-24 (la misma menor que Neon)
+  # `age` recibe el volcado sin cifrar: release oficial con versión y SHA-256 fijos, no apt (sin
+  # versión fija ni verificación, y su DNS ya tumbó una corrida). Actualizar en un PR:
+  # `gh api repos/FiloSottile/age/releases/latest` (campo `digest` del asset linux-amd64) y
+  # comprobarlo con `sha256sum` sobre el archivo descargado.
+  AGE_VERSION: v1.3.2 # 2026-08-29
+  AGE_SHA256: cbe24006683f8eb669266162894b9a522a1af52f2665fbc63a4bb032ed26ac10
   MIGRATIONS_DIR: modules/backend/src/main/resources/db/migration
   VERIFY_SCRIPT: .github/scripts/db-backup-verify.sh
   RESTORE_URL: postgresql://restore:restore@localhost:5432/restore
@@ -121,11 +127,17 @@ jobs:
         env:
           AGE_RECIPIENT: ${{ vars.BACKUP_AGE_RECIPIENT }}
         run: |
-          sudo apt-get update -qq
-          sudo apt-get install -y -qq age > /dev/null
-          age --version
+          # Fuera de $RUNNER_TEMP/backup: nada de esto se sube como artifact.
+          bin="$RUNNER_TEMP/age-bin"
+          mkdir -p "$bin"
+          curl -fsSL --proto '=https' --tlsv1.2 --retry 3 -o "$bin/age.tar.gz" \
+            "https://github.com/FiloSottile/age/releases/download/$AGE_VERSION/age-$AGE_VERSION-linux-amd64.tar.gz"
+          # Si el hash no coincide, el paso falla antes de que el binario toque el volcado.
+          echo "$AGE_SHA256  $bin/age.tar.gz" | sha256sum --check --strict -
+          tar -xzf "$bin/age.tar.gz" -C "$bin" --strip-components=1 age/age
+          "$bin/age" --version
           name="db-backup-$(date -u +%F)"
-          age -r "$AGE_RECIPIENT" -o "$RUNNER_TEMP/backup/$name.dump.age" "$RUNNER_TEMP/backup/db.dump"
+          "$bin/age" -r "$AGE_RECIPIENT" -o "$RUNNER_TEMP/backup/$name.dump.age" "$RUNNER_TEMP/backup/db.dump"
           rm -f "$RUNNER_TEMP/backup/db.dump"
           test -s "$RUNNER_TEMP/backup/$name.dump.age"
           echo "name=$name" >> "$GITHUB_OUTPUT"
@@ -143,4 +155,4 @@ jobs:
       # Siempre, también si algo falló: no queda nada de la copia en el runner.
       - name: Limpieza
         if: always()
-        run: rm -rf "$RUNNER_TEMP/backup"
+        run: rm -rf "$RUNNER_TEMP/backup" "$RUNNER_TEMP/age-bin"

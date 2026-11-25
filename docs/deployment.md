@@ -172,6 +172,8 @@ El secreto `BACKUP_DATABASE_URL` es la URL libpq **directa** del rol (sin `-pool
 
 **La clave privada** (`dentdesk-backup.key`, generada con `age-keygen` en la PC del responsable, **propia de Dentdesk**, distinta de la de HSO) está en **dos lugares**: Bitwarden (nota segura) y un disco externo. Nunca entra a GitHub ni al repo. Si se pierden las dos, las copias quedan ilegibles para siempre.
 
+**El `age` del workflow** se descarga del release oficial con versión y SHA-256 fijos (`AGE_VERSION`/`AGE_SHA256` en `db-backup.yml`), con el mismo criterio que la imagen de PostgreSQL fijada por digest: es el paso que recibe el volcado en claro. Si el hash no coincide, el paso falla antes de cifrar. Para descifrar alcanza cualquier `age` v1 (el formato es estable).
+
 **Supuestos operativos** (si cambia alguno, las copias pueden parar sin aviso):
 - el repositorio sigue **privado** (si pasa a público, GitHub desactiva los programados tras 60 días sin actividad y los logs quedan a la vista);
 - `dev` sigue siendo la rama por defecto: los programados corren desde ahí;
