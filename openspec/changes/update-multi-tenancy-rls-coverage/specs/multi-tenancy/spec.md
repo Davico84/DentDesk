@@ -65,7 +65,7 @@ Toda función o procedimiento `SECURITY DEFINER` de `public` que no pertenezca a
 - **THEN** la prueba de inventario no las exige en la lista
 
 ### Requirement: Nada queda fuera del inventario sin decidirse
-La prueba de inventario MUST fallar si en `public` existe una vista o vista materializada, si existe una tabla, vista o función en un esquema de usuario distinto de `public`, o si el rol con el que lee tiene `SUPERUSER` o `BYPASSRLS` o puede asumir con `SET ROLE` un rol que los tenga. Cada uno de esos casos SHALL decidirse en su propio cambio.
+La prueba de inventario MUST fallar si en `public` existe una vista o vista materializada, si existe una tabla, vista o función en un esquema de usuario distinto de `public`, o si el rol con el que lee tiene `SUPERUSER` o `BYPASSRLS`, es dueño de una tabla de `public`, o puede asumir con `SET ROLE` un rol con esos atributos o al dueño. Cada uno de esos casos SHALL decidirse en su propio cambio.
 
 #### Scenario: Vista nueva
 - **WHEN** una migración crea una vista en `public`
@@ -78,6 +78,10 @@ La prueba de inventario MUST fallar si en `public` existe una vista o vista mate
 #### Scenario: Rol que salta la RLS
 - **WHEN** el rol con el que lee la prueba tiene `BYPASSRLS`, o es miembro con opción `SET` de un rol que lo tiene
 - **THEN** la prueba de inventario falla en vez de clasificar
+
+#### Scenario: Rol que puede asumir al dueño de las tablas
+- **WHEN** el rol con el que lee es miembro con opción `SET` del rol dueño de las tablas de `public`
+- **THEN** la prueba de inventario falla
 
 #### Scenario: Membresía solo con INHERIT
 - **WHEN** el rol con el que lee es miembro sin opción `SET` de un rol con `BYPASSRLS`

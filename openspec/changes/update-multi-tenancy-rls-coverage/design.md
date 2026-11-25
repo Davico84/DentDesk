@@ -43,11 +43,11 @@ Nota: el catálogo CIE se llama `cie10_code`; en conversaciones previas se abrev
 
 ⚠️ **No `information_schema.columns`**: solo muestra columnas de tablas sobre las que el rol tiene algún privilegio; una tabla sin `GRANT` para `odontorisas_app` **desaparecería del inventario** y la prueba pasaría vacía justo donde más importa. `pg_class`/`pg_attribute` no filtran por privilegio. Se excluye `flyway_schema_history` por nombre.
 
-El IT es fino: solo extrae una instantánea (`List<TableInfo>`: nombre, `hasOrgId`, `rlsEnabled`, `rlsForced`, `policyCount`; y `List<FunctionInfo>`: firma, valor de `search_path` o vacío; y `RoleInfo` del rol conectado, ver D7).
+El IT es fino: solo extrae una instantánea (`List<TableInfo>`: nombre, `hasOrgId`, `rlsEnabled`, `rlsForced`, `policyCount`; y `List<FunctionInfo>`: firma, valor de `search_path` o vacío; y `RoleInfo` del rol de sesión, ver D7).
 
 ### D2. La clasificación es una función pura, con las listas como datos
 `TenantTableClassification.evaluate(List<TableInfo>, List<FunctionInfo>) → List<Violation>` es una clase de test **sin Spring ni Docker**. Las cinco listas viven en ella como `Map<String, String>` (tabla o función → **motivo**; para la lista 3 también el ADR y para la 5 los tests que la cubren). Reglas (cada una nombra la tabla y la regla):
-1. **sin clasificar**; 2. **entrada obsoleta**; 3. **en dos listas**; 4. lista 1/2 sin RLS habilitada, **forzada** o sin política; 5. lista 1 sin `organization_id`; 6. lista 3 con RLS (debe migrar a la 1); 7. lista 3 sin `organization_id` (mal clasificada); 8. lista 4 con `organization_id`; 9. función `SECURITY DEFINER` sin declarar; 10. función declarada que ya no existe o dejó de ser `SECURITY DEFINER` (obsoleta); 11. función `SECURITY DEFINER` cuyo `search_path` no está fijado **exactamente** a un valor permitido (hoy solo `public`, el de V24 y V32): un `search_path` heredado o laxo permite que un objeto con el mismo nombre en otro esquema suplante a la tabla real; ampliar la lista de valores permitidos es una edición visible en el diff; 12. vista o vista materializada en `public` (D8); 13. tabla, vista o función en un esquema de usuario distinto de `public` (D8); 14. rol conectado que tiene `SUPERUSER` o `BYPASSRLS`, o que puede asumir con `SET ROLE` un rol que los tenga (D7).
+1. **sin clasificar**; 2. **entrada obsoleta**; 3. **en dos listas**; 4. lista 1/2 sin RLS habilitada, **forzada** o sin política; 5. lista 1 sin `organization_id`; 6. lista 3 con RLS (debe migrar a la 1); 7. lista 3 sin `organization_id` (mal clasificada); 8. lista 4 con `organization_id`; 9. función `SECURITY DEFINER` sin declarar; 10. función declarada que ya no existe o dejó de ser `SECURITY DEFINER` (obsoleta); 11. función `SECURITY DEFINER` cuyo `search_path` no está fijado **exactamente** a un valor permitido (hoy solo `public`, el de V24 y V32): un `search_path` heredado o laxo permite que un objeto con el mismo nombre en otro esquema suplante a la tabla real; ampliar la lista de valores permitidos es una edición visible en el diff; 12. vista o vista materializada en `public` (D8); 13. tabla, vista o función en un esquema de usuario distinto de `public` (D8); 14. rol de sesión que tiene `SUPERUSER` o `BYPASSRLS`, o que puede asumir con `SET ROLE` un rol que los tenga (D7); 15. rol de sesión dueño de una tabla de `public` o capaz de asumir con `SET ROLE` a su dueño (D7).
 
 La lista 5 **no** prueba que la función aísle bien (eso lo hacen los tests que nombra): garantiza que **ninguna función que salta la RLS entra sin declararse y sin nombrar su test**, igual que D6 para las tablas.
 
@@ -71,16 +71,26 @@ Se concluye **válida con matiz**, con lo verificado (un único endpoint de plat
 ### D6. El inventario es un candado de **clasificación**, no de corrección
 "Con política" es una garantía **estructural**: existe al menos una política en el catálogo, no que alguna aplique al rol de aplicación. Que una tabla esté en la lista 1 con RLS forzada **no prueba** que su política sea correcta (y el conteo de políticas incluye las de solo lectura del dueño de migraciones que agregó V32 sobre `memberships` y `professional_credential`, `migration_owner_read ... TO CURRENT_USER`: para el rol de aplicación no aplican, y con RLS forzada sin política aplicable el motor niega todo, así que el error posible es por defecto cerrado); eso lo siguen probando los `*RlsIT` por capacidad (obligatorios). El inventario garantiza que **ninguna tabla escapa a la decisión**, no que cada decisión sea buena. Se dice así en `docs/testing.md`.
 
-### D7. El rol conectado no puede saltarse la RLS
+### D7. El rol de sesión no puede saltarse la RLS
 `SUPERUSER` y `BYPASSRLS` son **atributos** del rol y **no se heredan** por membresía (`INHERIT` solo transmite privilegios sobre objetos). El riesgo real es otro: que el rol pueda **asumir** con `SET ROLE` un rol que los tenga. Por eso el IT pregunta exactamente eso:
 
 ```sql
 SELECT r.rolname FROM pg_roles r
 WHERE (r.rolsuper OR r.rolbypassrls)
-  AND pg_has_role(current_user, r.oid, 'SET')
+  AND pg_has_role(session_user, r.oid, 'SET')
 ```
 
-`pg_has_role(..., 'SET')` (PostgreSQL 16; Neon corre 16.16) es verdadero para el propio rol y para todo rol alcanzable por una cadena de membresías **con la opción `SET`** en cada paso, que es lo que permite `SET ROLE`. Cubre en una consulta el atributo directo y la cadena, sin recursión escrita a mano. Una membresía **solo con `INHERIT`** (`SET FALSE`) hacia un rol con `BYPASSRLS` **no** cuenta: no permite asumirlo ni transmite el atributo. Cualquier fila devuelta es violación (regla 14). En Neon, el caso a vigilar es una membresía con `SET` hacia `neon_superuser`. En CI el rol lo crea `AbstractRlsIntegrationTest` (`NOSUPERUSER NOBYPASSRLS`), así que la aserción vigila que ese setup no se relaje sin que nadie lo vea; **no verifica el rol de producción**, que la CI no alcanza. La misma consulta queda en `docs/deployment.md` como chequeo manual contra Neon para `odontorisas_app`.
+Se evalúa `session_user` (el rol que abrió la conexión), no `current_user`, que cambia tras un `SET ROLE`. `pg_has_role(..., 'SET')` (PostgreSQL 16; Neon corre 16.16) es verdadero para el propio rol y para todo rol alcanzable por una cadena de membresías **con la opción `SET`** en cada paso, que es lo que permite `SET ROLE`. Cubre en una consulta el atributo directo y la cadena, sin recursión escrita a mano. Una membresía **solo con `INHERIT`** (`SET FALSE`) hacia un rol con `BYPASSRLS` **no** cuenta: no permite asumirlo ni transmite el atributo. Cualquier fila devuelta es violación (regla 14). En Neon, el caso a vigilar es una membresía con `SET` hacia `neon_superuser`.
+
+**El dueño de las tablas es la otra vía, y se cubre con una segunda consulta.** Un dueño salta la RLS de su tabla si no está forzada; con `FORCE` (exigido a las listas 1 y 2 por la regla 4) no la salta, **pero** V32 le dio a `odontorisas_admin` una política de solo lectura sobre `memberships` y `professional_credential` (`migration_owner_read ... TO CURRENT_USER USING (true)`): quien pueda actuar como el dueño lee esas filas de **todas** las clínicas. Por eso la regla 15 exige que el rol de sesión **no sea dueño** de ninguna tabla de `public` **ni pueda asumir** con `SET ROLE` a su dueño:
+
+```sql
+SELECT c.relname FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
+WHERE n.nspname = 'public' AND c.relkind IN ('r','p')
+  AND pg_has_role(session_user, c.relowner, 'SET')
+```
+
+Es la misma separación que `docs/deployment.md` ya exige entre el rol de la app y el de Flyway, ahora comprobada en CI. **Fuera de alcance, dicho:** `pg_read_all_data`/`pg_write_all_data` (conceden privilegios sobre objetos, no saltan la RLS) y `ADMIN OPTION` (administra membresías; no da el bypass por sí sola). En CI el rol lo crea `AbstractRlsIntegrationTest` (`NOSUPERUSER NOBYPASSRLS`), así que la aserción vigila que ese setup no se relaje sin que nadie lo vea; **no verifica el rol de producción**, que la CI no alcanza. La misma consulta queda en `docs/deployment.md` como chequeo manual contra Neon para `odontorisas_app`.
 
 ### D8. Lo que el inventario no mira, decidido y no callado
 - **Vistas y vistas materializadas en `public`**: hoy no hay ninguna. Una vista puede exponer filas de varias clínicas (sin `security_invoker`, corre con los permisos de su dueño), así que **la primera rompe el inventario** (regla 12) y obliga a decidir en su propio change cómo se aísla; no se diseña una lista para un objeto que no existe.
