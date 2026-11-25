@@ -16,7 +16,7 @@ Se sostenía que *"toda entidad de negocio lleva `organization_id` + RLS"*, con 
 
 ## Decisión
 
-### D1. Cada tabla pertenece a una de cuatro listas, y la build lo comprueba
+### D1. Cada tabla pertenece a una de cuatro listas, cada función que salta la RLS a una quinta, y la build lo comprueba
 Un test de inventario (`TenantTableInventoryIT`, como rol de aplicación no superusuario, leyendo `pg_class`/`pg_attribute`/`pg_policies`) exige que **toda** tabla de `public` esté en exactamente una lista, y que las listas coincidan con la realidad:
 
 | Lista | Tablas (estado a 2026-11-24, con V32) | Exige |
@@ -25,6 +25,8 @@ Un test de inventario (`TenantTableInventoryIT`, como rol de aplicación no supe
 | **2. Por identidad** | `memberships`, `professional_credential` | RLS habilitada, forzada y con política (clave `user_id`) |
 | **3. Excepción por clínica** | `organization_settings`, `organization_branding` (`ADR-0003`) · `invitations` (**D2**) | `organization_id`, **sin** RLS; motivo + ADR |
 | **4. Sin `organization_id`** | `organizations`, `users`, `refresh_tokens`, `password_reset_tokens`, `platform_admins`, `cie10_code`, `dental_finding_catalog`, `app_metadata` | no tener `organization_id` |
+
+Además, una **quinta lista** declara las funciones `SECURITY DEFINER` de `public` que no son de una extensión (hoy `current_user_is_org_admin`, V24, y `clinic_capacity_facts`, V32), con motivo y los tests que las cubren, y exige que fijen `search_path`. Son la única vía para leer por encima de la RLS del rol de aplicación: una nueva no entra sin declararse.
 
 Las 14 tablas con RLS son 12 + 2. `flyway_schema_history` se excluye (la crea Flyway).
 

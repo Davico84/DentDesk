@@ -4,6 +4,7 @@ La regla de `multi-tenancy` es *"toda entidad de **negocio** lleva `organization
 
 - **`invitations` tiene `organization_id` y no tiene RLS, y ningún ADR la cubre.** Guarda hashes de token y de código de verificación y correos del personal. Hoy se aísla solo por código: el listado filtra por `OrganizationContext` en la consulta, `resend`/`revoke` cargan por id y comparan la organización *después* de leer (y bloquear) la fila, y la entidad no lleva `@TenantId`. El código es correcto hoy; **no hay red debajo y nadie lo decidió por escrito.**
 - **`ADR-0003` (settings/branding sin RLS) se escribió antes de `platform-admin`.** Sus condiciones de invalidación mencionan un panel de superadministrador que opere sobre otra organización, y `PlatformOrganizationService.provision` ya guarda `OrganizationSettings` de organizaciones nuevas en producción. Nadie lo revalidó.
+- **Hay funciones que leen saltándose la RLS del rol de aplicación y nadie las inventaría.** `current_user_is_org_admin` (V24, usada por las políticas de V28/V30 y el trigger de revocación) y `clinic_capacity_facts` (V32, la agenda) son `SECURITY DEFINER`: corren con los privilegios del dueño. Cada una tiene sus tests, pero una función nueva de ese tipo podría entrar sin que nadie la declare ni la pruebe.
 - **Nada impide que la próxima tabla con `organization_id` entre sin RLS.** Un test de aislamiento por capacidad es obligatorio por regla (`docs/testing.md §5`), pero no hay ningún control que detecte una tabla **sin clasificar**. `appointments` (V32) acaba de llegar: entró bien, pero nada lo exigía.
 
 Es el mismo patrón de "regla en prosa que se incumple" que ya se cerró para capas y `@Async`. Se cierra con un inventario que rompe la build, no con otro párrafo.
@@ -15,7 +16,8 @@ Es el mismo patrón de "regla en prosa que se incumple" que ya se cerró para ca
   2. aisladas **por identidad** (`memberships`, `professional_credential`): RLS habilitada, forzada y con política;
   3. **excepciones por clínica** (con `organization_id` y **sin** RLS): `invitations`, `organization_settings`, `organization_branding`, cada una con motivo y ADR;
   4. **sin `organization_id`** (tenant raíz, identidad global, catálogos): `organizations`, `users`, `refresh_tokens`, `password_reset_tokens`, `platform_admins`, `cie10_code`, `dental_finding_catalog`, `app_metadata`.
-  El test falla ante tabla sin clasificar, entrada obsoleta, RLS ausente o no forzada, o tabla con `organization_id` mal clasificada. La lógica de clasificación es una función pura probada con instantáneas sintéticas (sin Docker), de modo que **se ve fallar**.
+  5. **funciones `SECURITY DEFINER`** de `public` (sin contar las de extensiones como `btree_gist`): `current_user_is_org_admin`, `clinic_capacity_facts`, cada una con motivo y los tests que la cubren; deben fijar `search_path`.
+  El test falla ante tabla sin clasificar, entrada obsoleta, RLS ausente o no forzada, tabla con `organization_id` mal clasificada, o función `SECURITY DEFINER` sin declarar, obsoleta o sin `search_path` fijo. La lógica de clasificación es una función pura probada con instantáneas sintéticas (sin Docker), de modo que **se ve fallar**.
 - **ADR-0022**: clasifica cada tabla, **documenta `invitations` como excepción conocida** (motivo, riesgo y condiciones que la invalidan) y **revalida `ADR-0003` contra `platform-admin`**. Conclusión adelantada tras leer el código: **válida con matiz** (el `organizationId` de `provision` lo genera el propio servicio al crear la organización, no viene de la petición; lo que cambia es que la invariante "siempre del token" deja de ser literal). El ADR deja constancia de qué se verificó y qué no.
 - **`ADR-0003`** solo anota su estado (*"Válida con matiz — ver ADR-0022"*), como pide `docs/adr/README.md`.
 - **Docs:** `docs/backend.md §8.1`, `docs/architecture.md` (aislamiento), `docs/testing.md` y `docs/vision.md` apuntan al inventario y a la lista única de clasificación.
@@ -26,7 +28,7 @@ Es el mismo patrón de "regla en prosa que se incumple" que ya se cerró para ca
 <!-- ninguna -->
 
 ### Modified Capabilities
-- `multi-tenancy`: ADDED requirements de inventario de tablas y cobertura de RLS. No se modifica ningún requirement existente ni su `Purpose`.
+- `multi-tenancy`: ADDED requirements de inventario de tablas, cobertura de RLS y funciones que la saltan. No se modifica ningún requirement existente ni su `Purpose`.
 
 ## Impact
 

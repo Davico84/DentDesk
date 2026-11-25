@@ -45,6 +45,21 @@ Una tabla con columna `organization_id` y sin RLS SHALL figurar como excepción 
 - **WHEN** una tabla de la lista sin organización gana una columna `organization_id`
 - **THEN** la prueba de inventario falla y nombra la tabla
 
+### Requirement: Toda función que salta la RLS se declara
+Toda función `SECURITY DEFINER` del esquema `public` que no pertenezca a una extensión SHALL figurar en una lista declarada con su motivo y los tests que la cubren, y MUST fijar su `search_path`. La build MUST fallar ante una función sin declarar, una entrada obsoleta o una función sin `search_path` fijo.
+
+#### Scenario: Función SECURITY DEFINER sin declarar
+- **WHEN** una migración crea una función `SECURITY DEFINER` que no figura en la lista
+- **THEN** la prueba de inventario falla y nombra la función
+
+#### Scenario: Función sin search_path fijo
+- **WHEN** una función declarada es `SECURITY DEFINER` y no fija `search_path`
+- **THEN** la prueba de inventario falla y nombra la función
+
+#### Scenario: Funciones de extensiones ignoradas
+- **WHEN** una extensión instala funciones en `public`
+- **THEN** la prueba de inventario no las exige en la lista
+
 ### Requirement: El inventario se verifica como rol de aplicación y se prueba fallando
 La prueba de inventario SHALL leer el catálogo de PostgreSQL conectada como el rol de aplicación no superusuario, sin depender de vistas filtradas por privilegios, y su lógica de clasificación MUST tener pruebas con instantáneas sintéticas que demuestren que cada violación hace fallar la regla.
 
