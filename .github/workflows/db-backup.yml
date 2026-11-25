@@ -29,7 +29,11 @@ env:
   # Imagen fijada por digest: recibe el secreto y el volcado, así que nunca un tag mutable.
   # Actualizar en un PR: `docker buildx imagetools inspect postgres:16` (Digest del índice).
   # El servicio `restore` repite el mismo valor (no admite expresiones de `env`).
-  PG_IMAGE: postgres:16@sha256:9e2cf6287f25c3151f4c9421ccce2b17f3e60061c111a29165e0d2cdd9ff0a97 # 2026-10-26
+  # La menor NO puede quedar por detrás de la de Neon: desde 16.16 el servidor guarda la opción
+  # interna `pg_attver` en las columnas agregadas con ADD COLUMN (V32: business_hours), pg_dump la
+  # vuelca y una menor anterior la rechaza al restaurar ("unrecognized parameter"). Así fallaron las
+  # copias del 2026-11-25. Ver la versión de Neon con `SELECT version();`.
+  PG_IMAGE: postgres:16@sha256:07abc3f43c9395b0bdbbab36bc25ddb0e8d83cd4fcafb5fb7d6abe14ff156dd8 # 16.16, 2026-11-24 (la misma menor que Neon)
   MIGRATIONS_DIR: modules/backend/src/main/resources/db/migration
   VERIFY_SCRIPT: .github/scripts/db-backup-verify.sh
   RESTORE_URL: postgresql://restore:restore@localhost:5432/restore
@@ -40,7 +44,7 @@ jobs:
     timeout-minutes: 15
     services:
       restore:
-        image: postgres:16@sha256:9e2cf6287f25c3151f4c9421ccce2b17f3e60061c111a29165e0d2cdd9ff0a97
+        image: postgres:16@sha256:07abc3f43c9395b0bdbbab36bc25ddb0e8d83cd4fcafb5fb7d6abe14ff156dd8
         env:
           POSTGRES_DB: restore
           POSTGRES_USER: restore

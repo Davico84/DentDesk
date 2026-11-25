@@ -200,6 +200,8 @@ El volcado descifrado tiene historias clínicas en claro: se borra al terminar y
 
 ```powershell
 docker run -d --name restore-db -e POSTGRES_PASSWORD=restore -p 5433:5432 postgres:16
+# V32 deja en el volcado políticas `TO odontorisas_admin`: sin ese rol, pg_restore aborta.
+docker exec restore-db psql -U postgres -c "CREATE ROLE odontorisas_admin NOLOGIN"
 docker run --rm --network host -v "${PWD}:/backup" postgres:16 pg_restore --no-owner --no-acl --exit-on-error --dbname=postgresql://postgres:restore@localhost:5433/postgres /backup/db.dump
 ```
 
