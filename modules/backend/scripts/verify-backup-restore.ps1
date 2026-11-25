@@ -149,6 +149,9 @@ try {
         # Una sentencia por llamada: psql -c con varias las corre en una transacción y CREATE DATABASE no puede.
         foreach ($stmt in "CREATE ROLE restorer LOGIN NOSUPERUSER NOBYPASSRLS PASSWORD 'local'",
                           "CREATE ROLE odontorisas_app LOGIN NOSUPERUSER NOBYPASSRLS PASSWORD 'local'",
+                          # V32: las políticas `TO CURRENT_USER` llegan al volcado como `TO odontorisas_admin`;
+                          # sin el rol, pg_restore aborta. Sin login: solo existe para recrear la política.
+                          "CREATE ROLE odontorisas_admin NOLOGIN NOSUPERUSER NOBYPASSRLS",
                           "CREATE DATABASE restore OWNER restorer") {
             docker exec -e PGPASSWORD=local $ctr psql -X -q -v ON_ERROR_STOP=1 -h localhost -U postgres -c $stmt | Out-Null
             if ($LASTEXITCODE -ne 0) { throw "no se pudo preparar la base local ($stmt)" }
