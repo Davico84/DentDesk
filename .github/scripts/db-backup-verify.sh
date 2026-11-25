@@ -49,8 +49,13 @@ sql "DO \$\$ BEGIN
      END \$\$" > /dev/null || fail "No se pudieron crear los roles de producción en la base de restauración"
 
 # Sin dueños ni permisos: la base de restauración no tiene los roles de producción.
-pg pg_restore --no-owner --no-acl --exit-on-error --dbname="$RESTORE_URL" /backup/db.dump \
-  || fail "La copia no se restauró (detalle oculto)"
+if ! pg pg_restore --no-owner --no-acl --exit-on-error --dbname="$RESTORE_URL" /backup/db.dump; then
+  # Solo el objeto que falló, de la línea "from TOC entry <id>; <oid> <oid> <TIPO> <esquema> <nombre…>":
+  # tipo y nombres, nunca el mensaje ni el comando (pueden traer valores de filas). Se filtra a un
+  # juego de caracteres seguro por si acaso.
+  failed=$(sed -nE 's/^pg_restore: from TOC entry [0-9]+; [0-9]+ [0-9]+ //p' "$ERR" | head -n 1 | tr -cd 'A-Za-z0-9_. ')
+  fail "La copia no se restauró (objeto: ${failed:-desconocido}; detalle oculto)"
+fi
 
 # Migraciones: la mayor versión aplicada con éxito, comparada como número dentro de PostgreSQL
 # (V29 > V10 > V9; 29 = 29.0). `expected` son solo dígitos: se puede escribir en la consulta.
