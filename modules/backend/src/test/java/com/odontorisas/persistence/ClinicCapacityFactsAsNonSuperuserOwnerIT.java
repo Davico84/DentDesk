@@ -120,6 +120,79 @@ class ClinicCapacityFactsAsNonSuperuserOwnerIT extends AbstractRlsIntegrationTes
         }
     }
 
+    /**
+     * V33: la política del dueño no nombra un rol. Con {@code TO CURRENT_USER} (V32) el catálogo guardaba el rol
+     * que migró, pg_dump lo escribía y una copia no se restauraba en una base sin ese rol.
+     */
+    @Test
+    void the_owner_read_policy_names_no_role() throws SQLException {
+        try (Connection c = DriverManager.getConnection(url, owner, ownerPassword); Statement st = c.createStatement();
+             ResultSet rs = st.executeQuery("SELECT tablename, roles::text, qual FROM pg_policies "
+                 + "WHERE schemaname = 'public' AND policyname = 'migration_owner_read' ORDER BY tablename")) {
+            int found = 0;
+            while (rs.next()) {
+                found++;
+                assertThat(rs.getString("roles")).as(rs.getString("tablename")).isEqualTo("{public}");
+                assertThat(rs.getString("qual")).as(rs.getString("tablename")).doesNotContain(owner);
+            }
+            assertThat(found).as("memberships y professional_credential").isEqualTo(2);
+        }
+    }
+
+    /**
+     * V33, el ciclo real de la copia (db-backup.yml): pg_dump como el workflow, y pg_restore {@code --no-owner}
+     * con un rol distinto del dueño original. El volcado no nombra al dueño en ninguna política (con V32 decía
+     * {@code TO <dueño>} y la restauración abortaba donde ese rol no existe), y tras restaurar la política sigue
+     * siendo "el dueño lee": el nuevo dueño ve las filas de todas las clínicas pese a la RLS forzada.
+     */
+    @Test
+    void a_dump_restores_without_the_owner_role_and_the_new_owner_reads() throws SQLException {
+        String database = url.replaceFirst("^.*/([^/?]+)(\\?.*)?$", "$1");
+        String dump = "/tmp/" + database + ".dump";
+        var dumped = execInDatabaseContainer("pg_dump", "-U", containerSuperuser(), "--format=custom", "--no-owner",
+            "--no-acl", "--dbname=" + database, "--file=" + dump);
+        assertThat(dumped.getExitCode()).as(dumped.getStderr()).isZero();
+
+        var script = execInDatabaseContainer("pg_restore", "--no-owner", "--no-acl", "--file=-", dump);
+        assertThat(script.getExitCode()).as(script.getStderr()).isZero();
+        assertThat(script.getStdout()).contains("CREATE POLICY migration_owner_read");
+        assertThat(script.getStdout().lines().filter(l -> l.contains("CREATE POLICY")))
+            .as("ninguna política nombra al dueño de las migraciones").noneMatch(l -> l.contains(owner));
+
+        String restorer = owner + "_r";
+        String restored = database + "_r";
+        try (Connection su = ownerConnection(); Statement st = su.createStatement()) {
+            st.execute("CREATE ROLE " + restorer + " LOGIN PASSWORD '" + ownerPassword + "' NOSUPERUSER NOBYPASSRLS");
+            st.execute("CREATE DATABASE " + restored + " OWNER " + restorer);
+        }
+        var restoredRun = execInDatabaseContainer("pg_restore", "-U", restorer, "--no-owner", "--no-acl",
+            "--exit-on-error", "--dbname=" + restored, dump);
+        assertThat(restoredRun.getExitCode()).as(restoredRun.getStderr()).isZero();
+
+        String restoredUrl = url.replaceFirst("/[^/?]+(\\?|$)", "/" + restored + "$1");
+        try (Connection c = DriverManager.getConnection(restoredUrl, restorer, ownerPassword);
+             Statement st = c.createStatement()) {
+            st.execute("SELECT set_config('app.user_id', '999', false)"); // nadie: solo la política del dueño
+            assertThat(count(c, "SELECT count(*) FROM memberships")).as("el nuevo dueño lee todas").isEqualTo(4);
+            assertThat(count(c, "SELECT count(*) FROM professional_credential")).isEqualTo(1);
+        }
+    }
+
+    /** V33 es más estricta que V32: un miembro del rol dueño ya no recibe la política, solo el dueño exacto. */
+    @Test
+    void a_member_of_the_owner_role_does_not_get_the_owner_read_policy() throws SQLException {
+        String member = owner + "_m";
+        try (Connection su = ownerConnection(); Statement st = su.createStatement()) {
+            st.execute("CREATE ROLE " + member + " LOGIN PASSWORD '" + ownerPassword + "' NOSUPERUSER NOBYPASSRLS");
+            st.execute("GRANT " + owner + " TO " + member + " WITH INHERIT TRUE, SET FALSE");
+        }
+        try (Connection m = DriverManager.getConnection(url, member, ownerPassword); Statement st = m.createStatement()) {
+            st.execute("SELECT set_config('app.user_id', '" + CALLER + "', false)");
+            st.execute("SELECT set_config('app.organization_id', '1', false)");
+            assertThat(count(m, "SELECT count(*) FROM memberships")).as("solo la propia, por la política de V28").isEqualTo(1);
+        }
+    }
+
     @Test
     void a_caller_outside_the_token_clinic_sees_nothing() throws SQLException {
         try (Connection app = asApp(OUTSIDER, 1)) {

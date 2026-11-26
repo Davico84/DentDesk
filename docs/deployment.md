@@ -176,7 +176,7 @@ El secreto `BACKUP_DATABASE_URL` es la URL libpq **directa** del rol (sin `-pool
 
 **Supuestos operativos** (si cambia alguno, las copias pueden parar sin aviso):
 - el repositorio sigue **privado** (si pasa a público, GitHub desactiva los programados tras 60 días sin actividad y los logs quedan a la vista);
-- `dev` sigue siendo la rama por defecto: los programados corren desde ahí;
+- `dev` sigue siendo la rama por defecto: los programados corren desde ahí, pero verifican contra las migraciones y el script de **`main`** (lo que Render despliega), así que una migración en `dev` sin liberar no tumba la copia. Queda una ventana de minutos tras cada release, mientras Render migra: una copia que caiga ahí falla y la siguiente sale bien;
 - Actions sigue habilitado en el repositorio.
 
 **Cupo gratuito del repo privado** (500 MB de artifacts, 2.000 min/mes de Actions). Medido en la primera copia (2026-10-26, base en V29): artifact de **304 KB** y job de **51 s**, o sea ≈ 27 MB (5 %) y ≈ 26 min/mes (1,3 %). La cuenta: `tamaño del artifact × 90` contra 500 MB y `minutos por corrida × 30` contra 2.000. Al pasar el **80 %** de cualquiera de los dos, se baja la retención o se mueve la copia a otro almacenamiento, en un change. Si el cupo se llena, la subida falla y el workflow queda rojo. Uso actual: *Settings → Billing and plans*.
@@ -202,7 +202,7 @@ El volcado descifrado tiene historias clínicas en claro: se borra al terminar y
 
 ```powershell
 docker run -d --name restore-db -e POSTGRES_PASSWORD=restore -p 5433:5432 postgres:16
-# V32 deja en el volcado políticas `TO odontorisas_admin`: sin ese rol, pg_restore aborta.
+# Solo copias entre V32 y V33 (traen políticas `TO odontorisas_admin`; sin el rol, pg_restore aborta).
 docker exec restore-db psql -U postgres -c "CREATE ROLE odontorisas_admin NOLOGIN"
 docker run --rm --network host -v "${PWD}:/backup" postgres:16 pg_restore --no-owner --no-acl --exit-on-error --dbname=postgresql://postgres:restore@localhost:5433/postgres /backup/db.dump
 ```

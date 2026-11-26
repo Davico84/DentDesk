@@ -38,17 +38,9 @@ expected=$(find "$MIGRATIONS_DIR" -maxdepth 1 -type f -printf '%f\n' | sed -nE '
 for _ in $(seq 30); do pg pg_isready -q -d "$RESTORE_URL" && break; sleep 2; done
 pg pg_isready -q -d "$RESTORE_URL" || fail "La base de restauración no responde"
 
-# Roles de producción que el volcado nombra fuera de dueños y permisos: V32 crea políticas
-# `TO CURRENT_USER`, que pg_dump escribe con el nombre del dueño de las migraciones
-# (`TO odontorisas_admin`), y --no-acl no las omite. Sin el rol, pg_restore aborta. Se crean sin
-# login ni atributos: solo existen para que la política se pueda recrear.
-sql "DO \$\$ BEGIN
-       IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'odontorisas_admin') THEN
-         CREATE ROLE odontorisas_admin NOLOGIN NOSUPERUSER NOBYPASSRLS;
-       END IF;
-     END \$\$" > /dev/null || fail "No se pudieron crear los roles de producción en la base de restauración"
-
-# Sin dueños ni permisos: la base de restauración no tiene los roles de producción.
+# Sin dueños ni permisos: la base de restauración no tiene los roles de producción, y el volcado no
+# puede nombrarlos fuera de dueños y permisos (V33 dejó de hacerlo en las políticas): si alguna
+# migración vuelve a nombrar un rol, esta restauración falla y lo avisa.
 if ! pg pg_restore --no-owner --no-acl --exit-on-error --dbname="$RESTORE_URL" /backup/db.dump; then
   # Solo el objeto que falló, de la línea "from TOC entry <id>; <oid> <oid> <TIPO> <esquema> <nombre…>":
   # tipo y nombres, nunca el mensaje ni el comando (pueden traer valores de filas). Se filtra a un
