@@ -53,8 +53,10 @@ def gh_api(*args):
 
 
 def remote(name):
-    ids = gh_api("--paginate", "repos/{owner}/{repo}/rulesets",
-                 "--jq", f'.[] | select(.name == "{name}") | .id').split()
+    # Todas las páginas como un arreglo de páginas; el nombre se filtra acá, como dato, nunca dentro de
+    # un programa jq.
+    pages = json.loads(gh_api("--paginate", "--slurp", "repos/{owner}/{repo}/rulesets"))
+    ids = [r["id"] for page in pages for r in page if r.get("name") == name]
     if len(ids) != 1:
         fail(f"se esperaba un Ruleset llamado '{name}' y hay {len(ids)}")
     return json.loads(gh_api(f"repos/{{owner}}/{{repo}}/rulesets/{ids[0]}"))
