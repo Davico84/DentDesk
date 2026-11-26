@@ -510,7 +510,10 @@ class AppointmentServiceIT extends AbstractConsultationNoteIT {
             .isInstanceOf(ClinicalCapacityRequiredException.class);
 
         asUser(otherUser);
-        sql("UPDATE professional_credential SET licensed_until = current_date - 1 WHERE user_id = " + otherUser);
+        // "Ayer" en Lima, como lo evalúa ClinicalCapacityService: current_date es la fecha del servidor (UTC en
+        // CI) y entre las 00:00 y las 05:00 UTC su "ayer" es el "hoy" de Lima, todavía vigente.
+        sql("UPDATE professional_credential SET licensed_until = (now() AT TIME ZONE 'America/Lima')::date - 1 "
+            + "WHERE user_id = " + otherUser);
         assertThatThrownBy(() -> appointmentService.attendWithNote(started))
             .isInstanceOf(ClinicalCapacityRequiredException.class);
         assertUnchanged(started);
