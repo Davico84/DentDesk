@@ -23,7 +23,7 @@
 
 ## 4. Verificación de los checks, antes de aplicar el Ruleset (scope: ci)
 
-- [ ] 4.1 En el PR de este change (toca los tres YAML), comprobar con `gh api repos/{owner}/{repo}/commits/{sha}/check-runs -q '.check_runs[] | "\(.name) \(.app.id)"'` que aparecen exactamente los seis nombres con app id 15368 (scenario "Nombres publicados").
+- [x] 4.1 En el PR de este change (toca los tres YAML), comprobar con `gh api repos/{owner}/{repo}/commits/{sha}/check-runs -q '.check_runs[] | "\(.name) \(.app.id)"'` que aparecen exactamente los seis nombres con app id 15368 (scenario "Nombres publicados").
 - [ ] 4.2 Tras mergear a `dev`, en el siguiente PR que solo toque `docs/` comprobar que corren los seis checks (scenario "PR solo de documentación"). Y en el push del merge, que no corren los workflows de áreas no tocadas (scenario "Push que no toca el área").
 
 ## 5. Aplicar y activar el Ruleset (scope: ci, con autorización del user en cada paso)
