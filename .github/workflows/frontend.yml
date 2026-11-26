@@ -1,14 +1,10 @@
 name: Frontend
 
 on:
+  # Sin filtro de rutas en los PR: el Ruleset de main exige los seis checks y uno que no se dispara
+  # queda pendiente para siempre (update-ci-required-checks). En push el filtro se mantiene.
   pull_request:
     branches: [main, dev]
-    paths:
-      - "modules/frontend/**"
-      - "contracts/**"
-      - "pnpm-workspace.yaml"
-      - "pnpm-lock.yaml"
-      - ".github/workflows/frontend.yml"
   push:
     branches: [main, dev]
     paths:
@@ -28,6 +24,7 @@ defaults:
 
 jobs:
   lint:
+    name: frontend-lint
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -48,6 +45,7 @@ jobs:
   # la vigila ContractDriftIT en el `verify` del backend. Entre ambas, la cadena
   # backend → contrato → cliente no puede desincronizarse sin que CI lo detecte.
   codegen-drift:
+    name: frontend-codegen-drift
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -68,6 +66,7 @@ jobs:
           }
 
   test:
+    name: frontend-test
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -91,6 +90,7 @@ jobs:
   # server. Cubre flujos que degradan con gracia sin API (bootstrap de sesión →
   # no autenticado → login). El CRUD real contra datos reales sigue pendiente.
   e2e-smoke:
+    name: frontend-e2e-smoke
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

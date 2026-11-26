@@ -1,11 +1,10 @@
 name: Backend
 
 on:
+  # Sin filtro de rutas en los PR: el Ruleset de main exige los seis checks y uno que no se dispara
+  # queda pendiente para siempre (update-ci-required-checks). En push el filtro se mantiene.
   pull_request:
     branches: [main, dev]
-    paths:
-      - "modules/backend/**"
-      - ".github/workflows/backend.yml"
   push:
     branches: [main, dev]
     paths:
@@ -29,6 +28,7 @@ jobs:
   # regenerar el contrato ROMPE LA BUILD. Se resuelve como test (y no como un job que arranque un
   # servidor y le haga curl) porque es la vía más estable en CI.
   verify:
+    name: backend-verify
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

@@ -92,7 +92,7 @@ Usa `renderHook` con un `wrapper` que provea un `QueryClient` nuevo por test (co
 - Specs en `modules/frontend/e2e/`, **excluidos de Vitest** (`vitest.config.ts` los excluye explícitamente).
 - Comandos: `pnpm test:e2e` (Chromium) · `pnpm test:e2e:ui` (interactivo). Primera vez: `pnpm exec playwright install chromium`.
 - `playwright.config.ts` levanta el dev server y lo reutiliza si ya corre. Para entorno desplegado: `E2E_BASE_URL=... pnpm test:e2e`.
-- **CI**: job `e2e-smoke` en `.github/workflows/frontend.yml`, instala Chromium y corre contra el dev server — **sin backend**.
+- **CI**: job `e2e-smoke` (check `frontend-e2e-smoke`, exigido en `main`) en `.github/workflows/frontend.yml`, instala Chromium y corre contra el dev server — **sin backend**.
 
 > [!IMPORTANT]
 > **Hoy los specs son "smoke", no CRUD real.** Cubren solo flujos que degradan con
