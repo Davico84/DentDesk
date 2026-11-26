@@ -77,13 +77,40 @@ Hook `pre-commit` en la raíz que ejecuta `lint-staged` **acotado a `modules/fro
 
 ## 5. CI
 
-Un workflow **por área** en `.github/workflows/`, cada uno con **path filter** (corre solo si cambia su área) y `concurrency` (cancela runs superados). Disparan en push/PR a `main` y `dev`.
+Un workflow **por área** en `.github/workflows/`, con `concurrency` (cancela runs superados). Disparan en push y PR a `main` y `dev`:
 
-| Workflow | Filtro de rutas | Jobs |
+- **En los PR corren siempre los tres**, toquen lo que toquen: sin filtro de rutas, porque `main` exige los seis checks y uno que no se dispara deja el merge pendiente para siempre (`update-ci-required-checks`).
+- **En el push** (después del merge) cada uno corre solo si cambió su área: el PR ya corrió todo sobre el resultado del merge.
+
+| Workflow | Filtro de rutas (solo push) | Jobs → **check** que publican |
 |---|---|---|
-| `openspec.yml` | `openspec/**` | `validate` → `openspec validate --all --strict` |
-| `frontend.yml` | `modules/frontend/**`, `contracts/**` | `lint` (typecheck + eslint) · `test` (`vitest --coverage` + artifact) · **`codegen-drift`** |
-| `backend.yml` | `modules/backend/**` | `verify` (`./mvnw -B verify`, incluye **`ContractDriftIT`**) · *(futuro: lint Spotless/Checkstyle, coverage JaCoCo)* |
+| `openspec.yml` | `openspec/**` | `validate` → **`openspec-validate`**: nombres únicos de los checks (abajo) + `openspec validate --all --strict` |
+| `frontend.yml` | `modules/frontend/**`, `contracts/**`, `pnpm-*` | `lint` → **`frontend-lint`** (typecheck + eslint) · `codegen-drift` → **`frontend-codegen-drift`** · `test` → **`frontend-test`** (`vitest --coverage` + artifact) · `e2e-smoke` → **`frontend-e2e-smoke`** |
+| `backend.yml` | `modules/backend/**` | `verify` → **`backend-verify`** (`./mvnw -B verify`, incluye **`ContractDriftIT`**) · *(futuro: lint Spotless/Checkstyle, coverage JaCoCo)* |
+
+**El nombre del check es el `name:` del job**, no el `Backend / verify` que muestra la interfaz: es lo que compara el Ruleset. Convención: prefijo del área (`backend-`, `frontend-`, `openspec-`). El Ruleset no distingue de qué workflow viene un check, así que **cada nombre exigido lo publica un solo job**: lo comprueba `.github/scripts/check-ci-check-names.sh` en cada PR (paso de `openspec-validate`, con `yq` de versión y SHA-256 fijos), leyendo los nombres exigidos de `.github/rulesets/main.json`. En local: `YQ=<ruta de yq> bash .github/scripts/check-ci-check-names.sh`.
+
+### 5.0 Protección de `main` (Ruleset)
+
+`main` se protege con un Ruleset **versionado** en `.github/rulesets/main.json`: PR obligatorio (0 aprobaciones, solo commit de merge), los seis checks en verde publicados por GitHub Actions (`integration_id` 15368), **sin** exigir la rama al día (cada release deja en `main` un merge que `dev` no tiene) y sin force push ni borrado. `dev` no se protege.
+
+La protección se cambia **editando el archivo en un PR** y volviéndolo a aplicar, nunca solo en la interfaz:
+
+```bash
+# crear (la primera vez)
+gh api --method POST repos/{owner}/{repo}/rulesets --input .github/rulesets/main.json
+# actualizar: el id sale de `gh api repos/{owner}/{repo}/rulesets`
+gh api --method PUT repos/{owner}/{repo}/rulesets/<id> --input .github/rulesets/main.json
+# comparar lo aplicado con el archivo (falla ante cualquier diferencia; necesita permiso de admin)
+python .github/scripts/ruleset-check.py
+```
+
+`ruleset-check.py` falla cerrado: sin Ruleset `main` o con más de uno, sin `bypass_actors` en la respuesta o con cualquier diferencia (el orden no cuenta). Si GitHub devuelve parámetros por defecto que el archivo no tiene, se agregan al archivo para que diga exactamente lo aplicado. Se corre al aplicar y en la revisión mensual (`docs/deployment.md`).
+
+Cosas que dejan un check exigido sin publicar (y el merge pendiente):
+- **`[skip ci]`** en un commit del PR: no usarlo en ramas de PR.
+- **Un YAML inválido**: el workflow no corre.
+- **Merge Queue**: no se usa. Si se activa, los tres workflows deben sumar el evento `merge_group`, o la cola espera checks que nunca llegan.
 
 ### 5.1 Los dos guardianes del contrato
 
@@ -109,8 +136,6 @@ pnpm --filter dentdesk-frontend generate:api
 > [!WARNING]
 > Exporta el contrato con `curl -o`. Un `curl | python` en Windows lo dejó **doble codificado** (el `stdin` de Python usa cp1252, no UTF-8), lo que reventaba a `ContractDriftIT` y propagaba *mojibake* al cliente generado.
 
-> [!NOTE]
-> **Path filters + branch protection**: si más adelante marcas estos checks como *required*, un workflow que no dispara (porque su área no cambió) aparece como *pending/skipped* y puede bloquear el merge. Cuando llegue ese momento, usar "required workflows" a nivel de organización o un job agregador. Por ahora no hay branch protection.
 
 > [!WARNING]
 > ### 🚩 Al leer un fallo de CI: mira SIEMPRE el SHA del run

@@ -151,8 +151,13 @@ release → PR dev → main solo cuando hay algo para producción, con la CI de 
 - **Release a `main` por valor, no por change.** Se sube cuando hay algo que usar en producción, y recién cuando la CI
   de `dev` pasó sobre el commit de merge (no basta con que pasara en el PR: puede ser otra ejecución).
 - **Un fallo de la CI se diagnostica con `gh run view <id> --log-failed`**; no hace falta copiar el log a mano.
-- **Sin protección de rama**: el repo es privado en el plan gratis y GitHub no permite reglas que exijan los checks
-  (requiere GitHub Pro o repo público). El freno real hoy es Render, que no despliega `main` en rojo.
+- **`main` protegida por un Ruleset versionado** (`.github/rulesets/main.json`, `update-ci-required-checks`): solo
+  por PR (0 aprobaciones, commit de merge), con los seis checks de CI en verde publicados por GitHub Actions; sin
+  force push ni borrado. **No** exige la rama al día: cada release deja en `main` un merge que `dev` no tiene, y
+  exigirlo obligaría a traer `main` a `dev` antes de cada release. Es posible desde que el repo pasó a público
+  (noviembre de 2026); antes, en privado y plan gratis, GitHub no lo permitía. Render sigue sin desplegar `main` en
+  rojo; un release solo de docs no corre checks en el push y Render **no despliega**, lo esperable sin nada nuevo
+  que desplegar. Cómo cambiar la protección: `docs/tooling-setup.md` §5.0.
 
 ## 6. Automatización (pendiente de andamiaje)
 

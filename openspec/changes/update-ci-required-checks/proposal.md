@@ -21,7 +21,7 @@ Una revisión técnica (2026-11-26) encontró dos trampas más:
   - bloquea el force push y el borrado de la rama.
 - **Activación por etapas:** primero en modo Evaluate, o, si el plan no lo ofrece, Active con bypass del administrador **solo vía PR**. Después de un release limpio, Active sin bypass.
 - **Comprobación automática de nombres:** un paso de `openspec-validate` falla si alguno de los seis nombres falta o aparece más de una vez entre los workflows.
-- **Comparación repetible del Ruleset** (`.github/scripts/ruleset-check.sh`) entre lo aplicado en GitHub y el archivo.
+- **Comparación repetible del Ruleset** (`.github/scripts/ruleset-check.py`) entre lo aplicado en GitHub y el archivo.
 - **Docs:**
   - `docs/tooling-setup.md` §5: el filtro solo en push, los nombres de los checks y el Ruleset; reemplaza la nota "por ahora no hay branch protection".
   - `docs/commits.md` §5c: la protección de `main` reemplaza a "Sin protección de rama".

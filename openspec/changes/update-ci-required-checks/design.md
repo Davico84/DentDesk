@@ -49,12 +49,13 @@ El prefijo del área (`backend-`, `frontend-`, `openspec-`) es la convención: u
 El archivo es el cuerpo exacto de la API de Rulesets de REST. Se aplica con:
 - **Crear:** `gh api --method POST repos/{owner}/{repo}/rulesets --input .github/rulesets/main.json`.
 - **Actualizar:** `PUT .../rulesets/{id}`.
-- **Comparar:** `.github/scripts/ruleset-check.sh`, que **falla cerrado** en cada caso dudoso:
+- **Comparar:** `.github/scripts/ruleset-check.py`, que **falla cerrado** en cada caso dudoso:
   - **Búsqueda:** lista con `gh api --paginate repos/{owner}/{repo}/rulesets` y busca por `name`. Si encuentra cero o más de uno, falla; nunca toma el primero.
   - **Lectura:** `GET .../rulesets/{id}`, el Ruleset por su id. No usa `rules/branches/main`, que solo muestra las reglas efectivas mezcladas de todas las fuentes.
   - **Permisos:** si la respuesta no trae `bypass_actors` (GitHub lo omite sin permiso de administración), falla. No lo normaliza como `[]`.
   - **Normalización:** de ambos lados conserva `name`, `target`, `enforcement`, `conditions`, `rules` y `bypass_actors`, y descarta lo que agrega GitHub (`id`, `source`, `source_type`, `node_id`, `created_at`, `updated_at`, `_links`, `current_user_can_bypass`). Cada regla se compara **con todos sus `parameters`**: los seis checks con su `integration_id`, `strict_required_status_checks_policy`, `required_approving_review_count`, `allowed_merge_methods` y el resto. Primero ordena los arreglos internos (checks por `context`, `allowed_merge_methods`, `include`/`exclude`, `bypass_actors`); después ordena `rules` por su **JSON canónico completo** (`tojson` de la regla ya normalizada), no solo por `type`, para que dos reglas del mismo tipo no se puedan intercambiar sin detectarlo.
   - **Resultado:** con cualquier diferencia muestra el diff y sale con error. Se corre al aplicar y en la revisión mensual.
+  - **Lenguaje:** Python 3 con la biblioteca estándar y `gh api`, no `jq`: `jq` no está en la máquina del responsable y Python sí, y el mismo script compara dos archivos sin GitHub (`--files`) para probar la normalización.
 
 **Alternativa descartada:** configurarlo solo en la interfaz. Es invisible para la revisión y no queda en el historial: justo lo que el proyecto evita con OpenSpec.
 
@@ -93,6 +94,6 @@ Revisar a mano una vez no impide que un workflow futuro vuelva a publicar `front
 - **El merge a `main` puede no ser exactamente lo que probó el PR** si `main` cambió mientras tanto, porque no se exige la rama al día. En la práctica, `main` solo recibe releases desde `dev`, de a uno. Los PR corren sobre `refs/pull/N/merge` y Render no despliega `main` en rojo (la CI del push a `main` sigue filtrada por área).
 - **Cancelaciones en `main` y `dev`.** Dos merges seguidos cancelan la corrida del primero (`cancel-in-progress`). No afecta al Ruleset, que mira los checks del PR. Queda igual que hoy.
 - **El e2e inestable bloquea releases.** Se acepta: si falla de forma intermitente, se arregla el test, no se saca el check.
-- **Drift del Ruleset** si alguien lo edita en la interfaz. Mitigación: `ruleset-check.sh` (D3) entra en la revisión mensual de `docs/deployment.md`, junto con la de las copias.
+- **Drift del Ruleset** si alguien lo edita en la interfaz. Mitigación: `ruleset-check.py` (D3) entra en la revisión mensual de `docs/deployment.md`, junto con la de las copias.
 - **PRs de forks o de bots.** Los seis jobs no usan `secrets` ni piden `permissions` de escritura (verificado), así que corren igual en un PR de fork, donde GitHub no entrega secretos. Hoy no hay Dependabot. Se verifica en la tarea 4.
 - **Checks del commit de merge y Render.** Render despliega con `autoDeployTrigger: checksPass` (`render.yaml`), sobre los checks del **push** a `main`, no los del PR. Ese push sigue filtrado por área (D1), igual que hoy. Según la documentación de Render, si un commit no tiene **ningún** check, no despliega. Así que un release que solo trae docs (sin backend ni frontend) no corre workflows en el push y **no despliega**. Es intencional: no hay nada que desplegar. Este change no altera ese comportamiento, pero queda documentado como resultado esperado y se verifica en la tarea 5.6.

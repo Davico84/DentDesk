@@ -186,6 +186,7 @@ El secreto `BACKUP_DATABASE_URL` es la URL libpq **directa** del rol (sin `-pool
 2. Comprueba que descifra y que se restaura completa con el script (desde `modules/backend`):
    `.\scripts\verify-backup-restore.ps1 -RunId <id> -KeyPath <ruta de dentdesk-backup.key>`. Restaura en un PostgreSQL 16 local como rol no superusuario y compara con producción (pide la URL de `odontorisas_backup`, sin mostrarla): conteos por tabla, permisos, función de V24, huella de RLS y aislamiento (con una clínica inexistente y, solo en este modo local, con una segunda clínica de prueba: cada una ve solo lo suyo). Falla si la copia no tiene tablas o pacientes, porque entonces no hay nada que comprobar. Solo imprime PASA / FALLA y borra todo lo descifrado al terminar. Si hubo actividad en producción después de la copia, los conteos pueden diferir sin que sea un error.
 3. Mira la fecha del último artifact (si no es de ayer o de hoy, el programado dejó de correr) y el uso del cupo.
+4. Comprueba que la protección de `main` sigue siendo la versionada: `python .github/scripts/ruleset-check.py` (desde la raíz, con `gh` autenticado como administrador). Si difiere, alguien la cambió en la interfaz: se corrige el archivo en un PR o se vuelve a aplicar (`docs/tooling-setup.md` §5.0).
 
 ### 4.4 Restaurar una copia
 
@@ -328,7 +329,7 @@ Los pasos en paneles los hace el responsable; el detalle de cada uno está en la
 7. **Despertar diario**: job de cron-job.org que dispara `.github/workflows/wake-up.yml` por la API de GitHub (lun–sáb 8:45 Lima), con un token *fine-grained* de alcance mínimo (§3). Probarlo con *Test run* tras 20 min sin uso: 204 y una ejecución nueva en Actions.
 8. **Verificar** con la matriz de `add-cloud-deployment` (design D7) y anotar los resultados aquí, incluida la prueba de que **dos clínicas no se ven entre sí**.
 
-Producción = rama `main`: Render despliega solo con los checks del CI en verde; los pushes a `dev` generan *previews* de Vercel sin sesión (CORS solo admite el origen de producción).
+Producción = rama `main`, protegida por un Ruleset que exige PR y los seis checks (`docs/tooling-setup.md` §5.0). Render despliega solo con los checks del CI del **push** a `main` en verde (`autoDeployTrigger: checksPass`); ese push sigue filtrado por área, así que un release que solo trae docs no corre ningún check y Render **no despliega**: lo esperable, no hay nada nuevo que desplegar; los pushes a `dev` generan *previews* de Vercel sin sesión (CORS solo admite el origen de producción).
 
 ## 9. Despliegue de producción: estado y verificación
 
