@@ -49,7 +49,7 @@ El prefijo del área (`backend-`, `frontend-`, `openspec-`) es la convención: u
 El archivo es el cuerpo exacto de la API de Rulesets de REST. Se aplica con:
 - **Crear:** `gh api --method POST repos/{owner}/{repo}/rulesets --input .github/rulesets/main.json`.
 - **Actualizar:** `PUT .../rulesets/{id}`.
-- **Comparar:** `gh api .../rulesets/{id}` normalizado con `jq` contra el archivo. El comando queda en `docs/tooling-setup.md`.
+- **Comparar:** `.github/scripts/ruleset-check.sh` lee `GET /repos/{owner}/{repo}/rulesets/{id}` (el Ruleset por su id, no `rules/branches/main`, que solo muestra reglas efectivas mezcladas de todas las fuentes) y lo compara con el archivo **normalizando ambos lados** con `jq`: conserva solo `name`, `target`, `enforcement`, `conditions`, `rules` y `bypass_actors`, descarta lo que GitHub agrega (`id`, `source`, `source_type`, `node_id`, `created_at`, `updated_at`, `_links`, `current_user_can_bypass`) y ordena los arreglos (`rules` por `type`, los checks por `context`, `bypass_actors` y `include`/`exclude`) para que el orden no cuente. Sale con error ante cualquier diferencia. Es repetible: se corre al aplicar y en la revisión mensual.
 
 **Alternativa descartada:** configurarlo solo en la interfaz. Es invisible para la revisión y no queda en el historial: justo lo que el proyecto evita con OpenSpec.
 
@@ -57,7 +57,7 @@ Contenido:
 
 | Regla | Valor | Por qué |
 |---|---|---|
-| objetivo | `refs/heads/main` | solo `main` (non-goal: `dev`) |
+| `target` + `conditions` | `"target": "branch"`, `"conditions": { "ref_name": { "include": ["refs/heads/main"], "exclude": [] } }` | solo `main` (non-goal: `dev`); `refs/heads/main` va en la condición, no en `target` |
 | `pull_request` | `required_approving_review_count: 0`, `allowed_merge_methods: ["merge"]` | un solo desarrollador no puede aprobarse a sí mismo; los releases son commits de merge y así se mantiene la historia de §5c |
 | `required_status_checks` | los 6 nombres, cada uno con `integration_id: 15368` (GitHub Actions), `strict_required_status_checks_policy: false` | un check publicado por otra app no cuenta. Sin "rama al día": cada release deja en `main` un merge que `dev` no tiene, y exigirlo obligaría a traer `main` a `dev` antes de cada release |
 | `non_fast_forward` | sí | bloquea el force push |
@@ -66,10 +66,18 @@ Contenido:
 
 El push directo queda bloqueado por la regla `pull_request`.
 
+**Merge Queue: no se usa.** Si un día se activa, los tres workflows deben sumar el evento `merge_group`; sin él, la cola espera checks que nunca se publican. Queda como non-goal y como aviso en `docs/tooling-setup.md`.
+
 ### D4. Activación en dos etapas
 
 1. **Etapa de prueba.** Si el plan lo permite, `enforcement: "evaluate"`: registra en *Rule insights* lo que bloquearía, sin bloquear. Si la API rechaza `evaluate` (la documentación lo limita a GitHub Enterprise), se usa `enforcement: "active"` con `bypass_actors: [{ actor_type: "RepositoryRole", actor_id: 5, bypass_mode: "pull_request" }]`. El id 5 es el rol *Admin*. El administrador puede saltarse la regla **desde un PR**, no con un push directo. Sirve de red si un nombre quedó mal escrito.
 2. **Definitiva.** Después de un release que pase sin usar el bypass, o sin bloqueos en *Rule insights*: `active` y sin `bypass_actors`. Cada etapa es un cambio al archivo y un `PUT`.
+
+La etapa de prueba **no cumple** el requirement de checks obligatorios: con bypass, el administrador puede mergear desde un PR con un check en rojo. Por eso la etapa definitiva es **obligatoria para dar el change por terminado**; el archive no se hace con el bypass puesto.
+
+### D5. Unicidad de los nombres comprobada en cada PR
+
+Revisar a mano una vez no impide que un workflow futuro vuelva a publicar `frontend-test`. `.github/scripts/check-ci-check-names.sh` recorre `.github/workflows/*.yml` con `yq` (preinstalado en los runners de Ubuntu), toma el nombre efectivo de cada job (`name` o, si falta, su id) y falla si alguno de los seis nombres exigidos aparece cero veces o más de una. Corre como un paso más del job `openspec-validate`, que con D1 se ejecuta en todo PR. **Alternativa descartada:** un workflow propio, que sería un séptimo check a exigir para el mismo fin.
 
 **Alternativa descartada:** activar directo sin bypass. Un nombre mal escrito dejaría el release bloqueado, y habría que desactivar el Ruleset entero para salir.
 
@@ -80,4 +88,6 @@ El push directo queda bloqueado por la regla `pull_request`.
 - **El merge a `main` puede no ser exactamente lo que probó el PR** si `main` cambió mientras tanto, porque no se exige la rama al día. En la práctica, `main` solo recibe releases desde `dev`, de a uno. Los PR corren sobre `refs/pull/N/merge` y Render no despliega `main` en rojo (la CI del push a `main` sigue filtrada por área).
 - **Cancelaciones en `main` y `dev`.** Dos merges seguidos cancelan la corrida del primero (`cancel-in-progress`). No afecta al Ruleset, que mira los checks del PR. Queda igual que hoy.
 - **El e2e inestable bloquea releases.** Se acepta: si falla de forma intermitente, se arregla el test, no se saca el check.
-- **Drift del Ruleset** si alguien lo edita en la interfaz. Mitigación: el comando de comparación de D3 entra en la revisión mensual de `docs/deployment.md`, junto con la de las copias.
+- **Drift del Ruleset** si alguien lo edita en la interfaz. Mitigación: `ruleset-check.sh` (D3) entra en la revisión mensual de `docs/deployment.md`, junto con la de las copias.
+- **PRs de forks o de bots.** Los seis jobs no usan `secrets` ni piden `permissions` de escritura (verificado), así que corren igual en un PR de fork, donde GitHub no entrega secretos. Hoy no hay Dependabot. Se verifica en la tarea 4.
+- **Checks del commit de merge y Render.** Render despliega con `autoDeployTrigger: checksPass` (`render.yaml`), sobre los checks del **push** a `main`, no los del PR. Ese push sigue filtrado por área (D1), igual que hoy: un release solo de docs no corre workflows en el push, y Render despliega como ahora. Este change no altera ese comportamiento; se observa en el release de la tarea 5.

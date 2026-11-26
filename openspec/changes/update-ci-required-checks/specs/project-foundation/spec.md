@@ -27,8 +27,12 @@ Cada uno de los seis checks de CI SHALL publicarse con un nombre único en el re
 - **THEN** los check runs del commit se llaman exactamente como los seis nombres, publicados por la app GitHub Actions
 
 #### Scenario: Nombre repetido en otro workflow
-- **WHEN** un workflow nuevo define un job cuyo check se llamaría `frontend-test`
-- **THEN** la revisión lo rechaza, porque el Ruleset no distingue de qué workflow viene un check
+- **WHEN** un PR agrega un workflow con un job cuyo check se llamaría `frontend-test`
+- **THEN** el check `openspec-validate` de ese PR falla nombrando el check repetido
+
+#### Scenario: Nombre exigido que desaparece
+- **WHEN** un PR renombra o quita uno de los seis jobs
+- **THEN** el check `openspec-validate` falla nombrando el check que falta
 
 ### Requirement: Protección de main con checks obligatorios
 La rama `main` SHALL aceptar cambios solo por pull request, con los seis checks en verde publicados por la app GitHub Actions; sin aprobaciones exigidas. `main` MUST rechazar el push directo, el force push y el borrado. No SHALL exigirse que la rama del PR esté al día con `main`.
@@ -62,4 +66,8 @@ La configuración del Ruleset de `main` SHALL vivir en el repositorio como un ar
 
 #### Scenario: Cambio hecho solo en la interfaz
 - **WHEN** alguien cambia el Ruleset en la interfaz sin tocar el archivo
-- **THEN** la comparación lo detecta como diferencia a corregir
+- **THEN** la comparación repetible lo detecta como diferencia y termina con error
+
+#### Scenario: Mismo contenido en otro orden
+- **WHEN** GitHub devuelve las reglas o los checks en otro orden que el archivo
+- **THEN** la comparación no reporta diferencia
