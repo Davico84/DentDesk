@@ -202,13 +202,18 @@ El volcado descifrado tiene historias clínicas en claro: se borra al terminar y
 **Caso 1 — revisar datos** (lo normal). PostgreSQL 16 local en Docker, nunca producción. Para **verificar** una copia alcanza con el script de la revisión mensual (§4.3); a mano, para mirar los datos:
 
 ```powershell
+# La imagen local no puede ser una menor anterior a la de Neon (pg_attver: "unrecognized parameter").
+docker pull postgres:16
 docker run -d --name restore-db -e POSTGRES_PASSWORD=restore -p 5433:5432 postgres:16
 # Solo copias entre V32 y V33 (traen políticas `TO odontorisas_admin`; sin el rol, pg_restore aborta).
 docker exec restore-db psql -U postgres -c "CREATE ROLE odontorisas_admin NOLOGIN"
-docker run --rm --network host -v "${PWD}:/backup" postgres:16 pg_restore --no-owner --no-acl --exit-on-error --dbname=postgresql://postgres:restore@localhost:5433/postgres /backup/db.dump
+# pg_restore dentro del mismo contenedor: no depende de la red de Docker (igual en Windows y Linux).
+docker cp db.dump restore-db:/tmp/db.dump
+docker exec restore-db pg_restore -U postgres --no-owner --no-acl --exit-on-error -d postgres /tmp/db.dump
+docker exec -it restore-db psql -U postgres   # mirar los datos
 ```
 
-(En Windows sin red `host` en Docker, usar una red de Docker compartida y el nombre del contenedor como host.)
+Al terminar, borrar el contenedor y lo descifrado (tiene historias clínicas en claro): `docker rm -f restore-db` y `Remove-Item db.dump, db-backup-*.dump.age`.
 
 **Caso 2 — reemplazar producción.** Solo si la base de producción se perdió o se dañó. La copia va **sin dueños ni permisos** (`--no-owner --no-acl`): restaurarla "tal cual" deja a `odontorisas_app` sin acceso o, peor, a la app conectada con un rol que salta RLS, y entonces **una clínica ve los datos de otra**. En orden:
 
