@@ -38,5 +38,5 @@
 - [x] 6.1 `docs/backend.md §8.1`: enlazar el inventario y la regla "tabla nueva ⇒ se clasifica en el mismo cambio; función `SECURITY DEFINER` nueva ⇒ se declara con su test y fija `search_path`".
 - [x] 6.2 `docs/architecture.md` (aislamiento): reemplazar la frase de "`users`/`refresh_tokens` sin RLS" por la clasificación completa y el enlace al ADR-0022.
 - [x] 6.3 `docs/testing.md`: añadir el inventario a "Test de aislamiento" y decir que garantiza **clasificación**, no corrección de las políticas (D6).
-- [ ] 6.4 `docs/vision.md`: al archivar, marcar la extensión de `multi-tenancy` como construida y enlazar el change archivado.
+- [x] 6.4 `docs/vision.md`: al archivar, marcar la extensión de `multi-tenancy` como construida y enlazar el change archivado. Hecho en el archive (2026-11-27).
 - [x] 6.5 `openspec validate update-multi-tenancy-rls-coverage --strict` y medir a mano que cada requirement ADDED ≤500 caracteres.
