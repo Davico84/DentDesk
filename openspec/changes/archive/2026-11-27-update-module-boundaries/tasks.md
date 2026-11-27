@@ -4,7 +4,7 @@
 - [x] 1.2 En `eslint.config.js`, definir el mapa `ALLOWED` con el grafo actual (`appointments: [patients, staff]`, `auth: [staff]`, `clinical-history: [appointments, staff, dental-chart, patients]`, `dental-chart: [staff]`, `home: [patients]`; `core`, `branding`, `patients`, `staff`: `[]`) y generar, **en un solo bucle**, un bloque `no-restricted-imports` por módulo con `files: src/modules/<m>/**/*.{ts,tsx}` disjuntos (**el glob debe terminar en extensión**: sin ella ESLint 10 ignora el archivo y la regla no se aplica), `ignores` de `**/*.test.{ts,tsx}`, `**/*.spec.{ts,tsx}` y `**/test/**`, `patterns` explícitos (`@/modules/<x>` y `@/modules/<x>/**`) y mensaje que apunta a `docs/frontend.md`.
 - [x] 1.3 `core` es una entrada más del mismo bucle (`ALLOWED.core = []`, prohíbe todos los módulos de negocio): **sin bloque aparte** y sin ningún otro bloque con `no-restricted-imports` sobre `src/modules/**`.
 - [x] 1.4 Verificar que no hay imports relativos entre módulos (`../../staff/...`); si aparece alguno, agregar patrón relativo. Hecho: ningún import relativo entre módulos.
-- [ ] 1.5 El test usa `new ESLint({ cwd: <frontend>, overrideConfigFile: <eslint.config.js> })` y rutas relativas (`src/modules/patients/components/X.tsx`) con `lintText`; sin opciones obsoletas (`useEslintrc`). `pnpm lint` pasa sobre el código actual **sin tocar `src/`**; `pnpm validate` verde.
+- [x] 1.5 El test usa `new ESLint({ cwd: <frontend>, overrideConfigFile: <eslint.config.js> })` y rutas relativas (`src/modules/patients/components/X.tsx`) con `lintText`; sin opciones obsoletas (`useEslintrc`). `pnpm lint` pasa sobre el código actual **sin tocar `src/`**; `pnpm validate` verde. Hecho: en local `typecheck` y `lint` verdes; `pnpm test` completo dio timeouts por carga (los archivos pasan solos). En la CI de #157, `frontend-test` pasó 74/74 archivos.
 
 ## 2. Backend — romper el ciclo `auth ↔ staff` (scope: back)
 
@@ -32,13 +32,13 @@
 - [x] 5.1 Frontend: agregar a mano un import `@/modules/staff/...` en `modules/patients/components/` y comprobar que `pnpm lint` **falla**; revertir.
 - [x] 5.2 Frontend: agregar un import de `@/modules/patients` en `modules/core/` y comprobar que falla; revertir.
 - [x] 5.3 Backend: reintroducir un import `service.staff → service.auth` y comprobar que `mvn verify` **falla** nombrando el ciclo; revertir.
-- [ ] 5.4 Dejar en el PR la evidencia (mensaje del error) de las tres.
+- [x] 5.4 Dejar en el PR la evidencia (mensaje del error) de las tres. Hecho: los mensajes de las tres están en la descripción del PR #157.
 
 ## 6. Documentación (scope: docs)
 
-- [ ] 6.1 `docs/adr/0021-limites-entre-modulos.md` — ya escrito en el propose; revisar que el estado quede "Implementado" al archivar.
+- [x] 6.1 `docs/adr/0021-limites-entre-modulos.md` — ya escrito en el propose; revisar que el estado quede "Implementado" al archivar. Hecho en el archive (2026-11-27).
 - [x] 6.2 `docs/frontend.md`: sección de límites entre módulos (el mapa, cómo agregar una arista, tests exentos, **honestidad**: sin barrels, `core` depende de `store/routes/layouts`).
 - [x] 6.3 `docs/backend.md`: sección de dependencias entre dominios `service.*`, sin ciclos, el mapa, dónde viven las excepciones compartidas del flujo.
 - [x] 6.4 `docs/testing.md`: corregir la nota histórica de ArchUnit (el pom usa **1.4.1**, no 1.3.0; el guardián del importador protege contra una **regresión futura**, no describe la versión actual); enlazar las reglas nuevas en la lista de reglas de arquitectura y añadir el ciclo `auth ↔ staff` como ejemplo de lo que la regla de prosa no detectaba.
-- [ ] 6.5 `docs/vision.md`: al archivar, marcar la extensión de `project-foundation` como construida y enlazar el change archivado.
+- [x] 6.5 `docs/vision.md`: al archivar, marcar la extensión de `project-foundation` como construida y enlazar el change archivado. Hecho en el archive (2026-11-27).
 - [x] 6.6 `openspec validate update-module-boundaries --strict` y revisar a mano que cada requirement ADDED mide ≤500 caracteres.
