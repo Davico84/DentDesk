@@ -1,4 +1,4 @@
-package com.odontorisas.service.auth;
+package com.odontorisas.service.staff;
 
 import com.odontorisas.service.BusinessException;
 import org.springframework.http.HttpStatus;

@@ -18,6 +18,7 @@ import com.odontorisas.persistence.repository.OrganizationSettingsRepository;
 import com.odontorisas.persistence.repository.RefreshTokenRepository;
 import com.odontorisas.persistence.repository.UserRepository;
 import com.odontorisas.service.organization.OrganizationSlugService;
+import com.odontorisas.service.staff.EmailAlreadyExistsException;
 import com.odontorisas.service.staff.StaffService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
