@@ -1,6 +1,6 @@
 # ADR-0021: Límites entre módulos — declarados y vigilados, no estrictos
 
-- **Estado:** Aceptado (decisión); se implementa en `update-module-boundaries`
+- **Estado:** Implementado (2026-11-27) en `update-module-boundaries`
 - **Fecha:** 2026-11-24
 - **Decisores:** David Velarde Alvarado
 - **Relacionado:** `openspec/specs/project-foundation` (requirement "Estructura arquitectónica establecida": *"`modules/core` no depende de otros módulos"*) · [`docs/testing.md §5`](../testing.md) (una regla que nunca ha fallado no sabes si funciona)
@@ -34,7 +34,14 @@ Lo que sí estaba vigilado por la build: capas (`presentation`/`service`/`persis
 - ⚠️ El mapa puede convertirse en ritual (agregar la arista para que pase). Se mitiga con la revisión del diff, no con la herramienta.
 - ⚠️ ESLint no ve imports dinámicos construidos; ArchUnit no ve nombres de clase en `String`.
 - ⚠️ Los tests del frontend (`*.test.*`, `*.spec.*`, carpetas `test/`) quedan exentos: arman varios módulos a propósito. Aplica también a `core`.
-- ⚠️ **Lo que se vigila son dos convenciones de importación** (`@/modules/...` y paquetes `service.<dominio>`), no "los límites" en abstracto: un import relativo entre módulos escaparía hasta que la task 1.4 lo cubra.
+- ⚠️ **Lo que se vigila son dos convenciones de importación** (`@/modules/...` y paquetes `service.<dominio>`), no "los límites" en abstracto: un import relativo entre módulos escaparía (al aplicar no había ninguno).
+
+## Implementación (2026-11-27)
+
+- **Frontend:** `ALLOWED` y un bloque `no-restricted-imports` por módulo en `modules/frontend/eslint.config.js`; `eslint.boundaries.test.ts` (Vitest, con la config real) recorre la matriz completa módulo × módulo, compara los directorios de `src/modules/` con el mapa y revisa el código generado por orval. `pnpm lint` pasa sobre el código existente sin tocar `src/`.
+- **Backend:** `ServiceDomainBoundariesTest` (ArchUnit 1.4.1). Desvío menor del design: los fixtures son package-private y vacíos, pero **referencian una clase real y pública del otro dominio** (`AuthService`, `StaffService`), porque un fixture package-private no puede nombrar a otro de un paquete distinto. El test los carga con `Class.forName`.
+- **El grafo coincidió con el design** al recalcularlo sobre `origin/dev`; el único cambio de producción es el paquete de las dos excepciones.
+- **Visto fallar:** `patients → staff` y `core → patients` rompen el lint nombrando los dos módulos; una dependencia `StaffService → service.auth` reintroducida hace fallar la regla con *"Cycle detected: Slice auth -> Slice staff -> Slice auth"*.
 
 ## Alternativas descartadas
 

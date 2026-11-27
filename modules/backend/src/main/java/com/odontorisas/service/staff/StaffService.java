@@ -13,8 +13,6 @@ import com.odontorisas.persistence.repository.InvitationRepository;
 import com.odontorisas.persistence.repository.MembershipRepository;
 import com.odontorisas.persistence.repository.OrganizationRepository;
 import com.odontorisas.persistence.repository.UserRepository;
-import com.odontorisas.service.auth.EmailAlreadyExistsException;
-import com.odontorisas.service.auth.InvalidInvitationException;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
