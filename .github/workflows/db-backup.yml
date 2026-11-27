@@ -1,8 +1,8 @@
 name: DB backup
 
 # Copia diaria de la base de producción, cifrada con `age` y verificada por restauración antes de
-# subirla como artifact (add-database-backups). El repositorio es privado, pero se trata como si no
-# lo fuera: nada sin cifrar sale del runner y los logs no muestran la cadena de conexión ni datos.
+# subirla como artifact (add-database-backups). El repositorio es público (desde noviembre de 2026) y sus
+# logs, también: nada sin cifrar sale del runner y los logs no muestran la cadena de conexión ni datos.
 # Guía, rol de copia y restauración: docs/deployment.md (copias de la base).
 #
 # Configuración (si falta, la copia se omite en verde):

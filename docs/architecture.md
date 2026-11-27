@@ -131,7 +131,7 @@ Capa de plataforma **reutilizable** que aísla los datos de cada organización (
 - **Gate de spec** (antes de codear): `openspec validate <change> --strict` + revisión humana.
 - **Backend**: `mvn verify` (compila + test slices).
 - **Frontend**: `pnpm validate` (typecheck + lint + test); e2e Playwright cuando aplique.
-- **CI por PR**: `openspec validate --strict` + validate de backend + frontend.
+- **CI por PR**: corre completa en todo PR (sin filtro de rutas): `openspec-validate`, `backend-verify` y `frontend-lint` / `frontend-codegen-drift` / `frontend-test` / `frontend-e2e-smoke`. `main` exige los seis en verde vía un Ruleset versionado (`docs/tooling-setup.md` §5).
 - **Commits**: Conventional Commits. **Pre-commit** (front): `lint-staged`.
 - **Seguridad y observabilidad (planeado, aún NO adoptado)**: escaneo de vulnerabilidades de dependencias (empezar por **GitHub Dependabot** + `pnpm audit` / OWASP Dependency-Check en CI; **Snyk** si se requiere SAST, licencias o escaneo de contenedores, con cuenta/`SNYK_TOKEN`) y monitoreo de errores en runtime con **Sentry** (SDK front React + back Spring Boot, correlacionable con el `traceId` de RFC 9457). Se introducen con el setup de deploy/entornos. Ver `docs/vision.md §7`.
 

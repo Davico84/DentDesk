@@ -175,17 +175,18 @@ El secreto `BACKUP_DATABASE_URL` es la URL libpq **directa** del rol (sin `-pool
 **El `age` del workflow** se descarga del release oficial con versión y SHA-256 fijos (`AGE_VERSION`/`AGE_SHA256` en `db-backup.yml`), con el mismo criterio que la imagen de PostgreSQL fijada por digest: es el paso que recibe el volcado en claro. Si el hash no coincide, el paso falla antes de cifrar. Para descifrar alcanza cualquier `age` v1 (el formato es estable).
 
 **Supuestos operativos** (si cambia alguno, las copias pueden parar sin aviso):
-- el repositorio sigue **privado** (si pasa a público, GitHub desactiva los programados tras 60 días sin actividad y los logs quedan a la vista);
+- el repositorio es **público** (desde noviembre de 2026): GitHub **desactiva los programados tras 60 días sin actividad** en el repo (un commit los reactiva; en la revisión mensual, mirar que el último artifact sea de ayer o de hoy), y los logs de Actions están a la vista de cualquiera, por eso el workflow nunca imprime datos ni la cadena de conexión;
 - `dev` sigue siendo la rama por defecto: los programados corren desde ahí, pero verifican contra las migraciones y el script de **`main`** (lo que Render despliega), así que una migración en `dev` sin liberar no tumba la copia. Queda una ventana de minutos tras cada release, mientras Render migra: una copia que caiga ahí falla y la siguiente sale bien;
 - Actions sigue habilitado en el repositorio.
 
-**Cupo gratuito del repo privado** (500 MB de artifacts, 2.000 min/mes de Actions). Medido en la primera copia (2026-10-26, base en V29): artifact de **304 KB** y job de **51 s**, o sea ≈ 27 MB (5 %) y ≈ 26 min/mes (1,3 %). La cuenta: `tamaño del artifact × 90` contra 500 MB y `minutos por corrida × 30` contra 2.000. Al pasar el **80 %** de cualquiera de los dos, se baja la retención o se mueve la copia a otro almacenamiento, en un change. Si el cupo se llena, la subida falla y el workflow queda rojo. Uso actual: *Settings → Billing and plans*.
+**Cupo de Actions.** En un repo público los minutos en runners estándar no se cobran; el cupo del plan gratis (500 MB de artifacts, 2.000 min/mes) era el límite cuando el repo era privado y queda como referencia si vuelve a serlo. Medido en la primera copia (2026-10-26, base en V29): artifact de **304 KB** y job de **51 s**, o sea ≈ 27 MB y ≈ 26 min/mes. Si la subida de un artifact falla por almacenamiento, el workflow queda rojo: se baja la retención o se mueve la copia a otro almacenamiento, en un change. Uso actual: *Settings → Billing and plans*.
 
 **Revisión mensual** — el **primer día hábil de cada mes**, quien opera el despliegue:
 1. Descarga la copia más reciente (*Actions → DB backup → último run verde → Artifacts*, o `gh run download <id>`) y la guarda en el disco externo. Así se conserva más allá de los 90 días.
 2. Comprueba que descifra y que se restaura completa con el script (desde `modules/backend`):
    `.\scripts\verify-backup-restore.ps1 -RunId <id> -KeyPath <ruta de dentdesk-backup.key>`. Restaura en un PostgreSQL 16 local como rol no superusuario y compara con producción (pide la URL de `odontorisas_backup`, sin mostrarla): conteos por tabla, permisos, función de V24, huella de RLS y aislamiento (con una clínica inexistente y, solo en este modo local, con una segunda clínica de prueba: cada una ve solo lo suyo). Falla si la copia no tiene tablas o pacientes, porque entonces no hay nada que comprobar. Solo imprime PASA / FALLA y borra todo lo descifrado al terminar. Si hubo actividad en producción después de la copia, los conteos pueden diferir sin que sea un error.
 3. Mira la fecha del último artifact (si no es de ayer o de hoy, el programado dejó de correr) y el uso del cupo.
+4. Comprueba que la protección de `main` sigue siendo la versionada: `python .github/scripts/ruleset-check.py` (desde la raíz, con `gh` autenticado como administrador). Si difiere, alguien la cambió en la interfaz: se corrige el archivo en un PR o se vuelve a aplicar (`docs/tooling-setup.md` §5.0).
 
 ### 4.4 Restaurar una copia
 
@@ -201,13 +202,18 @@ El volcado descifrado tiene historias clínicas en claro: se borra al terminar y
 **Caso 1 — revisar datos** (lo normal). PostgreSQL 16 local en Docker, nunca producción. Para **verificar** una copia alcanza con el script de la revisión mensual (§4.3); a mano, para mirar los datos:
 
 ```powershell
+# La imagen local no puede ser una menor anterior a la de Neon (pg_attver: "unrecognized parameter").
+docker pull postgres:16
 docker run -d --name restore-db -e POSTGRES_PASSWORD=restore -p 5433:5432 postgres:16
 # Solo copias entre V32 y V33 (traen políticas `TO odontorisas_admin`; sin el rol, pg_restore aborta).
 docker exec restore-db psql -U postgres -c "CREATE ROLE odontorisas_admin NOLOGIN"
-docker run --rm --network host -v "${PWD}:/backup" postgres:16 pg_restore --no-owner --no-acl --exit-on-error --dbname=postgresql://postgres:restore@localhost:5433/postgres /backup/db.dump
+# pg_restore dentro del mismo contenedor: no depende de la red de Docker (igual en Windows y Linux).
+docker cp db.dump restore-db:/tmp/db.dump
+docker exec restore-db pg_restore -U postgres --no-owner --no-acl --exit-on-error -d postgres /tmp/db.dump
+docker exec -it restore-db psql -U postgres   # mirar los datos
 ```
 
-(En Windows sin red `host` en Docker, usar una red de Docker compartida y el nombre del contenedor como host.)
+Al terminar, borrar el contenedor y lo descifrado (tiene historias clínicas en claro): `docker rm -f restore-db` y `Remove-Item db.dump, db-backup-*.dump.age`.
 
 **Caso 2 — reemplazar producción.** Solo si la base de producción se perdió o se dañó. La copia va **sin dueños ni permisos** (`--no-owner --no-acl`): restaurarla "tal cual" deja a `odontorisas_app` sin acceso o, peor, a la app conectada con un rol que salta RLS, y entonces **una clínica ve los datos de otra**. En orden:
 
@@ -328,7 +334,7 @@ Los pasos en paneles los hace el responsable; el detalle de cada uno está en la
 7. **Despertar diario**: job de cron-job.org que dispara `.github/workflows/wake-up.yml` por la API de GitHub (lun–sáb 8:45 Lima), con un token *fine-grained* de alcance mínimo (§3). Probarlo con *Test run* tras 20 min sin uso: 204 y una ejecución nueva en Actions.
 8. **Verificar** con la matriz de `add-cloud-deployment` (design D7) y anotar los resultados aquí, incluida la prueba de que **dos clínicas no se ven entre sí**.
 
-Producción = rama `main`: Render despliega solo con los checks del CI en verde; los pushes a `dev` generan *previews* de Vercel sin sesión (CORS solo admite el origen de producción).
+Producción = rama `main`, protegida por un Ruleset que exige PR y los seis checks (`docs/tooling-setup.md` §5.0). Render despliega solo con los checks del CI del **push** a `main` en verde (`autoDeployTrigger: checksPass`); ese push sigue filtrado por área, así que un release que solo trae docs no corre ningún check y Render **no despliega**: lo esperable, no hay nada nuevo que desplegar; los pushes a `dev` generan *previews* de Vercel sin sesión (CORS solo admite el origen de producción).
 
 ## 9. Despliegue de producción: estado y verificación
 

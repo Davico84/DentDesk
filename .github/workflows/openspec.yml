@@ -1,11 +1,10 @@
 name: OpenSpec
 
 on:
+  # Sin filtro de rutas en los PR: el Ruleset de main exige los seis checks y uno que no se dispara
+  # queda pendiente para siempre (update-ci-required-checks). En push el filtro se mantiene.
   pull_request:
     branches: [main, dev]
-    paths:
-      - "openspec/**"
-      - ".github/workflows/openspec.yml"
   push:
     branches: [main, dev]
     paths:
@@ -18,9 +17,24 @@ concurrency:
 
 jobs:
   validate:
+    name: openspec-validate
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      # Cada check que exige el Ruleset de main lo publica un solo job (update-ci-required-checks, D5).
+      # yq del release oficial con versión y SHA-256 fijos, no el de la imagen del runner (cambia sin aviso).
+      # Actualizar en un PR: `gh api repos/mikefarah/yq/releases/latest` (campo `digest` de yq_linux_amd64).
+      - name: Checks exigidos con nombre único
+        env:
+          YQ_VERSION: v4.54.3 # 2026-11-09
+          YQ_SHA256: 129534601871538efe0ba4c5e62a34fb1d5f469bcb975c4fddeb467d82974973
+        run: |
+          bin="$RUNNER_TEMP/yq-bin"
+          mkdir -p "$bin"
+          curl -fsSL --proto '=https' --tlsv1.2 --retry 3 -o "$bin/yq"             "https://github.com/mikefarah/yq/releases/download/$YQ_VERSION/yq_linux_amd64"
+          echo "$YQ_SHA256  $bin/yq" | sha256sum --check --strict -
+          chmod +x "$bin/yq"
+          YQ="$bin/yq" bash .github/scripts/check-ci-check-names.sh
       - uses: actions/setup-node@v4
         with:
           node-version: 22
