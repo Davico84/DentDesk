@@ -32,6 +32,27 @@ infra (config · security · storage · mail) = adaptadores técnicos (transvers
 - Los controllers son **delgados**: sin lógica; orquestan y delegan.
 - Un `<dominio>` (capacidad) tiene su paquete `service.<dominio>` (ver granularidad de capacidades en `docs/vision.md §5`).
 
+### 1.1 Dependencias entre dominios `service.*` — declaradas y sin ciclos
+
+`ServiceDomainBoundariesTest` (ArchUnit, [`ADR-0021`](adr/0021-limites-entre-modulos.md)) vigila los paquetes `service.<dominio>`:
+
+- **Sin ciclos** (`slices().beFreeOfCycles()`): un ciclo entre dominios rompe la build y nombra los dos.
+- **Solo las dependencias que declara el mapa `ALLOWED`** del test. El grafo actual, aceptado tal cual:
+
+  ```
+  admission        → clinicalhistory, dentalchart, staff
+  appointment      → consultationnote, patient, staff
+  auth             → organization, staff
+  clinicalhistory  → patient
+  consultationnote → clinicalhistory, patient, staff
+  dentalchart      → patient
+  platform         → auth, organization, staff
+  organization, patient, staff → (ninguno)
+  ```
+- **Dominio nuevo ⇒ entrada nueva**: los dominios se toman de las clases, no de una lista fija, así que un paquete `service.<x>` sin entrada falla.
+- **Excepciones compartidas de un flujo**: viven en el dominio que **no** crea el ciclo. `EmailAlreadyExistsException` e `InvalidInvitationException` están en `service.staff` (flujo de invitación); `auth` las importa de ahí porque `auth → staff` ya existía. Si una excepción la necesitan dos dominios que no se conocen, se decide en su change (un paquete transversal se descartó mientras haya dos consumidores).
+- **No vigila:** `presentation` e `infra` entre dominios (orquestan y cablean), ni las clases sueltas de `service` (`BusinessException`). ArchUnit ve dependencias de bytecode: un `{@link}` de Javadoc no cuenta.
+
 ---
 
 ## 2. Convenciones de nombres

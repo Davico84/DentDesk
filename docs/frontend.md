@@ -70,7 +70,7 @@ src/
   > ❌ PatientDetail.tsx con el skeleton, el "no encontrado" y dos helpers dentro
   > ```
   > **Única excepción:** una **familia de primitivos** de `core/ui` diseñada para usarse junta puede compartir archivo, siguiendo la convención de shadcn (`dialog.tsx` exporta `Dialog`, `DialogContent`, `DialogHeader`…). No es excusa para meter la feature y su skeleton en el mismo sitio.
-- **`core` no depende de otros módulos** (es la base transversal: UI, auth guard, utils). Los demás módulos pueden depender de `core`.
+- **`core` no depende de otros módulos** (es la base transversal: UI, auth guard, utils). Los demás módulos pueden depender de `core`. Lo vigila el lint (§1.1).
   > [!IMPORTANT]
   > **Un componente genérico se crea EN `core`, no en el módulo.** Si **no conoce el dominio** (un `FormField`, un `SelectField`, un `InfoCard`, un `Badge` base) → `core/ui` (primitivo) o `core/components` (compuesto), y **genérico** (`<T extends FieldValues>` si aplica). Solo lo **específico del dominio** (p. ej. `PatientStatusBadge`, que conoce el enum del paciente) vive en `modules/<cap>/components/`, **componiéndose** sobre el primitivo de `core`. Pregunta de control: *"¿esto lo usaría otra capacidad?"* → sí = `core`.
 - **La validación de formularios vive en el schema Zod del módulo** (`modules/<cap>/schemas/`), **nunca dentro del componente**: ahí van las reglas (incluidas las condicionales, con `superRefine`), en **paridad con el backend** (`docs/coding-style.md §7`). El componente de campo **solo pinta** el error —venga de Zod o del servidor (`applyServerFieldErrors`)—. El servidor es la autoridad.
@@ -78,6 +78,24 @@ src/
   > **`useForm({ mode: "onTouched" })` — avisa tarde, corrige pronto.** La primera validación es **al salir** del campo (no le grites "correo inválido" a quien lleva una letra escrita); pero una vez avisado, **revalida en cada tecla**, así el error **desaparece solo** en cuanto el valor pasa a ser válido.
   > **No uses `"onBlur"`**: obliga a salir del campo para descubrir que ya lo arreglaste — el mensaje se queda en pantalla mintiendo mientras corriges. Y **no uses `"onChange"`**: valida desde la primera tecla, así que te marca en rojo por no haber terminado de escribir.
 - **Mapeo capacidad ↔ código**: cada capacidad de negocio `<cap>` se materializa en `modules/<cap>/` (hooks de dominio, components, schemas Zod) y sus pantallas en `screens/<área>/`. El **cliente API tipado se genera** en `core/services/generated/` (ver §2.3); lo transversal (guard, roles) en `modules/core/`.
+
+### 1.1 Límites entre módulos — declarados, no prohibidos
+
+Las dependencias entre `src/modules/*` están **declaradas en un mapa único**, `ALLOWED` en `eslint.config.js` ([`ADR-0021`](adr/0021-limites-entre-modulos.md)). Cada módulo puede importar de sí mismo, de `core` y de los módulos que su entrada declara; cualquier otro import `@/modules/<x>` **rompe `pnpm lint`** (`no-restricted-imports`, con un mensaje que nombra los dos módulos). El grafo actual, aceptado tal cual:
+
+| Módulo | Puede importar de (además de `core`) |
+|---|---|
+| `appointments` | `patients`, `staff` |
+| `auth` | `staff` |
+| `clinical-history` | `appointments`, `dental-chart`, `patients`, `staff` |
+| `dental-chart` | `staff` |
+| `home` | `patients` |
+| `core`, `branding`, `patients`, `staff` | ningún módulo de negocio |
+
+- **Una arista nueva = una línea en el mapa**, justificada en el PR. El mapa no impide dependencias: impide que **entren sin que nadie las vea**. Si la arista pide algo que no conoce el dominio, probablemente va a `core` (§4.1: *"¿lo usaría otra capacidad?"*).
+- **Módulo nuevo ⇒ entrada nueva.** `eslint.boundaries.test.ts` falla si un directorio de `src/modules/` no tiene clave en el mapa (o al revés), si un bloque pisa a otro y si el código generado por orval importa de un módulo de negocio (está fuera del lint).
+- **Exentos:** los archivos de prueba (`*.test.*`, `*.spec.*` y carpetas `test/`), también en `core`: un test de integración arma varios módulos a propósito.
+- **Lo que NO vigila, dicho con honestidad:** imports relativos entre módulos (hoy no hay ninguno) o dinámicos, y `screens/`, `routes/`, `layouts/` y `store/`, que orquestan módulos por diseño. **No hay barrels ni API pública por módulo**: se importa por ruta profunda (`@/modules/staff/hooks/useProfessionalCredential`). Y `core` sí importa de `@/store`, `@/routes/paths` y `@/layouts/RootLayout`, que no son módulos. La regla promete dependencias **declaradas**, no bajo acoplamiento.
 
 ---
 

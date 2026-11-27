@@ -17,6 +17,7 @@ import com.odontorisas.persistence.repository.OrganizationRepository;
 import com.odontorisas.persistence.repository.RefreshTokenRepository;
 import com.odontorisas.persistence.repository.UserRepository;
 import com.odontorisas.service.organization.OrganizationSlugService;
+import com.odontorisas.service.staff.EmailAlreadyExistsException;
 import com.odontorisas.service.staff.StaffService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.crypto.password.PasswordEncoder;
