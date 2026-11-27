@@ -1,6 +1,6 @@
 # ADR-0003: `OrganizationSettings` y `OrganizationBranding` van sin Row-Level Security
 
-- **Estado:** Aceptado
+- **Estado:** Aceptado — válida con matiz, revalidada en [`ADR-0022`](0022-cobertura-rls-y-excepciones-por-clinica.md)
 - **Fecha:** 2026-07-13
 - **Decisores:** David Velarde Alvarado
 

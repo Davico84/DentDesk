@@ -173,6 +173,8 @@ El sistema es **multi-tenant**: cada organización (tenant) está aislada. El ai
 - **Hilos async**: `@Async`/`@Scheduled` NO heredan el contexto (`ThreadLocal`). Antes de introducir el primero hay que cablear un `TaskDecorator` (async derivado de petición) o fijar el contexto explícitamente por tenant (jobs de fondo). Un test ArchUnit falla la build si aparece `@Async`/`@Scheduled` sin ese cableado.
 - `spring.jpa.open-in-view` debe seguir en **`false`**.
 - **Dominio de auth** (`users`, `refresh_tokens`): NO llevan RLS por organización (se consultan por credencial email/hash). `memberships` lleva RLS de **identidad** (`user_id = current_setting('app.user_id')`).
+- **Tabla nueva ⇒ se clasifica en el mismo cambio.** Toda tabla de `public` figura en una de las listas de `TenantTableClassification` (test del backend; motivos en [`ADR-0022`](adr/0022-cobertura-rls-y-excepciones-por-clinica.md)): por organización, por identidad, excepción por clínica (con su ADR) o sin `organization_id`. `TenantTableInventoryIT` falla ante una tabla sin clasificar, una aislada sin RLS forzada o sin política, o una vista u objeto fuera de `public`.
+- **Función `SECURITY DEFINER` nueva ⇒ se declara por firma con los tests que la cubren y fija `SET search_path = public`.** Corre con los privilegios del dueño y puede leer por encima de la RLS; el inventario falla si entra sin declarar o sin `search_path` fijo.
 
 ### 8.1.1 El contexto se fija SOLO — qué NO hay que escribir
 
