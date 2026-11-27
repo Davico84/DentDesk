@@ -116,6 +116,10 @@ WHERE n.nspname = 'public' AND c.relkind IN ('r', 'p')
   AND pg_has_role(session_user, c.relowner, 'SET');
 ```
 
+Sin la contraseña de `odontorisas_app` (p. ej. desde el SQL Editor de Neon, con cualquier rol) da el mismo resultado poniendo el nombre en lugar de `session_user`: `pg_has_role('odontorisas_app', ...)`. Control de que se mira la base correcta: el número de tablas de `public` sin `flyway_schema_history` coincide con el inventario (25 a V33).
+
+**Verificado en producción el 2026-11-27** (rama de producción, base a V33, 25 tablas): las dos consultas, sin filas.
+
 La app usa `odontorisas_app` (`DB_USERNAME` / `DB_PASSWORD`); Flyway, `odontorisas_admin` (`DB_ADMIN_USERNAME` / `DB_ADMIN_PASSWORD`).
 
 > [!WARNING]
