@@ -29,7 +29,7 @@
 - [x] 5.1 Agregar a mano una migración local con `CREATE TABLE zz_probe (organization_id BIGINT)` sin clasificar y comprobar que `TenantTableInventoryIT` **falla** nombrándola; revertir.
 - [x] 5.2 Quitar temporalmente `FORCE ROW LEVEL SECURITY` de una tabla de la lista 1 en una migración local y comprobar que falla; revertir.
 - [x] 5.3 Agregar a mano una función `SECURITY DEFINER` sin declarar en una migración local y comprobar que falla nombrándola; revertir.
-- [ ] 5.4 Dejar en el PR la evidencia (mensajes de error) de las tres.
+- [x] 5.4 Dejar en el PR la evidencia (mensajes de error) de las tres. Hecho: los mensajes de las tres están en la descripción del PR #153.
 - [x] 5.5 `mvn verify` verde (con Docker). Hecho: 368 unitarios + 549 de integración, sin fallos ni saltados.
 
 ## 6. Documentación (scope: docs)
