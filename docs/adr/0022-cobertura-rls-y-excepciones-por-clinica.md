@@ -68,7 +68,7 @@ Que una tabla esté en la lista 1 no prueba que su política sea buena; eso lo s
 
 - ✅ Una tabla nueva **no entra sin clasificarse**; una excepción no cambia de estado en silencio.
 - ✅ `invitations` deja de ser un olvido: es una decisión escrita, con su riesgo y su condición de invalidez.
-- ✅ `ADR-0003` revalidada contra producción real.
+- ✅ `ADR-0003` revalidada contra `platform-admin`, leyendo su código (D3); no se verificó en producción.
 - ⚠️ **`invitations` sigue sin barrera de motor.** Documentarlo no lo cierra.
 - ⚠️ La lista puede volverse ritual (agregar la tabla "para que pase"): cada entrada exige motivo y la lista 3 exige ADR.
 - ⚠️ El IT requiere Docker; la lógica de clasificación se prueba siempre, sin Docker.
