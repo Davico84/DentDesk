@@ -48,6 +48,14 @@ class AutomaticTenantBindingIT extends AbstractTenantAwareIntegrationTest {
     private static final long ORG_B = 2L;
     private static final long SOME_USER = 42L;
 
+    /** Sin esto la tabla queda en el esquema compartido y {@code TenantTableInventoryIT} la ve sin clasificar. */
+    @AfterEach
+    void dropTestBusiness() throws SQLException {
+        try (Connection su = ownerConnection(); Statement s = su.createStatement()) {
+            s.execute("DROP TABLE IF EXISTS test_business");
+        }
+    }
+
     @TestConfiguration
     static class Fixture {
         @Bean

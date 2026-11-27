@@ -47,6 +47,14 @@ class AutomaticAuditingIT extends AbstractRlsIntegrationTest {
         IdentityContext.clear();
     }
 
+    /** Sin esto la tabla queda en el esquema compartido y {@code TenantTableInventoryIT} la ve sin clasificar. */
+    @AfterEach
+    void dropTestAuditFixture() throws SQLException {
+        try (Connection su = ownerConnection(); Statement s = su.createStatement()) {
+            s.execute("DROP TABLE IF EXISTS test_audit_fixture");
+        }
+    }
+
     @Test
     void records_who_created_and_who_last_modified() {
         IdentityContext.set(USER_A);

@@ -102,6 +102,20 @@ WHERE rolname LIKE 'odontorisas_%';
 
 Si `rolbypassrls` es `true` o `hereda_neon_superuser` es `true` para `odontorisas_app`, **no despliegues**: borra el rol y vuelve a crearlo por SQL.
 
+**Chequeo complementario: qué puede asumir el rol** (ADR-0022; la CI lo comprueba solo contra su propio rol de prueba, no contra Neon). `SUPERUSER` y `BYPASSRLS` no se heredan, pero un rol puede **asumir** con `SET ROLE` otro que los tenga (p. ej. `neon_superuser`) o al dueño de las tablas (`odontorisas_admin`, que lee `memberships` y `professional_credential` de todas las clínicas por su política de solo lectura). Conectado **como `odontorisas_app`** (las consultas miran `session_user`), las dos deben volver **vacías**:
+
+```sql
+-- Roles con SUPERUSER o BYPASSRLS que el rol de sesión es o puede asumir
+SELECT r.rolname FROM pg_roles r
+WHERE (r.rolsuper OR r.rolbypassrls)
+  AND pg_has_role(session_user, r.oid, 'SET');
+
+-- Tablas de public cuyo dueño es el rol de sesión o uno que puede asumir
+SELECT c.relname FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
+WHERE n.nspname = 'public' AND c.relkind IN ('r', 'p')
+  AND pg_has_role(session_user, c.relowner, 'SET');
+```
+
 La app usa `odontorisas_app` (`DB_USERNAME` / `DB_PASSWORD`); Flyway, `odontorisas_admin` (`DB_ADMIN_USERNAME` / `DB_ADMIN_PASSWORD`).
 
 > [!WARNING]

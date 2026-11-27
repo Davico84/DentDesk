@@ -1,6 +1,6 @@
 # ADR-0022: Cobertura de RLS — cada tabla clasificada, `invitations` como excepción conocida
 
-- **Estado:** Aceptado (decisión); se implementa en `update-multi-tenancy-rls-coverage`
+- **Estado:** Implementado (2026-11-27) en `update-multi-tenancy-rls-coverage`
 - **Fecha:** 2026-11-24
 - **Decisores:** David Velarde Alvarado
 - **Relacionado:** [`ADR-0003`](0003-excepcion-rls-metadatos-del-tenant.md) (revalidada aquí) · [`ADR-0019`](0019-proteccion-de-datos-ley-29733.md) (Dentdesk es el *encargado*) · `openspec/specs/multi-tenancy` · `docs/backend.md §8.1` · `docs/testing.md §5`
@@ -57,11 +57,18 @@ Las 14 tablas con RLS son 12 + 2. `flyway_schema_history` se excluye (la crea Fl
 ### D4. El inventario garantiza **clasificación**, no **corrección**
 Que una tabla esté en la lista 1 no prueba que su política sea buena; eso lo siguen probando los `*RlsIT` por capacidad. El inventario asegura que **ninguna tabla escapa a la decisión** y que una excepción no pasa a RLS (o viceversa) sin que alguien edite la lista.
 
+## Implementación (2026-11-27)
+
+- **Dónde vive la lista:** `TenantTableClassification` (código de test del backend, paquete `com.odontorisas.tenancy`): las cinco listas como datos, con motivo; la lista 3 con su ADR y la 5 con los tests que cubren cada función. `TenantTableInventoryIT` la alimenta con el catálogo real; `TenantTableClassificationTest` la hace fallar con instantáneas sintéticas, una violación por regla, sin Docker. `TenantCatalogRoleQueriesIT` prueba las consultas del rol de sesión con roles reales (cadenas de `SET`, membresía solo con `INHERIT`, dueño de las tablas).
+- **El catálogo coincidió con las listas** (recalculadas sobre `origin/dev` con V33: 25 tablas, las dos funciones de D1; V33 solo reescribe una política). Ninguna tabla de la lista 1 ni de la 2 estaba sin `FORCE` ni sin política.
+- **Hallazgo:** tres pruebas de integración (`OrganizationRlsIT`, `AutomaticTenantBindingIT`, `AutomaticAuditingIT`) creaban tablas de prueba en `public` (`test_business`, `test_audit_fixture`) y no las borraban: el inventario las habría visto sin clasificar según el orden de ejecución. Ahora las borran al terminar. Excluirlas por nombre habría abierto un hueco (una tabla `test_*` de una migración escaparía).
+- **Visto fallar** contra una migración local temporal (revertida): una tabla `zz_probe (organization_id)` sin clasificar → `UNCLASSIFIED_TABLE`; `patients` sin `FORCE` → `RLS_NOT_FORCED`; una función `SECURITY DEFINER` sin declarar y sin `search_path` → `UNDECLARED_SECURITY_DEFINER` y `SEARCH_PATH_NOT_FIXED`.
+
 ## Consecuencias
 
 - ✅ Una tabla nueva **no entra sin clasificarse**; una excepción no cambia de estado en silencio.
 - ✅ `invitations` deja de ser un olvido: es una decisión escrita, con su riesgo y su condición de invalidez.
-- ✅ `ADR-0003` revalidada contra producción real.
+- ✅ `ADR-0003` revalidada contra `platform-admin`, leyendo su código (D3); no se verificó en producción.
 - ⚠️ **`invitations` sigue sin barrera de motor.** Documentarlo no lo cierra.
 - ⚠️ La lista puede volverse ritual (agregar la tabla "para que pase"): cada entrada exige motivo y la lista 3 exige ADR.
 - ⚠️ El IT requiere Docker; la lógica de clasificación se prueba siempre, sin Docker.
