@@ -1,6 +1,6 @@
 # ADR-0021: Límites entre módulos — declarados y vigilados, no estrictos
 
-- **Estado:** Aceptado (decisión); se implementa en `update-module-boundaries`
+- **Estado:** Implementado (2026-11-27) en `update-module-boundaries`
 - **Fecha:** 2026-11-24
 - **Decisores:** David Velarde Alvarado
 - **Relacionado:** `openspec/specs/project-foundation` (requirement "Estructura arquitectónica establecida": *"`modules/core` no depende de otros módulos"*) · [`docs/testing.md §5`](../testing.md) (una regla que nunca ha fallado no sabes si funciona)
