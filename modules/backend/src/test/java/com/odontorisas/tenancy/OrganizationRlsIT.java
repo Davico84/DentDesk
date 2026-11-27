@@ -1,6 +1,7 @@
 package com.odontorisas.tenancy;
 
 import com.odontorisas.AbstractRlsIntegrationTest;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -64,6 +65,14 @@ class OrganizationRlsIT extends AbstractRlsIntegrationTest {
                 }
             }
             return labels;
+        }
+    }
+
+    /** Sin esto la tabla queda en el esquema compartido y {@code TenantTableInventoryIT} la ve sin clasificar. */
+    @AfterEach
+    void dropTestBusiness() throws SQLException {
+        try (Connection su = ownerConnection(); Statement s = su.createStatement()) {
+            s.execute("DROP TABLE IF EXISTS test_business");
         }
     }
 
